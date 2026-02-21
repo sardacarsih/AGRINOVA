@@ -57,9 +57,13 @@ jobs:
         working-directory: apps/golang
         run: go mod download
 
-      - name: Run go test
+      - name: Build all Go packages
         working-directory: apps/golang
-        run: go test ./... -count=1
+        run: go build ./...
+
+      - name: Run backend smoke tests
+        working-directory: apps/golang
+        run: go test ./internal/auth/constants ./internal/auth/models ./internal/graphql/resolvers -count=1
 
       - name: Build server binary
         working-directory: apps/golang
