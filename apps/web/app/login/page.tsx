@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -11,7 +12,11 @@ import { useAuth } from '@/hooks/use-auth';
 import { LoginFormData } from '@/types/auth';
 import { PermissionManager } from '@/lib/auth/permissions';
 import cookieAuthService from '@/lib/auth/cookie-auth-service';
-import SplashCursor from '@/components/animations/splash-cursor';
+
+const SplashCursor = dynamic(() => import('@/components/animations/splash-cursor'), {
+  ssr: false,
+  loading: () => null,
+});
 
 // TypeScript interfaces for better type safety
 interface FeatureItem {
@@ -78,6 +83,12 @@ function LoginPageContent() {
   const { login, isAuthenticated, user } = useAuth();
   const [loading, setLoading] = React.useState(false);
   const shouldReduceMotion = useReducedMotion();
+  const [isMobileViewport, setIsMobileViewport] = React.useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    return window.matchMedia('(max-width: 767px)').matches;
+  });
 
   const redirectPath = searchParams?.get('redirect') || null;
   const usernameParam = searchParams?.get('username') || null;
@@ -101,6 +112,18 @@ function LoginPageContent() {
       router.push(safePath);
     }
   }, [isAuthenticated, user, router]);
+
+  React.useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 767px)');
+    const syncViewportMode = () => setIsMobileViewport(mediaQuery.matches);
+
+    syncViewportMode();
+    mediaQuery.addEventListener('change', syncViewportMode);
+
+    return () => {
+      mediaQuery.removeEventListener('change', syncViewportMode);
+    };
+  }, []);
 
   const isExpectedAuthFailure = (message: string): boolean => {
     const normalized = message.toLowerCase();
@@ -284,12 +307,101 @@ function LoginPageContent() {
     {
       icon: Users,
       title: "Multi-Role Access",
-      description: "Mandor, Asisten, Satpam, Manager - semua terintegrasi",
+      description: "Satpam, Mandor, Asisten, Manager, Area Manager, Admin Perusahaan, Timbangan, dan Grading - semua terintegrasi",
       color: "text-orange-600 dark:text-orange-400",
       bgColor: "bg-orange-50 dark:bg-orange-900/20",
       borderColor: "border-orange-200 dark:border-orange-800"
     }
   ];
+
+  if (isMobileViewport) {
+    return (
+      <div
+        data-page="login-mobile"
+        className="min-h-[100dvh] bg-gradient-to-b from-slate-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950"
+      >
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 z-50 bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+        >
+          Skip to main content
+        </a>
+
+        <motion.main
+          variants={containerVariants}
+          initial="initial"
+          animate="animate"
+          id="main-content"
+          className="relative z-10 min-h-[100dvh] px-4 py-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]"
+          aria-label="Login page mobile"
+        >
+          <div className="mx-auto w-full max-w-md">
+            <motion.header variants={itemVariants} className="text-center mb-4">
+              <div className="inline-flex items-center justify-center gap-2 mb-3">
+                <div
+                  className="flex-shrink-0 p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg"
+                  role="img"
+                  aria-label="AgrInova logo"
+                >
+                  <Sprout className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                </div>
+                <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">
+                  Agr<span className="text-emerald-600 dark:text-emerald-400">I</span>nova
+                </h1>
+              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Digital Plantation Intelligence
+              </p>
+            </motion.header>
+
+            <motion.section
+              variants={itemVariants}
+              role="form"
+              aria-labelledby="login-heading-mobile"
+              className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500 focus-within:ring-offset-2"
+            >
+              <header className="px-4 pt-5 pb-4 text-center border-b border-slate-200 dark:border-slate-700">
+                <h2
+                  id="login-heading-mobile"
+                  className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-1"
+                >
+                  Masuk ke AgrInova
+                </h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  Akses platform manajemen kebun sawit Anda
+                </p>
+              </header>
+
+              <div className="p-4 pt-4">
+                <LoginForm
+                  onSubmit={handleLogin}
+                  onQRLogin={handleQRLogin}
+                  loading={loading}
+                  onForgotPassword={handleForgotPassword}
+                  defaultUsername={usernameParam || undefined}
+                />
+              </div>
+
+              <footer className="px-4 pb-5 pt-1 flex flex-col items-center gap-2">
+                <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                  <Shield className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
+                  <span className="text-center">Dilindungi dengan enkripsi end to end</span>
+                </div>
+                <a
+                  href="/privacy-policy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                >
+                  Kebijakan Privasi
+                </a>
+              </footer>
+            </motion.section>
+          </div>
+        </motion.main>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -507,7 +619,7 @@ function LoginPageContent() {
                   </div>
 
                   <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-                    Akses offline-first untuk Mandor, Asisten, Satpam, dan Manager
+                    Akses offline-first untuk Mandor, Asisten, Satpam, Manager, Timbangan, dan Grading
                   </p>
 
                   <div className="grid grid-cols-1 gap-3 mb-4">
