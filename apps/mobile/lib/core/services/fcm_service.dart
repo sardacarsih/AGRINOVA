@@ -46,7 +46,7 @@ class FCMService {
       FlutterLocalNotificationsPlugin();
   final Logger _logger = Logger();
   static final StreamController<HarvestNotificationEvent>
-      _harvestNotificationController =
+  _harvestNotificationController =
       StreamController<HarvestNotificationEvent>.broadcast();
 
   static Stream<HarvestNotificationEvent> get harvestNotificationStream =>
@@ -100,13 +100,15 @@ class FCMService {
       await _notificationStorage!.initialize();
     } catch (e) {
       _logger.w(
-          'Failed to get NotificationStorageService from ServiceLocator: $e');
+        'Failed to get NotificationStorageService from ServiceLocator: $e',
+      );
       try {
         _notificationStorage = NotificationStorageService();
         await _notificationStorage!.initialize();
       } catch (storageError) {
         _logger.w(
-            'Failed to initialize NotificationStorageService: $storageError');
+          'Failed to initialize NotificationStorageService: $storageError',
+        );
       }
     }
 
@@ -160,8 +162,9 @@ class FCMService {
 
   /// Initialize local notifications plugin
   Future<void> _initializeLocalNotifications() async {
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -169,7 +172,10 @@ class FCMService {
     );
 
     await _localNotifications.initialize(
-      const InitializationSettings(android: androidSettings, iOS: iosSettings),
+      settings: const InitializationSettings(
+        android: androidSettings,
+        iOS: iosSettings,
+      ),
       onDidReceiveNotificationResponse: _handleNotificationTap,
     );
 
@@ -192,7 +198,8 @@ class FCMService {
 
     await _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
+          AndroidFlutterLocalNotificationsPlugin
+        >()
         ?.createNotificationChannel(channel);
   }
 
@@ -204,12 +211,13 @@ class FCMService {
     }
 
     // Foreground messages
-    _onMessageSubscription =
-        FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+    _onMessageSubscription = FirebaseMessaging.onMessage.listen(
+      _handleForegroundMessage,
+    );
 
     // Background/terminated -> opened app
-    _onMessageOpenedAppSubscription =
-        FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+    _onMessageOpenedAppSubscription = FirebaseMessaging.onMessageOpenedApp
+        .listen(_handleMessageOpenedApp);
 
     // Check for initial message (app was terminated)
     _checkInitialMessage();
@@ -230,7 +238,8 @@ class FCMService {
     final data = message.data;
     final notification = message.notification;
     final title = notification?.title ?? data['title'] as String?;
-    final body = notification?.body ??
+    final body =
+        notification?.body ??
         data['body'] as String? ??
         data['message'] as String?;
 
@@ -289,10 +298,10 @@ class FCMService {
     String? payload,
   }) async {
     await _localNotifications.show(
-      id,
-      title,
-      body,
-      const NotificationDetails(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
           'harvest_notifications',
           'Harvest Notifications',
@@ -410,11 +419,7 @@ class FCMService {
 
     if (!_harvestNotificationController.isClosed) {
       _harvestNotificationController.add(
-        HarvestNotificationEvent(
-          panenId: panenId,
-          action: action,
-          type: type,
-        ),
+        HarvestNotificationEvent(panenId: panenId, action: action, type: type),
       );
     }
 
@@ -490,7 +495,8 @@ class FCMService {
 
     // Clean stale cache entries.
     _recentNotificationKeys.removeWhere(
-        (_, ts) => now.difference(ts) > const Duration(minutes: 5));
+      (_, ts) => now.difference(ts) > const Duration(minutes: 5),
+    );
 
     final panenId = _extractPanenId(data)?.trim().toLowerCase() ?? '';
     final action = (data['action'] as String? ?? '').trim().toUpperCase();
@@ -498,13 +504,7 @@ class FCMService {
     final safeTitle = (title ?? '').trim();
     final safeBody = (body ?? '').trim();
 
-    final dedupeKey = [
-      type,
-      action,
-      panenId,
-      safeTitle,
-      safeBody,
-    ].join('|');
+    final dedupeKey = [type, action, panenId, safeTitle, safeBody].join('|');
 
     final previous = _recentNotificationKeys[dedupeKey];
     if (previous != null &&
@@ -644,9 +644,7 @@ class FCMService {
         return decoded;
       }
       if (decoded is Map) {
-        return decoded.map(
-          (key, value) => MapEntry(key.toString(), value),
-        );
+        return decoded.map((key, value) => MapEntry(key.toString(), value));
       }
     } catch (_) {
       // Handle backward compatibility with legacy payload = panen_id only.
@@ -685,8 +683,9 @@ class FCMService {
         final service = ServiceLocator.get<GraphQLClientService>();
         _graphqlClient = service.client;
       } catch (e) {
-        _logger
-            .w('GraphQL client still not available for FCM token registration');
+        _logger.w(
+          'GraphQL client still not available for FCM token registration',
+        );
         return;
       }
     }
@@ -736,7 +735,9 @@ class FCMService {
           try {
             final service = ServiceLocator.get<GraphQLClientService>();
             _graphqlClient = service.client;
-          } catch (e) {/* ignore */}
+          } catch (e) {
+            /* ignore */
+          }
         }
 
         if (_graphqlClient != null) {

@@ -4,7 +4,6 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:local_auth/error_codes.dart' as auth_error;
 import 'package:local_auth_android/local_auth_android.dart';
 // import 'package:local_auth_ios/local_auth_ios.dart'; // Removed for now
 import 'package:logger/logger.dart';
@@ -65,9 +64,8 @@ class BiometricAuthService {
   static const int _maxFailureAttempts = 5;
   static const Duration _lockoutDuration = Duration(minutes: 15);
 
-  BiometricAuthService({
-    required LocalAuthentication localAuth,
-  }) : _localAuth = localAuth;
+  BiometricAuthService({required LocalAuthentication localAuth})
+    : _localAuth = localAuth;
 
   /// Check comprehensive biometric capabilities of the device
   Future<BiometricCapabilities> getBiometricCapabilities() async {
@@ -86,11 +84,13 @@ class BiometricAuthService {
         strongestBiometric: _getStrongestBiometric(availableBiometrics),
       );
 
-      _logger.i('Biometric capabilities: '
-          'Supported: ${capabilities.isDeviceSupported}, '
-          'CanCheck: ${capabilities.canCheckBiometrics}, '
-          'Enrolled: ${capabilities.isEnrolled}, '
-          'Types: ${capabilities.availableBiometrics}');
+      _logger.i(
+        'Biometric capabilities: '
+        'Supported: ${capabilities.isDeviceSupported}, '
+        'CanCheck: ${capabilities.canCheckBiometrics}, '
+        'Enrolled: ${capabilities.isEnrolled}, '
+        'Types: ${capabilities.availableBiometrics}',
+      );
 
       return capabilities;
     } catch (e) {
@@ -155,11 +155,9 @@ class BiometricAuthService {
       final result = await _localAuth.authenticate(
         localizedReason: authReason,
         authMessages: _getAuthMessages(),
-        options: AuthenticationOptions(
-          biometricOnly: biometricOnly,
-          stickyAuth: true,
-          sensitiveTransaction: true,
-        ),
+        biometricOnly: biometricOnly,
+        sensitiveTransaction: true,
+        persistAcrossBackgrounding: true,
       );
 
       if (result) {
@@ -171,10 +169,16 @@ class BiometricAuthService {
         _logger.w('Biometric authentication failed');
         return BiometricAuthResult.failed;
       }
+    } on LocalAuthException catch (e) {
+      _logger.e(
+        'Biometric authentication local auth error: ${e.code.name} - ${e.description}',
+      );
+      return _handleLocalAuthException(e);
     } on PlatformException catch (e) {
       _logger.e(
-          'Biometric authentication platform error: ${e.code} - ${e.message}');
-      return _handlePlatformException(e);
+        'Biometric authentication platform error: ${e.code} - ${e.message}',
+      );
+      return _handleLegacyPlatformException(e);
     } catch (e) {
       _logger.e('Biometric authentication error: $e');
       await _handleFailedAuth();
@@ -305,7 +309,9 @@ class BiometricAuthService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_biometricFailureCountKey);
       await prefs.setString(
-          _lastBiometricAuthKey, DateTime.now().toIso8601String());
+        _lastBiometricAuthKey,
+        DateTime.now().toIso8601String(),
+      );
     } catch (e) {
       _logger.e('Error handling successful auth: $e');
     }
@@ -318,7 +324,9 @@ class BiometricAuthService {
       final currentCount = prefs.getInt(_biometricFailureCountKey) ?? 0;
       await prefs.setInt(_biometricFailureCountKey, currentCount + 1);
       await prefs.setString(
-          _lastBiometricAuthKey, DateTime.now().toIso8601String());
+        _lastBiometricAuthKey,
+        DateTime.now().toIso8601String(),
+      );
 
       if (currentCount + 1 >= _maxFailureAttempts) {
         _logger.w('Biometric authentication locked due to too many failures');
@@ -335,10 +343,12 @@ class BiometricAuthService {
   List<BiometricType> _mapBiometricTypes(List<BiometricType> types) {
     // If we have specific types (fingerprint, face, iris), prioritize them
     final specificTypes = types
-        .where((type) =>
-            type == BiometricType.fingerprint ||
-            type == BiometricType.face ||
-            type == BiometricType.iris)
+        .where(
+          (type) =>
+              type == BiometricType.fingerprint ||
+              type == BiometricType.face ||
+              type == BiometricType.iris,
+        )
         .toList();
 
     // If we have specific types, return them
@@ -371,8 +381,9 @@ class BiometricAuthService {
     switch (preferredType) {
       case BiometricType.strong:
         return capabilities.hasStrongBiometric ||
-            capabilities.availableBiometrics
-                .contains(BiometricType.fingerprint) ||
+            capabilities.availableBiometrics.contains(
+              BiometricType.fingerprint,
+            ) ||
             capabilities.availableBiometrics.contains(BiometricType.face) ||
             capabilities.availableBiometrics.contains(BiometricType.iris);
       case BiometricType.weak:
@@ -399,35 +410,56 @@ class BiometricAuthService {
   List<AuthMessages> _getAuthMessages() {
     return [
       AndroidAuthMessages(
-        biometricHint: 'Sentuh sensor sidik jari',
-        biometricNotRecognized: 'Sidik jari tidak dikenali, coba lagi',
-        biometricRequiredTitle: 'Verifikasi Identitas',
-        biometricSuccess: 'Autentikasi berhasil',
+        signInHint: 'Sentuh sensor sidik jari',
         cancelButton: 'Batal',
-        deviceCredentialsRequiredTitle: 'Gunakan PIN / Pola / Sandi',
-        deviceCredentialsSetupDescription: 'Silakan atur kredensial perangkat',
-        goToSettingsButton: 'Ke Pengaturan',
-        goToSettingsDescription:
-            'Autentikasi biometrik tidak diatur. Pergi ke pengaturan.',
         signInTitle: 'Masuk menggunakan Biometrik atau PIN',
       ),
       // IOSAuthMessages temporarily removed until local_auth_ios is available
     ];
   }
 
-  /// Handle platform-specific exceptions
-  BiometricAuthResult _handlePlatformException(PlatformException e) {
+  /// Handle local_auth 3.x exception codes.
+  BiometricAuthResult _handleLocalAuthException(LocalAuthException e) {
     switch (e.code) {
-      case auth_error.notAvailable:
+      case LocalAuthExceptionCode.noBiometricHardware:
+      case LocalAuthExceptionCode.biometricHardwareTemporarilyUnavailable:
         return BiometricAuthResult.notAvailable;
-      case auth_error.notEnrolled:
+      case LocalAuthExceptionCode.noBiometricsEnrolled:
+      case LocalAuthExceptionCode.noCredentialsSet:
         return BiometricAuthResult.notEnrolled;
-      case auth_error.lockedOut:
+      case LocalAuthExceptionCode.temporaryLockout:
         return BiometricAuthResult.temporarilyLocked;
-      case auth_error.permanentlyLockedOut:
+      case LocalAuthExceptionCode.biometricLockout:
+        return BiometricAuthResult.permanentlyLocked;
+      case LocalAuthExceptionCode.userCanceled:
+      case LocalAuthExceptionCode.userRequestedFallback:
+      case LocalAuthExceptionCode.systemCanceled:
+      case LocalAuthExceptionCode.timeout:
+        return BiometricAuthResult.cancelled;
+      default:
+        return BiometricAuthResult.failed;
+    }
+  }
+
+  /// Keep legacy PlatformException mapping for backward compatibility.
+  BiometricAuthResult _handleLegacyPlatformException(PlatformException e) {
+    switch (e.code) {
+      case 'NotAvailable':
+      case 'not_available':
+        return BiometricAuthResult.notAvailable;
+      case 'NotEnrolled':
+      case 'not_enrolled':
+        return BiometricAuthResult.notEnrolled;
+      case 'LockedOut':
+      case 'locked_out':
+        return BiometricAuthResult.temporarilyLocked;
+      case 'PermanentlyLockedOut':
+      case 'permanently_locked_out':
         return BiometricAuthResult.permanentlyLocked;
       case 'UserCancel':
       case 'user_cancel':
+      case 'SystemCancel':
+      case 'system_cancel':
         return BiometricAuthResult.cancelled;
       default:
         return BiometricAuthResult.failed;
@@ -468,8 +500,9 @@ class BiometricAuthService {
         'isEnabled': await isBiometricEnabled(),
         'isSupported': capabilities.isDeviceSupported,
         'isEnrolled': capabilities.isEnrolled,
-        'availableTypes':
-            capabilities.availableBiometrics.map((e) => e.name).toList(),
+        'availableTypes': capabilities.availableBiometrics
+            .map((e) => e.name)
+            .toList(),
         'strongestType': capabilities.strongestBiometric.name,
         'preferredType': (await getPreferredBiometricType()).name,
         'failureCount': prefs.getInt(_biometricFailureCountKey) ?? 0,
