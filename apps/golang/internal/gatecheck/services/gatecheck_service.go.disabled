@@ -1,0 +1,208 @@
+package services
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	"agrinovagraphql/server/internal/gatecheck/models"
+	gateCheckRepos "agrinovagraphql/server/internal/gatecheck/repositories"
+	"agrinovagraphql/server/internal/graphql/generated"
+)
+
+type GateCheckService struct {
+	db   *gorm.DB
+	repo *gateCheckRepos.GateCheckRepository
+}
+
+func NewGateCheckService(db *gorm.DB) *GateCheckService {
+	return &GateCheckService{
+		db:   db,
+		repo: gateCheckRepos.NewGateCheckRepository(db),
+	}
+}
+
+// CreateGateCheck creates a new gate check record
+func (s *GateCheckService) CreateGateCheck(ctx context.Context, input generated.CreateGateCheckInput) (*models.GateCheckRecord, error) {
+	// Convert GateIntent from GraphQL to model type
+	var intent models.GateIntent
+	switch input.Intent {
+	case generated.GateIntentEntry:
+		intent = models.GateEntry
+	case generated.GateIntentExit:
+		intent = models.GateExit
+	default:
+		return nil, fmt.Errorf("invalid gate intent: %s", input.Intent)
+	}
+
+	// Create gate check record
+	record := &models.GateCheckRecord{
+		ID:          uuid.New().String(),
+		SatpamID:    input.SatpamID,
+		NomorPolisi: input.NomorPolisi,
+		NamaSupir:   input.NamaSupir,
+		Intent:      intent,
+		Status:      models.GatePending,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	// Set optional fields
+
+	if input.Muatan != nil {
+		record.Muatan = input.Muatan
+	}
+	if input.NomorDo != nil {
+		record.NomorDo = input.NomorDo
+	}
+
+	// Validate business rules
+	if err := s.repo.ValidateGateCheck(ctx, record); err != nil {
+		return nil, fmt.Errorf("validation failed: %w", err)
+	}
+
+	// Create record in database
+	if err := s.repo.CreateGateCheck(ctx, record); err != nil {
+		return nil, fmt.Errorf("failed to create gate check record: %w", err)
+	}
+
+	// Fetch created record with associations
+	createdRecord, err := s.repo.GetGateCheckByID(ctx, record.ID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch created gate check record: %w", err)
+	}
+
+	return createdRecord, nil
+}
+
+// GetGateCheckRecords retrieves all gate check records
+func (s *GateCheckService) GetGateCheckRecords(ctx context.Context) ([]*models.GateCheckRecord, error) {
+	return s.repo.GetGateCheckRecords(ctx)
+}
+
+// GetGateCheckRecord retrieves a specific gate check record by ID
+func (s *GateCheckService) GetGateCheckRecord(ctx context.Context, id string) (*models.GateCheckRecord, error) {
+	if id == "" {
+		return nil, fmt.Errorf("ID gate check record tidak boleh kosong")
+	}
+
+	record, err := s.repo.GetGateCheckByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("record gate check tidak ditemukan")
+		}
+		return nil, fmt.Errorf("failed to fetch gate check record: %w", err)
+	}
+
+	return record, nil
+}
+
+// GetGateCheckRecordsByStatus retrieves gate check records by status
+func (s *GateCheckService) GetGateCheckRecordsByStatus(ctx context.Context, status generated.GateStatus) ([]*models.GateCheckRecord, error) {
+	var modelStatus models.GateStatus
+	switch status {
+	case generated.GateStatusPending:
+		modelStatus = models.GatePending
+	case generated.GateStatusApproved:
+		modelStatus = models.GateApproved
+	case generated.GateStatusCompleted:
+		modelStatus = models.GateCompleted
+	default:
+		return nil, fmt.Errorf("invalid gate status: %s", status)
+	}
+
+	return s.repo.GetGateCheckRecordsByStatus(ctx, modelStatus)
+}
+
+// UpdateGateCheck updates an existing gate check record
+func (s *GateCheckService) UpdateGateCheck(ctx context.Context, input generated.UpdateGateCheckInput) (*models.GateCheckRecord, error) {
+	// Build updates map
+	updates := map[string]interface{}{
+		"updated_at": time.Now(),
+	}
+
+	if input.NomorPolisi != nil {
+		updates["nomor_polisi"] = *input.NomorPolisi
+	}
+	if input.NamaSupir != nil {
+		updates["nama_supir"] = *input.NamaSupir
+	}
+
+	if input.Muatan != nil {
+		updates["muatan"] = *input.Muatan
+	}
+	if input.NomorDo != nil {
+		updates["nomor_do"] = *input.NomorDo
+	}
+
+	// Update record
+	updatedRecord, err := s.repo.UpdateGateCheck(ctx, input.ID, updates)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update gate check record: %w", err)
+	}
+
+	return updatedRecord, nil
+}
+
+// CompleteGateCheck completes a gate check record
+func (s *GateCheckService) CompleteGateCheck(ctx context.Context, id string) (*models.GateCheckRecord, error) {
+	// Complete the record
+	completedRecord, err := s.repo.CompleteGateCheck(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to complete gate check record: %w", err)
+	}
+
+	return completedRecord, nil
+}
+
+// DeleteGateCheck deletes a gate check record (soft delete)
+func (s *GateCheckService) DeleteGateCheck(ctx context.Context, id string) (bool, error) {
+	// Delete the record
+	if err := s.repo.DeleteGateCheck(ctx, id); err != nil {
+		return false, fmt.Errorf("failed to delete gate check record: %w", err)
+	}
+
+	return true, nil
+}
+
+// GetQRTokens retrieves QR tokens based on query filters
+func (s *GateCheckService) GetQRTokens(ctx context.Context, input *generated.QRTokenQuery) ([]*models.QRToken, error) {
+	if input == nil {
+		input = &generated.QRTokenQuery{}
+	}
+
+	// Convert GraphQL input to repository query model
+	query := models.QRTokenQuery{
+		DeviceID: input.DeviceID,
+	}
+
+	// Limits
+	if input.Limit != nil {
+		query.Limit = int(*input.Limit)
+	} else {
+		query.Limit = 50 // Default
+	}
+
+	// Expired validation
+	if input.IncludeExpired != nil {
+		query.IncludeExpired = *input.IncludeExpired
+	} else {
+		query.IncludeExpired = false
+	}
+
+	// Convert enums
+	if input.Status != nil {
+		status := models.QRTokenStatus(*input.Status)
+		query.Status = &status
+	}
+
+	if input.Intent != nil {
+		intent := models.GateIntent(*input.Intent)
+		query.Intent = &intent
+	}
+
+	return s.repo.GetQRTokens(ctx, query)
+}

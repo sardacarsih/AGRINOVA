@@ -1,0 +1,58 @@
+fragment DivisionFields on Division {
+  id
+  name
+  code
+  estateId
+  createdAt
+  updatedAt
+}
+
+fragment DivisionWithRelations on Division {
+  ...DivisionFields
+  estate {
+    id
+    name
+    # code removed (not in schema)
+    company {
+      id
+      name
+      # code removed (not in schema)
+    }
+  }
+}
+
+query GetDivisions {
+  divisions {
+    ...DivisionWithRelations
+  }
+}
+
+query GetDivision($id: ID!) {
+  division(id: $id) {
+    ...DivisionWithRelations
+  }
+}
+
+# query GetDivisionsByEstate($estateId: ID!) {
+#   estate(id: $estateId) {
+#     divisions {
+#       ...DivisionWithRelations
+#     }
+#   }
+# }
+
+mutation CreateDivision($input: CreateDivisionInput!) {
+  createDivision(input: $input) {
+    ...DivisionWithRelations
+  }
+}
+
+mutation UpdateDivision($input: UpdateDivisionInput!) {
+  updateDivision(input: $input) {
+    ...DivisionWithRelations
+  }
+}
+
+mutation DeleteDivision($id: ID!) {
+  deleteDivision(id: $id)
+}

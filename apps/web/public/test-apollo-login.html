@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Apollo GraphQL Login</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .log { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; overflow-x: auto; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; margin: 10px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Apollo GraphQL Login Test</h1>
+    <p>This test will help debug the frontend Apollo Client GraphQL login issue.</p>
+    
+    <button onclick="testDirectFetch()">Test Direct Fetch (Control)</button>
+    <button onclick="testApolloLogin()">Test Apollo Client Login</button>
+    <button onclick="clearLogs()">Clear Logs</button>
+    
+    <div id="logs"></div>
+
+    <!-- Apollo Client Dependencies -->
+    <script src="https://unpkg.com/@apollo/client@3/dist/apollo-client.umd.js"></script>
+    
+    <script>
+        const { ApolloClient, InMemoryCache, createHttpLink, from, gql } = window.Apollo;
+        
+        // Create Apollo Client exactly like the frontend does
+        const httpLink = createHttpLink({
+            uri: 'http://localhost:8080/graphql',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            fetchOptions: {
+                credentials: 'include',
+            },
+        });
+
+        const apolloClient = new ApolloClient({
+            link: httpLink,
+            cache: new InMemoryCache(),
+            defaultOptions: {
+                query: {
+                    errorPolicy: 'all',
+                },
+                mutate: {
+                    errorPolicy: 'all',
+                },
+            },
+        });
+
+        const WEB_LOGIN_MUTATION = gql`
+            mutation WebLogin($input: WebLoginInput!) {
+                webLogin(input: $input) {
+                    success
+                    user {
+                        id
+                        username
+                        nama
+                        email
+                        role
+                        companyId
+                        company {
+                            id
+                            nama
+                            status
+                        }
+                    }
+                    companies {
+                        id
+                        nama
+                        status
+                    }
+                    sessionId
+                    message
+                }
+            }
+        `;
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            document.getElementById('logs').appendChild(div);
+            div.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+        }
+
+        async function testDirectFetch() {
+            log('🧪 Testing direct fetch (control test)...', 'info');
+            
+            const query = `
+                mutation WebLogin($input: WebLoginInput!) {
+                    webLogin(input: $input) {
+                        success
+                        user {
+                            id
+                            username
+                            nama
+                            email
+                            role
+                            companyId
+                            company {
+                                id
+                                nama
+                                status
+                            }
+                        }
+                        companies {
+                            id
+                            nama
+                            status
+                        }
+                        sessionId
+                        message
+                    }
+                }
+            `;
+            
+            const variables = {
+                input: {
+                    identifier: 'manager',
+                    password: 'demo123'
+                }
+            };
+            
+            try {
+                const response = await fetch('http://localhost:8080/graphql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ query, variables })
+                });
+                
+                log(`📨 Direct fetch response status: ${response.status} ${response.statusText}`, 'info');
+                
+                const data = await response.json();
+                log('📨 Direct fetch response data:', 'info');
+                log('<pre>' + JSON.stringify(data, null, 2) + '</pre>', 'info');
+                
+                if (data && data.data && data.data.webLogin && data.data.webLogin.success) {
+                    log('✅ Direct fetch works! The GraphQL server is responding correctly.', 'success');
+                } else {
+                    log('❌ Direct fetch failed. Server issue confirmed.', 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Direct fetch error: ${error.message}`, 'error');
+                log(`   Stack: ${error.stack}`, 'error');
+            }
+        }
+
+        async function testApolloLogin() {
+            log('🧪 Testing Apollo Client login (main test)...', 'info');
+            
+            const webLoginInput = {
+                identifier: 'manager',
+                password: 'demo123'
+            };
+            
+            try {
+                log('📤 Sending Apollo mutation...', 'info');
+                log(`   Variables: ${JSON.stringify({ input: webLoginInput }, null, 2)}`, 'info');
+                
+                const response = await apolloClient.mutate({
+                    mutation: WEB_LOGIN_MUTATION,
+                    variables: { input: webLoginInput },
+                    errorPolicy: 'all',
+                    fetchPolicy: 'no-cache',
+                });
+                
+                log('📨 Apollo response received:', 'info');
+                log(`   Loading: ${response.loading}`, 'info');
+                log(`   Called: ${response.called}`, 'info');
+                log(`   Network Status: ${response.networkStatus}`, 'info');
+                log(`   Data exists: ${!!response.data}`, 'info');
+                log(`   Errors exist: ${!!(response.errors && response.errors.length > 0)}`, 'info');
+                
+                if (response.errors && response.errors.length > 0) {
+                    log('🔍 Apollo GraphQL Errors:', 'error');
+                    response.errors.forEach((error, index) => {
+                        log(`   Error ${index + 1}: ${error.message}`, 'error');
+                        log(`   Locations: ${JSON.stringify(error.locations)}`, 'error');
+                        log(`   Path: ${JSON.stringify(error.path)}`, 'error');
+                        log(`   Extensions: ${JSON.stringify(error.extensions)}`, 'error');
+                    });
+                }
+                
+                if (response.data) {
+                    log('📨 Apollo response data:', 'info');
+                    log('<pre>' + JSON.stringify(response.data, null, 2) + '</pre>', 'info');
+                    
+                    const webLogin = response.data.webLogin;
+                    if (webLogin) {
+                        log('🔍 WebLogin data found:', 'info');
+                        log(`   Success: ${webLogin.success}`, 'info');
+                        log(`   User: ${webLogin.user ? 'Present' : 'Missing'}`, 'info');
+                        log(`   Companies: ${webLogin.companies ? 'Present' : 'Missing'}`, 'info');
+                        log(`   Session ID: ${webLogin.sessionId || 'Missing'}`, 'info');
+                        log(`   Message: ${webLogin.message || 'Missing'}`, 'info');
+                        
+                        if (webLogin.success) {
+                            log('✅ Apollo Client login works! The issue must be in the cookie-client.ts processing.', 'success');
+                        } else {
+                            log('❌ Apollo returned success=false. Check credentials or server logic.', 'error');
+                        }
+                    } else {
+                        log('❌ No webLogin data in Apollo response. Check GraphQL query/mutation.', 'error');
+                    }
+                } else {
+                    log('❌ No data in Apollo response. This indicates the core issue.', 'error');
+                    log('   Possible causes:', 'error');
+                    log('   1. Network error preventing data transmission', 'error');
+                    log('   2. CORS issue (but direct fetch worked, so unlikely)', 'error');
+                    log('   3. Apollo Client configuration problem', 'error');
+                    log('   4. GraphQL parsing/validation error', 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Apollo login error: ${error.message}`, 'error');
+                log(`   Stack: ${error.stack}`, 'error');
+                
+                if (error.networkError) {
+                    log('🌐 Network Error Details:', 'error');
+                    log(`   Status: ${error.networkError.statusCode}`, 'error');
+                    log(`   Message: ${error.networkError.message}`, 'error');
+                    if (error.networkError.result) {
+                        log(`   Result: ${JSON.stringify(error.networkError.result)}`, 'error');
+                    }
+                }
+                
+                if (error.graphQLErrors && error.graphQLErrors.length > 0) {
+                    log('🔍 GraphQL Errors in catch:', 'error');
+                    error.graphQLErrors.forEach((err, index) => {
+                        log(`   Error ${index + 1}: ${err.message}`, 'error');
+                    });
+                }
+            }
+        }
+
+        // Auto-run both tests on page load for convenience
+        window.addEventListener('load', () => {
+            log('🚀 Page loaded. Ready to test!', 'info');
+            log('Click the buttons above to run tests.', 'info');
+        });
+    </script>
+</body>
+</html>

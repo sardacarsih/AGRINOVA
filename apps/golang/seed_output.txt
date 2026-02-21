@@ -1,0 +1,73 @@
+2025/12/11 00:51:30 Agrinova Harvest Sample Data Seeder
+2025/12/11 00:51:30 ====================================
+2025/12/11 00:51:30 Connecting to database: localhost
+2025/12/11 00:51:30 Database connection established successfully
+2025/12/11 00:51:30 Using Divisi A ID: 78901234-f012-3456-7890-bcdef0123456
+2025/12/11 00:51:30 Using Company ID: 01234567-89ab-cdef-0123-456789abcdef
+2025/12/11 00:51:30 
+Seeding 5 employees...
+
+2025/12/11 00:51:30 Warning: error checking employee KRY001: ERROR: relasi ┬½ employees ┬╗ tidak ada (SQLSTATE 42P01)
+2025/12/11 00:51:30 [31;1mE:/agrinova/apps/golang/cmd/seed_harvest_sample/main.go:107 [35;1mERROR: relasi ┬½ employees ┬╗ tidak ada (SQLSTATE 42P01)
+[0m[33m[2.179ms] [34;1m[rows:0][0m SELECT * FROM "employees" WHERE nik = 'KRY001' ORDER BY "employees"."id" LIMIT 1
+2025/12/11 00:51:30 Warning: error checking employee KRY002: ERROR: relasi ┬½ employees ┬╗ tidak ada (SQLSTATE 42P01)
+
+2025/12/11 00:51:30 [31;1mE:/agrinova/apps/golang/cmd/seed_harvest_sample/main.go:107 [35;1mERROR: relasi ┬½ employees ┬╗ tidak ada (SQLSTATE 42P01)
+[0m[33m[0.000ms] [34;1m[rows:0][0m SELECT * FROM "employees" WHERE nik = 'KRY002' ORDER BY "employees"."id" LIMIT 1
+2025/12/11 00:51:30 Warning: error checking employee KRY003: ERROR: relasi ┬½ employees ┬╗ tidak ada (SQLSTATE 42P01)
+
+2025/12/11 00:51:30 [31;1mE:/agrinova/apps/golang/cmd/seed_harvest_sample/main.go:107 [35;1mERROR: relasi ┬½ employees ┬╗ tidak ada (SQLSTATE 42P01)
+[0m[33m[0.000ms] [34;1m[rows:0][0m SELECT * FROM "employees" WHERE nik = 'KRY003' ORDER BY "employees"."id" LIMIT 1
+
+2025/12/11 00:51:30 [31;1mE:/agrinova/apps/golang/cmd/seed_harvest_sample/main.go:107 [35;1mERROR: relasi ┬½ employees ┬╗ tidak ada (SQLSTATE 42P01)
+[0m[33m[0.000ms] [34;1m[rows:0][0m SELECT * FROM "employees" WHERE nik = 'KRY004' ORDER BY "employees"."id" LIMIT 1
+2025/12/11 00:51:30 Warning: error checking employee KRY004: ERROR: relasi ┬½ employees ┬╗ tidak ada (SQLSTATE 42P01)
+
+2025/12/11 00:51:30 [31;1mE:/agrinova/apps/golang/cmd/seed_harvest_sample/main.go:107 [35;1mERROR: relasi ┬½ employees ┬╗ tidak ada (SQLSTATE 42P01)
+[0m[33m[0.000ms] [34;1m[rows:0][0m SELECT * FROM "employees" WHERE nik = 'KRY005' ORDER BY "employees"."id" LIMIT 1
+2025/12/11 00:51:30 Warning: error checking employee KRY005: ERROR: relasi ┬½ employees ┬╗ tidak ada (SQLSTATE 42P01)
+2025/12/11 00:51:30 
+Seeding 5 blocks...
+2025/12/11 00:51:30 Warning: error checking block A01: ERROR: kolom ┬½ kode_blok ┬╗ tidak ada (SQLSTATE 42703)
+
+2025/12/11 00:51:30 [31;1mE:/agrinova/apps/golang/cmd/seed_harvest_sample/main.go:194 [35;1mERROR: kolom ┬½ kode_blok ┬╗ tidak ada (SQLSTATE 42703)
+[0m[33m[0.546ms] [34;1m[rows:0][0m SELECT * FROM "blocks" WHERE kode_blok = 'A01' AND division_id = '78901234-f012-3456-7890-bcdef0123456' ORDER BY "blocks"."id" LIMIT 1
+
+2025/12/11 00:51:30 [31;1mE:/agrinova/apps/golang/cmd/seed_harvest_sample/main.go:194 [35;1mERROR: kolom ┬½ kode_blok ┬╗ tidak ada (SQLSTATE 42703)
+[0m[33m[0.000ms] [34;1m[rows:0][0m SELECT * FROM "blocks" WHERE kode_blok = 'A02' AND division_id = '78901234-f012-3456-7890-bcdef0123456' ORDER BY "blocks"."id" LIMIT 1
+2025/12/11 00:51:30 Warning: error checking block A02: ERROR: kolom ┬½ kode_blok ┬╗ tidak ada (SQLSTATE 42703)
+
+2025/12/11 00:51:30 [31;1mE:/agrinova/apps/golang/cmd/seed_harvest_sample/main.go:194 [35;1mERROR: kolom ┬½ kode_blok ┬╗ tidak ada (SQLSTATE 42703)
+2025/12/11 00:51:30 Warning: error checking block A03: ERROR: kolom ┬½ kode_blok ┬╗ tidak ada (SQLSTATE 42703)
+[0m[33m[0.000ms] [34;1m[rows:0][0m SELECT * FROM "blocks" WHERE kode_blok = 'A03' AND division_id = '78901234-f012-3456-7890-bcdef0123456' ORDER BY "blocks"."id" LIMIT 1
+
+2025/12/11 00:51:30 [31;1mE:/agrinova/apps/golang/cmd/seed_harvest_sample/main.go:194 [35;1mERROR: kolom ┬½ kode_blok ┬╗ tidak ada (SQLSTATE 42703)
+[0m[33m[0.000ms] [34;1m[rows:0][0m SELECT * FROM "blocks" WHERE kode_blok = 'A04' AND division_id = '78901234-f012-3456-7890-bcdef0123456' ORDER BY "blocks"."id" LIMIT 1
+2025/12/11 00:51:30 Warning: error checking block A04: ERROR: kolom ┬½ kode_blok ┬╗ tidak ada (SQLSTATE 42703)
+
+2025/12/11 00:51:30 [31;1mE:/agrinova/apps/golang/cmd/seed_harvest_sample/main.go:194 [35;1mERROR: kolom ┬½ kode_blok ┬╗ tidak ada (SQLSTATE 42703)
+[0m[33m[0.000ms] [34;1m[rows:0][0m SELECT * FROM "blocks" WHERE kode_blok = 'A05' AND division_id = '78901234-f012-3456-7890-bcdef0123456' ORDER BY "blocks"."id" LIMIT 1
+2025/12/11 00:51:30 Warning: error checking block A05: ERROR: kolom ┬½ kode_blok ┬╗ tidak ada (SQLSTATE 42703)
+2025/12/11 00:51:30 
+2025/12/11 00:51:30 ­ƒÄë Harvest sample data seeding completed successfully!
+2025/12/11 00:51:30 
+2025/12/11 00:51:30 Summary:
+2025/12/11 00:51:30   Ô£ô 5 Employees (Karyawan) created
+2025/12/11 00:51:30   Ô£ô 5 Blocks created in Divisi A
+2025/12/11 00:51:30 
+2025/12/11 00:51:30 Sample Employees (NIK):
+2025/12/11 00:51:30   - KRY001: Budi Santoso
+2025/12/11 00:51:30   - KRY002: Ahmad Wijaya
+2025/12/11 00:51:30   - KRY003: Siti Nurhaliza
+2025/12/11 00:51:30   - KRY004: Joko Susilo
+2025/12/11 00:51:30   - KRY005: Dewi Lestari
+2025/12/11 00:51:30 
+2025/12/11 00:51:30 Sample Blocks:
+2025/12/11 00:51:30   - A01: Blok A-01 (25.5 ha)
+2025/12/11 00:51:30   - A02: Blok A-02 (30.0 ha)
+2025/12/11 00:51:30   - A03: Blok A-03 (28.3 ha)
+2025/12/11 00:51:30   - A04: Blok A-04 (22.7 ha)
+2025/12/11 00:51:30   - A05: Blok A-05 (27.2 ha)
+2025/12/11 00:51:30 
+2025/12/11 00:51:30 These blocks and employees are now available for harvest input testing!
+2025/12/11 00:51:30 You can use them with the Mandor role to create harvest records.

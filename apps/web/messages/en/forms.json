@@ -1,0 +1,1729 @@
+{
+  "login": {
+    "title": "Login to Dashboard",
+    "subtitle": "Welcome to Agrinova Plantation Management System",
+    "identifier": "Username or Email",
+    "identifierPlaceholder": "Enter username or email",
+    "password": "Password",
+    "passwordPlaceholder": "Enter password",
+    "rememberMe": "Remember me",
+    "forgotPassword": "Forgot password?",
+    "loginButton": "Login",
+    "loggingIn": "Logging in...",
+    "loginSuccess": "Login successful! Redirecting to dashboard...",
+    "loginError": "Login failed. Please check your username and password.",
+    "invalidCredentials": "Invalid username or password",
+    "accountLocked": "Account locked. Please contact administrator.",
+    "networkError": "Network error occurred. Please try again."
+  },
+  "register": {
+    "title": "Create New Account",
+    "subtitle": "Create a new account to access the system",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "Enter full name",
+    "email": "Email",
+    "emailPlaceholder": "email@example.com",
+    "phone": "Phone Number",
+    "phonePlaceholder": "Enter phone number",
+    "password": "Password",
+    "passwordPlaceholder": "Minimum 8 characters",
+    "confirmPassword": "Confirm Password",
+    "confirmPasswordPlaceholder": "Re-enter password",
+    "agreeTerms": "I agree to the terms and conditions",
+    "registerButton": "Register",
+    "registering": "Registering...",
+    "registerSuccess": "Registration successful! Please check your email for verification.",
+    "registerError": "Registration failed. Please try again.",
+    "emailExists": "Email already registered",
+    "weakPassword": "Password too weak. Use combination of letters, numbers, and symbols."
+  },
+  "profile": {
+    "title": "User Profile",
+    "subtitle": "Manage profile information and account settings",
+    "personalInfo": "Personal Information",
+    "accountSettings": "Account Settings",
+    "security": "Security",
+    "notifications": "Notifications",
+    "preferences": "Preferences",
+    "language": "Language",
+    "theme": "Theme",
+    "timezone": "Timezone",
+    "changePassword": "Change Password",
+    "oldPassword": "Old Password",
+    "newPassword": "New Password",
+    "confirmNewPassword": "Confirm New Password",
+    "updateProfile": "Update Profile",
+    "updating": "Updating...",
+    "updateSuccess": "Profile updated successfully",
+    "updateError": "Failed to update profile",
+    "passwordChanged": "Password changed successfully",
+    "passwordChangeError": "Failed to change password"
+  },
+  "features": {
+    "realTimeAnalytics": {
+      "title": "Real-time Analytics",
+      "description": "Monitor harvest & gate check in real-time"
+    },
+    "secureOperations": {
+      "title": "Secure Operations",
+      "description": "Enterprise-grade security with end-to-end encryption"
+    },
+    "offlineFirstMobile": {
+      "title": "Offline-First Mobile",
+      "description": "Stay productive even without internet connection"
+    },
+    "multiRoleAccess": {
+      "title": "Multi-Role Access",
+      "description": "Mandor, Asisten, Satpam, Manager - all integrated"
+    }
+  },
+  "offlineMode": {
+    "title": "30-Day Offline Mode",
+    "description": "Mobile app can work completely offline for up to 30 days without internet connection.",
+    "jwtAuth": "JWT authentication offline",
+    "autoSync": "Auto-sync when connection available",
+    "deviceBinding": "Device binding for security"
+  },
+  "forgotPasswordComingSoon": "Forgot password feature coming soon",
+  "qrLoginSuccess": "Welcome via QR, {name}!",
+  "qrLoginError": "Error occurred during QR login. Please try again.",
+  "roleAutoDetermined": "Your role will be automatically determined based on your registered account.",
+  "quickDemoAccess": "Quick Demo Access",
+  "demoPasswordForAll": "Password for all demo accounts:",
+  "loginIssue": "Login May Have Issues",
+  "loginIssueShort": "Login Issue",
+  "authServiceUnavailable": "Authentication service unavailable. Login may fail or be slow.",
+  "loginConfirmed": "Login successfully confirmed!",
+  "authServiceWarning": "Authentication Service Warning",
+  "qr": {
+    "tabText": "QR",
+    "tabTextFull": "QR Code",
+    "validFor": "Valid for",
+    "generating": "Generating QR Code...",
+    "willRedirect": "You will be redirected to dashboard...",
+    "loginSuccess": "Login Successful!",
+    "expired": "QR Code Expired",
+    "expiredMessage": "The QR code has expired",
+    "generateNew": "Generate New QR",
+    "scanToLogin": "Scan to Login",
+    "useAppDescription": "Use the AgrInova app on your phone to scan this QR code",
+    "loginWithMobile": "Login with Mobile",
+    "steps": {
+      "title": "How to Use",
+      "step1": "Open AgrInova app on your phone",
+      "step2": "Tap 'QR Login' menu on home screen",
+      "step3": "Point camera at this QR code",
+      "step4": "Confirm login in the app"
+    },
+    "demo": {
+      "confirm": "Demo: Confirm login?",
+      "instruction": "Use 'Demo' button to simulate confirmation from mobile app.",
+      "productionNote": "In production, confirmation is done via QR scan in the mobile app."
+    },
+    "features": {
+      "secure": "Secure",
+      "fast": "Fast",
+      "realtime": "Real-time"
+    },
+    "regenerate": "Regenerate",
+    "demoButton": "Demo",
+    "devMode": {
+      "title": "Development Mode",
+      "description": "Use 'Demo' button to simulate confirmation from mobile app.",
+      "productionNote": "In production, confirmation is done via QR scan in the mobile app."
+    }
+  },
+  "clickToAutofill": "Click to auto-fill credentials",
+  "clickToLogin": "Click \"Login\" to login",
+  "demoCredentialsLoaded": "Demo credentials loaded: {role}",
+  "validation": {
+    "required": "This field is required",
+    "emailInvalid": "Invalid email format",
+    "phoneInvalid": "Invalid phone number format",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "passwordTooWeak": "Password is too weak",
+    "passwordMismatch": "Passwords do not match",
+    "nameTooShort": "Name must be at least 2 characters",
+    "nameTooLong": "Name must be less than 100 characters",
+    "emailExists": "Email already registered",
+    "usernameExists": "Username already taken",
+    "invalidDate": "Invalid date format",
+    "invalidTime": "Invalid time format",
+    "numberInvalid": "Must be a number",
+    "numberMin": "Minimum value is {min}",
+    "numberMax": "Maximum value is {max}",
+    "fileTooBig": "File size must be less than {size}MB",
+    "fileInvalid": "Unsupported file format",
+    "urlInvalid": "Invalid URL format",
+    "selectOption": "Please select an option",
+    "minItems": "Select at least {min} items",
+    "maxItems": "Select maximum {max} items"
+  },
+  "harvest": {
+    "title": "Harvest Data Input",
+    "date": "Harvest Date",
+    "block": "Block",
+    "tph": "TPH",
+    "workers": "Number of Workers",
+    "tbsCount": "TBS Count",
+    "tbsWeight": "TBS Weight (kg)",
+    "notes": "Harvest Notes",
+    "saveButton": "Save Data",
+    "saving": "Saving...",
+    "success": "Harvest data saved successfully",
+    "error": "Failed to save harvest data",
+    "duplicateEntry": "Harvest data for this TPH already exists"
+  },
+  "gateCheck": {
+    "title": "Gate Check",
+    "vehicleNumber": "Vehicle Number",
+    "driverName": "Driver Name",
+    "vehicleType": "Vehicle Type",
+    "entryTime": "Entry Time",
+    "exitTime": "Exit Time",
+    "purpose": "Visit Purpose",
+    "notes": "Notes",
+    "checkIn": "Check In",
+    "checkOut": "Check Out",
+    "processing": "Processing...",
+    "success": "Data saved successfully",
+    "error": "Failed to save data"
+  },
+  "company": {
+    "title": "Company Data",
+    "name": "Company Name",
+    "code": "Company Code",
+    "address": "Company Address",
+    "phone": "Phone",
+    "email": "Email",
+    "website": "Website",
+    "description": "Description",
+    "logo": "Company Logo",
+    "active": "Active Status",
+    "saveButton": "Save Company",
+    "success": "Company data saved successfully",
+    "error": "Failed to save company data",
+    "codeExists": "Company code already exists"
+  },
+  "user": {
+    "addUser": "Add User",
+    "editUser": "Edit User",
+    "deleteUser": "Delete User",
+    "searchPlaceholder": "Search name, email, employee ID...",
+    "selectRole": "Role",
+    "selectEstate": "Estate",
+    "selectDivision": "Division",
+    "selectStatus": "Status",
+    "saveUser": "Save User",
+    "updateUser": "Update User",
+    "deleteConfirm": "Are you sure you want to delete this user?",
+    "deleteSuccess": "User deleted successfully",
+    "allRoles": "All Roles",
+    "allEstates": "All Estates",
+    "allDivisions": "All Divisions",
+    "allStatus": "All Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "suspended": "Suspended",
+    "title": "User Data",
+    "username": "Username",
+    "fullName": "Full Name",
+    "email": "Email",
+    "phone": "Phone",
+    "role": "Role",
+    "company": "Company",
+    "estate": "Estate",
+    "division": "Division",
+    "active": "Active Status",
+    "saveButton": "Save User",
+    "success": "User data saved successfully",
+    "error": "Failed to save user data",
+    "usernameExists": "Username already taken",
+    "emailExists": "Email already registered"
+  },
+  "table": {
+    "headers": {
+      "no": "No",
+      "id": "ID",
+      "name": "Name",
+      "username": "Username",
+      "email": "Email",
+      "phone": "Phone",
+      "role": "Role",
+      "company": "Company",
+      "estate": "Estate",
+      "division": "Division",
+      "status": "Status",
+      "active": "Active",
+      "inactive": "Inactive",
+      "suspended": "Suspended",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At",
+      "actions": "Actions",
+      "view": "View",
+      "edit": "Edit",
+      "delete": "Delete",
+      "block": "Block",
+      "tph": "TPH",
+      "workers": "Workers",
+      "tbsCount": "TBS Count",
+      "tbsWeight": "TBS Weight (kg)",
+      "date": "Date",
+      "time": "Time",
+      "notes": "Notes",
+      "vehicleNumber": "Vehicle Number",
+      "driverName": "Driver Name",
+      "vehicleType": "Vehicle Type",
+      "entryTime": "Entry Time",
+      "exitTime": "Exit Time",
+      "purpose": "Purpose",
+      "harvestDate": "Harvest Date",
+      "harvestStatus": "Harvest Status",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "pagination": {
+      "previous": "Previous",
+      "next": "Next",
+      "first": "First",
+      "last": "Last",
+      "page": "Page",
+      "of": "of",
+      "showing": "Showing",
+      "to": "to",
+      "of": "of",
+      "entries": "entries",
+      "noData": "No data available",
+      "loading": "Loading...",
+      "error": "Error loading data",
+      "retry": "Retry",
+      "itemsPerPage": "Items per page",
+      "10": "10",
+      "25": "25",
+      "50": "50",
+      "100": "100"
+    },
+    "empty": {
+      "noData": "No data available",
+      "noUsers": "No users found",
+      "noCompanies": "No companies found",
+      "noEstates": "No estates found",
+      "noDivisions": "No divisions found",
+      "noBlocks": "No blocks found",
+      "noHarvests": "No harvest data found",
+      "noGateChecks": "No gate check records found",
+      "noAssignments": "No assignments found",
+      "searchNoResults": "No results found for your search",
+      "filterNoResults": "No results match the selected filters",
+      "createFirst": "Create the first {item}",
+      "addFirstUser": "Add your first user",
+      "addFirstCompany": "Add your first company",
+      "addFirstEstate": "Add your first estate"
+    },
+    "actions": {
+      "select": "Select",
+      "selectAll": "Select All",
+      "clearSelection": "Clear Selection",
+      "bulkActions": "Bulk Actions",
+      "deleteSelected": "Delete Selected",
+      "exportSelected": "Export Selected",
+      "approveSelected": "Approve Selected",
+      "rejectSelected": "Reject Selected",
+      "refresh": "Refresh",
+      "filter": "Filter",
+      "sort": "Sort",
+      "search": "Search",
+      "clearSearch": "Clear Search",
+      "export": "Export",
+      "import": "Import",
+      "print": "Print",
+      "download": "Download",
+      "viewDetails": "View Details",
+      "editDetails": "Edit Details",
+      "deleteItem": "Delete Item"
+    }
+  },
+  "notifications": {
+    "success": {
+      "login": "Login successful! Redirecting to dashboard...",
+      "logout": "You have been successfully logged out",
+      "save": "Data saved successfully",
+      "update": "Data updated successfully",
+      "delete": "Data deleted successfully",
+      "create": "Data created successfully",
+      "approve": "Data approved successfully",
+      "reject": "Data rejected successfully",
+      "upload": "File uploaded successfully",
+      "download": "File downloaded successfully",
+      "export": "Data exported successfully",
+      "import": "Data imported successfully",
+      "sync": "Data synchronized successfully",
+      "send": "Data sent successfully",
+      "copy": "Data copied to clipboard",
+      "move": "Data moved successfully",
+      "archive": "Data archived successfully",
+      "restore": "Data restored successfully",
+      "activate": "Account activated successfully",
+      "deactivate": "Account deactivated successfully",
+      "reset": "Password reset successfully",
+      "change": "Password changed successfully",
+      "verify": "Email verified successfully",
+      "register": "Registration successful! Please check your email",
+      "assign": "Assignment completed successfully",
+      "unassign": "Assignment removed successfully",
+      "connect": "Connection established successfully",
+      "disconnect": "Disconnected successfully"
+    },
+    "error": {
+      "login": "Login failed. Please check your credentials",
+      "logout": "Logout failed. Please try again",
+      "save": "Failed to save data",
+      "update": "Failed to update data",
+      "delete": "Failed to delete data",
+      "create": "Failed to create data",
+      "approve": "Failed to approve data",
+      "reject": "Failed to reject data",
+      "upload": "Failed to upload file",
+      "download": "Failed to download file",
+      "export": "Failed to export data",
+      "import": "Failed to import data",
+      "sync": "Failed to synchronize data",
+      "send": "Failed to send data",
+      "copy": "Failed to copy to clipboard",
+      "move": "Failed to move data",
+      "archive": "Failed to archive data",
+      "restore": "Failed to restore data",
+      "activate": "Failed to activate account",
+      "deactivate": "Failed to deactivate account",
+      "reset": "Failed to reset password",
+      "change": "Failed to change password",
+      "verify": "Failed to verify email",
+      "register": "Registration failed. Please try again",
+      "assign": "Failed to complete assignment",
+      "unassign": "Failed to remove assignment",
+      "connect": "Failed to establish connection",
+      "disconnect": "Failed to disconnect",
+      "network": "Network error occurred. Please check your connection",
+      "server": "Server error occurred. Please try again later",
+      "timeout": "Request timeout. Please try again",
+      "unauthorized": "Unauthorized access. Please login",
+      "forbidden": "Access denied. You don't have permission",
+      "notFound": "Data not found",
+      "alreadyExists": "Data already exists",
+      "invalid": "Invalid data provided",
+      "required": "Required field is missing",
+      "format": "Invalid data format",
+      "size": "File size too large",
+      "type": "Unsupported file type",
+      "limit": "Request limit exceeded",
+      "maintenance": "System under maintenance. Please try again later"
+    },
+    "warning": {
+      "unsaved": "You have unsaved changes. Are you sure you want to leave?",
+      "delete": "Are you sure you want to delete this item?",
+      "bulkDelete": "Are you sure you want to delete {count} items?",
+      "overwrite": "This action will overwrite existing data. Continue?",
+      "irreversible": "This action cannot be undone. Continue?",
+      "session": "Your session is about to expire",
+      "quota": "You are approaching your storage limit",
+      "connection": "Unstable connection detected",
+      "battery": "Low battery detected. Save your work",
+      "incomplete": "Some data could not be synchronized",
+      "duplicate": "Duplicate data detected",
+      "conflict": "Data conflict detected. Please review",
+      "outdated": "Data might be outdated. Please refresh",
+      "deprecated": "This feature will be deprecated soon"
+    },
+    "info": {
+      "loading": "Loading...",
+      "processing": "Processing...",
+      "saving": "Saving...",
+      "updating": "Updating...",
+      "deleting": "Deleting...",
+      "uploading": "Uploading...",
+      "downloading": "Downloading...",
+      "syncing": "Synchronizing...",
+      "connecting": "Connecting...",
+      "disconnecting": "Disconnecting...",
+      "refreshing": "Refreshing...",
+      "searching": "Searching...",
+      "filtering": "Filtering...",
+      "sorting": "Sorting...",
+      "exporting": "Exporting...",
+      "importing": "Importing...",
+      "generating": "Generating report...",
+      "compiling": "Compiling data...",
+      "validating": "Validating data...",
+      "backingUp": "Creating backup...",
+      "restoring": "Restoring backup...",
+      "noChanges": "No changes to save",
+      "upToDate": "Data is up to date",
+      "newVersion": "New version available",
+      "featureAvailable": "New feature available",
+      "tip": "Tip: {message}",
+      "help": "Help: {message}"
+    }
+  },
+  "dashboard": {
+    "titles": {
+      "mandor": "Mandor Dashboard - Harvest Management",
+      "asisten": "Assistant Dashboard - Harvest Approval",
+      "manager": "Manager Dashboard - Estate Monitoring",
+      "areaManager": "Area Manager Dashboard - Regional Oversight",
+      "satpam": "Security Dashboard - Gate Control",
+      "companyAdmin": "Company Admin Dashboard - Company Management",
+      "superAdmin": "Super Admin Dashboard - System Administration",
+      "guest": "Guest Dashboard - Limited Access",
+      "admin": "Admin Dashboard - General Administration"
+    },
+    "subtitles": {
+      "mandor": "Input and manage daily harvest data",
+      "asisten": "Review and approve harvest submissions",
+      "manager": "Monitor estate performance and reports",
+      "areaManager": "Oversee multiple estates across regions",
+      "satpam": "Manage gate access and security monitoring",
+      "companyAdmin": "Manage company settings and users",
+      "superAdmin": "System-wide administration and configuration",
+      "guest": "Limited view access mode",
+      "admin": "General system administration tasks"
+    },
+    "navigation": {
+      "overview": "Overview",
+      "harvest": "Harvest",
+      "gateCheck": "Gate Check",
+      "reports": "Reports",
+      "users": "Users",
+      "settings": "Settings",
+      "profile": "Profile",
+      "companies": "Companies",
+      "estates": "Estates",
+      "divisions": "Divisions",
+      "blocks": "Blocks",
+      "analytics": "Analytics",
+      "notifications": "Notifications",
+      "assignments": "Assignments",
+      "approvals": "Approvals",
+      "history": "History",
+      "logs": "Logs",
+      "monitoring": "Monitoring",
+      "maintenance": "Maintenance",
+      "backup": "Backup",
+      "security": "Security",
+      "api": "API Management",
+      "integrations": "Integrations",
+      "help": "Help & Support",
+      "about": "About"
+    },
+    "widgets": {
+      "welcome": "Welcome back, {name}!",
+      "todaysTasks": "Today's Tasks",
+      "pendingApprovals": "Pending Approvals",
+      "recentActivity": "Recent Activity",
+      "quickActions": "Quick Actions",
+      "statistics": "Statistics",
+      "performance": "Performance",
+      "alerts": "Alerts",
+      "notifications": "Notifications",
+      "weather": "Weather",
+      "events": "Upcoming Events",
+      "reminders": "Reminders"
+    },
+    "actions": {
+      "newHarvest": "New Harvest Entry",
+      "viewReports": "View Reports",
+      "manageUsers": "Manage Users",
+      "gateEntry": "Gate Entry",
+      "gateExit": "Gate Exit",
+      "addUser": "Add User",
+      "addCompany": "Add Company",
+      "addEstate": "Add Estate",
+      "exportData": "Export Data",
+      "printReport": "Print Report",
+      "refreshData": "Refresh Data",
+      "viewDetails": "View Details",
+      "editProfile": "Edit Profile",
+      "changePassword": "Change Password",
+      "logout": "Logout"
+    },
+    "stats": {
+      "totalHarvests": "Total Harvests",
+      "pendingHarvests": "Pending Harvests",
+      "approvedHarvests": "Approved Harvests",
+      "rejectedHarvests": "Rejected Harvests",
+      "totalTBS": "Total TBS",
+      "totalWeight": "Total Weight",
+      "averageWeight": "Average Weight",
+      "totalWorkers": "Total Workers",
+      "activeUsers": "Active Users",
+      "totalCompanies": "Total Companies",
+      "totalEstates": "Total Estates",
+      "totalDivisions": "Total Divisions",
+      "totalBlocks": "Total Blocks",
+      "gateEntries": "Gate Entries",
+      "gateExits": "Gate Exits",
+      "todayActivity": "Today's Activity",
+      "weeklyActivity": "Weekly Activity",
+      "monthlyActivity": "Monthly Activity",
+      "yearlyActivity": "Yearly Activity"
+    }
+  },
+  "charts": {
+    "labels": {
+      "harvest": "Harvest",
+      "production": "Production",
+      "tbs": "TBS (Tandan Buah Segar)",
+      "weight": "Weight (kg)",
+      "workers": "Workers",
+      "blocks": "Blocks",
+      "estates": "Estates",
+      "divisions": "Divisions",
+      "companies": "Companies",
+      "date": "Date",
+      "time": "Time",
+      "month": "Month",
+      "year": "Year",
+      "quarter": "Quarter",
+      "week": "Week",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "thisWeek": "This Week",
+      "lastWeek": "Last Week",
+      "thisMonth": "This Month",
+      "lastMonth": "Last Month",
+      "thisQuarter": "This Quarter",
+      "lastQuarter": "Last Quarter",
+      "thisYear": "This Year",
+      "lastYear": "Last Year",
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "completed": "Completed",
+      "inProgress": "In Progress",
+      "scheduled": "Scheduled",
+      "cancelled": "Cancelled",
+      "onTime": "On Time",
+      "delayed": "Delayed",
+      "overdue": "Overdue",
+      "active": "Active",
+      "inactive": "Inactive",
+      "online": "Online",
+      "offline": "Offline"
+    },
+    "metrics": {
+      "harvestMetrics": {
+        "totalHarvest": "Total Harvest",
+        "dailyHarvest": "Daily Harvest",
+        "weeklyHarvest": "Weekly Harvest",
+        "monthlyHarvest": "Monthly Harvest",
+        "yearlyHarvest": "Yearly Harvest",
+        "averageTBS": "Average TBS per Harvest",
+        "totalTBS": "Total TBS Collected",
+        "totalWeight": "Total Weight (kg)",
+        "averageWeight": "Average Weight per TBS (kg)",
+        "harvestEfficiency": "Harvest Efficiency (%)",
+        "workerProductivity": "Worker Productivity (TBS/worker)",
+        "blockProductivity": "Block Productivity (TBS/block)",
+        "yieldPerHectare": "Yield per Hectare (tons/ha)",
+        "harvestQuality": "Harvest Quality Score",
+        "harvestFrequency": "Harvest Frequency",
+        "peakHarvestTime": "Peak Harvest Time"
+      },
+      "gateCheckMetrics": {
+        "totalEntries": "Total Gate Entries",
+        "totalExits": "Total Gate Exits",
+        "activeVehicles": "Active Vehicles",
+        "averageWaitTime": "Average Wait Time (min)",
+        "peakHours": "Peak Hours",
+        "securityIncidents": "Security Incidents",
+        "gateUtilization": "Gate Utilization (%)",
+        "vehicleTypes": "Vehicle Types",
+        "entryExitRatio": "Entry/Exit Ratio",
+        "processingTime": "Average Processing Time",
+        "queueLength": "Average Queue Length"
+      },
+      "userMetrics": {
+        "totalUsers": "Total Users",
+        "activeUsers": "Active Users",
+        "newUsers": "New Users",
+        "userActivity": "User Activity",
+        "loginFrequency": "Login Frequency",
+        "sessionDuration": "Average Session Duration",
+        "roleDistribution": "Role Distribution",
+        "userRetention": "User Retention Rate",
+        "userSatisfaction": "User Satisfaction Score",
+        "supportTickets": "Support Tickets",
+        "responseTime": "Average Response Time"
+      },
+      "performanceMetrics": {
+        "systemUptime": "System Uptime (%)",
+        "responseTime": "Average Response Time (ms)",
+        "throughput": "System Throughput (req/sec)",
+        "errorRate": "Error Rate (%)",
+        "databasePerformance": "Database Performance",
+        "apiPerformance": "API Performance",
+        "networkLatency": "Network Latency (ms)",
+        "cpuUsage": "CPU Usage (%)",
+        "memoryUsage": "Memory Usage (%)",
+        "diskUsage": "Disk Usage (%)",
+        "cacheHitRate": "Cache Hit Rate (%)"
+      }
+    },
+    "chartTypes": {
+      "lineChart": "Line Chart",
+      "barChart": "Bar Chart",
+      "pieChart": "Pie Chart",
+      "donutChart": "Donut Chart",
+      "areaChart": "Area Chart",
+      "scatterChart": "Scatter Plot",
+      "bubbleChart": "Bubble Chart",
+      "radarChart": "Radar Chart",
+      "heatmap": "Heatmap",
+      "gaugeChart": "Gauge Chart",
+      "histogram": "Histogram",
+      "boxPlot": "Box Plot",
+      "waterfall": "Waterfall Chart",
+      "funnel": "Funnel Chart",
+      "sankey": "Sankey Diagram"
+    },
+    "timeRanges": {
+      "last7Days": "Last 7 Days",
+      "last30Days": "Last 30 Days",
+      "last90Days": "Last 90 Days",
+      "last6Months": "Last 6 Months",
+      "last12Months": "Last 12 Months",
+      "yearToDate": "Year to Date",
+      "quarterToDate": "Quarter to Date",
+      "monthToDate": "Month to Date",
+      "weekToDate": "Week to Date",
+      "customRange": "Custom Range",
+      "allTime": "All Time"
+    },
+    "comparisons": {
+      "vsLastPeriod": "vs Last Period",
+      "vsLastYear": "vs Last Year",
+      "vsTarget": "vs Target",
+      "vsAverage": "vs Average",
+      "growth": "Growth",
+      "decline": "Decline",
+      "increase": "Increase",
+      "decrease": "Decrease",
+      "stable": "Stable",
+      "trend": "Trend",
+      "forecast": "Forecast",
+      "projection": "Projection"
+    },
+    "filters": {
+      "filterByDate": "Filter by Date",
+      "filterByRole": "Filter by Role",
+      "filterByStatus": "Filter by Status",
+      "filterByLocation": "Filter by Location",
+      "filterByType": "Filter by Type",
+      "filterByCategory": "Filter by Category",
+      "groupBy": "Group By",
+      "sortBy": "Sort By",
+      "ascending": "Ascending",
+      "descending": "Descending",
+      "customFilters": "Custom Filters"
+    }
+  },
+  "reports": {
+    "names": {
+      "harvestReports": {
+        "dailyHarvestReport": "Daily Harvest Report",
+        "weeklyHarvestReport": "Weekly Harvest Report",
+        "monthlyHarvestReport": "Monthly Harvest Report",
+        "quarterlyHarvestReport": "Quarterly Harvest Report",
+        "yearlyHarvestReport": "Yearly Harvest Report",
+        "harvestSummaryReport": "Harvest Summary Report",
+        "harvestTrendReport": "Harvest Trend Analysis",
+        "harvestPerformanceReport": "Harvest Performance Report",
+        "harvestComparisonReport": "Harvest Comparison Report",
+        "harvestQualityReport": "Harvest Quality Report",
+        "workerProductivityReport": "Worker Productivity Report",
+        "blockProductivityReport": "Block Productivity Report",
+        "yieldAnalysisReport": "Yield Analysis Report",
+        "harvestForecastReport": "Harvest Forecast Report",
+        "seasonalHarvestReport": "Seasonal Harvest Report"
+      },
+      "gateCheckReports": {
+        "dailyGateReport": "Daily Gate Check Report",
+        "gateActivityReport": "Gate Activity Report",
+        "vehicleFlowReport": "Vehicle Flow Analysis",
+        "securityIncidentReport": "Security Incident Report",
+        "gatePerformanceReport": "Gate Performance Report",
+        "peakHoursReport": "Peak Hours Analysis Report",
+        "queueAnalysisReport": "Queue Analysis Report",
+        "vehicleTypeReport": "Vehicle Type Distribution Report",
+        "gateUtilizationReport": "Gate Utilization Report",
+        "accessControlReport": "Access Control Report"
+      },
+      "userManagementReports": {
+        "userActivityReport": "User Activity Report",
+        "loginHistoryReport": "Login History Report",
+        "roleDistributionReport": "Role Distribution Report",
+        "userPerformanceReport": "User Performance Report",
+        "accessLogReport": "Access Log Report",
+        "sessionReport": "Session Duration Report",
+        "userSatisfactionReport": "User Satisfaction Report",
+        "supportTicketReport": "Support Ticket Report",
+        "userComplianceReport": "User Compliance Report"
+      },
+      "administrativeReports": {
+        "systemPerformanceReport": "System Performance Report",
+        "apiUsageReport": "API Usage Report",
+        "errorLogReport": "Error Log Report",
+        "auditTrailReport": "Audit Trail Report",
+        "backupStatusReport": "Backup Status Report",
+        "maintenanceReport": "Maintenance Report",
+        "securityReport": "Security Report",
+        "complianceReport": "Compliance Report",
+        "resourceUtilizationReport": "Resource Utilization Report"
+      },
+      "financialReports": {
+        "productionCostReport": "Production Cost Report",
+        "revenueReport": "Revenue Report",
+        "profitabilityReport": "Profitability Analysis",
+        "budgetReport": "Budget Report",
+        "expenseReport": "Expense Report",
+        "costPerTBSReport": "Cost per TBS Report",
+        "ROIReport": "Return on Investment Report",
+        "financialSummaryReport": "Financial Summary Report"
+      }
+    },
+    "filters": {
+      "dateFilters": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "thisWeek": "This Week",
+        "lastWeek": "Last Week",
+        "thisMonth": "This Month",
+        "lastMonth": "Last Month",
+        "thisQuarter": "This Quarter",
+        "lastQuarter": "Last Quarter",
+        "thisYear": "This Year",
+        "lastYear": "Last Year",
+        "customDateRange": "Custom Date Range",
+        "yearToDate": "Year to Date",
+        "quarterToDate": "Quarter to Date",
+        "monthToDate": "Month to Date"
+      },
+      "locationFilters": {
+        "allCompanies": "All Companies",
+        "allEstates": "All Estates",
+        "allDivisions": "All Divisions",
+        "allBlocks": "All Blocks",
+        "selectedCompany": "Selected Company",
+        "selectedEstate": "Selected Estate",
+        "selectedDivision": "Selected Division",
+        "selectedBlock": "Selected Block",
+        "multipleLocations": "Multiple Locations"
+      },
+      "statusFilters": {
+        "allStatus": "All Status",
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "completed": "Completed",
+        "inProgress": "In Progress",
+        "cancelled": "Cancelled",
+        "onHold": "On Hold",
+        "draft": "Draft",
+        "archived": "Archived"
+      },
+      "roleFilters": {
+        "allRoles": "All Roles",
+        "mandor": "Mandor",
+        "asisten": "Assistant",
+        "manager": "Manager",
+        "areaManager": "Area Manager",
+        "satpam": "Security",
+        "companyAdmin": "Company Admin",
+        "superAdmin": "Super Admin",
+        "admin": "Admin",
+        "guest": "Guest"
+      },
+      "qualityFilters": {
+        "allQuality": "All Quality Levels",
+        "high": "High Quality",
+        "medium": "Medium Quality",
+        "low": "Low Quality",
+        "premium": "Premium",
+        "standard": "Standard",
+        "substandard": "Substandard"
+      },
+      "performanceFilters": {
+        "topPerformers": "Top Performers",
+        "bottomPerformers": "Bottom Performers",
+        "aboveAverage": "Above Average",
+        "average": "Average",
+        "belowAverage": "Below Average",
+        "highProductivity": "High Productivity",
+        "lowProductivity": "Low Productivity"
+      }
+    },
+    "exportOptions": {
+      "formats": {
+        "pdf": "PDF Document",
+        "excel": "Excel Spreadsheet",
+        "csv": "CSV File",
+        "word": "Word Document",
+        "powerpoint": "PowerPoint Presentation",
+        "json": "JSON Data",
+        "xml": "XML Data",
+        "print": "Print Directly"
+      },
+      "excelOptions": {
+        "withFormulas": "With Formulas",
+        "withoutFormulas": "Without Formulas",
+        "withCharts": "Include Charts",
+        "withoutCharts": "Exclude Charts",
+        "withImages": "Include Images",
+        "withoutImages": "Exclude Images",
+        "conditionalFormatting": "Include Conditional Formatting",
+        "rawData": "Raw Data Only",
+        "formattedData": "Formatted Data"
+      },
+      "pdfOptions": {
+        "withHeaders": "Include Headers",
+        "withoutHeaders": "Exclude Headers",
+        "withFooters": "Include Footers",
+        "withoutFooters": "Exclude Footers",
+        "withPageNumbers": "Include Page Numbers",
+        "withoutPageNumbers": "Exclude Page Numbers",
+        "withWatermark": "Add Watermark",
+        "withoutWatermark": "No Watermark",
+        "landscape": "Landscape Orientation",
+        "portrait": "Portrait Orientation",
+        "fitToPage": "Fit to Page",
+        "actualSize": "Actual Size",
+        "highQuality": "High Quality",
+        "lowQuality": "Low Quality"
+      },
+      "emailOptions": {
+        "sendEmail": "Send via Email",
+        "ccRecipients": "CC Recipients",
+        "bccRecipients": "BCC Recipients",
+        "addSubject": "Add Subject",
+        "addMessage": "Add Message",
+        "attachAsLink": "Attach as Link",
+        "attachAsFile": "Attach as File",
+        "scheduleEmail": "Schedule Email",
+        "sendImmediately": "Send Immediately"
+      },
+      "scheduleOptions": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "yearly": "Yearly",
+        "custom": "Custom Schedule",
+        "morning": "Morning (6:00 AM)",
+        "afternoon": "Afternoon (12:00 PM)",
+        "evening": "Evening (6:00 PM)",
+        "night": "Night (12:00 AM)",
+        "weekdays": "Weekdays Only",
+        "weekends": "Weekends Only",
+        "businessDays": "Business Days Only"
+      }
+    },
+    "actions": {
+      "generateReport": "Generate Report",
+      "saveReport": "Save Report",
+      "saveAsTemplate": "Save as Template",
+      "loadTemplate": "Load Template",
+      "shareReport": "Share Report",
+      "exportReport": "Export Report",
+      "printReport": "Print Report",
+      "emailReport": "Email Report",
+      "scheduleReport": "Schedule Report",
+      "viewReport": "View Report",
+      "editReport": "Edit Report",
+      "deleteReport": "Delete Report",
+      "duplicateReport": "Duplicate Report",
+      "archiveReport": "Archive Report",
+      "restoreReport": "Restore Report",
+      "refreshData": "Refresh Data",
+      "applyFilters": "Apply Filters",
+      "clearFilters": "Clear Filters",
+      "resetFilters": "Reset Filters",
+      "saveFilters": "Save Filters",
+      "loadFilters": "Load Filters"
+    }
+  },
+  "hierarchicalForm": {
+    "userForm": {
+      "title": "User Management Form",
+      "subtitle": "Create and manage user accounts with hierarchical permissions",
+      "sections": {
+        "personalInfo": "Personal Information",
+        "accountDetails": "Account Details",
+        "roleAssignment": "Role Assignment",
+        "locationAssignment": "Location Assignment",
+        "permissions": "Permissions",
+        "notifications": "Notification Settings",
+        "security": "Security Settings",
+        "preferences": "User Preferences"
+      },
+      "fields": {
+        "firstName": {
+          "label": "First Name",
+          "placeholder": "Enter first name",
+          "required": "First name is required",
+          "minLength": "First name must be at least 2 characters",
+          "maxLength": "First name must be less than 50 characters"
+        },
+        "lastName": {
+          "label": "Last Name",
+          "placeholder": "Enter last name",
+          "required": "Last name is required",
+          "minLength": "Last name must be at least 2 characters",
+          "maxLength": "Last name must be less than 50 characters"
+        },
+        "username": {
+          "label": "Username",
+          "placeholder": "Enter username",
+          "required": "Username is required",
+          "minLength": "Username must be at least 3 characters",
+          "maxLength": "Username must be less than 30 characters",
+          "pattern": "Username can only contain letters, numbers, and underscores",
+          "unique": "Username already exists"
+        },
+        "email": {
+          "label": "Email Address",
+          "placeholder": "Enter email address",
+          "required": "Email address is required",
+          "invalid": "Please enter a valid email address",
+          "unique": "Email address already exists"
+        },
+        "phone": {
+          "label": "Phone Number",
+          "placeholder": "Enter phone number",
+          "required": "Phone number is required",
+          "invalid": "Please enter a valid phone number",
+          "format": "Phone number must be in international format"
+        },
+        "password": {
+          "label": "Password",
+          "placeholder": "Enter password",
+          "required": "Password is required",
+          "minLength": "Password must be at least 8 characters",
+          "weak": "Password is too weak",
+          "strong": "Password strength",
+          "mismatch": "Passwords do not match",
+          "confirm": "Confirm Password",
+          "confirmPlaceholder": "Confirm password"
+        },
+        "role": {
+          "label": "User Role",
+          "placeholder": "Select user role",
+          "required": "User role is required",
+          "description": "Select the appropriate role for this user",
+          "roles": {
+            "mandor": "Mandor - Harvest Management",
+            "asisten": "Assistant - Harvest Approval",
+            "manager": "Manager - Estate Monitoring",
+            "areaManager": "Area Manager - Regional Oversight",
+            "satpam": "Security - Gate Control",
+            "companyAdmin": "Company Admin - Company Management",
+            "superAdmin": "Super Admin - System Administration"
+          }
+        },
+        "company": {
+          "label": "Company",
+          "placeholder": "Select company",
+          "required": "Company selection is required",
+          "description": "Select the company this user belongs to",
+          "noCompanies": "No companies available",
+          "loadingCompanies": "Loading companies..."
+        },
+        "estate": {
+          "label": "Estate",
+          "placeholder": "Select estate",
+          "required": "Estate selection is required",
+          "description": "Select the primary estate for this user",
+          "multipleEstates": "User can access multiple estates",
+          "noEstates": "No estates available",
+          "loadingEstates": "Loading estates..."
+        },
+        "division": {
+          "label": "Division",
+          "placeholder": "Select division",
+          "required": "Division selection is required",
+          "description": "Select the division(s) this user can access",
+          "multipleDivisions": "User can access multiple divisions",
+          "noDivisions": "No divisions available",
+          "loadingDivisions": "Loading divisions..."
+        },
+        "block": {
+          "label": "Block Assignment",
+          "placeholder": "Select blocks",
+          "description": "Select specific blocks this user can manage",
+          "allBlocks": "All blocks in assigned divisions",
+          "selectedBlocks": "Selected blocks",
+          "noBlocks": "No blocks available",
+          "loadingBlocks": "Loading blocks..."
+        },
+        "status": {
+          "label": "Account Status",
+          "placeholder": "Select status",
+          "required": "Account status is required",
+          "options": {
+            "active": "Active - User can login and access system",
+            "inactive": "Inactive - User cannot login",
+            "suspended": "Suspended - User temporarily blocked",
+            "pending": "Pending - Awaiting approval"
+          }
+        },
+        "employeeId": {
+          "label": "Employee ID",
+          "placeholder": "Enter employee ID",
+          "required": "Employee ID is required",
+          "unique": "Employee ID already exists",
+          "format": "Employee ID must be in correct format"
+        }
+      },
+      "hierarchy": {
+        "title": "Hierarchical Assignment",
+        "subtitle": "Configure user access based on organizational hierarchy",
+        "directReporting": {
+          "label": "Direct Reporting",
+          "description": "Users this person directly manages",
+          "noDirectReports": "No direct reports assigned",
+          "addReport": "Add Direct Report"
+        },
+        "indirectReporting": {
+          "label": "Indirect Reporting",
+          "description": "Users this person indirectly manages through subordinates",
+          "noIndirectReports": "No indirect reports assigned"
+        },
+        "reportingTo": {
+          "label": "Reports To",
+          "description": "Select the supervisor this user reports to",
+          "noSupervisor": "No supervisor assigned",
+          "selectSupervisor": "Select Supervisor",
+          "supervisorInfo": "Supervisor Information"
+        },
+        "assignmentScope": {
+          "label": "Assignment Scope",
+          "description": "Define the scope of this user's authority",
+          "scopes": {
+            "self": "Self - Can only access own data",
+            "team": "Team - Can access team data",
+            "department": "Department - Can access department data",
+            "division": "Division - Can access division data",
+            "estate": "Estate - Can access estate data",
+            "company": "Company - Can access company data",
+            "all": "All - Can access all company data"
+          }
+        }
+      },
+      "permissions": {
+        "title": "Permission Configuration",
+        "subtitle": "Configure specific permissions for this user",
+        "categories": {
+          "harvest": "Harvest Management",
+          "gateCheck": "Gate Control",
+          "userManagement": "User Management",
+          "reports": "Reports & Analytics",
+          "administration": "System Administration",
+          "api": "API Access"
+        },
+        "actions": {
+          "create": "Create",
+          "read": "Read/View",
+          "update": "Update/Edit",
+          "delete": "Delete",
+          "approve": "Approve",
+          "reject": "Reject",
+          "export": "Export",
+          "import": "Import",
+          "manage": "Manage"
+        },
+        "custom": {
+          "label": "Custom Permissions",
+          "description": "Define custom permissions beyond role-based access",
+          "addCustom": "Add Custom Permission",
+          "noCustom": "No custom permissions assigned"
+        }
+      },
+      "actions": {
+        "save": "Save User",
+        "saveAndContinue": "Save and Continue Editing",
+        "saveAndAdd": "Save and Add Another",
+        "cancel": "Cancel",
+        "reset": "Reset Form",
+        "preview": "Preview User Profile",
+        "testLogin": "Test Login Credentials",
+        "sendWelcome": "Send Welcome Email",
+        "generatePassword": "Generate Password",
+        "duplicate": "Duplicate User Configuration",
+        "export": "Export User Data"
+      },
+      "validation": {
+        "summary": "Validation Summary",
+        "errors": "Please fix the following errors:",
+        "warnings": "Please review the following warnings:",
+        "incomplete": "Form is incomplete",
+        "unsaved": "You have unsaved changes",
+        "confirm": "Are you sure you want to proceed?",
+        "success": "User created successfully",
+        "error": "Error creating user",
+        "exists": "User already exists"
+      },
+      "sections": {
+        "step1": "Basic Information",
+        "step2": "Role & Access",
+        "step3": "Hierarchy Setup",
+        "step4": "Permissions",
+        "step5": "Review & Confirm"
+      },
+      "navigation": {
+        "previous": "Previous Step",
+        "next": "Next Step",
+        "skip": "Skip This Step",
+        "finish": "Complete Setup",
+        "progress": "Setup Progress",
+        "step": "Step {current} of {total}"
+      }
+    }
+  },
+  "admin": {
+    "apiManagement": {
+      "title": "API Management",
+      "subtitle": "Manage API keys, endpoints, and access controls",
+      "sections": {
+        "apiKeys": "API Keys Management",
+        "endpoints": "API Endpoints",
+        "usage": "Usage Analytics",
+        "security": "Security Settings",
+        "documentation": "API Documentation"
+      },
+      "apiKeys": {
+        "title": "API Keys",
+        "subtitle": "Generate and manage API keys for external integrations",
+        "actions": {
+          "generateKey": "Generate New API Key",
+          "regenerateKey": "Regenerate Key",
+          "revokeKey": "Revoke Key",
+          "activateKey": "Activate Key",
+          "deactivateKey": "Deactivate Key",
+          "copyKey": "Copy Key",
+          "downloadKey": "Download Key",
+          "viewDetails": "View Details"
+        },
+        "fields": {
+          "keyName": "Key Name",
+          "keyDescription": "Description",
+          "keyPermissions": "Permissions",
+          "keyStatus": "Status",
+          "createdAt": "Created At",
+          "expiresAt": "Expires At",
+          "lastUsed": "Last Used",
+          "usageCount": "Usage Count",
+          "rateLimit": "Rate Limit",
+          "ipRestrictions": "IP Restrictions"
+        },
+        "status": {
+          "active": "Active",
+          "inactive": "Inactive",
+          "expired": "Expired",
+          "revoked": "Revoked",
+          "suspended": "Suspended"
+        },
+        "permissions": {
+          "read": "Read Only",
+          "write": "Read & Write",
+          "admin": "Full Access",
+          "custom": "Custom Permissions"
+        }
+      },
+      "endpoints": {
+        "title": "API Endpoints",
+        "subtitle": "Monitor and manage API endpoints performance",
+        "actions": {
+          "testEndpoint": "Test Endpoint",
+          "viewLogs": "View Logs",
+          "configureEndpoint": "Configure",
+          "enableEndpoint": "Enable",
+          "disableEndpoint": "Disable",
+          "monitorEndpoint": "Monitor"
+        },
+        "fields": {
+          "endpointPath": "Endpoint Path",
+          "httpMethod": "HTTP Method",
+          "description": "Description",
+          "status": "Status",
+          "responseTime": "Response Time",
+          "successRate": "Success Rate",
+          "errorRate": "Error Rate",
+          "requestCount": "Request Count",
+          "lastChecked": "Last Checked"
+        },
+        "methods": {
+          "GET": "GET - Read Data",
+          "POST": "POST - Create Data",
+          "PUT": "PUT - Update Data",
+          "PATCH": "PATCH - Partial Update",
+          "DELETE": "DELETE - Remove Data"
+        }
+      },
+      "usage": {
+        "title": "Usage Analytics",
+        "subtitle": "Track API usage patterns and performance metrics",
+        "charts": {
+          "requestsOverTime": "Requests Over Time",
+          "topEndpoints": "Top Used Endpoints",
+          "errorDistribution": "Error Distribution",
+          "responseTimeTrends": "Response Time Trends",
+          "userActivity": "User Activity",
+          "bandwidthUsage": "Bandwidth Usage"
+        },
+        "metrics": {
+          "totalRequests": "Total Requests",
+          "successfulRequests": "Successful Requests",
+          "failedRequests": "Failed Requests",
+          "averageResponseTime": "Average Response Time",
+          "peakRequests": "Peak Requests per Minute",
+          "uniqueUsers": "Unique API Users",
+          "dataTransferred": "Data Transferred"
+        },
+        "filters": {
+          "dateRange": "Date Range",
+          "endpoint": "Endpoint",
+          "user": "API User",
+          "status": "Response Status",
+          "errorType": "Error Type"
+        }
+      },
+      "security": {
+        "title": "Security Settings",
+        "subtitle": "Configure API security and access controls",
+        "sections": {
+          "authentication": "Authentication",
+          "authorization": "Authorization",
+          "rateLimiting": "Rate Limiting",
+          "ipWhitelist": "IP Whitelist",
+          "corsSettings": "CORS Settings"
+        },
+        "authentication": {
+          "title": "Authentication Methods",
+          "methods": {
+            "apiKey": "API Key Authentication",
+            "jwt": "JWT Token Authentication",
+            "oauth2": "OAuth 2.0 Authentication",
+            "basic": "Basic Authentication"
+          }
+        },
+        "rateLimiting": {
+          "title": "Rate Limiting Configuration",
+          "settings": {
+            "requestsPerMinute": "Requests per Minute",
+            "requestsPerHour": "Requests per Hour",
+            "requestsPerDay": "Requests per Day",
+            "burstLimit": "Burst Limit"
+          }
+        }
+      }
+    },
+    "systemAdministration": {
+      "title": "System Administration",
+      "subtitle": "Comprehensive system management and configuration",
+      "sections": {
+        "overview": "System Overview",
+        "maintenance": "System Maintenance",
+        "monitoring": "System Monitoring",
+        "backup": "Backup Management",
+        "security": "Security Center",
+        "configuration": "System Configuration"
+      },
+      "overview": {
+        "title": "System Overview",
+        "subtitle": "Current system status and health information",
+        "status": {
+          "systemHealth": "System Health",
+          "serviceStatus": "Service Status",
+          "resourceUsage": "Resource Usage",
+          "activeUsers": "Active Users",
+          "systemUptime": "System Uptime",
+          "lastRestart": "Last Restart"
+        },
+        "metrics": {
+          "cpuUsage": "CPU Usage",
+          "memoryUsage": "Memory Usage",
+          "diskUsage": "Disk Usage",
+          "networkIO": "Network I/O",
+          "databaseConnections": "Database Connections",
+          "activeProcesses": "Active Processes"
+        }
+      },
+      "maintenance": {
+        "title": "System Maintenance",
+        "subtitle": "Schedule and perform system maintenance tasks",
+        "actions": {
+          "scheduleMaintenance": "Schedule Maintenance",
+          "cancelMaintenance": "Cancel Maintenance",
+          "restartServices": "Restart Services",
+          "clearCache": "Clear Cache",
+          "optimizeDatabase": "Optimize Database",
+          "checkIntegrity": "Check Data Integrity"
+        },
+        "maintenanceTypes": {
+          "scheduled": "Scheduled Maintenance",
+          "emergency": "Emergency Maintenance",
+          "routine": "Routine Maintenance",
+          "security": "Security Updates"
+        },
+        "status": {
+          "planned": "Planned",
+          "inProgress": "In Progress",
+          "completed": "Completed",
+          "cancelled": "Cancelled",
+          "failed": "Failed"
+        }
+      },
+      "monitoring": {
+        "title": "System Monitoring",
+        "subtitle": "Real-time system monitoring and alerting",
+        "alerts": {
+          "title": "System Alerts",
+          "types": {
+            "critical": "Critical Alert",
+            "warning": "Warning",
+            "info": "Information",
+            "success": "Success"
+          }
+        },
+        "dashboards": {
+          "title": "Monitoring Dashboards",
+          "types": {
+            "performance": "Performance Dashboard",
+            "security": "Security Dashboard",
+            "network": "Network Dashboard",
+            "application": "Application Dashboard"
+          }
+        }
+      },
+      "backup": {
+        "title": "Backup Management",
+        "subtitle": "Manage system backups and recovery",
+        "actions": {
+          "createBackup": "Create Backup",
+          "restoreBackup": "Restore Backup",
+          "scheduleBackup": "Schedule Backup",
+          "verifyBackup": "Verify Backup",
+          "downloadBackup": "Download Backup",
+          "deleteBackup": "Delete Backup"
+        },
+        "backupTypes": {
+          "full": "Full Backup",
+          "incremental": "Incremental Backup",
+          "differential": "Differential Backup",
+          "snapshot": "System Snapshot"
+        },
+        "schedule": {
+          "daily": "Daily Backup",
+          "weekly": "Weekly Backup",
+          "monthly": "Monthly Backup",
+          "custom": "Custom Schedule"
+        }
+      }
+    },
+    "userAdministration": {
+      "title": "User Administration",
+      "subtitle": "Comprehensive user management and access control",
+      "sections": {
+        "userAccounts": "User Accounts",
+        "roleManagement": "Role Management",
+        "permissions": "Permission Matrix",
+        "sessions": "Active Sessions",
+        "audit": "Audit Logs"
+      },
+      "bulkActions": {
+        "title": "Bulk User Actions",
+        "actions": {
+          "bulkImport": "Import Users",
+          "bulkExport": "Export Users",
+          "bulkActivate": "Activate Users",
+          "bulkDeactivate": "Deactivate Users",
+          "bulkAssign": "Assign Roles",
+          "bulkNotify": "Send Notifications"
+        }
+      },
+      "sessionManagement": {
+        "title": "Session Management",
+        "actions": {
+          "viewSessions": "View All Sessions",
+          "terminateSession": "Terminate Session",
+          "forceLogout": "Force Logout",
+          "extendSession": "Extend Session",
+          "blockUser": "Block User"
+        }
+      }
+    }
+  },
+  "harvest": {
+    "components": {
+      "title": "Harvest Management Components",
+      "subtitle": "Field operations and harvest data management",
+      "harvestEntry": {
+        "title": "Harvest Data Entry",
+        "subtitle": "Record daily harvest data from field operations",
+        "sections": {
+          "basicInfo": "Basic Information",
+          "harvestDetails": "Harvest Details",
+          "workerInfo": "Worker Information",
+          "qualityMetrics": "Quality Metrics",
+          "additionalNotes": "Additional Notes"
+        },
+        "fields": {
+          "harvestDate": {
+            "label": "Harvest Date",
+            "placeholder": "Select harvest date",
+            "required": "Harvest date is required",
+            "today": "Today",
+            "yesterday": "Yesterday",
+            "custom": "Custom Date"
+          },
+          "block": {
+            "label": "Block/TPH",
+            "placeholder": "Select block",
+            "required": "Block selection is required",
+            "loading": "Loading blocks...",
+            "noBlocks": "No blocks available"
+          },
+          "tph": {
+            "label": "TPH Number",
+            "placeholder": "Enter TPH number",
+            "required": "TPH number is required",
+            "description": "Tandan Buah Segar collection point"
+          },
+          "workers": {
+            "label": "Number of Workers",
+            "placeholder": "Enter number of workers",
+            "required": "Number of workers is required",
+            "min": "Minimum 1 worker required"
+          },
+          "tbsCount": {
+            "label": "TBS Count",
+            "placeholder": "Enter TBS count",
+            "required": "TBS count is required",
+            "description": "Total Tandan Buah Segar harvested"
+          },
+          "tbsWeight": {
+            "label": "Total TBS Weight (kg)",
+            "placeholder": "Enter total weight",
+            "required": "TBS weight is required",
+            "description": "Total weight in kilograms"
+          },
+          "averageWeight": {
+            "label": "Average Weight per TBS (kg)",
+            "calculated": "Calculated automatically",
+            "formula": "(Total Weight ÷ TBS Count)"
+          },
+          "harvestTime": {
+            "label": "Harvest Time",
+            "placeholder": "Select harvest time",
+            "required": "Harvest time is required",
+            "morning": "Morning (06:00-12:00)",
+            "afternoon": "Afternoon (12:00-18:00)",
+            "evening": "Evening (18:00-24:00)"
+          },
+          "weatherCondition": {
+            "label": "Weather Condition",
+            "placeholder": "Select weather condition",
+            "options": {
+              "sunny": "Sunny",
+              "cloudy": "Cloudy",
+              "rainy": "Rainy",
+              "stormy": "Stormy"
+            }
+          },
+          "notes": {
+            "label": "Harvest Notes",
+            "placeholder": "Enter additional notes",
+            "optional": "Optional field",
+            "examples": "Equipment used, special conditions, etc."
+          }
+        },
+        "quality": {
+          "title": "Quality Assessment",
+          "fields": {
+            "ripePercentage": {
+              "label": "Ripe Fruit Percentage (%)",
+              "placeholder": "Enter percentage",
+              "min": "0",
+              "max": "100"
+            },
+            "unripePercentage": {
+              "label": "Unripe Fruit Percentage (%)",
+              "placeholder": "Enter percentage",
+              "min": "0",
+              "max": "100"
+            },
+            "overripePercentage": {
+              "label": "Overripe Fruit Percentage (%)",
+              "placeholder": "Enter percentage",
+              "min": "0",
+              "max": "100"
+            },
+            "defectivePercentage": {
+              "label": "Defective Fruit Percentage (%)",
+              "placeholder": "Enter percentage",
+              "min": "0",
+              "max": "100"
+            },
+            "qualityScore": {
+              "label": "Overall Quality Score",
+              "calculated": "Calculated based on percentages",
+              "excellent": "Excellent (90-100)",
+              "good": "Good (75-89)",
+              "fair": "Fair (60-74)",
+              "poor": "Poor (<60)"
+            }
+          }
+        },
+        "validation": {
+          "totalPercentage": "Total percentage must equal 100%",
+          "weightPerTBS": "Average weight per TBS seems unusual",
+          "lowProductivity": "Worker productivity is below average",
+          "highProductivity": "Worker productivity is exceptionally high"
+        },
+        "actions": {
+          "saveDraft": "Save as Draft",
+          "submitForApproval": "Submit for Approval",
+          "calculateMetrics": "Calculate Metrics",
+          "clearForm": "Clear Form",
+          "loadTemplate": "Load Template",
+          "saveTemplate": "Save as Template"
+        }
+      },
+      "harvestApproval": {
+        "title": "Harvest Approval Workflow",
+        "subtitle": "Review and approve harvest data submissions",
+        "actions": {
+          "approve": "Approve",
+          "reject": "Reject",
+          "requestRevision": "Request Revision",
+          "approveAll": "Approve All",
+          "rejectAll": "Reject All",
+          "bulkApprove": "Bulk Approve",
+          "sendBack": "Send Back for Correction"
+        },
+        "status": {
+          "pending": "Pending Approval",
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "revised": "Revised and Resubmitted",
+          "underReview": "Under Review"
+        },
+        "review": {
+          "title": "Harvest Data Review",
+          "sections": {
+            "dataVerification": "Data Verification",
+            "qualityCheck": "Quality Check",
+            "productivityAnalysis": "Productivity Analysis",
+            "comparisonWithHistory": "Historical Comparison"
+          },
+          "comments": {
+            "placeholder": "Enter review comments",
+            "required": "Review comments are required for rejection",
+            "optional": "Optional for approval"
+          }
+        }
+      },
+      "fieldOperations": {
+        "title": "Field Operations Management",
+        "subtitle": "Manage field operations and equipment",
+        "equipment": {
+          "title": "Equipment Management",
+          "actions": {
+            "assignEquipment": "Assign Equipment",
+            "trackUsage": "Track Usage",
+            "scheduleMaintenance": "Schedule Maintenance",
+            "reportIssue": "Report Issue"
+          },
+          "types": {
+            "harvester": "Harvester",
+            "tractor": "Tractor",
+            "truck": "Transport Truck",
+            "tools": "Hand Tools",
+            "safety": "Safety Equipment"
+          },
+          "status": {
+            "available": "Available",
+            "inUse": "In Use",
+            "maintenance": "Under Maintenance",
+            "repair": "Needs Repair",
+            "retired": "Retired"
+          }
+        },
+        "planning": {
+          "title": "Harvest Planning",
+          "sections": {
+            "dailyPlan": "Daily Harvest Plan",
+            "weeklySchedule": "Weekly Schedule",
+            "resourceAllocation": "Resource Allocation",
+            "weatherForecast": "Weather Forecast"
+          },
+          "actions": {
+            "createPlan": "Create Harvest Plan",
+            "assignWorkers": "Assign Workers",
+            "scheduleBlocks": "Schedule Blocks",
+            "optimizeRoutes": "Optimize Routes"
+          }
+        }
+      },
+      "analytics": {
+        "title": "Harvest Analytics",
+        "subtitle": "Comprehensive harvest data analysis and insights",
+        "dashboards": {
+          "productivity": {
+            "title": "Productivity Dashboard",
+            "metrics": {
+              "tbsPerWorker": "TBS per Worker",
+              "tbsPerHour": "TBS per Hour",
+              "workerEfficiency": "Worker Efficiency (%)",
+              "dailyYield": "Daily Yield (tons)"
+            }
+          },
+          "quality": {
+            "title": "Quality Dashboard",
+            "metrics": {
+              "averageQualityScore": "Average Quality Score",
+              "ripeFruitPercentage": "Ripe Fruit Percentage",
+              "defectRate": "Defect Rate (%)",
+              "qualityTrends": "Quality Trends"
+            }
+          },
+          "forecasting": {
+            "title": "Yield Forecasting",
+            "metrics": {
+              "expectedYield": "Expected Yield",
+              "harvestReadiness": "Harvest Readiness (%)",
+              "optimalHarvestTime": "Optimal Harvest Time",
+              "yieldProjection": "Yield Projection"
+            }
+          }
+        },
+        "reports": {
+          "dailyReport": "Daily Harvest Report",
+          "weeklySummary": "Weekly Summary",
+          "monthlyAnalysis": "Monthly Analysis",
+          "performanceReview": "Performance Review",
+          "qualityReport": "Quality Assessment Report"
+        }
+      }
+    },
+    "notifications": {
+      "harvestSubmitted": "Harvest data submitted successfully",
+      "harvestApproved": "Harvest data approved",
+      "harvestRejected": "Harvest data rejected - please review comments",
+      "harvestRevised": "Harvest data revised and resubmitted",
+      "equipmentMaintenance": "Equipment maintenance scheduled",
+      "weatherAlert": "Weather alert for harvest planning",
+      "lowProductivity": "Low productivity detected",
+      "qualityIssue": "Quality issue detected in harvest data"
+    }
+  }
+}

@@ -1,0 +1,238 @@
+package resolvers
+
+import (
+	"context"
+	"log"
+
+	"agrinovagraphql/server/internal/graphql/generated"
+	"agrinovagraphql/server/internal/websocket/models"
+	"agrinovagraphql/server/internal/websocket/services"
+)
+
+// SubscriptionResolver handles GraphQL subscriptions for real-time updates
+type SubscriptionResolver struct {
+	wsHandler *services.WebSocketHandler
+}
+
+// NewSubscriptionResolver creates a new subscription resolver
+func NewSubscriptionResolver(wsHandler *services.WebSocketHandler) *SubscriptionResolver {
+	return &SubscriptionResolver{
+		wsHandler: wsHandler,
+	}
+}
+
+// HarvestRecordCreated handles subscription for newly created harvest records
+func (r *SubscriptionResolver) HarvestRecordCreated(ctx context.Context) (<-chan *generated.HarvestRecord, error) {
+	log.Println("Setting up subscription for harvest record created events")
+
+	// Create channel for sending harvest records
+	harvestChan := make(chan *generated.HarvestRecord, 1)
+
+	// Set up subscription cleanup when context is done
+	go func() {
+		<-ctx.Done()
+		close(harvestChan)
+		log.Println("Harvest record created subscription closed")
+	}()
+
+	// Note: In a real implementation, this would listen to database events
+	// or use a message broker to receive harvest creation events.
+	// For now, this sets up the channel structure for the WebSocket system.
+	
+	return harvestChan, nil
+}
+
+// HarvestRecordApproved handles subscription for approved harvest records
+func (r *SubscriptionResolver) HarvestRecordApproved(ctx context.Context) (<-chan *generated.HarvestRecord, error) {
+	log.Println("Setting up subscription for harvest record approved events")
+
+	// Create channel for sending approved harvest records
+	approvedChan := make(chan *generated.HarvestRecord, 1)
+
+	// Set up subscription cleanup when context is done
+	go func() {
+		<-ctx.Done()
+		close(approvedChan)
+		log.Println("Harvest record approved subscription closed")
+	}()
+
+	return approvedChan, nil
+}
+
+// HarvestRecordRejected handles subscription for rejected harvest records
+func (r *SubscriptionResolver) HarvestRecordRejected(ctx context.Context) (<-chan *generated.HarvestRecord, error) {
+	log.Println("Setting up subscription for harvest record rejected events")
+
+	// Create channel for sending rejected harvest records
+	rejectedChan := make(chan *generated.HarvestRecord, 1)
+
+	// Set up subscription cleanup when context is done
+	go func() {
+		<-ctx.Done()
+		close(rejectedChan)
+		log.Println("Harvest record rejected subscription closed")
+	}()
+
+	return rejectedChan, nil
+}
+
+// GateCheckCreated handles subscription for newly created gate check records
+func (r *SubscriptionResolver) GateCheckCreated(ctx context.Context) (<-chan *generated.GateCheckRecord, error) {
+	log.Println("Setting up subscription for gate check created events")
+
+	// Create channel for sending gate check records
+	gateCheckChan := make(chan *generated.GateCheckRecord, 1)
+
+	// Set up subscription cleanup when context is done
+	go func() {
+		<-ctx.Done()
+		close(gateCheckChan)
+		log.Println("Gate check created subscription closed")
+	}()
+
+	return gateCheckChan, nil
+}
+
+// GateCheckCompleted handles subscription for completed gate check records
+func (r *SubscriptionResolver) GateCheckCompleted(ctx context.Context) (<-chan *generated.GateCheckRecord, error) {
+	log.Println("Setting up subscription for gate check completed events")
+
+	// Create channel for sending completed gate check records
+	completedChan := make(chan *generated.GateCheckRecord, 1)
+
+	// Set up subscription cleanup when context is done
+	go func() {
+		<-ctx.Done()
+		close(completedChan)
+		log.Println("Gate check completed subscription closed")
+	}()
+
+	return completedChan, nil
+}
+
+// Helper methods for triggering subscriptions from business logic
+
+// TriggerHarvestCreated sends a harvest created event to all subscribers
+func (r *SubscriptionResolver) TriggerHarvestCreated(record *generated.HarvestRecord) {
+	// Broadcast to appropriate channels based on the event
+	r.wsHandler.BroadcastToChannel(models.ChannelHarvest, "harvestRecordCreated", record)
+	
+	// Also broadcast to role-specific channels
+	r.wsHandler.BroadcastToRole("ASISTEN", "harvestRecordCreated", record)
+	r.wsHandler.BroadcastToRole("MANAGER", "harvestRecordCreated", record)
+	r.wsHandler.BroadcastToRole("AREA_MANAGER", "harvestRecordCreated", record)
+
+	log.Printf("Triggered harvest created event for record ID: %s", record.ID)
+}
+
+// TriggerHarvestApproved sends a harvest approved event to all subscribers
+func (r *SubscriptionResolver) TriggerHarvestApproved(record *generated.HarvestRecord) {
+	// Broadcast to harvest channel
+	r.wsHandler.BroadcastToChannel(models.ChannelHarvest, "harvestRecordApproved", record)
+	
+	// Notify the mandor who created the record
+	if record.Mandor != nil {
+		r.wsHandler.BroadcastToUser(record.Mandor.ID, "harvestRecordApproved", record)
+	}
+	
+	// Also broadcast to management roles
+	r.wsHandler.BroadcastToRole("MANAGER", "harvestRecordApproved", record)
+	r.wsHandler.BroadcastToRole("AREA_MANAGER", "harvestRecordApproved", record)
+
+	log.Printf("Triggered harvest approved event for record ID: %s", record.ID)
+}
+
+// TriggerHarvestRejected sends a harvest rejected event to all subscribers
+func (r *SubscriptionResolver) TriggerHarvestRejected(record *generated.HarvestRecord) {
+	// Broadcast to harvest channel
+	r.wsHandler.BroadcastToChannel(models.ChannelHarvest, "harvestRecordRejected", record)
+	
+	// Notify the mandor who created the record (important for rejection notifications)
+	if record.Mandor != nil {
+		r.wsHandler.BroadcastToUser(record.Mandor.ID, "harvestRecordRejected", record)
+	}
+
+	log.Printf("Triggered harvest rejected event for record ID: %s", record.ID)
+}
+
+// TriggerGateCheckCreated sends a gate check created event to all subscribers
+func (r *SubscriptionResolver) TriggerGateCheckCreated(record *generated.GateCheckRecord) {
+	// Broadcast to gate check channel
+	r.wsHandler.BroadcastToChannel(models.ChannelGateCheck, "gateCheckCreated", record)
+	
+	// Also broadcast to satpam and management roles
+	r.wsHandler.BroadcastToRole("SATPAM", "gateCheckCreated", record)
+	r.wsHandler.BroadcastToRole("MANAGER", "gateCheckCreated", record)
+	r.wsHandler.BroadcastToRole("AREA_MANAGER", "gateCheckCreated", record)
+
+	log.Printf("Triggered gate check created event for record ID: %s", record.ID)
+}
+
+// TriggerGateCheckCompleted sends a gate check completed event to all subscribers
+func (r *SubscriptionResolver) TriggerGateCheckCompleted(record *generated.GateCheckRecord) {
+	// Broadcast to gate check channel
+	r.wsHandler.BroadcastToChannel(models.ChannelGateCheck, "gateCheckCompleted", record)
+	
+	// Also broadcast to management roles for monitoring
+	r.wsHandler.BroadcastToRole("MANAGER", "gateCheckCompleted", record)
+	r.wsHandler.BroadcastToRole("AREA_MANAGER", "gateCheckCompleted", record)
+
+	log.Printf("Triggered gate check completed event for record ID: %s", record.ID)
+}
+
+// TriggerSystemAlert sends a system alert to appropriate users
+func (r *SubscriptionResolver) TriggerSystemAlert(alertType string, message string, data interface{}) {
+	alertData := map[string]interface{}{
+		"type":    alertType,
+		"message": message,
+		"data":    data,
+	}
+
+	// Broadcast to system channel
+	r.wsHandler.BroadcastToChannel(models.ChannelSystem, "systemAlert", alertData)
+	
+	// Also broadcast to admin roles
+	r.wsHandler.BroadcastToRole("COMPANY_ADMIN", "systemAlert", alertData)
+	r.wsHandler.BroadcastToRole("SUPER_ADMIN", "systemAlert", alertData)
+
+	log.Printf("Triggered system alert: %s - %s", alertType, message)
+}
+
+// TriggerUserNotification sends a notification to a specific user
+func (r *SubscriptionResolver) TriggerUserNotification(userID string, notificationType string, message string, data interface{}) {
+	notificationData := map[string]interface{}{
+		"type":    notificationType,
+		"message": message,
+		"data":    data,
+	}
+
+	r.wsHandler.BroadcastToUser(userID, "userNotification", notificationData)
+
+	log.Printf("Triggered user notification for user %s: %s - %s", userID, notificationType, message)
+}
+
+// TriggerCompanyUpdate sends a company-wide update
+func (r *SubscriptionResolver) TriggerCompanyUpdate(companyID string, updateType string, message string, data interface{}) {
+	updateData := map[string]interface{}{
+		"type":    updateType,
+		"message": message,
+		"data":    data,
+	}
+
+	r.wsHandler.BroadcastToCompany(companyID, "companyUpdate", updateData)
+
+	log.Printf("Triggered company update for company %s: %s - %s", companyID, updateType, message)
+}
+
+// TriggerRoleBasedAlert sends an alert to all users with a specific role
+func (r *SubscriptionResolver) TriggerRoleBasedAlert(role string, alertType string, message string, data interface{}) {
+	alertData := map[string]interface{}{
+		"type":    alertType,
+		"message": message,
+		"data":    data,
+	}
+
+	r.wsHandler.BroadcastToRole(role, "roleAlert", alertData)
+
+	log.Printf("Triggered role-based alert for role %s: %s - %s", role, alertType, message)
+}

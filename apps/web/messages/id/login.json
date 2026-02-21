@@ -1,0 +1,68 @@
+{
+    "forgotPasswordComingSoon": "Fitur lupa password segera hadir!",
+    "qrLoginSuccess": "Login QR berhasil! Selamat datang, {name}",
+    "qrLoginError": "Login QR gagal. Silakan coba lagi.",
+    "loginFailed": "Login gagal. Periksa kredensial Anda.",
+    "passwordChangeRequired": "Password Anda perlu diubah sebelum melanjutkan.",
+    "features": {
+        "realTimeAnalytics": {
+            "title": "Analitik Real-Time",
+            "description": "Pantau performa panen dan produktivitas dengan dashboard langsung dan laporan komprehensif."
+        },
+        "secureOperations": {
+            "title": "Operasi Aman",
+            "description": "Keamanan tingkat enterprise dengan autentikasi JWT, kontrol akses berbasis peran, dan audit logging."
+        },
+        "offlineFirstMobile": {
+            "title": "Mobile Offline-First",
+            "description": "Bekerja lancar tanpa koneksi internet hingga 30 hari dengan sinkronisasi otomatis."
+        },
+        "multiRoleAccess": {
+            "title": "Akses Multi-Peran",
+            "description": "Antarmuka khusus untuk peran Mandor, Asisten, Manajer, Satpam, dan Admin."
+        }
+    },
+    "identifier": "Email atau Username",
+    "identifierPlaceholder": "Masukkan email atau username",
+    "password": "Password",
+    "passwordPlaceholder": "Masukkan password",
+    "rememberMe": "Ingat saya",
+    "forgotPassword": "Lupa password?",
+    "loginButton": "Masuk",
+    "quickDemoAccess": "Akses Demo Cepat",
+    "hero": {
+        "title": "Solusi inovatif untuk manajemen kebun sawit dengan teknologi offline-first dan keamanan enterprise.",
+        "offlineCapability": "Aplikasi mobile dapat bekerja sepenuhnya offline hingga 30 hari tanpa koneksi internet.",
+        "features": {
+            "jwt": "JWT authentication offline",
+            "sqlite": "SQLite local storage",
+            "sync": "Auto-sync saat online",
+            "encryption": "Dilindungi dengan enkripsi end to end"
+        }
+    },
+    "loginTitle": "Masuk ke AgrInova",
+    "loginSubtitle": "Akses platform manajemen kebun sawit Anda",
+    "loggingIn": "Sedang masuk...",
+    "demoCredentialsLoaded": "Kredensial {role} dimuat",
+    "clickToLogin": "Klik tombol Masuk untuk melanjutkan",
+    "clickToAutofill": "Klik akun untuk mengisi otomatis kredensial",
+    "mobileApp": {
+        "title": "📱 Download Mobile Apps",
+        "description": "Akses offline-first untuk Mandor, Asisten, Satpam, dan Manager",
+        "android": "Android APK",
+        "androidVersion": "v1.0.0 • Flutter • Coming Soon",
+        "ios": "iOS App Store",
+        "iosVersion": "v1.0.0 • Flutter • Coming Soon",
+        "featuresTitle": "🚀 Fitur Mobile Offline-First",
+        "features": {
+            "offline": "Bekerja tanpa koneksi internet (30 hari)",
+            "sync": "Sinkronisasi otomatis saat online",
+            "auth": "JWT authentication dengan biometric lock",
+            "notifications": "Real-time notifications via WebSocket"
+        }
+    },
+    "privacy": {
+        "agreement": "Dengan melanjutkan, Anda menyetujui <privacyPolicy>Privacy Policy</privacyPolicy>.",
+        "privacyPolicy": "Privacy Policy"
+    }
+}

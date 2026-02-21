@@ -1,0 +1,162 @@
+# =============================================================================
+# API Keys Management Schema
+# =============================================================================
+
+"""
+APIKey represents an external application's access credentials.
+Used for HRIS integration, Smart Mill Scale, and other system integrations.
+"""
+type APIKey {
+  "Unique identifier for the API key"
+  id: ID!
+  "Human-readable name for the API key"
+  name: String!
+  "Key prefix (e.g., 'ak_live_')"
+  prefix: String!
+  "Array of granted permissions/scopes"
+  scopes: [String!]!
+  "Current status of the API key"
+  status: APIKeyStatus!
+  "Expiration timestamp (null for no expiration)"
+  expiresAt: Time
+  "Last time this key was used for authentication"
+  lastUsedAt: Time
+  "When the API key was created"
+  createdAt: Time!
+  "User who created this API key"
+  createdBy: User!
+  "When the key was revoked (null if still active)"
+  revokedAt: Time
+  "User who revoked this key (null if still active)"
+  revokedBy: User
+}
+
+"""
+APIKeyReveal represents the response when creating a new API key.
+Contains the full plaintext key (shown only once).
+"""
+type APIKeyReveal {
+  "The newly created API key"
+  apiKey: APIKey!
+  "Plaintext API key (shown only during creation)"
+  plaintextKey: String!
+}
+
+"""
+APIKeyStatus represents the current status of an API key.
+"""
+enum APIKeyStatus {
+  "Key is active and can be used for authentication"
+  ACTIVE
+  "Key has been revoked and cannot be used"
+  REVOKED
+  "Key has expired and cannot be used"
+  EXPIRED
+}
+
+"""
+APIKeyLog represents an audit log entry for API key operations.
+"""
+type APIKeyLog {
+  "Unique identifier for the log entry"
+  id: ID!
+  "The API key this log entry relates to"
+  apiKeyId: String!
+  "Action performed (CREATE, ROTATE, REVOKE, AUTH_FAILURE)"
+  action: String!
+  "User who performed the action (null for system actions)"
+  performedBy: User
+  "IP address from which the action was performed"
+  ipAddress: String
+  "User agent string of the client"
+  userAgent: String
+  "Additional details about the action (JSON format)"
+  details: String
+  "When this log entry was created"
+  createdAt: Time!
+}
+
+"""
+CreateAPIKeyInput represents the input for creating a new API key.
+"""
+input CreateAPIKeyInput {
+  "Human-readable name for the API key"
+  name: String!
+  "Array of permissions/scopes to grant"
+  scopes: [String!]!
+  "Number of days until the key expires (null for no expiration)"
+  expiresInDays: Int
+}
+
+"""
+APIKeysResponse represents the response from API keys queries.
+"""
+type APIKeysResponse {
+  "List of API keys"
+  apiKeys: [APIKey!]!
+  "Total number of API keys"
+  totalCount: Int!
+  "Whether there are more keys to fetch"
+  hasNextPage: Boolean!
+  "Pagination information"
+  pageInfo: PageInfo!
+}
+
+# API Keys Queries
+extend type Query {
+  "Get all API keys in the system (SUPER_ADMIN only)"
+  apiKeys: [APIKey!]!
+
+  "Get API key statistics and metrics (SUPER_ADMIN only)"
+  apiKeyStats: APIKeyStats!
+
+  "Get audit log for API key operations (SUPER_ADMIN only)"
+  apiKeyLog(
+    "Filter by specific API key ID"
+    apiKeyId: String
+    "Filter by action type"
+    action: String
+    "Pagination limit"
+    limit: Int = 50
+    "Pagination offset"
+    offset: Int = 0
+  ): [APIKeyLog!]!
+}
+
+# API Keys Mutations
+extend type Mutation {
+  "Create a new API key (SUPER_ADMIN only)"
+  createAPIKey(input: CreateAPIKeyInput!): APIKeyReveal!
+
+  "Revoke an existing API key (SUPER_ADMIN only)"
+  revokeAPIKey(id: ID!): Boolean!
+
+  "Rotate an API key (revoke old, create new) (SUPER_ADMIN only)"
+  rotateAPIKey(id: ID!, expiresInDays: Int): APIKeyReveal!
+}
+
+# =============================================================================
+# API Key Statistics Types
+# =============================================================================
+
+"""
+APIKeyStats provides statistics about API key usage and management.
+"""
+type APIKeyStats {
+  "Total number of API keys in the system"
+  totalKeys: Int!
+  "Number of currently active API keys"
+  activeKeys: Int!
+  "Number of revoked API keys"
+  revokedKeys: Int!
+  "Number of expired API keys"
+  expiredKeys: Int!
+  "Number of API keys created in the last 30 days"
+  createdLast30Days: Int!
+  "Number of API keys expiring in the next 30 days"
+  expiringNext30Days: Int!
+  "Most recently created API key"
+  mostRecentKey: APIKey
+  "Most used API key (by last used timestamp)"
+  mostUsedKey: APIKey
+}

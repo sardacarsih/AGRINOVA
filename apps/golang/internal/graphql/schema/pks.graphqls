@@ -1,0 +1,89 @@
+# =============================================================================
+# PKS (Pabrik Kelapa Sawit) Schema
+# =============================================================================
+
+"""
+PKSRecord represents records from palm oil processing factory.
+"""
+type PKSRecord {
+  id: ID!
+  harvestRecordId: String!
+  harvestRecord: HarvestRecord!
+  beratTimbang: Float!
+  bjrPercentage: Float!
+  kualitas: PKSKualitas!
+  tanggalTimbang: Time!
+  nomorDo: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"""
+PKS quality classification.
+"""
+enum PKSKualitas {
+  A
+  B
+  C
+  REJECT
+}
+
+"""
+BJR (Brondolan Janjang Rasio) calculation result.
+"""
+type BJRCalculation {
+  id: ID!
+  pksRecordId: String!
+  pksRecord: PKSRecord!
+  totalBrondolan: Float!
+  totalJanjang: Float!
+  bjrRatio: Float!
+  tanggalHitung: Time!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+input CreatePKSRecordInput {
+  harvestRecordId: String!
+  beratTimbang: Float!
+  bjrPercentage: Float!
+  kualitas: PKSKualitas!
+  tanggalTimbang: Time!
+  nomorDo: String!
+}
+
+input UpdatePKSRecordInput {
+  id: ID!
+  beratTimbang: Float
+  bjrPercentage: Float
+  kualitas: PKSKualitas
+  nomorDo: String
+}
+
+# PKS queries
+extend type Query {
+  # PKS Queries
+  "Retrieve all PKS records"
+  pksRecords: [PKSRecord!]!
+  "Get a specific PKS record by ID"
+  pksRecord(id: ID!): PKSRecord
+  "Filter PKS records by quality"
+  pksRecordsByQuality(kualitas: PKSKualitas!): [PKSRecord!]!
+  
+  # BJR Queries
+  "Retrieve all BJR calculations"
+  bjrCalculations: [BJRCalculation!]!
+  "Get BJR calculation by PKS record"
+  bjrCalculationByPKS(pksRecordId: String!): BJRCalculation
+}
+
+# PKS mutations
+extend type Mutation {
+  # PKS mutations
+  createPKSRecord(input: CreatePKSRecordInput!): PKSRecord!
+  updatePKSRecord(input: UpdatePKSRecordInput!): PKSRecord!
+  deletePKSRecord(id: ID!): Boolean!
+  
+  # BJR mutations
+  calculateBJR(pksRecordId: String!): BJRCalculation!
+}

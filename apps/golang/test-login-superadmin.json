@@ -1,0 +1,9 @@
+{
+    "query": "mutation WebLogin($input: WebLoginInput!) { webLogin(input: $input) { success message user { id username nama role } companies { id nama } sessionId } }",
+    "variables": {
+        "input": {
+            "identifier": "superadmin",
+            "password": "demo123"
+        }
+    }
+}

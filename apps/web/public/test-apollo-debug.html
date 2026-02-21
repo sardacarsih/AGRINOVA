@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apollo Client Debug Tool</title>
+    <style>
+        body { 
+            font-family: monospace; 
+            padding: 20px; 
+            background: #1a1a1a; 
+            color: #fff; 
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .section { 
+            background: #2a2a2a; 
+            padding: 20px; 
+            margin: 10px 0; 
+            border-radius: 8px; 
+            border-left: 4px solid #00ff00;
+        }
+        .error { border-left-color: #ff0000; }
+        .success { border-left-color: #00ff00; }
+        .warning { border-left-color: #ffff00; }
+        pre { 
+            background: #0f0f0f; 
+            padding: 15px; 
+            border-radius: 4px; 
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        button { 
+            background: #007acc; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            margin: 5px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+        }
+        button:hover { background: #005f99; }
+        .status { 
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            padding: 10px; 
+            border-radius: 4px; 
+            min-width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Apollo Client vs Direct Fetch Debug Tool</h1>
+        
+        <div class="section">
+            <h2>Configuration Check</h2>
+            <pre id="config-output">Loading configuration...</pre>
+            <button onclick="checkConfiguration()">Refresh Config</button>
+        </div>
+
+        <div class="section">
+            <h2>Direct Fetch Test</h2>
+            <pre id="fetch-output">Click button to test...</pre>
+            <button onclick="testDirectFetch()">Test Direct Fetch</button>
+        </div>
+
+        <div class="section">
+            <h2>Apollo Client Test</h2>
+            <pre id="apollo-output">Click button to test...</pre>
+            <button onclick="testApolloClient()">Test Apollo Client</button>
+        </div>
+
+        <div class="section">
+            <h2>Network Comparison</h2>
+            <pre id="comparison-output">Run both tests to compare...</pre>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@apollo/client@3.8.7/apollo-client.min.js"></script>
+    <script>
+        let fetchResult = null;
+        let apolloResult = null;
+
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.textContent = `[${timestamp}] ${message}`;
+            
+            const section = element.closest('.section');
+            section.className = `section ${type}`;
+        }
+
+        function checkConfiguration() {
+            const config = {
+                'Window Location': window.location.href,
+                'GraphQL URL': 'http://localhost:8080/graphql',
+                'WebSocket URL': 'ws://localhost:8080/ws',
+                'User Agent': navigator.userAgent,
+                'Cookies Enabled': navigator.cookieEnabled,
+                'Local Storage Available': !!window.localStorage,
+                'Session Storage Available': !!window.sessionStorage,
+            };
+            
+            log('config-output', JSON.stringify(config, null, 2));
+        }
+
+        async function testDirectFetch() {
+            try {
+                log('fetch-output', 'Testing direct fetch...', 'warning');
+                
+                const query = {
+                    query: `mutation {
+                        webLogin(input: { 
+                            identifier: "asisten", 
+                            password: "demo123" 
+                        }) {
+                            success
+                            message
+                            user { 
+                                id 
+                                username 
+                                nama 
+                                role 
+                            }
+                            companies { 
+                                id 
+                                nama 
+                            }
+                            sessionId
+                        }
+                    }`
+                };
+
+                const response = await fetch('http://localhost:8080/graphql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Origin': 'http://localhost:3000',
+                    },
+                    credentials: 'include',
+                    mode: 'cors',
+                    body: JSON.stringify(query)
+                });
+
+                console.log('Direct fetch response:', response);
+                
+                const result = await response.json();
+                fetchResult = result;
+                
+                log('fetch-output', 
+                    `Status: ${response.status}\n` +
+                    `Headers: ${JSON.stringify(Object.fromEntries(response.headers), null, 2)}\n` +
+                    `Response: ${JSON.stringify(result, null, 2)}`,
+                    result.data ? 'success' : 'error'
+                );
+                
+                updateComparison();
+            } catch (error) {
+                log('fetch-output', `Error: ${error.message}\n${error.stack}`, 'error');
+                fetchResult = { error: error.message };
+                updateComparison();
+            }
+        }
+
+        async function testApolloClient() {
+            try {
+                log('apollo-output', 'Testing Apollo Client...', 'warning');
+
+                // Create Apollo Client instance
+                const { ApolloClient, InMemoryCache, createHttpLink, gql } = window.ApolloClientCore;
+                
+                const httpLink = createHttpLink({
+                    uri: 'http://localhost:8080/graphql',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Origin': 'http://localhost:3000',
+                    },
+                    fetchOptions: {
+                        credentials: 'include',
+                        mode: 'cors',
+                    }
+                });
+
+                const client = new ApolloClient({
+                    link: httpLink,
+                    cache: new InMemoryCache()
+                });
+
+                const WEB_LOGIN_MUTATION = gql`
+                    mutation WebLogin($input: LoginInput!) {
+                        webLogin(input: $input) {
+                            success
+                            message
+                            user { 
+                                id 
+                                username 
+                                nama 
+                                role 
+                            }
+                            companies { 
+                                id 
+                                nama 
+                            }
+                            sessionId
+                        }
+                    }
+                `;
+
+                const result = await client.mutate({
+                    mutation: WEB_LOGIN_MUTATION,
+                    variables: {
+                        input: {
+                            identifier: "asisten",
+                            password: "demo123"
+                        }
+                    }
+                });
+
+                apolloResult = result;
+                
+                log('apollo-output', 
+                    `Apollo Result: ${JSON.stringify(result, null, 2)}`,
+                    result.data ? 'success' : 'error'
+                );
+                
+                updateComparison();
+            } catch (error) {
+                log('apollo-output', `Apollo Error: ${error.message}\n${error.stack}`, 'error');
+                apolloResult = { error: error.message };
+                updateComparison();
+            }
+        }
+
+        function updateComparison() {
+            if (fetchResult && apolloResult) {
+                const comparison = {
+                    'Direct Fetch Success': !!fetchResult.data,
+                    'Apollo Client Success': !!apolloResult.data,
+                    'Direct Fetch Data': fetchResult.data || fetchResult.error,
+                    'Apollo Client Data': apolloResult.data || apolloResult.error,
+                    'Same Results': JSON.stringify(fetchResult.data) === JSON.stringify(apolloResult.data)
+                };
+                
+                log('comparison-output', JSON.stringify(comparison, null, 2));
+            }
+        }
+
+        // Initialize on page load
+        checkConfiguration();
+    </script>
+</body>
+</html>

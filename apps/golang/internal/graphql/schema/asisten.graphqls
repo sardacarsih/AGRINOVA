@@ -1,0 +1,630 @@
+# =============================================================================
+# Asisten Role Schema
+# Features: Dashboard, Approval, Monitoring
+# =============================================================================
+
+# =============================================================================
+# ASISTEN DASHBOARD TYPES
+# =============================================================================
+
+"""
+AsistenDashboardData represents aggregated dashboard data for Asisten.
+"""
+type AsistenDashboardData {
+  "Basic user information"
+  user: User!
+  "Divisions assigned to this asisten"
+  divisions: [Division!]!
+  "Dashboard statistics"
+  stats: AsistenDashboardStats!
+  "Pending approval items"
+  pendingItems: [ApprovalItem!]!
+  "Today's summary"
+  todaySummary: AsistenTodaySummary!
+  "Quick actions"
+  quickActions: [AsistenQuickAction!]!
+}
+
+"""
+AsistenDashboardStats represents key metrics for asisten dashboard.
+"""
+type AsistenDashboardStats {
+  "Total divisions assigned"
+  totalDivisions: Int!
+  "Total blocks in assigned divisions"
+  totalBlocks: Int!
+  "Pending approvals count"
+  pendingApprovals: Int!
+  "Approved today"
+  approvedToday: Int!
+  "Rejected today"
+  rejectedToday: Int!
+  "Average approval time (minutes)"
+  avgApprovalTime: Float!
+  "Total mandors supervised"
+  totalMandors: Int!
+  "Active mandors today"
+  activeMandorsToday: Int!
+  "Today's production (tons)"
+  todayProduction: Float!
+}
+
+"""
+AsistenTodaySummary represents today's work summary for asisten.
+"""
+type AsistenTodaySummary {
+  "Total submissions today"
+  totalSubmissions: Int!
+  "Pending count"
+  pending: Int!
+  "Approved count"
+  approved: Int!
+  "Rejected count"
+  rejected: Int!
+  "Total TBS today"
+  totalTbs: Int!
+  "Total weight today (tons)"
+  totalWeight: Float!
+  "Active workers"
+  activeWorkers: Int!
+  "Busiest block"
+  busiestBlock: String
+}
+
+"""
+AsistenQuickAction represents a quick action for asisten.
+"""
+type AsistenQuickAction {
+  "Action ID"
+  id: ID!
+  "Action type"
+  type: AsistenActionType!
+  "Action title"
+  title: String!
+  "Count/badge"
+  count: Int
+  "Is urgent"
+  isUrgent: Boolean!
+}
+
+"""
+AsistenActionType enum.
+"""
+enum AsistenActionType {
+  "View all pending"
+  VIEW_PENDING
+  "Batch approve"
+  BATCH_APPROVE
+  "View today's history"
+  VIEW_HISTORY
+  "Check monitoring"
+  VIEW_MONITORING
+  "View reports"
+  VIEW_REPORTS
+}
+
+# =============================================================================
+# ASISTEN APPROVAL TYPES
+# =============================================================================
+
+"""
+ApprovalItem represents a harvest record pending approval.
+"""
+type ApprovalItem {
+  "Harvest record ID"
+  id: ID!
+  "Mandor who submitted"
+  mandor: User!
+  "Block information"
+  block: Block!
+  "Division information"
+  division: Division!
+  "Harvest date"
+  harvestDate: Time!
+  "Number of employees"
+  employeeCount: Int!
+  "Employee names/IDs"
+  employees: String!
+  "Total TBS count"
+  tbsCount: Int!
+  "Total weight (kg)"
+  weight: Float!
+  "Submitted time"
+  submittedAt: Time!
+  "Time elapsed since submission"
+  elapsedTime: String!
+  "Status"
+  status: HarvestStatus!
+  "Has photo"
+  hasPhoto: Boolean!
+  "Photo URLs"
+  photoUrls: [String!]
+  "GPS coordinates"
+  coordinates: Coordinates
+  "Notes from mandor"
+  notes: String
+  "Priority level"
+  priority: ApprovalPriority!
+  "Validation status"
+  validationStatus: ValidationStatus!
+  "Validation issues"
+  validationIssues: [String!]
+}
+
+"""
+ApprovalPriority enum.
+"""
+enum ApprovalPriority {
+  "Normal priority"
+  NORMAL
+  "High priority (waiting > 2 hours)"
+  HIGH
+  "Urgent (waiting > 4 hours)"
+  URGENT
+}
+
+"""
+ValidationStatus enum.
+"""
+enum ValidationStatus {
+  "All validations passed"
+  VALID
+  "Has warnings but can approve"
+  WARNING
+  "Has errors, needs review"
+  ERROR
+}
+
+"""
+ApprovalListResponse represents paginated approval list.
+"""
+type ApprovalListResponse {
+  "Approval items"
+  items: [ApprovalItem!]!
+  "Total count"
+  totalCount: Int!
+  "Has more pages"
+  hasMore: Boolean!
+  "Page info"
+  pageInfo: ApprovalPageInfo!
+}
+
+"""
+ApprovalPageInfo for pagination.
+"""
+type ApprovalPageInfo {
+  "Current page"
+  currentPage: Int!
+  "Total pages"
+  totalPages: Int!
+  "Page size"
+  pageSize: Int!
+}
+
+"""
+ApprovalFilterInput for filtering approvals.
+"""
+input ApprovalFilterInput {
+  "Filter by status"
+  status: HarvestStatus
+  "Filter by division"
+  divisionId: ID
+  "Filter by block"
+  blockId: ID
+  "Filter by mandor"
+  mandorId: ID
+  "Filter by date range start"
+  dateFrom: Time
+  "Filter by date range end"
+  dateTo: Time
+  "Filter by priority"
+  priority: ApprovalPriority
+  "Search query"
+  search: String
+  "Sort by field"
+  sortBy: ApprovalSortField
+  "Sort direction"
+  sortDirection: SortDirection
+  "Page number"
+  page: Int = 1
+  "Page size"
+  pageSize: Int = 20
+}
+
+"""
+ApprovalSortField enum.
+"""
+enum ApprovalSortField {
+  SUBMITTED_AT
+  HARVEST_DATE
+  WEIGHT
+  TBS_COUNT
+  PRIORITY
+  BLOCK_NAME
+  MANDOR_NAME
+}
+
+"""
+ApproveHarvestResult represents result of approval action.
+"""
+type ApproveHarvestResult {
+  "Success status"
+  success: Boolean!
+  "Message"
+  message: String!
+  "Updated harvest record"
+  harvestRecord: HarvestRecord
+  "Errors if any"
+  errors: [String!]
+}
+
+"""
+BatchApprovalInput for batch approve/reject.
+"""
+input BatchApprovalInput {
+  "IDs to approve/reject"
+  ids: [ID!]!
+  "Action type"
+  action: BatchApprovalAction!
+  "Rejection reason (required for reject)"
+  rejectionReason: String
+  "Notes"
+  notes: String
+}
+
+"""
+BatchApprovalAction enum.
+"""
+enum BatchApprovalAction {
+  APPROVE
+  REJECT
+}
+
+"""
+BatchApprovalResult represents result of batch operation.
+"""
+type BatchApprovalResult {
+  "Success status"
+  success: Boolean!
+  "Total processed"
+  totalProcessed: Int!
+  "Successfully processed"
+  successCount: Int!
+  "Failed count"
+  failedCount: Int!
+  "Individual results"
+  results: [BatchItemResult!]!
+  "Message"
+  message: String!
+}
+
+"""
+BatchItemResult for individual batch item.
+"""
+type BatchItemResult {
+  "Record ID"
+  id: ID!
+  "Success status"
+  success: Boolean!
+  "Error message if failed"
+  error: String
+}
+
+# =============================================================================
+# ASISTEN MONITORING TYPES
+# =============================================================================
+
+"""
+AsistenMonitoringData represents monitoring data for asisten.
+"""
+type AsistenMonitoringData {
+  "Overall status"
+  overallStatus: MonitorStatus!
+  "Division summaries"
+  divisionSummaries: [AsistenDivisionSummary!]!
+  "Block activities"
+  blockActivities: [BlockActivity!]!
+  "Mandor statuses"
+  mandorStatuses: [MandorStatus!]!
+  "Real-time statistics"
+  realtimeStats: AsistenRealtimeStats!
+  "Timeline of activities"
+  activityTimeline: [ActivityTimelineItem!]!
+  "Last updated"
+  lastUpdated: Time!
+}
+
+"""
+AsistenDivisionSummary represents division monitoring summary for asisten.
+"""
+type AsistenDivisionSummary {
+  "Division ID"
+  divisionId: ID!
+  "Division name"
+  divisionName: String!
+  "Division code"
+  divisionCode: String!
+  "Status"
+  status: MonitorStatus!
+  "Active blocks"
+  activeBlocks: Int!
+  "Total blocks"
+  totalBlocks: Int!
+  "Active mandors"
+  activeMandors: Int!
+  "Total mandors"
+  totalMandors: Int!
+  "Today's production (tons)"
+  todayProduction: Float!
+  "Daily target"
+  dailyTarget: Float!
+  "Progress percentage"
+  progress: Float!
+  "Pending approvals"
+  pendingApprovals: Int!
+  "Last activity"
+  lastActivity: Time
+}
+
+"""
+BlockActivity represents activity in a block.
+"""
+type BlockActivity {
+  "Block ID"
+  blockId: ID!
+  "Block name"
+  blockName: String!
+  "Block code"
+  blockCode: String!
+  "Division name"
+  divisionName: String!
+  "Status"
+  status: BlockActivityStatus!
+  "Mandor assigned"
+  mandorName: String
+  "Current TBS count"
+  currentTbs: Int!
+  "Current weight"
+  currentWeight: Float!
+  "Workers count"
+  workersCount: Int!
+  "Start time"
+  startTime: Time
+  "Last update"
+  lastUpdate: Time
+}
+
+"""
+BlockActivityStatus enum.
+"""
+enum BlockActivityStatus {
+  "No activity"
+  IDLE
+  "Harvest in progress"
+  ACTIVE
+  "Paused/break"
+  PAUSED
+  "Completed for today"
+  COMPLETED
+}
+
+"""
+MandorStatus represents mandor activity status.
+"""
+type MandorStatus {
+  "Mandor user ID"
+  mandorId: ID!
+  "Mandor name"
+  mandorName: String!
+  "Online/offline status"
+  isOnline: Boolean!
+  "Last seen timestamp"
+  lastSeen: Time!
+  "Current block"
+  currentBlock: String
+  "Today's submissions"
+  todaySubmissions: Int!
+  "Pending submissions"
+  pendingSubmissions: Int!
+  "Approved submissions"
+  approvedSubmissions: Int!
+  "Today's TBS"
+  todayTbs: Int!
+  "Today's weight"
+  todayWeight: Float!
+}
+
+"""
+AsistenRealtimeStats represents real-time statistics for asisten.
+"""
+type AsistenRealtimeStats {
+  "Total submissions today"
+  totalSubmissionsToday: Int!
+  "Pending count"
+  pendingCount: Int!
+  "Active mandors"
+  activeMandors: Int!
+  "Active blocks"
+  activeBlocks: Int!
+  "Total TBS today"
+  totalTbsToday: Int!
+  "Total weight today"
+  totalWeightToday: Float!
+  "Average TBS per submission"
+  avgTbsPerSubmission: Float!
+  "Productivity rate"
+  productivityRate: Float!
+}
+
+"""
+ActivityTimelineItem represents an activity in timeline.
+"""
+type ActivityTimelineItem {
+  "Item ID"
+  id: ID!
+  "Activity type"
+  type: ActivityType!
+  "Title"
+  title: String!
+  "Description"
+  description: String!
+  "Related entity type"
+  entityType: String
+  "Related entity ID"
+  entityId: String
+  "Actor name"
+  actorName: String!
+  "Timestamp"
+  timestamp: Time!
+}
+
+"""
+ActivityType enum.
+"""
+enum ActivityType {
+  "Harvest submitted"
+  HARVEST_SUBMITTED
+  "Harvest approved"
+  HARVEST_APPROVED
+  "Harvest rejected"
+  HARVEST_REJECTED
+  "Mandor started shift"
+  MANDOR_STARTED
+  "Mandor ended shift"
+  MANDOR_ENDED
+  "Block started"
+  BLOCK_STARTED
+  "Block completed"
+  BLOCK_COMPLETED
+}
+
+# =============================================================================
+# ASISTEN QUERIES
+# =============================================================================
+
+extend type Query {
+  # Asisten Dashboard Queries
+  "Get asisten dashboard data"
+  asistenDashboard: AsistenDashboardData! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Get asisten dashboard stats"
+  asistenDashboardStats: AsistenDashboardStats! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Get asisten today summary"
+  asistenTodaySummary: AsistenTodaySummary! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  # Asisten Approval Queries
+  "Get pending approvals list"
+  pendingApprovals(filter: ApprovalFilterInput): ApprovalListResponse! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Get single approval item detail"
+  approvalItem(id: ID!): ApprovalItem! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Get approval history"
+  approvalHistory(
+    filter: ApprovalFilterInput
+  ): ApprovalListResponse! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Get approval statistics"
+  approvalStats(
+    dateFrom: Time
+    dateTo: Time
+  ): ApprovalStatsData! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  # Asisten Monitoring Queries
+  "Get asisten monitoring data"
+  asistenMonitoring: AsistenMonitoringData! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Get division monitoring detail"
+  divisionMonitoring(divisionId: ID!): AsistenDivisionSummary! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Get block activities for a division"
+  blockActivities(divisionId: ID): [BlockActivity!]! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Get mandor statuses"
+  mandorStatuses(divisionId: ID): [MandorStatus!]! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Get activity timeline"
+  activityTimeline(
+    divisionId: ID
+    limit: Int = 50
+    since: Time
+  ): [ActivityTimelineItem!]! @requireAuth @hasRole(roles: [ASISTEN])
+}
+
+"""
+ApprovalStatsData represents approval statistics.
+"""
+type ApprovalStatsData {
+  "Total submissions"
+  totalSubmissions: Int!
+  "Total approved"
+  totalApproved: Int!
+  "Total rejected"
+  totalRejected: Int!
+  "Approval rate percentage"
+  approvalRate: Float!
+  "Average approval time (minutes)"
+  avgApprovalTime: Float!
+  "Fastest approval (minutes)"
+  fastestApproval: Float!
+  "Slowest approval (minutes)"
+  slowestApproval: Float!
+  "Stats by day"
+  dailyStats: [DailyApprovalStats!]!
+}
+
+"""
+DailyApprovalStats for daily breakdown.
+"""
+type DailyApprovalStats {
+  "Date"
+  date: Time!
+  "Submissions"
+  submissions: Int!
+  "Approved"
+  approved: Int!
+  "Rejected"
+  rejected: Int!
+  "Total TBS"
+  totalTbs: Int!
+  "Total weight"
+  totalWeight: Float!
+}
+
+# =============================================================================
+# ASISTEN MUTATIONS
+# =============================================================================
+
+extend type Mutation {
+  # Approval Mutations
+  "Approve single harvest record"
+  approveHarvest(id: ID!, notes: String): ApproveHarvestResult! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Reject single harvest record"
+  rejectHarvest(id: ID!, reason: String!): ApproveHarvestResult! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Batch approve/reject harvest records"
+  batchApproval(input: BatchApprovalInput!): BatchApprovalResult! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Request correction from mandor"
+  requestCorrection(id: ID!, corrections: [String!]!): ApproveHarvestResult! @requireAuth @hasRole(roles: [ASISTEN])
+}
+
+# =============================================================================
+# ASISTEN SUBSCRIPTIONS
+# =============================================================================
+
+extend type Subscription {
+  "New harvest submission notification"
+  newHarvestSubmission(divisionId: ID): ApprovalItem! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Monitoring data updates"
+  asistenMonitoringUpdate: AsistenMonitoringData! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Mandor status changes"
+  mandorStatusChange(divisionId: ID): MandorStatus! @requireAuth @hasRole(roles: [ASISTEN])
+  
+  "Block activity updates"
+  blockActivityUpdate(divisionId: ID): BlockActivity! @requireAuth @hasRole(roles: [ASISTEN])
+}

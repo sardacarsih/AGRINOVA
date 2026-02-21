@@ -1,0 +1,23 @@
+# =============================================================================
+# FCM Device Token Management Schema
+# =============================================================================
+
+"""
+RegisterFCMTokenInput for registering FCM push notification tokens
+"""
+input RegisterFCMTokenInput {
+  "FCM registration token from Firebase"
+  token: String!
+  "Platform: ANDROID or IOS"
+  platform: String!
+  "Device ID for identification"
+  deviceId: String!
+}
+
+extend type Mutation {
+  "Register FCM token for push notifications (called after login)"
+  registerFCMToken(input: RegisterFCMTokenInput!): Boolean! @requireAuth
+  
+  "Unregister FCM token (called before logout or token refresh)"
+  unregisterFCMToken(token: String!): Boolean! @requireAuth
+}

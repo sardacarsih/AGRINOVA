@@ -1,0 +1,13 @@
+{
+  "ENV": "staging",
+  "APP_NAME": "Agrinova Staging",
+  "BASE_URL": "https://staging.agrinova.com",
+  "WS_URL": "wss://staging.agrinova.com",
+  "GRAPHQL_PATH": "/graphql",
+  "WS_PATH": "/ws",
+  "ENABLE_LOGS": true,
+  "ENABLE_DEBUG": false,
+  "ENABLE_BIOMETRICS": true,
+  "ENABLE_OFFLINE_MODE": true,
+  "API_PORT": 443
+}

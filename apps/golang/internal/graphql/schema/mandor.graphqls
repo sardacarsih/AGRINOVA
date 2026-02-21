@@ -1,0 +1,888 @@
+# =============================================================================
+# Mandor Role Schema
+# Features: Dashboard, Input Panen, Riwayat, Offline-First Sync
+# =============================================================================
+
+# =============================================================================
+# MANDOR DASHBOARD TYPES
+# =============================================================================
+
+"""
+MandorDashboardData represents aggregated dashboard data for Mandor.
+"""
+type MandorDashboardData {
+  "Basic user information"
+  user: User!
+  "Divisions assigned to this mandor"
+  divisions: [Division!]!
+  "Dashboard statistics"
+  stats: MandorDashboardStats!
+  "Recent activities"
+  recentActivities: [MandorActivity!]!
+  "Pending submissions"
+  pendingSubmissions: [MandorHarvestSummary!]!
+  "Today's work summary"
+  todayWork: MandorTodayWork!
+  "Sync status"
+  syncStatus: MandorSyncStatus!
+}
+
+"""
+MandorDashboardStats represents key metrics for mandor dashboard.
+"""
+type MandorDashboardStats {
+  "Today's harvest count"
+  todayHarvestCount: Int!
+  "Today's TBS count"
+  todayTbsCount: Int!
+  "Today's total weight (kg)"
+  todayWeight: Float!
+  "Pending approval count"
+  pendingCount: Int!
+  "Approved today"
+  approvedToday: Int!
+  "Rejected today"
+  rejectedToday: Int!
+  "Active workers today"
+  activeWorkers: Int!
+  "Blocks worked today"
+  blocksWorkedToday: Int!
+  "Weekly TBS total"
+  weeklyTbs: Int!
+  "Weekly weight total"
+  weeklyWeight: Float!
+}
+
+"""
+MandorActivity represents a recent mandor activity.
+"""
+type MandorActivity {
+  "Activity ID"
+  id: ID!
+  "Activity type"
+  type: MandorActivityType!
+  "Activity title"
+  title: String!
+  "Description"
+  description: String!
+  "Related harvest ID"
+  harvestId: String
+  "Block name"
+  blockName: String
+  "Timestamp"
+  timestamp: Time!
+  "Status"
+  status: String!
+}
+
+"""
+MandorActivityType enum.
+"""
+enum MandorActivityType {
+  "Harvest created"
+  HARVEST_CREATED
+  "Harvest approved"
+  HARVEST_APPROVED
+  "Harvest rejected"
+  HARVEST_REJECTED
+  "Harvest synced"
+  HARVEST_SYNCED
+  "Photo uploaded"
+  PHOTO_UPLOADED
+}
+
+"""
+MandorHarvestSummary represents a harvest summary item.
+"""
+type MandorHarvestSummary {
+  "Harvest ID"
+  id: ID!
+  "Block name"
+  blockName: String!
+  "Division name"
+  divisionName: String!
+  "Harvest date"
+  harvestDate: Time!
+  "TBS count"
+  tbsCount: Int!
+  "Weight (kg)"
+  weight: Float!
+  "Status"
+  status: HarvestStatus!
+  "Submitted at"
+  submittedAt: Time!
+  "Has photo"
+  hasPhoto: Boolean!
+}
+
+"""
+MandorTodayWork represents today's work summary.
+"""
+type MandorTodayWork {
+  "Work start time"
+  startTime: Time
+  "Current block"
+  currentBlock: String
+  "Harvests created"
+  harvestsCreated: Int!
+  "Total TBS"
+  totalTbs: Int!
+  "Total weight"
+  totalWeight: Float!
+  "Workers involved"
+  workersInvolved: Int!
+  "Blocks completed"
+  blocksCompleted: Int!
+}
+
+"""
+MandorSyncStatus represents offline sync status.
+"""
+type MandorSyncStatus {
+  "Is online"
+  isOnline: Boolean!
+  "Last sync timestamp"
+  lastSyncAt: Time
+  "Pending sync count"
+  pendingSyncCount: Int!
+  "Failed sync count"
+  failedSyncCount: Int!
+  "Last sync result"
+  lastSyncResult: String
+  "Photos pending upload"
+  photosPendingUpload: Int!
+}
+
+"""
+MandorPendingSyncItem represents a pending sync item returned from server.
+"""
+type MandorPendingSyncItem {
+  "Local ID"
+  localId: String!
+  "Server ID (if exists)"
+  serverId: String
+  "Operation type"
+  operation: SyncOperation!
+  "Harvest data"
+  data: MandorPendingSyncData
+  "Local version"
+  localVersion: Int!
+  "Last updated locally"
+  lastUpdated: Time!
+  "Photo IDs to sync"
+  photoIds: [String!]
+}
+
+"""
+MandorPendingSyncData represents sync data returned from server.
+"""
+type MandorPendingSyncData {
+  "Harvest date"
+  tanggal: Time!
+  "Block ID"
+  blockId: String!
+  "Employees"
+  karyawan: String!
+  "TBS count"
+  jumlahJanjang: Int!
+  "Weight"
+  beratTbs: Float!
+  "Notes"
+  notes: String
+  "Status"
+  status: HarvestStatus!
+  "GPS latitude"
+  latitude: Float
+  "GPS longitude"
+  longitude: Float
+}
+
+# =============================================================================
+# MANDOR INPUT PANEN TYPES
+# =============================================================================
+
+"""
+CreateMandorHarvestInput represents input for creating harvest record.
+"""
+input CreateMandorHarvestInput {
+  "Harvest date"
+  tanggal: Time!
+  "Block ID"
+  blockId: String!
+  "Employee selection (comma-separated IDs or names)"
+  karyawan: String!
+  "TBS count (janjang)"
+  jumlahJanjang: Int!
+  "Weight in kg (optional, can be calculated)"
+  beratTbs: Float
+  "Notes"
+  notes: String
+  "GPS latitude"
+  latitude: Float
+  "GPS longitude"
+  longitude: Float
+  "Company ID"
+  companyId: String
+  "Manager ID"
+  managerId: String
+  "Asisten ID"
+  asistenId: String
+  "Photo paths (local)"
+  photoPaths: [String!]
+  "Device ID for offline tracking"
+  deviceId: String!
+  "Client timestamp for offline sync"
+  clientTimestamp: Time!
+  "Local UUID for offline-first"
+  localId: String!
+}
+
+"""
+UpdateMandorHarvestInput for updating existing harvest.
+"""
+input UpdateMandorHarvestInput {
+  "Harvest ID (server or local)"
+  id: ID!
+  "Updated TBS count"
+  jumlahJanjang: Int
+  "Updated weight"
+  beratTbs: Float
+  "Updated employees"
+  karyawan: String
+  "Updated notes"
+  notes: String
+  "Device ID"
+  deviceId: String!
+  "Client timestamp"
+  clientTimestamp: Time!
+  "Local version for conflict detection"
+  localVersion: Int!
+}
+
+"""
+MandorHarvestResult represents result of harvest operation.
+"""
+type MandorHarvestResult {
+  "Success status"
+  success: Boolean!
+  "Message"
+  message: String!
+  "Created/updated harvest record"
+  harvestRecord: MandorHarvestRecord
+  "Server ID assigned"
+  serverId: String
+  "Server version"
+  serverVersion: Int
+  "Errors if any"
+  errors: [String!]
+}
+
+"""
+MandorHarvestRecord represents a full harvest record for mandor.
+"""
+type MandorHarvestRecord {
+  "Server ID"
+  id: ID!
+  "Local ID (from device)"
+  localId: String
+  "Panen number"
+  panenNumber: String
+  "Harvest date"
+  tanggal: Time!
+  "Mandor who created"
+  mandorId: String!
+  "Mandor name"
+  mandorName: String!
+  "Block ID"
+  blockId: String!
+  "Block name"
+  blockName: String!
+  "Division ID"
+  divisionId: String!
+  "Division name"
+  divisionName: String!
+  "Estate ID"
+  estateId: String!
+  "Estate name"
+  estateName: String!
+  "Company ID"
+  companyId: String
+  "Manager ID"
+  managerId: String
+  "Asisten ID"
+  asistenId: String
+  "Employees involved"
+  karyawan: String!
+  "TBS count"
+  jumlahJanjang: Int!
+  "Jumlah janjang matang"
+  jjgMatang: Int!
+  "Jumlah janjang mentah"
+  jjgMentah: Int!
+  "Jumlah janjang lewat matang"
+  jjgLewatMatang: Int!
+  "Jumlah janjang busuk/abnormal"
+  jjgBusukAbnormal: Int!
+  "Jumlah janjang bertangkai panjang"
+  jjgTangkaiPanjang: Int!
+  "Total brondolan"
+  totalBrondolan: Float!
+  "Weight (kg)"
+  beratTbs: Float!
+  "Status"
+  status: HarvestStatus!
+  "Approved by ID"
+  approvedBy: String
+  "Approved by name"
+  approvedByName: String
+  "Approval date"
+  approvedAt: Time
+  "Rejection reason"
+  rejectedReason: String
+  "Notes"
+  notes: String
+  "GPS coordinates"
+  coordinates: Coordinates
+  "Photos"
+  photos: [HarvestPhoto!]
+  "Created at"
+  createdAt: Time!
+  "Updated at"
+  updatedAt: Time!
+  "Sync status"
+  syncStatus: SyncStatus!
+  "Server version"
+  serverVersion: Int!
+}
+
+"""
+HarvestPhoto represents a photo attached to harvest.
+"""
+type HarvestPhoto {
+  "Photo ID"
+  id: ID!
+  "Local path"
+  localPath: String
+  "Server URL"
+  serverUrl: String
+  "Sync status"
+  syncStatus: SyncStatus!
+  "Taken at"
+  takenAt: Time!
+}
+
+# =============================================================================
+# MANDOR RIWAYAT (HISTORY) TYPES
+# =============================================================================
+
+"""
+MandorHistoryFilter for filtering harvest history.
+"""
+input MandorHistoryFilter {
+  "Filter by status"
+  status: HarvestStatus
+  "Filter by date from"
+  dateFrom: Time
+  "Filter by date to"
+  dateTo: Time
+  "Filter by block"
+  blockId: ID
+  "Filter by division"
+  divisionId: ID
+  "Search query"
+  search: String
+  "Sort by"
+  sortBy: MandorHistorySortField
+  "Sort direction"
+  sortDirection: SortDirection
+  "Page"
+  page: Int = 1
+  "Page size"
+  pageSize: Int = 20
+}
+
+"""
+MandorHistorySortField enum.
+"""
+enum MandorHistorySortField {
+  HARVEST_DATE
+  CREATED_AT
+  WEIGHT
+  TBS_COUNT
+  STATUS
+}
+
+"""
+MandorHistoryResponse represents paginated history.
+"""
+type MandorHistoryResponse {
+  "History items"
+  items: [MandorHarvestRecord!]!
+  "Total count"
+  totalCount: Int!
+  "Has more"
+  hasMore: Boolean!
+  "Summary stats"
+  summary: MandorHistorySummary!
+}
+
+"""
+MandorHistorySummary for history page.
+"""
+type MandorHistorySummary {
+  "Total harvests"
+  totalHarvests: Int!
+  "Total TBS"
+  totalTbs: Int!
+  "Total weight"
+  totalWeight: Float!
+  "Approved count"
+  approved: Int!
+  "Pending count"
+  pending: Int!
+  "Rejected count"
+  rejected: Int!
+}
+
+# =============================================================================
+# MANDOR OFFLINE SYNC TYPES
+# =============================================================================
+
+"""
+MandorSyncInput for syncing harvest records.
+"""
+input MandorSyncInput {
+  "Device ID"
+  deviceId: String!
+  "Harvests to sync"
+  harvests: [MandorHarvestSyncRecord!]!
+  "Client timestamp"
+  clientTimestamp: Time!
+  "Batch ID"
+  batchId: String
+  "Conflict resolution strategy"
+  conflictResolution: ConflictResolution = LATEST_WINS
+}
+
+"""
+MandorHarvestSyncRecord for individual sync item.
+"""
+input MandorHarvestSyncRecord {
+  "Local ID"
+  localId: String!
+  "Server ID (if exists)"
+  serverId: String
+  "Operation type"
+  operation: SyncOperation!
+  "Harvest data"
+  data: MandorHarvestSyncData!
+  "Local version"
+  localVersion: Int!
+  "Last updated locally"
+  lastUpdated: Time!
+  "Photo IDs to sync"
+  photoIds: [String!]
+}
+
+"""
+MandorHarvestSyncData for sync payload.
+"""
+input MandorHarvestSyncData {
+  "Harvest date"
+  tanggal: Time!
+  "Block ID"
+  blockId: String!
+  "Employees"
+  karyawan: String!
+  "TBS count"
+  jumlahJanjang: Int!
+  "Weight"
+  beratTbs: Float!
+  "Notes"
+  notes: String
+  "Status"
+  status: HarvestStatus!
+  "GPS latitude"
+  latitude: Float
+  "GPS longitude"
+  longitude: Float
+}
+
+"""
+MandorSyncResult for sync operation result.
+"""
+type MandorSyncResult {
+  "Success status"
+  success: Boolean!
+  "Transaction ID"
+  transactionId: String!
+  "Records processed"
+  recordsProcessed: Int!
+  "Records successful"
+  recordsSuccessful: Int!
+  "Records failed"
+  recordsFailed: Int!
+  "Conflicts detected"
+  conflictsDetected: Int!
+  "Sync results per record"
+  results: [MandorSyncItemResult!]!
+  "Server timestamp"
+  serverTimestamp: Time!
+  "Message"
+  message: String!
+}
+
+"""
+MandorSyncItemResult for individual sync item result.
+"""
+type MandorSyncItemResult {
+  "Local ID"
+  localId: String!
+  "Server ID (assigned or existing)"
+  serverId: String
+  "Success (kept for backward compatibility)"
+  success: Boolean!
+  "Sync status: ACCEPTED or REJECTED"
+  status: SyncItemStatus!
+  "Reason for rejection (populated when status=REJECTED)"
+  reason: String
+  "Server version"
+  serverVersion: Int
+  "Error message"
+  error: String
+  "Has conflict"
+  hasConflict: Boolean!
+  "Conflict data"
+  conflictData: String
+}
+
+"""
+MandorPhotoSyncInput for syncing photos.
+"""
+input MandorPhotoSyncInput {
+  "Device ID"
+  deviceId: String!
+  "Photos to sync"
+  photos: [MandorPhotoSyncRecord!]!
+  "Batch ID"
+  batchId: String
+}
+
+"""
+MandorPhotoSyncRecord for individual photo.
+"""
+input MandorPhotoSyncRecord {
+  "Local photo ID"
+  localId: String!
+  "Related harvest ID"
+  harvestId: String!
+  "Local path"
+  localPath: String!
+  "File name"
+  fileName: String!
+  "File size"
+  fileSize: Int!
+  "File hash"
+  fileHash: String!
+  "Photo data (base64)"
+  photoData: String!
+  "Taken at"
+  takenAt: Time!
+}
+
+"""
+MandorPhotoSyncResult for photo sync result.
+"""
+type MandorPhotoSyncResult {
+  "Photos processed"
+  photosProcessed: Int!
+  "Successful uploads"
+  successfulUploads: Int!
+  "Failed uploads"
+  failedUploads: Int!
+  "Total bytes uploaded"
+  totalBytesUploaded: Int!
+  "Errors"
+  errors: [PhotoUploadError!]!
+  "Synced at"
+  syncedAt: Time!
+}
+
+# =============================================================================
+# MANDOR QUERIES
+# =============================================================================
+
+extend type Query {
+  # Mandor Dashboard Queries
+  "Get mandor dashboard data"
+  mandorDashboard: MandorDashboardData! @requireAuth @hasRole(roles: [MANDOR])
+  
+  "Get mandor dashboard stats"
+  mandorDashboardStats: MandorDashboardStats! @requireAuth @hasRole(roles: [MANDOR])
+  
+  "Get mandor recent activities"
+  mandorActivities(limit: Int = 20): [MandorActivity!]! @requireAuth @hasRole(roles: [MANDOR])
+  
+  "Get mandor sync status"
+  mandorSyncStatus: MandorSyncStatus! @requireAuth @hasRole(roles: [MANDOR])
+  
+  # Mandor Blocks/Employees Queries (for input form)
+  "Get blocks available for mandor"
+  mandorBlocks(divisionId: ID): [Block!]! @requireAuth @hasRole(roles: [MANDOR])
+  
+  "Get employees available for mandor"
+  mandorEmployees(divisionId: ID, search: String): [Employee!]! @requireAuth @hasRole(roles: [MANDOR])
+  
+  # Mandor History Queries
+  "Get mandor harvest history"
+  mandorHistory(filter: MandorHistoryFilter): MandorHistoryResponse! @requireAuth @hasRole(roles: [MANDOR])
+  
+  "Get single harvest record"
+  mandorHarvestRecord(id: ID!): MandorHarvestRecord @requireAuth @hasRole(roles: [MANDOR])
+  
+  # Mandor Sync Queries
+  "Get pending sync items for mandor"
+  mandorPendingSyncItems(deviceId: String!): [MandorPendingSyncItem!]! @requireAuth @hasRole(roles: [MANDOR])
+  
+  "Get server updates since last sync"
+  mandorServerUpdates(since: Time!, deviceId: String!): [MandorHarvestRecord!]! @requireAuth @hasRole(roles: [MANDOR])
+}
+
+# Note: Employee type is defined in master.graphqls
+
+# =============================================================================
+# MANDOR MUTATIONS
+# =============================================================================
+
+extend type Mutation {
+  # Mandor Harvest Mutations
+  "Create new harvest record"
+  createMandorHarvest(input: CreateMandorHarvestInput!): MandorHarvestResult! @requireAuth @hasRole(roles: [MANDOR])
+  
+  "Update existing harvest record"
+  updateMandorHarvest(input: UpdateMandorHarvestInput!): MandorHarvestResult! @requireAuth @hasRole(roles: [MANDOR])
+  
+  "Delete harvest record (only pending)"
+  deleteMandorHarvest(id: ID!, deviceId: String!): MandorHarvestResult! @requireAuth @hasRole(roles: [MANDOR])
+  
+  # Mandor Sync Mutations
+  "Sync harvest records from mobile"
+  syncMandorHarvests(input: MandorSyncInput!): MandorSyncResult! @requireAuth @hasRole(roles: [MANDOR])
+  
+  "Sync photos from mobile"
+  syncMandorPhotos(input: MandorPhotoSyncInput!): MandorPhotoSyncResult! @requireAuth @hasRole(roles: [MANDOR])
+  
+  "Mark sync completed"
+  markMandorSyncCompleted(
+    deviceId: String!
+    transactionId: String!
+  ): Boolean! @requireAuth @hasRole(roles: [MANDOR])
+}
+
+# =============================================================================
+# MANDOR SUBSCRIPTIONS
+# =============================================================================
+
+extend type Subscription {
+  "Harvest status update notification"
+  mandorHarvestStatusUpdate: MandorHarvestRecord! @requireAuth @hasRole(roles: [MANDOR])
+  
+  "Sync status updates"
+  mandorSyncUpdate(deviceId: String!): MandorSyncStatus! @requireAuth @hasRole(roles: [MANDOR])
+}
+
+
+# =============================================================================
+# MERGED FROM sync.mandor.graphqls
+# =============================================================================
+# =============================================================================
+# Panen (Harvest) Schema
+# =============================================================================
+
+"""
+HarvestRecord represents a harvest entry made by Mandor.
+"""
+type HarvestRecord {
+  id: ID!
+  localId: String
+  tanggal: Time!
+  mandorId: String!
+  mandor: User!
+  blockId: String!
+  block: Block!
+  nik: String
+  karyawan: String!
+  beratTbs: Float!
+  jumlahJanjang: Int!
+  jjgMatang: Int!
+  jjgMentah: Int!
+  jjgLewatMatang: Int!
+  jjgBusukAbnormal: Int!
+  jjgTangkaiPanjang: Int!
+  totalBrondolan: Float!
+  status: HarvestStatus!
+  approvedBy: String
+  approvedAt: Time
+  rejectedReason: String
+  photoUrl: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"""
+Harvest status enum representing approval workflow.
+"""
+enum HarvestStatus {
+  "Draft - not yet submitted"
+  DRAFT
+  "Pending approval"
+  PENDING
+  "Approved by asisten"
+  APPROVED
+  "Rejected by asisten"
+  REJECTED
+  "Corrections requested"
+  CORRECTION_REQUESTED
+}
+
+input CreateHarvestRecordInput {
+  localId: String
+  tanggal: Time!
+  mandorId: String!
+  blockId: String!
+  karyawan: String!
+  beratTbs: Float!
+  jumlahJanjang: Int!
+}
+
+input UpdateHarvestRecordInput {
+  id: ID!
+  beratTbs: Float
+  jumlahJanjang: Int
+  karyawan: String
+}
+
+input ApproveHarvestInput {
+  id: ID!
+  approvedBy: String!
+}
+
+input RejectHarvestInput {
+  id: ID!
+  rejectedReason: String!
+}
+
+# Harvest queries
+extend type Query {
+  # Harvest Data Queries
+  "Retrieve all harvest records"
+  harvestRecords(dateFrom: Time, dateTo: Time): [HarvestRecord!]! @requireAuth @hasRole(roles: [MANDOR, ASISTEN, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+  "Get a specific harvest record by ID"
+  harvestRecord(id: ID!): HarvestRecord @requireAuth @hasRole(roles: [MANDOR, ASISTEN, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+  "Filter harvest records by approval status"
+  harvestRecordsByStatus(status: HarvestStatus!): [HarvestRecord!]! @requireAuth @hasRole(roles: [MANDOR, ASISTEN, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+}
+
+# Harvest mutations
+extend type Mutation {
+  # Harvest mutations
+  createHarvestRecord(input: CreateHarvestRecordInput!): HarvestRecord! @requireAuth @hasRole(roles: [MANDOR])
+  updateHarvestRecord(input: UpdateHarvestRecordInput!): HarvestRecord! @requireAuth @hasRole(roles: [MANDOR])
+  approveHarvestRecord(input: ApproveHarvestInput!): HarvestRecord! @requireAuth @hasRole(roles: [ASISTEN, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+  rejectHarvestRecord(input: RejectHarvestInput!): HarvestRecord! @requireAuth @hasRole(roles: [ASISTEN, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+  deleteHarvestRecord(id: ID!): Boolean! @requireAuth @hasRole(roles: [MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+}
+
+# Harvest subscriptions
+extend type Subscription {
+  # Real-time harvest updates
+  harvestRecordCreated: HarvestRecord! @requireAuth @hasRole(roles: [MANDOR, ASISTEN, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+  harvestRecordApproved: HarvestRecord! @requireAuth @hasRole(roles: [MANDOR, ASISTEN, MANAGER])
+  harvestRecordRejected: HarvestRecord! @requireAuth @hasRole(roles: [MANDOR, ASISTEN, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+}
+
+# =============================================================================
+# Sync Schema (Mandor/Harvest Synchronization)
+# =============================================================================
+
+"""
+Input for syncing harvest records from mobile device.
+"""
+input HarvestSyncInput {
+  "Device performing the sync"
+  deviceId: String!
+  "Records to sync"
+  records: [HarvestRecordSyncInput!]!
+  "Sync timestamp from mobile device"
+  clientTimestamp: Time!
+  "Batch identifier for grouping"
+  batchId: String
+}
+
+"""
+Input for individual harvest record sync.
+"""
+input HarvestRecordSyncInput {
+  "Local record ID from mobile device"
+  localId: String!
+  "Server record ID (if exists)"
+  serverId: String
+  "Date of harvest"
+  tanggal: Time!
+  "Mandor User ID"
+  mandorId: String!
+  "Asisten/Supervisor ID"
+  asistenId: String
+  "Company ID"
+  companyId: String
+  "Estate ID"
+  estateId: String
+  "Division ID"
+  divisionId: String
+  "Block ID"
+  blockId: String!
+  "Employee ID"
+  karyawanId: String!
+  "Employee NIK"
+  nik: String!
+  "Employee-origin division ID"
+  employeeDivisionId: String
+  "Employee-origin division name snapshot"
+  employeeDivisionName: String
+  "Total Weight (kg)"
+  beratTbs: Float!
+  "Total Bunches (Quantity)"
+  jumlahJanjang: Int!
+  "Jumlah janjang matang"
+  jjgMatang: Int
+  "Jumlah janjang mentah"
+  jjgMentah: Int
+  "Jumlah janjang lewat matang"
+  jjgLewatMatang: Int
+  "Jumlah janjang busuk/abnormal"
+  jjgBusukAbnormal: Int
+  "Jumlah janjang bertangkai panjang"
+  jjgTangkaiPanjang: Int
+  "Total brondolan"
+  totalBrondolan: Float
+  "Status"
+  status: HarvestStatus!
+  "Local version number"
+  localVersion: Int!
+  "Last local update timestamp"
+  lastUpdated: Time!
+  "Optional notes or remarks"
+  notes: String
+  "GPS latitude coordinate"
+  latitude: Float
+  "GPS longitude coordinate"
+  longitude: Float
+  "Photo URL or path"
+  photoUrl: String
+}
+
+# Sync mutations for Mandor
+extend type Mutation {
+  "Sync harvest records from mobile device (Mandor)"
+  syncHarvestRecords(input: HarvestSyncInput!): MandorSyncResult!
+}

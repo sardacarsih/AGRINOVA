@@ -1,0 +1,586 @@
+# =============================================================================
+# Company Admin Role Schema
+# Features: Company Dashboard, User Management, Company Settings, Reports
+# =============================================================================
+
+# =============================================================================
+# COMPANY ADMIN DASHBOARD TYPES
+# =============================================================================
+
+"""
+CompanyAdminDashboardData represents dashboard for Company Admin.
+"""
+type CompanyAdminDashboardData {
+  "User information"
+  user: User!
+  "Company information"
+  company: Company!
+  "Dashboard statistics"
+  stats: CompanyAdminStats!
+  "User overview"
+  userOverview: UserOverview!
+  "Estate overview"
+  estateOverview: [EstateOverviewData!]!
+  "System health"
+  systemHealth: SystemHealthData!
+  "Recent activities"
+  recentActivities: [AdminActivityLog!]!
+}
+
+"""
+CompanyAdminStats for company admin statistics.
+"""
+type CompanyAdminStats {
+  "Total users"
+  totalUsers: Int!
+  "Active users"
+  activeUsers: Int!
+  "Users online now"
+  usersOnlineNow: Int!
+  "Total estates"
+  totalEstates: Int!
+  "Total divisions"
+  totalDivisions: Int!
+  "Total blocks"
+  totalBlocks: Int!
+  "Total employees"
+  totalEmployees: Int!
+  "Today's production"
+  todayProduction: Float!
+  "Monthly production"
+  monthlyProduction: Float!
+  "System uptime"
+  systemUptime: Float!
+}
+
+"""
+UserOverview for user statistics.
+"""
+type UserOverview {
+  "Total users"
+  total: Int!
+  "By role breakdown"
+  byRole: [RoleUserCount!]!
+  "Active today"
+  activeToday: Int!
+  "New this month"
+  newThisMonth: Int!
+  "Pending approvals"
+  pendingApprovals: Int!
+  "Locked accounts"
+  lockedAccounts: Int!
+}
+
+"""
+RoleUserCount for role breakdown.
+"""
+type RoleUserCount {
+  "Role"
+  role: String!
+  "Count"
+  count: Int!
+  "Active count"
+  active: Int!
+}
+
+"""
+EstateOverviewData for estate overview.
+"""
+type EstateOverviewData {
+  "Estate ID"
+  estateId: ID!
+  "Estate name"
+  estateName: String!
+  "Manager name"
+  managerName: String
+  "Divisions count"
+  divisionsCount: Int!
+  "Users count"
+  usersCount: Int!
+  "Today's production"
+  todayProduction: Float!
+  "Status"
+  status: EstateStatus!
+}
+
+"""
+EstateStatus enum.
+"""
+enum EstateStatus {
+  OPERATIONAL
+  PARTIAL
+  OFFLINE
+  MAINTENANCE
+}
+
+"""
+SystemHealthData for system health.
+"""
+type SystemHealthData {
+  "Overall status"
+  status: SystemStatus!
+  "API health"
+  apiHealth: Boolean!
+  "Database health"
+  databaseHealth: Boolean!
+  "Sync service health"
+  syncServiceHealth: Boolean!
+  "Active connections"
+  activeConnections: Int!
+  "Pending sync operations"
+  pendingSyncOperations: Int!
+  "Last backup"
+  lastBackup: Time
+}
+
+"""
+SystemStatus enum.
+"""
+enum SystemStatus {
+  HEALTHY
+  DEGRADED
+  CRITICAL
+}
+
+"""
+AdminActivityLog for activity logging.
+"""
+type AdminActivityLog {
+  "Log ID"
+  id: ID!
+  "Activity type"
+  type: AdminActivityType!
+  "Actor user ID"
+  actorId: String!
+  "Actor name"
+  actorName: String!
+  "Description"
+  description: String!
+  "Entity type"
+  entityType: String
+  "Entity ID"
+  entityId: String
+  "IP address"
+  ipAddress: String
+  "Timestamp"
+  timestamp: Time!
+}
+
+"""
+AdminActivityType enum.
+"""
+enum AdminActivityType {
+  "User created"
+  USER_CREATED
+  "User updated"
+  USER_UPDATED
+  "User deleted"
+  USER_DELETED
+  "User activated"
+  USER_ACTIVATED
+  "User deactivated"
+  USER_DEACTIVATED
+  "Password reset"
+  PASSWORD_RESET
+  "Role changed"
+  ROLE_CHANGED
+  "Estate created"
+  ESTATE_CREATED
+  "Division created"
+  DIVISION_CREATED
+  "Settings changed"
+  SETTINGS_CHANGED
+  "Login attempt"
+  LOGIN_ATTEMPT
+}
+
+# =============================================================================
+# USER MANAGEMENT TYPES
+# =============================================================================
+
+"""
+CompanyUserListResponse for user listing.
+"""
+type CompanyUserListResponse {
+  "Users"
+  users: [CompanyUser!]!
+  "Total count"
+  totalCount: Int!
+  "Has more"
+  hasMore: Boolean!
+}
+
+"""
+CompanyUser for user data.
+"""
+type CompanyUser {
+  "User ID"
+  id: ID!
+  "Username"
+  username: String!
+  "Email"
+  email: String
+  "Phone"
+  phone: String
+  "Full name"
+  fullName: String!
+  "Role"
+  role: String!
+  "Is active"
+  isActive: Boolean!
+  "Is online"
+  isOnline: Boolean!
+  "Last login"
+  lastLogin: Time
+  "Assignments"
+  assignments: UserAssignmentSummary!
+  "Created at"
+  createdAt: Time!
+}
+
+"""
+UserAssignmentSummary for user assignments.
+"""
+type UserAssignmentSummary {
+  "Estates (for manager)"
+  estates: [String!]!
+  "Divisions (for asisten/mandor)"
+  divisions: [String!]!
+  "PKS (for timbangan/grading)"
+  pksAssignment: String
+}
+
+"""
+CreateCompanyUserInput for creating user.
+"""
+input CreateCompanyUserInput {
+  "Username"
+  username: String!
+  "Email"
+  email: String
+  "Phone"
+  phone: String
+  "Full name"
+  fullName: String!
+  "Role"
+  role: String!
+  "Initial password"
+  password: String!
+  "Estate assignments (for manager)"
+  estateIds: [ID!]
+  "Division assignments (for asisten/mandor)"
+  divisionIds: [ID!]
+  "PKS assignment"
+  pksId: ID
+  "Manager/Supervisor identifier"
+  managerId: ID
+  "Send welcome email"
+  sendWelcomeEmail: Boolean = true
+}
+
+"""
+UpdateCompanyUserInput for updating user.
+"""
+input UpdateCompanyUserInput {
+  "User ID"
+  userId: ID!
+  "Email"
+  email: String
+  "Phone"
+  phone: String
+  "Full name"
+  fullName: String
+  "Role"
+  role: String
+  "Is active"
+  isActive: Boolean
+  "Manager/Supervisor identifier"
+  managerId: ID
+}
+
+"""
+UserManagementResult for user operations.
+"""
+type UserManagementResult {
+  "Success"
+  success: Boolean!
+  "Message"
+  message: String!
+  "User"
+  user: CompanyUser
+  "Errors"
+  errors: [String!]
+}
+
+"""
+UserFilterInput for filtering users.
+"""
+input UserFilterInput {
+  "Role filter"
+  role: String
+  "Estate filter"
+  estateId: ID
+  "Division filter"
+  divisionId: ID
+  "Active only"
+  activeOnly: Boolean = false
+  "Search query"
+  search: String
+  "Page"
+  page: Int = 1
+  "Page size"
+  pageSize: Int = 20
+}
+
+# =============================================================================
+# COMPANY SETTINGS TYPES
+# =============================================================================
+
+"""
+CompanySettings for company configuration.
+"""
+type CompanySettings {
+  "Company ID"
+  companyId: ID!
+  "General settings"
+  general: GeneralSettings!
+  "Notification settings"
+  notifications: NotificationSettings!
+  "Security settings"
+  security: SecuritySettings!
+  "Operational settings"
+  operational: OperationalSettings!
+}
+
+"""
+GeneralSettings for general configuration.
+"""
+type GeneralSettings {
+  "Company name"
+  companyName: String!
+  "Timezone"
+  timezone: String!
+  "Date format"
+  dateFormat: String!
+  "Currency"
+  currency: String!
+  "Language"
+  language: String!
+}
+
+"""
+NotificationSettings for notifications.
+"""
+type NotificationSettings {
+  "Email notifications enabled"
+  emailEnabled: Boolean!
+  "Push notifications enabled"
+  pushEnabled: Boolean!
+  "SMS notifications enabled"
+  smsEnabled: Boolean!
+  "Daily report enabled"
+  dailyReportEnabled: Boolean!
+  "Alert thresholds"
+  alertThresholds: AlertThresholds!
+}
+
+"""
+AlertThresholds for alert configuration.
+"""
+type AlertThresholds {
+  "Production below target percentage"
+  productionBelowTarget: Float!
+  "Quality below threshold"
+  qualityBelowThreshold: Float!
+  "Pending approval hours"
+  pendingApprovalHours: Int!
+}
+
+"""
+SecuritySettings for security.
+"""
+type SecuritySettings {
+  "Session timeout (minutes)"
+  sessionTimeout: Int!
+  "Max failed logins"
+  maxFailedLogins: Int!
+  "Password expiry days"
+  passwordExpiryDays: Int!
+  "Two factor required"
+  twoFactorRequired: Boolean!
+  "Allowed IP ranges"
+  allowedIpRanges: [String!]
+}
+
+"""
+OperationalSettings for operations.
+"""
+type OperationalSettings {
+  "Default shift start"
+  defaultShiftStart: String!
+  "Default shift end"
+  defaultShiftEnd: String!
+  "Auto approve threshold"
+  autoApproveThreshold: Float
+  "Require GPS for harvest"
+  requireGpsForHarvest: Boolean!
+  "Require photo for harvest"
+  requirePhotoForHarvest: Boolean!
+}
+
+"""
+UpdateCompanySettingsInput for updating settings.
+"""
+input UpdateCompanySettingsInput {
+  "General settings"
+  general: GeneralSettingsInput
+  "Notification settings"
+  notifications: NotificationSettingsInput
+  "Security settings"
+  security: SecuritySettingsInput
+  "Operational settings"
+  operational: OperationalSettingsInput
+}
+
+"""
+GeneralSettingsInput for general settings.
+"""
+input GeneralSettingsInput {
+  "Timezone"
+  timezone: String
+  "Date format"
+  dateFormat: String
+  "Currency"
+  currency: String
+  "Language"
+  language: String
+}
+
+"""
+NotificationSettingsInput for notifications.
+"""
+input NotificationSettingsInput {
+  "Email enabled"
+  emailEnabled: Boolean
+  "Push enabled"
+  pushEnabled: Boolean
+  "SMS enabled"
+  smsEnabled: Boolean
+  "Daily report enabled"
+  dailyReportEnabled: Boolean
+}
+
+"""
+SecuritySettingsInput for security.
+"""
+input SecuritySettingsInput {
+  "Session timeout"
+  sessionTimeout: Int
+  "Max failed logins"
+  maxFailedLogins: Int
+  "Password expiry days"
+  passwordExpiryDays: Int
+  "Two factor required"
+  twoFactorRequired: Boolean
+}
+
+"""
+OperationalSettingsInput for operations.
+"""
+input OperationalSettingsInput {
+  "Default shift start"
+  defaultShiftStart: String
+  "Default shift end"
+  defaultShiftEnd: String
+  "Require GPS"
+  requireGpsForHarvest: Boolean
+  "Require photo"
+  requirePhotoForHarvest: Boolean
+}
+
+# =============================================================================
+# COMPANY ADMIN QUERIES
+# =============================================================================
+
+extend type Query {
+  "Get company admin dashboard"
+  companyAdminDashboard: CompanyAdminDashboardData! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Get company users"
+  companyUsers(filter: UserFilterInput): CompanyUserListResponse! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Get company user detail"
+  companyUser(userId: ID!): CompanyUser @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Get company settings"
+  companySettings: CompanySettings! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Get admin activity logs"
+  adminActivityLogs(
+    activityType: AdminActivityType
+    userId: ID
+    dateFrom: Time
+    dateTo: Time
+    limit: Int = 50
+  ): [AdminActivityLog!]! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Get user statistics"
+  userStatistics: UserOverview! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+}
+
+# =============================================================================
+# COMPANY ADMIN MUTATIONS
+# =============================================================================
+
+extend type Mutation {
+  "Create company user"
+  createCompanyUser(input: CreateCompanyUserInput!): UserManagementResult! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Update company user"
+  updateCompanyUser(input: UpdateCompanyUserInput!): UserManagementResult! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Delete company user"
+  deleteCompanyUser(userId: ID!): UserManagementResult! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Activate user"
+  activateUser(userId: ID!): UserManagementResult! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Deactivate user"
+  deactivateUser(userId: ID!, reason: String): UserManagementResult! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Reset user password (admin)"
+  adminResetUserPassword(userId: ID!, newPassword: String, sendEmail: Boolean = true): UserManagementResult! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Unlock user account"
+  unlockUserAccount(userId: ID!): UserManagementResult! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Assign user to estate"
+  assignUserToEstateAdmin(userId: ID!, estateId: ID!): UserManagementResult! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Remove user from estate"
+  removeUserFromEstateAdmin(userId: ID!, estateId: ID!): UserManagementResult! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Assign user to division"
+  assignUserToDivisionAdmin(userId: ID!, divisionId: ID!): UserManagementResult! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Remove user from division"
+  removeUserFromDivisionAdmin(userId: ID!, divisionId: ID!): UserManagementResult! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "Update company settings"
+  updateCompanySettings(input: UpdateCompanySettingsInput!): CompanySettings! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+}
+
+# =============================================================================
+# COMPANY ADMIN SUBSCRIPTIONS
+# =============================================================================
+
+extend type Subscription {
+  "User status change"
+  userStatusChange: CompanyUser! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "New admin activity"
+  newAdminActivity: AdminActivityLog! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+  
+  "System health change"
+  systemHealthChange: SystemHealthData! @requireAuth @hasRole(roles: [COMPANY_ADMIN])
+}

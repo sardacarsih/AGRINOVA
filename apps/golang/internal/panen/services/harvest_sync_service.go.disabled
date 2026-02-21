@@ -1,0 +1,149 @@
+package services
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	"agrinovagraphql/server/internal/gatecheck/models"
+	gatecheckRepos "agrinovagraphql/server/internal/gatecheck/repositories"
+	"agrinovagraphql/server/internal/graphql/generated"
+	panenModels "agrinovagraphql/server/internal/panen/models"
+	panenRepos "agrinovagraphql/server/internal/panen/repositories"
+)
+
+// HarvestSyncService defines operations for Mandor synchronization
+type HarvestSyncService interface {
+	SyncHarvestRecords(ctx context.Context, input generated.HarvestSyncInput) (*generated.SyncResult, error)
+}
+
+type harvestSyncService struct {
+	db        *gorm.DB
+	panenRepo *panenRepos.PanenRepository
+	syncRepo  gatecheckRepos.SyncRepository
+}
+
+// NewHarvestSyncService creates a new harvest sync service
+func NewHarvestSyncService(db *gorm.DB) HarvestSyncService {
+	return &harvestSyncService{
+		db:        db,
+		panenRepo: panenRepos.NewPanenRepository(db),
+		syncRepo:  gatecheckRepos.NewSyncRepository(db),
+	}
+}
+
+// SyncHarvestRecords processes the batch of harvest records from mobile
+func (s *harvestSyncService) SyncHarvestRecords(ctx context.Context, input generated.HarvestSyncInput) (*generated.SyncResult, error) {
+	startTime := time.Now()
+	transactionID := input.BatchID
+	if transactionID == nil {
+		uuidStr := uuid.New().String()
+		transactionID = &uuidStr
+	}
+
+	// Create sync transaction record (Audit trail)
+	syncTx := &models.SyncTransaction{
+		ID:       *transactionID,
+		DeviceID: input.DeviceID,
+		Status:   models.SyncResultStatus(models.SyncPending),
+	}
+	// We use the existing sync repo to log the transaction metadata
+	if err := s.syncRepo.CreateSyncTransaction(ctx, syncTx); err != nil {
+		return s.errorResult(*transactionID, "Failed to create sync transaction log", err)
+	}
+
+	var (
+		recordsProcessed  int
+		conflictsDetected int
+		errors            []string
+	)
+
+	// Process each harvest record
+	for _, record := range input.Records {
+		err := s.processHarvestRecord(ctx, record)
+		if err != nil {
+			// record is *HarvestRecordSyncInput, so access fields directly or via pointer?
+			// generated code usually returns pointers for slice of objects: []*HarvestRecordSyncInput
+			// So record is *HarvestRecordSyncInput.
+			// record.LocalID is correct.
+			errors = append(errors, fmt.Sprintf("Record %s: %v", record.LocalID, err))
+		} else {
+			recordsProcessed++
+		}
+	}
+
+	// Complete transaction log
+	status := models.ResultSuccess
+	if len(errors) > 0 {
+		status = models.ResultFailed
+	}
+	s.syncRepo.CompleteSyncTransaction(ctx, *transactionID, status)
+
+	return &generated.SyncResult{
+		Success:           len(errors) == 0,
+		RecordsProcessed:  int32(recordsProcessed),
+		ConflictsDetected: int32(conflictsDetected),
+		TransactionID:     *transactionID,
+		Message:           fmt.Sprintf("Processed %d harvest records in %v", recordsProcessed, time.Since(startTime)),
+		Errors:            errors,
+		SyncedAt:          time.Now(),
+	}, nil
+}
+
+func (s *harvestSyncService) processHarvestRecord(ctx context.Context, input *generated.HarvestRecordSyncInput) error {
+	// Note: input is *generated.HarvestRecordSyncInput because Records is []*HarvestRecordSyncInput
+	// Parse status
+	var status panenModels.HarvestStatus
+	switch input.Status {
+	case generated.HarvestStatusApproved:
+		status = panenModels.HarvestApproved
+	case generated.HarvestStatusRejected:
+		status = panenModels.HarvestRejected
+	default:
+		status = panenModels.HarvestPending
+	}
+
+	// 1. Check if record exists (Idempotency) using LocalID if possible, or try to match
+	if input.ServerID != nil {
+		existing, err := s.panenRepo.GetHarvestRecordByID(ctx, *input.ServerID)
+		if err == nil && existing != nil {
+			// Update existing logic
+			updates := map[string]interface{}{
+				"updated_at":     time.Now(),
+				"berat_tbs":      input.BeratTbs,
+				"jumlah_janjang": int32(input.JumlahJanjang),
+			}
+			_, err := s.panenRepo.UpdateHarvestRecord(ctx, *input.ServerID, updates)
+			return err
+		}
+	}
+
+	// 2. Create New Record
+	newRecord := &panenModels.HarvestRecord{
+		ID:            uuid.New().String(),
+		Tanggal:       input.Tanggal,
+		MandorID:      input.MandorID,
+		BlockID:       input.BlockID,
+		Karyawan:      input.Karyawan,
+		BeratTbs:      input.BeratTbs,
+		JumlahJanjang: int32(input.JumlahJanjang),
+		Status:        status,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+
+	return s.panenRepo.CreateHarvestRecord(ctx, newRecord)
+}
+
+func (s *harvestSyncService) errorResult(transactionID, message string, err error) (*generated.SyncResult, error) {
+	return &generated.SyncResult{
+		Success:       false,
+		TransactionID: transactionID,
+		Message:       message,
+		Errors:        []string{err.Error()},
+		SyncedAt:      time.Now(),
+	}, nil
+}

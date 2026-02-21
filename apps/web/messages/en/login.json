@@ -1,0 +1,68 @@
+{
+    "forgotPasswordComingSoon": "Forgot password feature coming soon!",
+    "qrLoginSuccess": "QR login successful! Welcome, {name}",
+    "qrLoginError": "QR login failed. Please try again.",
+    "loginFailed": "Login failed. Please check your credentials.",
+    "passwordChangeRequired": "You need to change your password before continuing.",
+    "features": {
+        "realTimeAnalytics": {
+            "title": "Real-Time Analytics",
+            "description": "Monitor harvest performance and productivity with live dashboards and comprehensive reports."
+        },
+        "secureOperations": {
+            "title": "Secure Operations",
+            "description": "Enterprise-grade security with JWT authentication, role-based access control, and audit logging."
+        },
+        "offlineFirstMobile": {
+            "title": "Offline-First Mobile",
+            "description": "Work seamlessly without internet connection for up to 30 days with automatic synchronization."
+        },
+        "multiRoleAccess": {
+            "title": "Multi-Role Access",
+            "description": "Tailored interfaces for Mandor, Assistant, Manager, Security, and Admin roles."
+        }
+    },
+    "identifier": "Email or Username",
+    "identifierPlaceholder": "Enter email or username",
+    "password": "Password",
+    "passwordPlaceholder": "Enter password",
+    "rememberMe": "Remember me",
+    "forgotPassword": "Forgot password?",
+    "loginButton": "Log In",
+    "quickDemoAccess": "Quick Demo Access",
+    "hero": {
+        "title": "Innovative solution for palm oil management with offline-first technology and enterprise security.",
+        "offlineCapability": "Mobile application works fully offline for up to 30 days without internet connection.",
+        "features": {
+            "jwt": "Offline JWT authentication",
+            "sqlite": "SQLite local storage",
+            "sync": "Auto-sync when online",
+            "encryption": "Protected with end-to-end encryption"
+        }
+    },
+    "loginTitle": "Log in to AgrInova",
+    "loginSubtitle": "Access your palm oil management platform",
+    "loggingIn": "Logging in...",
+    "demoCredentialsLoaded": "{role} credentials loaded",
+    "clickToLogin": "Click Login button to continue",
+    "clickToAutofill": "Click an account to autofill credentials",
+    "mobileApp": {
+        "title": "📱 Download Mobile Apps",
+        "description": "Offline-first access for Mandor, Assistant, Security, and Manager",
+        "android": "Android APK",
+        "androidVersion": "v1.0.0 • Flutter • Coming Soon",
+        "ios": "iOS App Store",
+        "iosVersion": "v1.0.0 • Flutter • Coming Soon",
+        "featuresTitle": "🚀 Mobile Offline-First Features",
+        "features": {
+            "offline": "Works without internet connection (30 days)",
+            "sync": "Automatic synchronization when online",
+            "auth": "JWT authentication with biometric lock",
+            "notifications": "Real-time notifications via WebSocket"
+        }
+    },
+    "privacy": {
+        "agreement": "By continuing, you agree to our <privacyPolicy>Privacy Policy</privacyPolicy>.",
+        "privacyPolicy": "Privacy Policy"
+    }
+}

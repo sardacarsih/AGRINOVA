@@ -1,0 +1,1242 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:dio/dio.dart';
+
+import '../../../../core/models/jwt_models.dart';
+import '../../../../core/services/jwt_storage_service.dart';
+import '../../../../core/services/device_service.dart';
+import '../../../../core/services/security_monitor.dart';
+import '../../../../core/services/connectivity_service.dart';
+import '../../../../core/services/user_sync_service.dart';
+import '../../../../core/constants/api_constants.dart';
+import '../../../../core/config/logout_config.dart';
+import '../../../../core/utils/logout_performance_tracker.dart';
+import '../services/auth_api_service.dart';
+
+abstract class AuthRepository {
+  Stream<bool> get authStatusStream;
+  Future<JWTLoginResponse> login(JWTLoginRequest request);
+  Future<JWTRefreshResponse> refreshToken(JWTRefreshRequest request);
+  Future<void> logout();
+  Future<void> emergencyLogout(); // Ultra-fast logout
+  Future<bool> isBiometricSupported();
+  Future<bool> authenticateWithBiometric();
+  Future<bool> validateOfflineToken(JWTOfflineValidationRequest request);
+  Future<void> registerDevice(DeviceRegistrationRequest request);
+  
+  // New methods for offline authentication
+  Future<JWTLoginResponse> authenticateOffline(String username, String password);
+  Future<bool> isBiometricAvailable();
+  Future<bool> isBiometricEnabled();
+  Future<bool> setupBiometric(bool enable, String reason);
+  Future<bool> requestDeviceTrust();
+  Future<bool> changePassword(String oldPassword, String newPassword);
+}
+
+class AuthRepositoryImpl implements AuthRepository {
+  final AuthApiService _apiService;
+  final LocalAuthentication _localAuth;
+  final JWTStorageService _jwtStorageService;
+  final ConnectivityService _connectivityService;
+  final UserSyncService _userSyncService;
+  final StreamController<bool> _authStatusController;
+  
+  // Secure storage keys for offline credentials
+  static const String _offlineCredentialsKey = 'offline_credentials';
+  static const String _biometricEnabledKey = 'biometric_enabled';
+  static const String _deviceTrustRequestedKey = 'device_trust_requested';
+  
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+      sharedPreferencesName: SecurityConstants.androidSharedPrefsName,
+      preferencesKeyPrefix: SecurityConstants.secureStorageKeyPrefix,
+    ),
+    iOptions: IOSOptions(
+      groupId: SecurityConstants.iosKeychainGroupId,
+      accountName: SecurityConstants.iosKeychainAccountName,
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
+  );
+
+  AuthRepositoryImpl({
+    required AuthApiService apiService,
+    required LocalAuthentication localAuth,
+    required JWTStorageService jwtStorageService,
+    required ConnectivityService connectivityService,
+    UserSyncService? userSyncService,
+  })  : _apiService = apiService,
+        _localAuth = localAuth,
+        _jwtStorageService = jwtStorageService,
+        _connectivityService = connectivityService,
+        _userSyncService = userSyncService ?? UserSyncService(),
+        _authStatusController = StreamController<bool>.broadcast();
+
+  @override
+  Stream<bool> get authStatusStream => _authStatusController.stream;
+
+  @override
+  Future<JWTLoginResponse> login(JWTLoginRequest request) async {
+    try {
+      print('🚀 Starting JWT mobile login for user: ${request.username}');
+      print('📱 Device ID: ${request.deviceId}');
+      print('🔐 Device Fingerprint: ${request.deviceFingerprint}');
+      
+      // Network-aware authentication strategy
+      final isOnline = _connectivityService.isOnline;
+      print('🌐 Network status: ${isOnline ? 'ONLINE' : 'OFFLINE'}');
+      
+      if (!isOnline) {
+        print('📵 Network offline - attempting offline authentication');
+        return await _performOfflineAuthentication(request.username, request.password);
+      }
+      
+      // Online authentication
+      print('🌐 Network online - performing server authentication');
+      final response = await _performOnlineAuthentication(request);
+      
+      return response;
+    } catch (e) {
+      print('❌ JWT mobile login failed: $e');
+      print('🔍 Error type: ${e.runtimeType}');
+      print('🔍 Error details: ${e.toString()}');
+      
+      // Additional logging for DioException
+      if (e is DioException) {
+        print('🌐 HTTP Status Code: ${e.response?.statusCode}');
+        print('📄 Response Headers: ${e.response?.headers}');
+        print('📄 Response Data Type: ${e.response?.data?.runtimeType}');
+        print('📄 Response Data: ${e.response?.data}');
+        print('🔗 Request URL: ${e.requestOptions.uri}');
+        print('📨 Request Headers: ${e.requestOptions.headers}');
+        print('📨 Request Data: ${e.requestOptions.data}');
+      }
+      
+      _authStatusController.add(false);
+      
+      // Log failed login security event
+      await SecurityMonitor.instance.logAuthEvent(
+        SecurityEventType.login,
+        'Login failed: ${e.toString()}',
+        username: request.username,
+        metadata: {
+          'successful': false,
+          'errorType': e.runtimeType.toString(),
+          'errorMessage': e.toString(),
+          'deviceId': request.deviceId,
+          'deviceFingerprint': request.deviceFingerprint,
+          'httpStatusCode': e is DioException ? e.response?.statusCode : null,
+          'responseData': e is DioException ? e.response?.data?.toString() : null,
+        },
+        severity: 'medium',
+      );
+      
+      // Enhanced error handling with validation-specific messages
+      if (e is DioException) {
+        // Handle DioException specifically
+        final statusCode = e.response?.statusCode ?? 0;
+        final responseData = e.response?.data?.toString() ?? 'No response data';
+        
+        if (statusCode == 401) {
+          await SecurityMonitor.instance.logApiError('/auth/login', 401, 'Unauthorized');
+          throw Exception('Invalid username or password. Please check your credentials.');
+        } else if (statusCode == 400) {
+          await SecurityMonitor.instance.logApiError('/auth/login', 400, 'Bad request: $responseData');
+          throw Exception('Invalid request. Please check your input and try again.');
+        } else if (statusCode == 500) {
+          await SecurityMonitor.instance.logApiError('/auth/login', 500, 'Server error');
+          throw Exception('Server error. Please try again later.');
+        } else if (statusCode >= 400) {
+          await SecurityMonitor.instance.logApiError('/auth/login', statusCode, 'HTTP error: $responseData');
+          throw Exception('Server returned error (${statusCode}). Please try again.');
+        } else {
+          await SecurityMonitor.instance.logNetworkError(
+            'Network error during login: ${e.message}',
+            endpoint: '/auth/login',
+          );
+          throw Exception('Network error. Please check your connection and try again.');
+        }
+      } else if (e.toString().contains('FormatException') || (e.toString().contains('type') && e.toString().contains('JSON'))) {
+        await SecurityMonitor.instance.logApiError(
+          '/auth/login', 
+          200, 
+          'JSON parsing failed - bad response format',
+        );
+        throw Exception('Invalid server response format. Please try again or contact support if the issue persists.');
+      } else if (e.toString().contains('Error parsing JWT payload') || e.toString().contains('JWT payload')) {
+        await SecurityMonitor.instance.logApiError(
+          '/auth/login', 
+          200, 
+          'JWT token parsing failed',
+        );
+        throw Exception('Authentication token format error. Please try logging in again.');
+      } else if (e.toString().contains('Response validation failed')) {
+        await SecurityMonitor.instance.logApiError(
+          '/auth/login', 
+          200, 
+          'Response validation failed',
+        );
+        throw Exception('Invalid server response. Please try again.');
+      } else if (e.toString().contains('JWT validation failed')) {
+        await SecurityMonitor.instance.logAuthEvent(
+          SecurityEventType.login,
+          'JWT validation failed during login (non-critical)',
+          username: request.username,
+          metadata: {
+            'successful': false,
+            'errorMessage': e.toString(),
+            'note': 'JWT validation failed but authentication may still succeed',
+          },
+          severity: 'low', // Reduced severity since we now handle this gracefully
+        );
+        throw Exception('Authentication token validation warning. Please try again.');
+      } else if (e.toString().contains('Device consistency check failed')) {
+        await SecurityMonitor.instance.logSuspiciousActivity(
+          'Device consistency check failed',
+          username: request.username,
+          details: {'deviceId': request.deviceId},
+        );
+        throw Exception('Device verification failed. Please contact support.');
+      } else if (e.toString().contains('SocketException') || e.toString().contains('Connection refused')) {
+        await SecurityMonitor.instance.logNetworkError(
+          'Connection refused or socket exception',
+          endpoint: '/auth/login',
+        );
+        throw Exception('Unable to connect to server. Please check your internet connection and try again.');
+      } else if (e.toString().contains('timeout')) {
+        await SecurityMonitor.instance.logNetworkError(
+          'Connection timeout',
+          endpoint: '/auth/login',
+        );
+        throw Exception('Connection timeout. Please check your network and try again.');
+      } else {
+        await SecurityMonitor.instance.logApiError(
+          '/auth/login', 
+          0, 
+          'Unknown error: ${e.toString()}',
+        );
+        throw Exception('Login failed: ${e.toString()}');
+      }
+    }
+  }
+
+  @override
+  Future<JWTRefreshResponse> refreshToken(JWTRefreshRequest request) async {
+    try {
+      print('🔄 Starting JWT token refresh...');
+      
+      // Check network status for token refresh strategy
+      final isOnline = _connectivityService.isOnline;
+      print('🌐 Network status for token refresh: ${isOnline ? 'ONLINE' : 'OFFLINE'}');
+      
+      if (!isOnline) {
+        // For offline scenario, validate existing tokens instead of refreshing
+        print('📵 Network offline - validating existing tokens');
+        final isValidOffline = await _jwtStorageService.hasValidOfflineAuth();
+        
+        if (!isValidOffline) {
+          throw Exception('Token refresh failed: Network offline and no valid offline tokens available');
+        }
+        
+        // Return existing tokens as "refreshed" for offline mode
+        final existingTokens = await _createOfflineRefreshResponse();
+        
+        await SecurityMonitor.instance.logTokenRefresh(
+          null,
+          existingTokens.session.sessionId,
+          successful: true,
+        );
+        
+        print('✅ Offline token validation successful');
+        _authStatusController.add(true);
+        return existingTokens;
+      }
+      
+      // Online token refresh
+      final response = await _apiService.refreshToken(request);
+      
+      // Validate refresh response
+      await _validateRefreshResponse(response);
+      
+      // Check device consistency
+      await _checkDeviceConsistency(request.deviceId, request.fingerprint);
+      
+      print('✅ JWT token refresh successful');
+      
+      // Log successful token refresh
+      await SecurityMonitor.instance.logTokenRefresh(
+        null, // userId not available in refresh response
+        response.session.sessionId,
+        successful: true,
+      );
+      
+      _authStatusController.add(true);
+      return response;
+    } catch (e) {
+      print('❌ JWT token refresh failed: $e');
+      _authStatusController.add(false);
+      
+      // Log failed token refresh
+      await SecurityMonitor.instance.logTokenRefresh(
+        null,
+        null,
+        successful: false,
+        errorMessage: e.toString(),
+      );
+      
+      // Enhanced error handling for refresh
+      if (e.toString().contains('Response validation failed')) {
+        await SecurityMonitor.instance.logApiError(
+          '/auth/jwt/mobile/refresh',
+          200,
+          'Response validation failed',
+        );
+        throw Exception('Refresh validation failed. Please login again.');
+      } else if (e.toString().contains('Device consistency check failed')) {
+        await SecurityMonitor.instance.logSuspiciousActivity(
+          'Device consistency check failed during token refresh',
+          details: {'deviceId': request.deviceId},
+        );
+        throw Exception('Device verification failed. Please login again.');
+      }
+      
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> logout() async {
+    // Start performance tracking
+    logoutPerformanceTracker.startTracking(LogoutType.fast);
+    
+    // Fast logout - immediately update auth status for instant UI feedback
+    _authStatusController.add(false);
+    logoutPerformanceTracker.logOperation('Auth status updated to false');
+    
+    String? username;
+    String? userId;
+    
+    try {
+      // Get user info before logout for logging (non-blocking)
+      final user = await _jwtStorageService.getUserInfo();
+      username = user?.username;
+      userId = user?.id;
+      logoutPerformanceTracker.logOperation('User info retrieved');
+    } catch (e) {
+      // Don't let user info retrieval block logout
+      logoutPerformanceTracker.logWarning('Could not retrieve user info for logout: $e');
+    }
+    
+    // Step 1: Perform API logout call BEFORE clearing tokens (needs auth header)
+    final apiLogoutFuture = _performLogoutApiCall().catchError((e) {
+      logoutPerformanceTracker.logWarning('API logout failed (non-critical): $e');
+      return null; // Don't block logout on API failure
+    });
+    
+    // Step 2: Parallel execution of cleanup operations AFTER API call initiated
+    final cleanupFutures = <Future>[
+      // Clear local authentication data immediately
+      _jwtStorageService.clearTokens(),
+      _clearOfflineCredentials(),
+      
+      // Security logging in background (non-blocking)
+      _logLogoutSecurityEvent(username, userId),
+    ];
+    
+    logoutPerformanceTracker.logOperation('API logout initiated, cleanup operations started');
+    
+    // Wait for critical operations only (storage cleanup)
+    try {
+      await Future.wait([
+        cleanupFutures[0], // clearTokens
+        cleanupFutures[1], // clearOfflineCredentials
+      ]);
+      
+      logoutPerformanceTracker.logOperation('Critical cleanup operations completed');
+      
+      // Let API call and security logging finish in background
+      apiLogoutFuture.then((_) {
+        logoutPerformanceTracker.logOperation('API logout completed');
+      }).catchError((e) {
+        logoutPerformanceTracker.logWarning('API logout call failed (non-critical): $e');
+      });
+      
+      cleanupFutures[2].catchError((e) {
+        logoutPerformanceTracker.logWarning('Security logging failed (non-critical): $e');
+      });
+      
+    } catch (e) {
+      logoutPerformanceTracker.logError('Logout cleanup error: $e');
+      // Even if cleanup fails, user is logged out locally
+    }
+    
+    // Complete performance tracking
+    final result = logoutPerformanceTracker.completeTracking();
+    print('🚀 Fast logout completed in ${result.duration.inMilliseconds}ms');
+  }
+  
+/// Perform API logout call with timeout  Future<void> _performLogoutApiCall() async {    try {      // Get device ID for logout request      String? deviceId;      try {        final deviceInfo = await DeviceService.getDeviceInfo();        deviceId = deviceInfo.deviceId;        print('📱 Using device ID for logout: $deviceId');      } catch (e) {        print('⚠️ Could not get device ID for logout: $e');        // Continue without device ID      }            // Add timeout to prevent hanging      await _apiService.logout(deviceId).timeout(        const Duration(seconds: 5),        onTimeout: () {          print('⚠️ API logout call timed out after 5 seconds');          throw TimeoutException('Logout API call timeout', const Duration(seconds: 5));        },      );      print('✅ API logout call completed successfully');    } catch (e) {      print('⚠️ API logout call failed: $e');      // Don't rethrow - this is non-critical for user experience    }  }
+  
+  /// Log logout security event with error handling
+  Future<void> _logLogoutSecurityEvent(String? username, String? userId) async {
+    try {
+      await SecurityMonitor.instance.logLogout(
+        username,
+        userId,
+        isForced: false,
+      );
+      print('✅ Logout security event logged successfully');
+    } catch (e) {
+      print('⚠️ Security event logging failed: $e');
+      // Don't rethrow - this is non-critical for user experience
+    }
+  }
+  
+  @override
+  Future<void> emergencyLogout() async {
+    // Start emergency performance tracking
+    logoutPerformanceTracker.startTracking(LogoutType.emergency);
+    
+    // Ultra-fast logout - immediate auth status update
+    _authStatusController.add(false);
+    logoutPerformanceTracker.logOperation('Emergency auth status update');
+    
+    // Fire API call FIRST (needs auth tokens), then clear tokens
+    _performLogoutApiCall();
+    logoutPerformanceTracker.logOperation('Background API call initiated');
+    
+    // Fire-and-forget all cleanup operations AFTER API call
+    _jwtStorageService.emergencyClearTokens();
+    logoutPerformanceTracker.logOperation('Emergency token clearing initiated');
+    
+    _emergencyClearOfflineCredentials();
+    logoutPerformanceTracker.logOperation('Emergency offline credentials clearing initiated');
+    
+    // Background security logging
+    _logLogoutSecurityEvent(null, null);
+    logoutPerformanceTracker.logOperation('Background security logging initiated');
+    
+    // Complete tracking
+    final result = logoutPerformanceTracker.completeTracking();
+    print('🚀 Emergency logout completed in ${result.duration.inMilliseconds}ms - cleanup running in background');
+  }
+  
+  /// Emergency clear offline credentials (fire-and-forget)
+  void _emergencyClearOfflineCredentials() {
+    // Fire-and-forget - don't await
+    _secureStorage.delete(key: _offlineCredentialsKey);
+    _secureStorage.delete(key: _biometricEnabledKey);
+    _secureStorage.delete(key: _deviceTrustRequestedKey);
+    print('🚀 Emergency offline credentials clearing initiated');
+  }
+
+  @override
+  Future<bool> isBiometricSupported() async {
+    try {
+      final isAvailable = await _localAuth.canCheckBiometrics;
+      if (!isAvailable) return false;
+
+      final availableBiometrics = await _localAuth.getAvailableBiometrics();
+      return availableBiometrics.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> authenticateWithBiometric() async {
+    String? username;
+    
+    try {
+      final user = await _jwtStorageService.getUserInfo();
+      username = user?.username;
+      
+      final isAuthenticated = await _localAuth.authenticate(
+        localizedReason: 'Please authenticate to access Agrinova',
+        options: const AuthenticationOptions(
+          biometricOnly: false,
+          stickyAuth: true,
+        ),
+      );
+      
+      // Log biometric authentication result
+      await SecurityMonitor.instance.logBiometricAuth(
+        username,
+        successful: isAuthenticated,
+        errorMessage: isAuthenticated ? null : 'Biometric authentication failed',
+      );
+      
+      return isAuthenticated;
+    } catch (e) {
+      // Log biometric authentication error
+      await SecurityMonitor.instance.logBiometricAuth(
+        username,
+        successful: false,
+        errorMessage: e.toString(),
+      );
+      
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> validateOfflineToken(JWTOfflineValidationRequest request) async {
+    try {
+      final response = await _apiService.validateOfflineToken(request);
+      return response.valid;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  @override
+  Future<void> registerDevice(DeviceRegistrationRequest request) async {
+    await _apiService.registerDevice(request);
+  }
+
+  // OFFLINE AUTHENTICATION IMPLEMENTATION
+  @override
+  Future<JWTLoginResponse> authenticateOffline(String username, String password) async {
+    try {
+      // Check if offline token is valid first
+      final hasValidOfflineAuth = await _jwtStorageService.hasValidOfflineAuth();
+      if (!hasValidOfflineAuth) {
+        throw Exception('No offline authentication available, please connect to internet');
+      }
+
+      // Validate stored credentials
+      final isValidCredentials = await _validateOfflineCredentials(username, password);
+      if (!isValidCredentials) {
+        throw Exception('Invalid username or password for offline login');
+      }
+
+      // Get stored user info and session
+      final user = await _jwtStorageService.getUserInfo();
+      final session = await _jwtStorageService.getSessionInfo();
+      
+      if (user == null || session == null) {
+        throw Exception('Offline user data not available');
+      }
+
+      // Create offline login response using cached tokens
+      final offlineToken = await _jwtStorageService.getOfflineToken();
+      final accessToken = await _jwtStorageService.getAccessToken();
+      final refreshToken = await _jwtStorageService.getRefreshToken();
+      final deviceBinding = await _jwtStorageService.getDeviceBinding();
+      final deviceTrusted = await _jwtStorageService.isDeviceTrusted();
+      
+      final offlineExpiresAt = await _jwtStorageService.getOfflineTokenExpirationTime();
+      final expiresAt = await _jwtStorageService.getTokenExpirationTime();
+
+      final response = JWTLoginResponse(
+        accessToken: accessToken ?? '',
+        refreshToken: refreshToken ?? '',
+        offlineToken: offlineToken ?? '',
+        deviceBinding: deviceBinding ?? '',
+        tokenType: 'Bearer',
+        expiresIn: 900, // 15 minutes in seconds
+        user: user,
+        session: session,
+        expiresAt: expiresAt ?? DateTime.now().add(ApiConstants.tokenRefreshThreshold),
+        offlineExpiresAt: offlineExpiresAt ?? DateTime.now().add(ApiConstants.offlineTokenValidityDays),
+        deviceTrusted: deviceTrusted,
+      );
+
+      _authStatusController.add(true);
+      return response;
+      
+    } catch (e) {
+      _authStatusController.add(false);
+      throw Exception('Offline authentication failed: $e');
+    }
+  }
+
+  @override
+  Future<bool> isBiometricAvailable() async {
+    return await isBiometricSupported();
+  }
+
+  @override
+  Future<bool> isBiometricEnabled() async {
+    try {
+      final enabled = await _secureStorage.read(key: _biometricEnabledKey);
+      return enabled == 'true';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> setupBiometric(bool enable, String reason) async {
+    try {
+      if (enable) {
+        // Check if biometric is available
+        final isSupported = await isBiometricSupported();
+        if (!isSupported) {
+          throw Exception('Biometric authentication is not available on this device');
+        }
+
+        // Test biometric authentication
+        final isAuthenticated = await _localAuth.authenticate(
+          localizedReason: reason.isNotEmpty ? reason : SecurityConstants.biometricPrompt,
+          options: const AuthenticationOptions(
+            biometricOnly: false,
+            stickyAuth: true,
+          ),
+        );
+
+        if (!isAuthenticated) {
+          throw Exception('Biometric authentication failed');
+        }
+
+        // Enable biometric authentication
+        await _secureStorage.write(key: _biometricEnabledKey, value: 'true');
+        return true;
+      } else {
+        // Disable biometric authentication
+        await _secureStorage.delete(key: _biometricEnabledKey);
+        return true;
+      }
+    } catch (e) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> requestDeviceTrust() async {
+    try {
+      final deviceRegistrationRequest = await DeviceService.createDeviceRegistrationRequest();
+      
+      // Make API call to request device trust
+      await _apiService.registerDevice(deviceRegistrationRequest);
+      
+      // Mark device trust as requested
+      await _secureStorage.write(key: _deviceTrustRequestedKey, value: 'true');
+      
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> changePassword(String oldPassword, String newPassword) async {
+    try {
+      // This would typically involve an API call to change password
+      // For now, we'll implement a basic structure
+      
+      // Validate old password against stored credentials
+      final user = await _jwtStorageService.getUserInfo();
+      if (user == null) {
+        throw Exception('User not found');
+      }
+
+      final isValidOldPassword = await _validateOfflineCredentials(user.username, oldPassword);
+      if (!isValidOldPassword) {
+        throw Exception('Invalid old password');
+      }
+
+      // In a real implementation, you would:
+      // 1. Make API call to change password on server
+      // 2. Update stored encrypted credentials with new password
+      
+      // For offline-first implementation:
+      await _storeOfflineCredentials(user.username, newPassword);
+      
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // PRIVATE HELPER METHODS
+  Future<void> _storeOfflineCredentials(String username, String password) async {
+    try {
+      // Create a hash of the credentials for secure storage
+      final credentialsJson = jsonEncode({
+        'username': username,
+        'passwordHash': _hashPassword(password),
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+
+      await _secureStorage.write(
+        key: _offlineCredentialsKey, 
+        value: credentialsJson,
+      );
+      
+      print('Offline credentials stored successfully for user: $username');
+    } catch (e) {
+      print('Failed to store offline credentials: $e');
+      throw Exception('Failed to store offline credentials: $e');
+    }
+  }
+
+  Future<bool> _validateOfflineCredentials(String username, String password) async {
+    try {
+      final storedCredentialsJson = await _secureStorage.read(key: _offlineCredentialsKey);
+      if (storedCredentialsJson == null) {
+        print('No stored offline credentials found');
+        return false;
+      }
+
+      final storedCredentials = jsonDecode(storedCredentialsJson) as Map<String, dynamic>;
+      final storedUsername = storedCredentials['username'] as String;
+      final storedPasswordHash = storedCredentials['passwordHash'] as String;
+
+      final isUsernameValid = username == storedUsername;
+      final isPasswordValid = _hashPassword(password) == storedPasswordHash;
+      
+      print('Offline credentials validation: username=${isUsernameValid}, password=${isPasswordValid}');
+      return isUsernameValid && isPasswordValid;
+    } catch (e) {
+      print('Error validating offline credentials: $e');
+      return false;
+    }
+  }
+
+  Future<void> _clearOfflineCredentials() async {
+    try {
+      // Fast parallel clearing with timeout
+      await Future.wait([
+        _secureStorage.delete(key: _offlineCredentialsKey),
+        _secureStorage.delete(key: _biometricEnabledKey),
+        _secureStorage.delete(key: _deviceTrustRequestedKey),
+      ]).timeout(
+        const Duration(seconds: 2),
+        onTimeout: () {
+          print('⚠️ Offline credentials clearing timed out - proceeding with logout');
+          return <void>[];
+        },
+      );
+      print('✅ Offline credentials cleared successfully');
+    } catch (e) {
+      print('⚠️ Offline credentials clearing error (non-critical): $e');
+      // Ignore errors when clearing - don't block logout
+    }
+  }
+
+  String _hashPassword(String password) {
+    final bytes = utf8.encode('agrinova-salt-$password');
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
+  // NETWORK-AWARE AUTHENTICATION METHODS
+  
+  /// Perform online authentication with full server validation
+  Future<JWTLoginResponse> _performOnlineAuthentication(JWTLoginRequest request) async {
+    try {
+      print('🔄 Executing online authentication flow...');
+      print('📨 Login request details:');
+      print('   Username: ${request.username}');
+      print('   Device ID: ${request.deviceId}');
+      print('   Device Fingerprint: ${request.deviceFingerprint}');
+      print('   Remember Device: ${request.rememberDevice}');
+      print('   Biometric Hash Present: ${request.biometricHash != null}');
+      
+      final response = await _apiService.login(request);
+      
+      print('✅ JWT mobile login successful');
+      print('🎫 Access Token received: ${response.accessToken.substring(0, 20)}...');
+      print('📊 Response details:');
+      print('   Token Type: ${response.tokenType}');
+      print('   Expires In: ${response.expiresIn} seconds');
+      print('   Device Trusted: ${response.deviceTrusted}');
+      print('   User ID: ${response.user.id}');
+      print('   User Role: ${response.user.role}');
+      
+      // 🔍 DEBUG: Detailed User object investigation
+      print('🔍 DEBUGGING User object fields:');
+      print('   Username: ${response.user.username}');
+      print('   Email: ${response.user.email}');  
+      print('   Full Name: ${response.user.fullName}');
+      print('   Estate: ${response.user.estate}');
+      print('   Division: ${response.user.division}');
+      print('   Company ID: ${response.user.companyId}');
+      print('   Company Name: ${response.user.companyName}');
+      print('   Is Active: ${response.user.isActive}');
+      print('   Must Change Password: ${response.user.mustChangePassword}');
+      
+      // 🔍 DEBUG: Raw User JSON for comparison
+      try {
+        final userJson = response.user.toJson();
+        print('🔍 User.toJson() output: $userJson');
+      } catch (e) {
+        print('⚠️ Failed to serialize user to JSON: $e');
+      }
+      
+      // Enhanced response validation
+      await _validateLoginResponse(response, request);
+      
+      // Verify JWT tokens before storing
+      await _verifyJWTTokens(response);
+      
+      // Store JWT tokens securely after validation
+      await _jwtStorageService.storeTokens(response);
+      
+      // Sync user data to local database for foreign key relationships
+      try {
+        await _userSyncService.syncUserDataToLocal(
+          response.user, 
+          response.session, 
+          response.user.companyId ?? 'unknown_company'
+        );
+        print('✅ User data synced to local database successfully');
+      } catch (e) {
+        print('⚠️ Warning: User data sync failed: $e');
+        // Continue with login - this is not critical for authentication
+        await SecurityMonitor.instance.logAuthEvent(
+          SecurityEventType.login,
+          'User data sync failed but login successful',
+          username: request.username,
+          userId: response.user.id,
+          metadata: {'syncError': e.toString()},
+          severity: 'low',
+        );
+      }
+      
+      // Store encrypted credentials for offline authentication
+      await _storeOfflineCredentials(request.username, request.password);
+      
+      // Store device info for future validation
+      final deviceInfo = DeviceInfo(
+        deviceId: request.deviceId,
+        fingerprint: request.deviceFingerprint,
+        platform: ApiConstants.androidPlatform,
+        osVersion: 'flutter',
+        model: 'flutter-device',
+        appVersion: '1.0.0',
+      );
+      await _jwtStorageService.storeDeviceInfo(deviceInfo);
+      
+      // Log successful login security event
+      await SecurityMonitor.instance.logLogin(
+        request.username,
+        response.user.id,
+        response.session.sessionId,
+        isOffline: false,
+        isBiometric: request.biometricHash != null,
+      );
+      
+      // Log device binding if new device
+      if (!response.deviceTrusted) {
+        await SecurityMonitor.instance.logDeviceBinding(
+          response.user.id,
+          request.deviceId,
+          successful: true,
+          isNewDevice: true,
+        );
+      }
+      
+      _authStatusController.add(true);
+      return response;
+    } catch (e) {
+      print('❌ Online authentication failed: $e');
+      throw e;
+    }
+  }
+  
+  /// Perform offline authentication using cached credentials and tokens
+  Future<JWTLoginResponse> _performOfflineAuthentication(String username, String password) async {
+    try {
+      print('🔄 Executing offline authentication flow...');
+      
+      // Check if offline authentication is available
+      final hasValidOfflineAuth = await _jwtStorageService.hasValidOfflineAuth();
+      if (!hasValidOfflineAuth) {
+        throw Exception('Offline authentication not available. Please connect to internet and login first.');
+      }
+      
+      // Validate stored credentials
+      final isValidCredentials = await _validateOfflineCredentials(username, password);
+      if (!isValidCredentials) {
+        throw Exception('Invalid username or password for offline login');
+      }
+      
+      // Get cached user data
+      final user = await _jwtStorageService.getUserInfo();
+      final session = await _jwtStorageService.getSessionInfo();
+      
+      if (user == null || session == null) {
+        throw Exception('Offline user data not available');
+      }
+      
+      // Create offline response from cached data
+      final offlineToken = await _jwtStorageService.getOfflineToken();
+      final accessToken = await _jwtStorageService.getAccessToken();
+      final refreshToken = await _jwtStorageService.getRefreshToken();
+      final deviceBinding = await _jwtStorageService.getDeviceBinding();
+      final deviceTrusted = await _jwtStorageService.isDeviceTrusted();
+      
+      final offlineExpiresAt = await _jwtStorageService.getOfflineTokenExpirationTime();
+      final expiresAt = await _jwtStorageService.getTokenExpirationTime();
+      
+      final response = JWTLoginResponse(
+        accessToken: accessToken ?? '',
+        refreshToken: refreshToken ?? '',
+        offlineToken: offlineToken ?? '',
+        deviceBinding: deviceBinding ?? '',
+        tokenType: 'Bearer',
+        expiresIn: 900,
+        user: user,
+        session: session,
+        expiresAt: expiresAt ?? DateTime.now().add(ApiConstants.tokenRefreshThreshold),
+        offlineExpiresAt: offlineExpiresAt ?? DateTime.now().add(ApiConstants.offlineTokenValidityDays),
+        deviceTrusted: deviceTrusted,
+      );
+      
+      // Log successful offline login
+      await SecurityMonitor.instance.logLogin(
+        username,
+        user.id,
+        session.sessionId,
+        isOffline: true,
+      );
+      
+      print('✅ Offline authentication successful');
+      _authStatusController.add(true);
+      return response;
+    } catch (e) {
+      print('❌ Offline authentication failed: $e');
+      
+      // Log failed offline login
+      await SecurityMonitor.instance.logAuthEvent(
+        SecurityEventType.offlineAuth,
+        'Offline authentication failed: ${e.toString()}',
+        username: username,
+        metadata: {
+          'successful': false,
+          'errorMessage': e.toString(),
+        },
+        severity: 'medium',
+      );
+      
+      throw e;
+    }
+  }
+  
+  /// Create offline refresh response from cached tokens
+  Future<JWTRefreshResponse> _createOfflineRefreshResponse() async {
+    try {
+      final session = await _jwtStorageService.getSessionInfo();
+      final accessToken = await _jwtStorageService.getAccessToken();
+      final refreshToken = await _jwtStorageService.getRefreshToken();
+      final offlineToken = await _jwtStorageService.getOfflineToken();
+      final deviceBinding = await _jwtStorageService.getDeviceBinding();
+      final deviceTrusted = await _jwtStorageService.isDeviceTrusted();
+      final expiresAt = await _jwtStorageService.getTokenExpirationTime();
+      final offlineExpiresAt = await _jwtStorageService.getOfflineTokenExpirationTime();
+      
+      if (session == null || accessToken == null || refreshToken == null || 
+          offlineToken == null || deviceBinding == null) {
+        throw Exception('Missing cached tokens for offline refresh');
+      }
+      
+      return JWTRefreshResponse(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        offlineToken: offlineToken,
+        deviceBinding: deviceBinding,
+        tokenType: 'Bearer',
+        expiresIn: 900,
+        session: session,
+        expiresAt: expiresAt ?? DateTime.now().add(ApiConstants.tokenRefreshThreshold),
+        offlineExpiresAt: offlineExpiresAt ?? DateTime.now().add(ApiConstants.offlineTokenValidityDays),
+        deviceTrusted: deviceTrusted,
+      );
+    } catch (e) {
+      throw Exception('Failed to create offline refresh response: $e');
+    }
+  }
+
+  // RESPONSE VALIDATION METHODS
+  
+  /// Validate login response structure and content
+  Future<void> _validateLoginResponse(JWTLoginResponse response, JWTLoginRequest request) async {
+    try {
+      print('🔍 Validating login response...');
+      
+      // Validate user information (most critical)
+      if (response.user.id.isEmpty || response.user.username.isEmpty) {
+        throw Exception('Response validation failed: User information incomplete');
+      }
+      
+      // Validate session information (critical)
+      if (response.session.sessionId.isEmpty) {
+        throw Exception('Response validation failed: Session ID is missing');
+      }
+      
+      // Validate token type
+      if (response.tokenType != 'Bearer') {
+        print('⚠️ Warning: Unexpected token type: ${response.tokenType}');
+      }
+      
+      // Soft validation for tokens (log warnings instead of failing)
+      if (response.accessToken.isEmpty) {
+        print('⚠️ Warning: Access token is empty');
+      }
+      
+      if (response.refreshToken.isEmpty) {
+        print('⚠️ Warning: Refresh token is empty');
+      }
+      
+      if (response.offlineToken.isEmpty) {
+        print('⚠️ Warning: Offline token is empty');
+      }
+      
+      if (response.deviceBinding.isEmpty) {
+        print('⚠️ Warning: Device binding is empty');
+      }
+      
+      // Soft validation for expiration times
+      final now = DateTime.now();
+      if (response.expiresAt.isBefore(now)) {
+        print('⚠️ Warning: Access token appears to be already expired');
+      }
+      
+      if (response.offlineExpiresAt.isBefore(now)) {
+        print('⚠️ Warning: Offline token appears to be already expired');
+      }
+      
+      // Soft validation for device consistency
+      if (response.session.deviceId.isNotEmpty && response.session.deviceId != request.deviceId) {
+        print('⚠️ Warning: Device ID mismatch - Session: ${response.session.deviceId}, Request: ${request.deviceId}');
+      }
+      
+      print('✅ Login response validation completed (critical fields validated)');
+    } catch (e) {
+      print('❌ Login response validation failed: $e');
+      throw Exception('Response validation failed: $e');
+    }
+  }
+  
+  /// Verify JWT tokens structure and validity
+  Future<void> _verifyJWTTokens(JWTLoginResponse response) async {
+    try {
+      print('🔍 Verifying JWT tokens...');
+      
+      // Skip token validation if tokens are empty (for testing)
+      if (response.accessToken.isEmpty && response.refreshToken.isEmpty && response.offlineToken.isEmpty) {
+        print('⚠️ All tokens are empty - skipping JWT validation');
+        return;
+      }
+      
+      // Verify access token (only if not empty)
+      JWTPayload? accessPayload;
+      if (response.accessToken.isNotEmpty) {
+        accessPayload = _jwtStorageService.parseJWTPayload(response.accessToken);
+        if (accessPayload == null) {
+          print('⚠️ Warning: Invalid access token format, but continuing authentication');
+        } else if (accessPayload.isExpired) {
+          print('⚠️ Warning: Access token is expired, but continuing authentication');
+        }
+      }
+      
+      // Verify refresh token (only if not empty)
+      JWTPayload? refreshPayload;
+      if (response.refreshToken.isNotEmpty) {
+        refreshPayload = _jwtStorageService.parseJWTPayload(response.refreshToken);
+        if (refreshPayload == null) {
+          print('⚠️ Warning: Invalid refresh token format, but continuing authentication');
+        } else if (refreshPayload.isExpired) {
+          print('⚠️ Warning: Refresh token is expired, but continuing authentication');
+        }
+      }
+      
+      // Verify offline token (only if not empty)
+      JWTPayload? offlinePayload;
+      if (response.offlineToken.isNotEmpty) {
+        offlinePayload = _jwtStorageService.parseJWTPayload(response.offlineToken);
+        if (offlinePayload == null) {
+          print('⚠️ Warning: Invalid offline token format, but continuing authentication');
+        } else if (offlinePayload.isExpired) {
+          print('⚠️ Warning: Offline token is expired, but continuing authentication');
+        }
+      }
+      
+      // Only perform consistency checks if we have valid payloads
+      if (accessPayload != null && refreshPayload != null && offlinePayload != null) {
+        // Verify token subjects match (with null safety)
+        final accessSub = accessPayload.sub;
+        final refreshSub = refreshPayload.sub;
+        final offlineSub = offlinePayload.sub;
+        
+        if (accessSub != refreshSub || accessSub != offlineSub) {
+          print('⚠️ Warning: Token subjects do not match - Access: $accessSub, Refresh: $refreshSub, Offline: $offlineSub');
+        }
+        
+        // Verify usernames match (with null safety)
+        final accessUsername = accessPayload.username;
+        final refreshUsername = refreshPayload.username;
+        final offlineUsername = offlinePayload.username;
+        
+        if (accessUsername != refreshUsername || accessUsername != offlineUsername) {
+          print('⚠️ Warning: Token usernames do not match - Access: $accessUsername, Refresh: $refreshUsername, Offline: $offlineUsername');
+        }
+        
+        // Verify roles match (with null safety)
+        final accessRole = accessPayload.role;
+        final refreshRole = refreshPayload.role;
+        final offlineRole = offlinePayload.role;
+        
+        if (accessRole != refreshRole || accessRole != offlineRole) {
+          print('⚠️ Warning: Token roles do not match - Access: $accessRole, Refresh: $refreshRole, Offline: $offlineRole');
+        }
+
+        // Verify device information consistency (if available in tokens)
+        if (accessPayload.deviceId != null && refreshPayload.deviceId != null && 
+            accessPayload.deviceId != refreshPayload.deviceId) {
+          print('⚠️ Warning: Access and refresh token device IDs do not match');
+        }
+
+        if (accessPayload.deviceFingerprint != null && refreshPayload.deviceFingerprint != null &&
+            accessPayload.deviceFingerprint != refreshPayload.deviceFingerprint) {
+          print('⚠️ Warning: Access and refresh token device fingerprints do not match');
+        }
+      }
+      
+      print('✅ JWT tokens verification completed (with warnings logged)');
+    } catch (e) {
+      print('❌ JWT tokens verification failed: $e');
+      print('⚠️ Continuing authentication despite JWT validation failure');
+      // Instead of throwing, just log the error and continue
+      // This makes authentication more robust
+    }
+  }
+  
+  /// Validate refresh response
+  Future<void> _validateRefreshResponse(JWTRefreshResponse response) async {
+    try {
+      print('🔍 Validating refresh response...');
+      
+      // Validate required fields are present
+      if (response.accessToken.isEmpty || response.refreshToken.isEmpty || 
+          response.offlineToken.isEmpty || response.deviceBinding.isEmpty) {
+        throw Exception('Response validation failed: Required tokens missing');
+      }
+      
+      // Validate expiration times
+      final now = DateTime.now();
+      if (response.expiresAt.isBefore(now) || response.offlineExpiresAt.isBefore(now)) {
+        throw Exception('Response validation failed: Tokens already expired');
+      }
+      
+      // Verify JWT tokens structure
+      final accessPayload = _jwtStorageService.parseJWTPayload(response.accessToken);
+      final refreshPayload = _jwtStorageService.parseJWTPayload(response.refreshToken);
+      final offlinePayload = _jwtStorageService.parseJWTPayload(response.offlineToken);
+      
+      if (accessPayload == null || refreshPayload == null || offlinePayload == null) {
+        throw Exception('Response validation failed: Invalid JWT token format');
+      }
+      
+      print('✅ Refresh response validation passed');
+    } catch (e) {
+      print('❌ Refresh response validation failed: $e');
+      throw Exception('Response validation failed: $e');
+    }
+  }
+  
+  /// Check device consistency between request and stored data
+  Future<void> _checkDeviceConsistency(String deviceId, String fingerprint) async {
+    try {
+      print('🔍 Checking device consistency...');
+      
+      final storedDeviceInfo = await _jwtStorageService.getStoredDeviceInfo();
+      if (storedDeviceInfo != null) {
+        if (storedDeviceInfo.deviceId != deviceId) {
+          throw Exception('Device consistency check failed: Device ID mismatch');
+        }
+        
+        if (storedDeviceInfo.fingerprint != fingerprint) {
+          throw Exception('Device consistency check failed: Device fingerprint mismatch');
+        }
+      }
+      
+      print('✅ Device consistency check passed');
+    } catch (e) {
+      print('❌ Device consistency check failed: $e');
+      throw Exception('Device consistency check failed: $e');
+    }
+  }
+
+  /// Debug method to test authentication flow
+  Future<Map<String, dynamic>> debugAuthenticationFlow(String username, String password) async {
+    final debugInfo = <String, dynamic>{};
+    
+    try {
+      debugInfo['step'] = 'Getting device info';
+      final deviceInfo = await DeviceService.getDeviceInfo();
+      debugInfo['deviceId'] = deviceInfo.deviceId;
+      debugInfo['deviceFingerprint'] = deviceInfo.fingerprint;
+      debugInfo['platform'] = deviceInfo.platform;
+      
+      debugInfo['step'] = 'Creating login request';
+      final loginRequest = JWTLoginRequest(
+        username: username,
+        password: password,
+        deviceId: deviceInfo.deviceId,
+        deviceFingerprint: deviceInfo.fingerprint,
+      );
+      
+      debugInfo['step'] = 'Checking network status';
+      final isOnline = _connectivityService.isOnline;
+      debugInfo['networkStatus'] = isOnline ? 'ONLINE' : 'OFFLINE';
+      
+      if (isOnline) {
+        debugInfo['step'] = 'Making API call';
+        final response = await _apiService.login(loginRequest);
+        debugInfo['apiCallSuccess'] = true;
+        debugInfo['userId'] = response.user.id;
+        debugInfo['userRole'] = response.user.role;
+        debugInfo['deviceTrusted'] = response.deviceTrusted;
+        debugInfo['hasAccessToken'] = response.accessToken.isNotEmpty;
+        debugInfo['hasRefreshToken'] = response.refreshToken.isNotEmpty;
+        debugInfo['hasOfflineToken'] = response.offlineToken.isNotEmpty;
+        
+        debugInfo['step'] = 'Validating response';
+        await _validateLoginResponse(response, loginRequest);
+        debugInfo['responseValidation'] = 'PASSED';
+        
+        debugInfo['step'] = 'Verifying JWT tokens';
+        await _verifyJWTTokens(response);
+        debugInfo['jwtVerification'] = 'PASSED';
+        
+        debugInfo['step'] = 'Storing tokens';
+        await _jwtStorageService.storeTokens(response);
+        debugInfo['tokenStorage'] = 'SUCCESS';
+        
+        debugInfo['overallResult'] = 'SUCCESS';
+        return debugInfo;
+      } else {
+        debugInfo['step'] = 'Attempting offline authentication';
+        final hasOfflineAuth = await _jwtStorageService.hasValidOfflineAuth();
+        debugInfo['hasValidOfflineAuth'] = hasOfflineAuth;
+        
+        if (hasOfflineAuth) {
+          final offlineResponse = await _performOfflineAuthentication(username, password);
+          debugInfo['offlineAuthSuccess'] = true;
+          debugInfo['userId'] = offlineResponse.user.id;
+          debugInfo['userRole'] = offlineResponse.user.role;
+          debugInfo['overallResult'] = 'SUCCESS (OFFLINE)';
+        } else {
+          debugInfo['offlineAuthSuccess'] = false;
+          debugInfo['overallResult'] = 'FAILED - No offline auth available';
+        }
+        return debugInfo;
+      }
+    } catch (e) {
+      debugInfo['error'] = e.toString();
+      debugInfo['errorType'] = e.runtimeType.toString();
+      debugInfo['overallResult'] = 'FAILED';
+      return debugInfo;
+    }
+  }
+
+  void dispose() {
+    _authStatusController.close();
+  }
+}

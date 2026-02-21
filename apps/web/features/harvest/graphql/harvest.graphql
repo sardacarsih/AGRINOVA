@@ -1,0 +1,250 @@
+query GetHarvestRecords {
+  harvestRecords {
+    id
+    tanggal
+    mandor {
+      id
+      name
+    }
+    block {
+      id
+      name
+    }
+    karyawan
+    nik
+    beratTbs
+    jumlahJanjang
+    jjgMatang
+    jjgMentah
+    jjgLewatMatang
+    jjgBusukAbnormal
+    jjgTangkaiPanjang
+    totalBrondolan
+    photoUrl
+    status
+    createdAt
+  }
+}
+
+# query GetHarvestStatistics {
+#   harvestStatistics {
+#     totalRecords
+#     pendingRecords
+#     approvedRecords
+#     rejectedRecords
+#     totalBeratTbs
+#     totalJanjang
+#     averagePerRecord
+#     lastUpdated
+#   }
+# }
+
+mutation CreateHarvestRecord($input: CreateHarvestRecordInput!) {
+  createHarvestRecord(input: $input) {
+    id
+    status
+    createdAt
+  }
+}
+
+mutation UpdateHarvestRecord($input: UpdateHarvestRecordInput!) {
+  updateHarvestRecord(input: $input) {
+    id
+    status
+    updatedAt
+  }
+}
+
+mutation ApproveHarvestRecord($input: ApproveHarvestInput!) {
+  approveHarvestRecord(input: $input) {
+    id
+    status
+    approvedBy
+    updatedAt
+  }
+}
+
+mutation RejectHarvestRecord($input: RejectHarvestInput!) {
+  rejectHarvestRecord(input: $input) {
+    id
+    status
+    rejectedReason
+    updatedAt
+  }
+}
+
+subscription OnHarvestRecordCreated {
+  harvestRecordCreated {
+    id
+    tanggal
+    mandor {
+      name
+    }
+    status
+    block {
+      blockCode
+    }
+    beratTbs
+  }
+}
+
+subscription OnHarvestRecordApproved {
+  harvestRecordApproved {
+    id
+    status
+    mandor {
+      id
+      name
+    }
+    block {
+      blockCode
+    }
+    beratTbs
+    approvedBy
+  }
+}
+
+subscription OnHarvestRecordRejected {
+  harvestRecordRejected {
+    id
+    status
+    mandor {
+      id
+      name
+    }
+    block {
+      blockCode
+    }
+    rejectedReason
+  }
+}
+
+# query GetHarvestContext {
+#   harvestContext {
+#     assignmentSummary {
+#       totalEstates
+#       totalDivisions
+#       totalBlocks
+#       primaryDivisionId
+#     }
+#     recentBlocks {
+#       id
+#       blockCode
+#       name
+#       division {
+#         id
+#         name
+#         estateId
+#       }
+#       lastHarvestDate
+#       harvestCount
+#     }
+#     defaultDivisionBlocks {
+#       id
+#       blockCode
+#       name
+#       luasHa
+#       # jenisTanaman removed (cropType)
+#       # tahunTanam removed (plantingYear)
+#       status
+#       # bjrValue removed
+#       divisionId
+#       division {
+#         id
+#         name
+#         estateId
+#         estate {
+#           id
+#           name
+#         }
+#       }
+#     }
+#   }
+# }
+
+# query GetHarvestBlocksByDivision(
+#   $divisionId: ID!
+#   $includeInactive: Boolean
+#   $search: String
+#   $limit: Int
+#   $offset: Int
+#   $sortBy: String
+# ) {
+#   blocksByDivision(
+#     divisionId: $divisionId
+#     includeInactive: $includeInactive
+#     search: $search
+#     limit: $limit
+#     offset: $offset
+#     sortBy: $sortBy
+#   ) {
+#     blocks {
+#       id
+#       blockCode
+#       name
+#       luasHa
+#       # jenisTanaman removed
+#       # tahunTanam removed
+#       status
+#       # bjrValue removed
+#       divisionId
+#       division {
+#         id
+#         name
+#         code
+#         estateId
+#         estate {
+#           id
+#           name
+#         }
+#       }
+#     }
+#     totalCount
+#     hasMore
+#   }
+# }
+
+query GetWorkers($limit: Int, $offset: Int, $search: String) {
+  users(limit: $limit, offset: $offset, search: $search, isActive: true) {
+    users {
+      id
+      username
+      name
+      phoneNumber
+      role
+    }
+    totalCount
+  }
+}
+
+query GetHarvestRecordsByStatus($status: HarvestStatus!) {
+  harvestRecordsByStatus(status: $status) {
+    id
+    tanggal
+    mandor {
+      id
+      name
+    }
+    block {
+      id
+      name
+    }
+    karyawan
+    nik
+    beratTbs
+    jumlahJanjang
+    jjgMatang
+    jjgMentah
+    jjgLewatMatang
+    jjgBusukAbnormal
+    jjgTangkaiPanjang
+    totalBrondolan
+    photoUrl
+    status
+    createdAt
+  }
+}
+
+mutation DeleteHarvestRecord($id: ID!) {
+  deleteHarvestRecord(id: $id)
+}

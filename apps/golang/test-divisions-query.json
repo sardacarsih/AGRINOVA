@@ -1,0 +1,3 @@
+{
+    "query": "query { divisions { id nama kode estateId blocks { id kodeBlok nama } } }"
+}

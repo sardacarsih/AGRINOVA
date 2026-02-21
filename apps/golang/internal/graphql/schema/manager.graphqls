@@ -1,0 +1,602 @@
+# =============================================================================
+# Manager Role Schema
+# Features: Dashboard, Monitor, Analytics
+# =============================================================================
+
+# =============================================================================
+# MANAGER DASHBOARD TYPES
+# =============================================================================
+
+"""
+ManagerDashboardData represents aggregated dashboard data for Manager.
+"""
+type ManagerDashboardData {
+  "Basic user information"
+  user: User!
+  "Estates assigned to this manager"
+  estates: [Estate!]!
+  "Performance metrics"
+  stats: ManagerDashboardStats!
+  "Quick action items"
+  actionItems: [ManagerActionItem!]!
+  "Team summary"
+  teamSummary: ManagerTeamSummary!
+  "Today's highlights"
+  todayHighlights: ManagerTodayHighlights!
+}
+
+"""
+ManagerDashboardStats represents key performance indicators for manager dashboard.
+"""
+type ManagerDashboardStats {
+  "Total estates managed"
+  totalEstates: Int!
+  "Total divisions across estates"
+  totalDivisions: Int!
+  "Total blocks across divisions"
+  totalBlocks: Int!
+  "Total active employees"
+  totalEmployees: Int!
+  "Today's production (tons)"
+  todayProduction: Float!
+  "This week's production (tons)"
+  weeklyProduction: Float!
+  "This month's production (tons)"
+  monthlyProduction: Float!
+  "Monthly target (tons)"
+  monthlyTarget: Float!
+  "Target achievement percentage"
+  targetAchievement: Float!
+  "Pending approvals count"
+  pendingApprovals: Int!
+  "Active harvest count today"
+  activeHarvests: Int!
+}
+
+"""
+ManagerActionItem represents a quick action for the manager.
+"""
+type ManagerActionItem {
+  "Action identifier"
+  id: ID!
+  "Action type"
+  type: ManagerActionType!
+  "Action title"
+  title: String!
+  "Action description"
+  description: String
+  "Related entity ID"
+  entityId: String
+  "Priority level"
+  priority: ActionPriority!
+  "Due date/time"
+  dueAt: Time
+  "Creation timestamp"
+  createdAt: Time!
+}
+
+"""
+ManagerActionType enum for different action types.
+"""
+enum ManagerActionType {
+  "View pending approvals"
+  VIEW_PENDING_APPROVALS
+  "Review harvest report"
+  REVIEW_HARVEST_REPORT
+  "Check underperforming division"
+  CHECK_UNDERPERFORMING
+  "Approve overtime request"
+  APPROVE_OVERTIME
+  "View system alert"
+  VIEW_ALERT
+}
+
+"""
+ActionPriority enum for action priority levels.
+"""
+enum ActionPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+"""
+ManagerTeamSummary represents team performance summary.
+"""
+type ManagerTeamSummary {
+  "Total mandors"
+  totalMandors: Int!
+  "Active mandors today"
+  activeMandorsToday: Int!
+  "Total asistens"
+  totalAsistens: Int!
+  "Top performing mandors"
+  topPerformers: [TeamMemberPerformance!]!
+  "Mandors needing attention"
+  needsAttention: [TeamMemberPerformance!]!
+}
+
+"""
+TeamMemberPerformance represents individual team member performance.
+"""
+type TeamMemberPerformance {
+  "Member user ID"
+  userId: ID!
+  "Member name"
+  name: String!
+  "Member role"
+  role: String!
+  "Division/Estate assigned"
+  assignment: String!
+  "Performance score (0-100)"
+  performanceScore: Float!
+  "Records today"
+  recordsToday: Int!
+  "Weekly trend (positive/negative percentage)"
+  weeklyTrend: Float!
+}
+
+"""
+ManagerTodayHighlights represents today's notable events.
+"""
+type ManagerTodayHighlights {
+  "Total harvests submitted today"
+  totalHarvestsToday: Int!
+  "Pending approval count"
+  pendingApprovals: Int!
+  "Approved today"
+  approvedToday: Int!
+  "Rejected today"
+  rejectedToday: Int!
+  "Production vs yesterday"
+  productionVsYesterday: Float!
+  "Notable events"
+  events: [ManagerEvent!]!
+}
+
+"""
+ManagerEvent represents a notable event for the manager.
+"""
+type ManagerEvent {
+  "Event ID"
+  id: ID!
+  "Event type"
+  type: String!
+  "Event message"
+  message: String!
+  "Related entity"
+  entityType: String
+  "Related entity ID"
+  entityId: String
+  "Severity"
+  severity: EventSeverity!
+  "Timestamp"
+  occurredAt: Time!
+}
+
+"""
+EventSeverity enum.
+"""
+enum EventSeverity {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+# =============================================================================
+# MANAGER MONITOR TYPES
+# =============================================================================
+
+"""
+ManagerMonitorData represents real-time monitoring data for manager.
+"""
+type ManagerMonitorData {
+  "Overall status"
+  overallStatus: MonitorStatus!
+  "Estate monitoring summaries"
+  estateMonitors: [EstateMonitorSummary!]!
+  "Division monitoring summaries"
+  divisionMonitors: [DivisionMonitorSummary!]!
+  "Active harvest activities"
+  activeActivities: [HarvestActivity!]!
+  "Real-time statistics"
+  realtimeStats: RealtimeStats!
+  "Last updated timestamp"
+  lastUpdated: Time!
+}
+
+"""
+EstateMonitorSummary represents estate-level monitoring summary.
+"""
+type EstateMonitorSummary {
+  "Estate ID"
+  estateId: ID!
+  "Estate name"
+  estateName: String!
+  "Status"
+  status: MonitorStatus!
+  "Active divisions"
+  activeDivisions: Int!
+  "Total divisions"
+  totalDivisions: Int!
+  "Today's production"
+  todayProduction: Float!
+  "Daily target"
+  dailyTarget: Float!
+  "Achievement percentage"
+  achievement: Float!
+  "Active workers"
+  activeWorkers: Int!
+}
+
+"""
+DivisionMonitorSummary represents division-level monitoring summary.
+"""
+type DivisionMonitorSummary {
+  "Division ID"
+  divisionId: ID!
+  "Division name"
+  divisionName: String!
+  "Estate ID"
+  estateId: ID!
+  "Status"
+  status: MonitorStatus!
+  "Mandor on duty"
+  mandorName: String
+  "Active blocks"
+  activeBlocks: Int!
+  "Total blocks"
+  totalBlocks: Int!
+  "Today's production"
+  todayProduction: Float!
+  "Progress percentage"
+  progress: Float!
+  "Last activity timestamp"
+  lastActivity: Time
+}
+
+"""
+HarvestActivity represents active harvest activity.
+"""
+type HarvestActivity {
+  "Activity ID"
+  id: ID!
+  "Block name"
+  blockName: String!
+  "Division name"
+  divisionName: String!
+  "Mandor name"
+  mandorName: String!
+  "Start time"
+  startTime: Time!
+  "Current TBS count"
+  currentTbs: Int!
+  "Current weight"
+  currentWeight: Float!
+  "Workers count"
+  workersCount: Int!
+  "Status"
+  status: String!
+}
+
+"""
+RealtimeStats represents real-time statistics.
+"""
+type RealtimeStats {
+  "Total TBS today"
+  totalTbsToday: Int!
+  "Total weight today (tons)"
+  totalWeightToday: Float!
+  "Active workers"
+  activeWorkers: Int!
+  "Active blocks"
+  activeBlocks: Int!
+  "Productivity rate (TBS/hour)"
+  productivityRate: Float!
+  "Estimated completion time"
+  estimatedCompletion: Time
+}
+
+# =============================================================================
+# MANAGER ANALYTICS TYPES
+# =============================================================================
+
+"""
+ManagerAnalyticsData represents analytics data for manager dashboard.
+"""
+type ManagerAnalyticsData {
+  "Selected period"
+  period: AnalyticsPeriod!
+  "Production trend data"
+  productionTrend: ProductionTrendData!
+  "Comparison metrics"
+  comparison: ComparisonMetrics!
+  "Division performance breakdown"
+  divisionPerformance: [DivisionPerformanceData!]!
+  "Quality analysis"
+  qualityAnalysis: QualityAnalysisData!
+  "Efficiency metrics"
+  efficiencyMetrics: EfficiencyMetrics!
+}
+
+"""
+AnalyticsPeriod enum for time period selection.
+"""
+enum AnalyticsPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+"""
+ProductionTrendData represents production trend over time.
+"""
+type ProductionTrendData {
+  "Data points"
+  dataPoints: [TrendDataPoint!]!
+  "Average production"
+  average: Float!
+  "Maximum production"
+  maximum: Float!
+  "Minimum production"
+  minimum: Float!
+  "Trend direction"
+  trendDirection: TrendDirection!
+  "Trend percentage"
+  trendPercentage: Float!
+}
+
+"""
+TrendDataPoint represents a single data point in trend.
+"""
+type TrendDataPoint {
+  "Label (date/day/month)"
+  label: String!
+  "Production value"
+  value: Float!
+  "Target value"
+  target: Float
+}
+
+"""
+TrendDirection enum.
+"""
+enum TrendDirection {
+  UP
+  DOWN
+  STABLE
+}
+
+"""
+ComparisonMetrics represents comparison with previous periods.
+"""
+type ComparisonMetrics {
+  "Current period value"
+  currentValue: Float!
+  "Previous period value"
+  previousValue: Float!
+  "Change percentage"
+  changePercentage: Float!
+  "Target value"
+  targetValue: Float!
+  "Target achievement percentage"
+  targetAchievement: Float!
+  "vs Same period last year"
+  vsLastYear: Float
+}
+
+"""
+DivisionPerformanceData represents division performance breakdown.
+"""
+type DivisionPerformanceData {
+  "Division ID"
+  divisionId: ID!
+  "Division name"
+  divisionName: String!
+  "Production value"
+  production: Float!
+  "Target value"
+  target: Float!
+  "Achievement percentage"
+  achievement: Float!
+  "Rank among divisions"
+  rank: Int!
+}
+
+"""
+QualityAnalysisData represents quality breakdown analysis.
+"""
+type QualityAnalysisData {
+  "Quality distribution"
+  distribution: [QualityDistribution!]!
+  "Average quality score"
+  averageScore: Float!
+  "Quality trend"
+  trend: TrendDirection!
+}
+
+"""
+QualityDistribution represents quality grade distribution.
+"""
+type QualityDistribution {
+  "Grade name"
+  grade: String!
+  "Count"
+  count: Int!
+  "Percentage"
+  percentage: Float!
+  "Color code for UI"
+  colorCode: String!
+}
+
+"""
+EfficiencyMetrics represents efficiency analysis.
+"""
+type EfficiencyMetrics {
+  "Overall efficiency score"
+  overallScore: Float!
+  "Labor efficiency"
+  laborEfficiency: Float!
+  "Time efficiency"
+  timeEfficiency: Float!
+  "Resource utilization"
+  resourceUtilization: Float!
+  "Productivity per worker"
+  productivityPerWorker: Float!
+  "Cost efficiency"
+  costEfficiency: Float
+}
+
+# =============================================================================
+# MANAGER BUDGET PRODUKSI DIVISI TYPES
+# =============================================================================
+
+"""
+ManagerDivisionProductionBudget represents monthly production budget per division.
+"""
+type ManagerDivisionProductionBudget {
+  id: ID!
+  divisionId: ID!
+  divisionName: String!
+  estateId: ID!
+  estateName: String!
+  period: String!
+  targetTon: Float!
+  plannedCost: Float!
+  actualCost: Float!
+  notes: String
+  createdBy: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"""
+ManagerDivisionOption represents manager-scoped division option for form inputs.
+"""
+type ManagerDivisionOption {
+  id: ID!
+  name: String!
+  estateId: ID!
+  estateName: String!
+}
+
+input CreateManagerDivisionProductionBudgetInput {
+  divisionId: ID!
+  period: String!
+  targetTon: Float!
+  plannedCost: Float!
+  actualCost: Float
+  notes: String
+}
+
+input UpdateManagerDivisionProductionBudgetInput {
+  id: ID!
+  divisionId: ID
+  period: String
+  targetTon: Float
+  plannedCost: Float
+  actualCost: Float
+  notes: String
+}
+
+# =============================================================================
+# MANAGER QUERIES
+# =============================================================================
+
+extend type Query {
+  # Manager Dashboard Queries
+  "Get manager dashboard data"
+  managerDashboard: ManagerDashboardData! @requireAuth @hasRole(roles: [MANAGER])
+  
+  "Get manager dashboard stats"
+  managerDashboardStats: ManagerDashboardStats! @requireAuth @hasRole(roles: [MANAGER])
+  
+  "Get manager action items"
+  managerActionItems(limit: Int = 10): [ManagerActionItem!]! @requireAuth @hasRole(roles: [MANAGER])
+  
+  "Get manager team summary"
+  managerTeamSummary: ManagerTeamSummary! @requireAuth @hasRole(roles: [MANAGER])
+  
+  # Manager Monitor Queries
+  "Get manager monitoring data"
+  managerMonitor: ManagerMonitorData! @requireAuth @hasRole(roles: [MANAGER])
+  
+  "Get estate monitor summary"
+  estateMonitor(estateId: ID!): EstateMonitorSummary! @requireAuth @hasRole(roles: [MANAGER])
+  
+  "Get division monitor summaries for an estate"
+  divisionMonitors(estateId: ID!): [DivisionMonitorSummary!]! @requireAuth @hasRole(roles: [MANAGER])
+  
+  "Get active harvest activities"
+  activeHarvestActivities(estateId: ID): [HarvestActivity!]! @requireAuth @hasRole(roles: [MANAGER])
+  
+  # Manager Analytics Queries
+  "Get manager analytics data"
+  managerAnalytics(
+    period: AnalyticsPeriod!
+    startDate: Time
+    endDate: Time
+    estateId: ID
+  ): ManagerAnalyticsData! @requireAuth @hasRole(roles: [MANAGER])
+  
+  "Get production trend data"
+  productionTrend(
+    period: AnalyticsPeriod!
+    estateId: ID
+  ): ProductionTrendData! @requireAuth @hasRole(roles: [MANAGER])
+  
+  "Get division performance ranking"
+  divisionPerformanceRanking(
+    estateId: ID
+    limit: Int = 10
+  ): [DivisionPerformanceData!]! @requireAuth @hasRole(roles: [MANAGER])
+  
+  "Get quality analysis data"
+  qualityAnalysis(
+    period: AnalyticsPeriod!
+    estateId: ID
+  ): QualityAnalysisData! @requireAuth @hasRole(roles: [MANAGER])
+
+  "Get manager scoped division production budgets"
+  managerDivisionProductionBudgets(
+    divisionId: ID
+    period: String
+  ): [ManagerDivisionProductionBudget!]! @requireAuth @hasRole(roles: [MANAGER, AREA_MANAGER])
+
+  "Get divisions under manager assigned estates"
+  managerDivisionOptions: [ManagerDivisionOption!]! @requireAuth @hasRole(roles: [MANAGER])
+}
+
+extend type Mutation {
+  "Create manager division production budget"
+  createManagerDivisionProductionBudget(
+    input: CreateManagerDivisionProductionBudgetInput!
+  ): ManagerDivisionProductionBudget! @requireAuth @hasRole(roles: [MANAGER])
+
+  "Update manager division production budget"
+  updateManagerDivisionProductionBudget(
+    input: UpdateManagerDivisionProductionBudgetInput!
+  ): ManagerDivisionProductionBudget! @requireAuth @hasRole(roles: [MANAGER])
+
+  "Delete manager division production budget"
+  deleteManagerDivisionProductionBudget(id: ID!): Boolean! @requireAuth @hasRole(roles: [MANAGER])
+}
+
+# =============================================================================
+# MANAGER SUBSCRIPTIONS
+# =============================================================================
+
+extend type Subscription {
+  "Real-time monitor updates for manager"
+  managerMonitorUpdate: ManagerMonitorData! @requireAuth @hasRole(roles: [MANAGER])
+  
+  "Real-time harvest activity updates"
+  harvestActivityUpdate(estateId: ID): HarvestActivity! @requireAuth @hasRole(roles: [MANAGER])
+  
+  "Manager alert notifications"
+  managerAlert: ManagerEvent! @requireAuth @hasRole(roles: [MANAGER])
+}

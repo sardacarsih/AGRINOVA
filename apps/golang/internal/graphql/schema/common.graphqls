@@ -1,0 +1,281 @@
+# =============================================================================
+# Common Types and Scalars
+# =============================================================================
+
+"""
+Time scalar type for handling timestamps in RFC3339 format.
+Used for all date/time fields across the system.
+"""
+scalar Time
+
+"""
+UUID scalar type for handling UUIDs.
+"""
+scalar UUID
+
+"""
+JSON scalar type for handling arbitrary JSON data.
+Used for metadata and configuration fields.
+"""
+scalar JSON
+
+"""
+User Role defines the hierarchical access levels in the palm oil management system.
+Each role has specific permissions and responsibilities.
+STRICT: Only standard roles are supported - includes field operational roles.
+"""
+enum UserRole {
+  "System administrator with full access"
+  SUPER_ADMIN
+  "Company administrator with user management rights"
+  COMPANY_ADMIN
+  "Area manager overseeing multiple companies"
+  AREA_MANAGER
+  "Estate manager with monitoring and reporting access"
+  MANAGER
+  "Assistant manager who approves/rejects harvest records"
+  ASISTEN
+  "Field supervisor responsible for harvest data input"
+  MANDOR
+  "Security personnel managing gate check operations"
+  SATPAM
+  "Weighing station operator responsible for TBS weighing and recording"
+  TIMBANGAN
+  "Quality control staff responsible for TBS grading and classification"
+  GRADING
+}
+
+"""
+Platform Type represents the client platform accessing the API.
+"""
+enum PlatformType {
+  "Web browser client"
+  WEB
+  "Android mobile client"  
+  ANDROID
+  "iOS mobile client"
+  IOS
+}
+
+"""
+Sync Status represents the synchronization state of a record.
+"""
+enum SyncStatus {
+  "Waiting to be synchronized"
+  PENDING
+  "Currently being synchronized"
+  IN_PROGRESS
+  "Successfully synchronized"
+  COMPLETED
+  "Synchronization failed"
+  FAILED
+  "Conflict detected during sync"
+  CONFLICT
+}
+
+"""
+MonitorStatus represents the monitoring status.
+"""
+enum MonitorStatus {
+  "All systems normal"
+  NORMAL
+  "Warning - attention needed"
+  WARNING
+  "Critical - immediate action required"
+  CRITICAL
+  "Offline or unavailable"
+  OFFLINE
+  "Alert - attention required"
+  ALERT
+}
+
+"""
+VehicleType represents different types of vehicles.
+"""
+enum VehicleType {
+  "Passenger car (Mobil)"
+  CAR
+  "Commercial truck (Truk)"
+  TRUCK
+  "Pick-up truck (PickUp)"
+  PICKUP
+  "Van / Minibus"
+  VAN
+  "Motorcycle (Motor)"
+  MOTORBIKE
+  "Bus"
+  BUS
+  "Other vehicle type (Lainnya)"
+  OTHER
+}
+
+"""
+GateIntent represents the direction of gate operation.
+"""
+enum GateIntent {
+  "Entry into estate"
+  ENTRY
+  "Exit from estate"
+  EXIT
+}
+
+"""
+GuestLogStatus represents the direction of a guest visit (raw from mobile).
+"""
+enum GuestLogStatus {
+  "Guest entry into estate"
+  ENTRY
+  "Guest exit from estate"
+  EXIT
+}
+
+"""
+QRTokenStatus represents the current state of a QR token.
+"""
+enum QRTokenStatus {
+  "Token is active and can be used"
+  ACTIVE
+  "Token has been used and cannot be reused"
+  USED
+  "Token has expired"
+  EXPIRED
+  "Token has been cancelled"
+  CANCELLED
+  "Token is invalid"
+  INVALID
+}
+
+"""
+SyncOperation represents sync operation types.
+"""
+enum SyncOperation {
+  "Create new record"
+  CREATE
+  "Update existing record"
+  UPDATE
+  "Delete record"
+  DELETE
+  "Batch operation"
+  BATCH
+}
+
+"""
+ConflictResolution represents conflict resolution strategies.
+"""
+enum ConflictResolution {
+  "Manual resolution required"
+  MANUAL
+  "Local version wins"
+  LOCAL_WINS
+  "Remote/server version wins"
+  REMOTE_WINS
+  "Attempt to merge changes"
+  MERGE
+  "Latest timestamp wins"
+  LATEST_WINS
+}
+
+"""
+Coordinates holds GPS location data.
+"""
+type Coordinates {
+  "GPS latitude"
+  latitude: Float!
+  "GPS longitude"
+  longitude: Float!
+}
+
+"""
+SortDirection for ordering results.
+"""
+enum SortDirection {
+  ASC
+  DESC
+}
+
+"""
+PhotoUploadError represents an error during photo upload.
+"""
+type PhotoUploadError {
+  "Photo ID that failed"
+  photoId: String!
+  "Error message"
+  error: String!
+  "Error code"
+  code: String
+}
+
+"""
+PhotoType represents the purpose/context of a photo.
+"""
+enum PhotoType {
+  "Entry photo"
+  ENTRY
+  "Exit photo"
+  EXIT
+  "Vehicle photo"
+  VEHICLE
+  "Vehicle front photo"
+  FRONT
+  "Vehicle back photo"
+  BACK
+  "Document photo"
+  DOCUMENT
+  "General purpose photo"
+  GENERAL
+}
+
+# =============================================================================
+# Authentication Directives
+# =============================================================================
+
+"""
+@requireAuth directive marks a field as requiring authentication.
+When applied, the directive will check for a valid JWT token and extract user context.
+"""
+directive @requireAuth on FIELD_DEFINITION | FRAGMENT_DEFINITION | INTERFACE
+
+"""
+@hasRole directive restricts access to users with specific roles.
+Accepts multiple roles - user must have at least one of the specified roles.
+"""
+directive @hasRole(roles: [UserRole!]!) on FIELD_DEFINITION | FRAGMENT_DEFINITION | INTERFACE
+
+# =============================================================================
+# =============================================================================
+# Sync Status Types
+# =============================================================================
+
+"""
+SyncItemStatus represents the outcome of a single sync record pushed to the server.
+ACCEPTED: record was saved (new) or already existed (idempotent).
+REJECTED: record failed validation or an unresolvable conflict occurred.
+"""
+enum SyncItemStatus {
+  "Record successfully accepted or already exists on server (idempotent)"
+  ACCEPTED
+  "Record rejected due to validation failure or unresolvable conflict"
+  REJECTED
+}
+
+# =============================================================================
+# Gqlgen Directives
+# =============================================================================
+
+directive @goField(forceResolver: Boolean, name: String) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+directive @goModel(model: String, models: [String!]) on OBJECT | INPUT_OBJECT | SCALAR | ENUM | INTERFACE | UNION
+
+"""
+RoleValidation provides strict validation for role format and
+conforms to the standardized role requirements.
+"""
+type RoleValidation {
+  "Validates if role string is in correct standard format"
+  validateRoleString(roleString: String!): Boolean!
+
+  "Validates and normalizes role string to UserRole enum"
+  validateToEnum(roleString: String!): UserRole
+
+  "Gets all supported standard roles"
+  getSupportedRoles: [UserRole!]!
+}

@@ -1,0 +1,766 @@
+
+# Where are all the schema files located? globs are supported eg  src/**/*.graphqls
+schema:
+  - internal/graphql/schema/schema.graphqls
+  - internal/graphql/schema/common.graphqls
+  - internal/graphql/schema/auth.graphqls
+  - internal/graphql/schema/master.graphqls
+  - internal/graphql/schema/mandor.graphqls
+  - internal/graphql/schema/asisten.graphqls
+  - internal/graphql/schema/satpam.graphqls
+  - internal/graphql/schema/manager.graphqls
+  - internal/graphql/schema/area_manager.graphqls
+  - internal/graphql/schema/company_admin.graphqls
+  - internal/graphql/schema/super_admin.graphqls
+  - internal/graphql/schema/timbangan.graphqls
+  - internal/graphql/schema/grading.graphqls
+  - internal/graphql/schema/pks.graphqls
+  - internal/graphql/schema/perawatan.graphqls
+  - internal/graphql/schema/notifications.graphql
+  - internal/graphql/schema/session.graphqls
+  - internal/graphql/schema/token_management.graphqls
+  - internal/graphql/schema/api-keys.graphqls
+  - internal/graphql/schema/fcm_token.graphqls
+  - internal/graphql/schema/rbac.graphqls
+  - internal/graphql/schema/features.graphqls
+  - internal/graphql/schema/database.graphqls
+  - internal/graphql/schema/bkm_sync.graphqls
+  - internal/graphql/schema/bkm_report.graphqls
+  - internal/graphql/schema/bkm_company_bridge.graphqls
+
+# Where should the generated server code go?
+exec:
+  package: generated
+  layout: single-file # Keep single file for generated exec code
+
+  # Only for single-file layout:
+  filename: internal/graphql/generated/generated.go
+
+  # Only for follow-schema layout:
+  # dir: internal/graphql/generated
+  # filename_template: "{name}.generated.go"
+
+  # Optional: Maximum number of goroutines in concurrency to use per child resolvers(default: unlimited)
+  # worker_limit: 1000
+
+# Uncomment to enable federation
+# federation:
+#   filename: graph/federation.go
+#   package: graph
+#   version: 2
+#   options:
+#     computed_requires: true
+
+# Where should any generated models go?
+model:
+  filename: internal/graphql/generated/models.go
+  package: generated
+
+  # Optional: Pass in a path to a new gotpl template to use for generating the models
+  # model_template: [your/path/model.gotpl]
+
+# Use domain-based resolver generation
+resolver:
+  package: resolvers
+  layout: follow-schema
+  dir: internal/graphql/resolvers
+  filename_template: "{name}.resolvers.go"
+  preserve_resolver: true
+
+# Optional: turn on use ` + "`" + `gqlgen:"fieldName"` + "`" + ` tags in your models
+# struct_tag: json
+
+# Optional: turn on to use []Thing instead of []*Thing
+# omit_slice_element_pointers: false
+
+# Optional: turn on to omit Is<Name>() methods to interface and unions
+# omit_interface_checks: true
+
+# Optional: turn on to skip generation of ComplexityRoot struct content and Complexity function
+# omit_complexity: false
+
+# Optional: turn on to not generate any file notice comments in generated files
+# omit_gqlgen_file_notice: false
+
+# Optional: turn on to exclude the gqlgen version in the generated file notice. No effect if `omit_gqlgen_file_notice` is true.
+# omit_gqlgen_version_in_file_notice: false
+
+# Optional: turn on to exclude root models such as Query and Mutation from the generated models file.
+# omit_root_models: false
+
+# Optional: turn on to exclude resolver fields from the generated models file.
+# omit_resolver_fields: false
+
+# Optional: turn off to make struct-type struct fields not use pointers
+# e.g. type Thing struct { FieldA OtherThing } instead of { FieldA *OtherThing }
+# struct_fields_always_pointers: true
+
+# Optional: turn off to make resolvers return values instead of pointers for structs
+# resolvers_always_return_pointers: true
+
+# Optional: turn on to return pointers instead of values in unmarshalInput
+# return_pointers_in_unmarshalinput: false
+
+# Optional: wrap nullable input fields with Omittable
+# nullable_input_omittable: true
+
+# Optional: set to speed up generation time by not performing a final validation pass.
+skip_validation: true
+
+# Optional: set to skip running `go mod tidy` when generating server code
+# skip_mod_tidy: true
+
+# Optional: if this is set to true, argument directives that
+# decorate a field with a null value will still be called.
+#
+# This enables argumment directives to not just mutate
+# argument values but to set them even if they're null.
+call_argument_directives_with_null: true
+
+# This enables gql server to use function syntax for execution context
+# instead of generating receiver methods of the execution context.
+# use_function_syntax_for_execution_context: true
+
+# Optional: set build tags that will be used to load packages
+# go_build_tags:
+#  - private
+#  - enterprise
+
+# Optional: set to modify the initialisms regarded for Go names
+# go_initialisms:
+#   replace_defaults: false # if true, the default initialisms will get dropped in favor of the new ones instead of being added
+#   initialisms: # List of initialisms to for Go names
+#     - 'CC'
+#     - 'BCC'
+
+# gqlgen will search for any type names in the schema in these go packages
+# if they match it will use them, otherwise it will generate them.
+autobind:
+#  - "agrinova-graphql/internal/graphql"
+#  - "agrinova-graphql/pkg/models"
+
+# This section declares type mapping between the GraphQL and go type systems
+#
+# The first line in each type will be used as defaults for resolver arguments and
+# modelgen, the others will be allowed when binding to fields. Configure them to
+# your liking
+models:
+  ID:
+    model:
+      - github.com/99designs/gqlgen/graphql.ID
+      - github.com/99designs/gqlgen/graphql.Int
+      - github.com/99designs/gqlgen/graphql.Int64
+      - github.com/99designs/gqlgen/graphql.Int32
+  # gqlgen provides a default GraphQL UUID convenience wrapper for github.com/google/uuid
+  # but you can override this to provide your own GraphQL UUID implementation
+  UUID:
+    model:
+      - github.com/99designs/gqlgen/graphql.UUID
+  # Custom Time scalar for timestamps - supports multiple formats including ISO8601 without timezone
+  Time:
+    model:
+      - agrinovagraphql/server/internal/graphql/scalars.Time
+
+  # The GraphQL spec explicitly states that the Int type is a signed 32-bit
+  # integer. Using Go int or int64 to represent it can lead to unexpected
+  # behavior, and some GraphQL tools like Apollo Router will fail when
+  # communicating numbers that overflow 32-bits.
+  #
+  # You may choose to use the custom, built-in Int64 scalar to represent 64-bit
+  # integers, or ignore the spec and bind Int to graphql.Int / graphql.Int64
+  # (the default behavior of gqlgen). This is fine in simple use cases when you
+  # do not need to worry about interoperability and only expect small numbers.
+  Int:
+    model:
+      - github.com/99designs/gqlgen/graphql.Int32
+  Int64:
+    model:
+      - github.com/99designs/gqlgen/graphql.Int
+      - github.com/99designs/gqlgen/graphql.Int64
+
+  # GradingRecord remains in old location (no domain file yet)
+  GradingRecord:
+    model: agrinovagraphql/server/internal/grading/models.GradingRecord
+
+
+  Notification:
+    model: agrinovagraphql/server/internal/notifications/models.Notification
+  NotificationTemplate:
+    model: agrinovagraphql/server/internal/notifications/models.NotificationTemplate
+  NotificationPreferences:
+    model: agrinovagraphql/server/internal/notifications/models.NotificationPreferences
+  NotificationSummary:
+    model: agrinovagraphql/server/internal/notifications/models.NotificationSummary
+  NotificationType:
+    model: agrinovagraphql/server/internal/notifications/models.NotificationType
+  NotificationPriority:
+    model: agrinovagraphql/server/internal/notifications/models.NotificationPriority
+  NotificationStatus:
+    model: agrinovagraphql/server/internal/notifications/models.NotificationStatus
+
+  # ============================================================================
+  # DOMAIN: Common - Shared types
+  # ============================================================================
+  PageInfo:
+    model: agrinovagraphql/server/internal/graphql/domain/common.PageInfo
+  Coordinates:
+    model: agrinovagraphql/server/internal/graphql/domain/common.Coordinates
+  PhotoUploadError:
+    model: agrinovagraphql/server/internal/graphql/domain/common.PhotoUploadError
+  TrendDataPoint:
+    model: agrinovagraphql/server/internal/graphql/domain/common.TrendDataPoint
+  SortDirection:
+    model: agrinovagraphql/server/internal/graphql/domain/common.SortDirection
+  SyncStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/common.SyncStatus
+  SyncItemStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/common.SyncItemStatus
+  SyncOperation:
+    model: agrinovagraphql/server/internal/graphql/domain/common.SyncOperation
+  ConflictResolution:
+    model: agrinovagraphql/server/internal/graphql/domain/common.ConflictResolution
+  MonitorStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/common.MonitorStatus
+  TrendDirection:
+    model: agrinovagraphql/server/internal/graphql/domain/common.TrendDirection
+  ActionPriority:
+    model: agrinovagraphql/server/internal/graphql/domain/common.ActionPriority
+  ActionItemStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/common.ActionItemStatus
+  EventSeverity:
+    model: agrinovagraphql/server/internal/graphql/domain/common.EventSeverity
+
+  # ============================================================================
+  # DOMAIN: Auth - Authentication types
+  # ============================================================================
+  User:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.User
+  UserRole:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.UserRole
+  AuthPayload:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.AuthPayload
+  MobileLoginInput:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.MobileLoginInput
+  WebLoginInput:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.WebLoginInput
+  WebLoginPayload:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.WebLoginPayload
+  RefreshTokenInput:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.RefreshTokenInput
+  CreateUserInput:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.CreateUserInput
+  ChangePasswordInput:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.ChangePasswordInput
+  ResetPasswordInput:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.ResetPasswordInput
+  UpdateUserInput:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.UpdateUserInput
+  UserMutationResponse:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.UserMutationResponse
+  Device:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.Device
+  DeviceInfo:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.DeviceInfo
+  DeviceInfoInput:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.DeviceInfoInput
+  DeviceBindInput:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.DeviceBindInput
+  DeviceResponse:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.DeviceResponse
+  UserAssignments:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.UserAssignments
+  UserAssignmentSummary:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.UserAssignmentSummary
+  PlatformType:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.PlatformType
+  ForceLogoutResponse:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.ForceLogoutResponse
+
+  # ============================================================================
+  # DOMAIN: Master - Company, Estate, Division, Block, Employee
+  # ============================================================================
+  Company:
+    model: agrinovagraphql/server/internal/graphql/domain/master.Company
+    fields:
+      estates:
+        resolver: true
+  CompanyStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/master.CompanyStatus
+  Estate:
+    model: agrinovagraphql/server/internal/graphql/domain/master.Estate
+  Division:
+    model: agrinovagraphql/server/internal/graphql/domain/master.Division
+  Block:
+    model: agrinovagraphql/server/internal/graphql/domain/master.Block
+  TarifBlok:
+    model: agrinovagraphql/server/internal/graphql/domain/master.TarifBlok
+  CompanyPaginationResponse:
+    model: agrinovagraphql/server/internal/graphql/domain/master.CompanyPaginationResponse
+  Pagination:
+    model: agrinovagraphql/server/internal/graphql/domain/master.Pagination
+  CreateCompanyInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.CreateCompanyInput
+  CreateEstateInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.CreateEstateInput
+  CreateDivisionInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.CreateDivisionInput
+  CreateBlockInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.CreateBlockInput
+  CreateTarifBlokInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.CreateTarifBlokInput
+  UpdateCompanyInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.UpdateCompanyInput
+  UpdateEstateInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.UpdateEstateInput
+  UpdateDivisionInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.UpdateDivisionInput
+  UpdateBlockInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.UpdateBlockInput
+  UpdateTarifBlokInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.UpdateTarifBlokInput
+  Employee:
+    model: agrinovagraphql/server/internal/graphql/domain/master.Employee
+  CreateEmployeeInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.CreateEmployeeInput
+  Vehicle:
+    model: agrinovagraphql/server/internal/graphql/domain/master.Vehicle
+  CreateVehicleInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.CreateVehicleInput
+  UpdateVehicleInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.UpdateVehicleInput
+
+  # ============================================================================
+  # DOMAIN: Mandor - Harvest records, sync
+  # ============================================================================
+  HarvestRecord:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.HarvestRecord
+  HarvestStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.HarvestStatus
+  CreateHarvestRecordInput:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.CreateHarvestRecordInput
+  UpdateHarvestRecordInput:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.UpdateHarvestRecordInput
+  ApproveHarvestInput:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.ApproveHarvestInput
+  RejectHarvestInput:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.RejectHarvestInput
+  HarvestSyncInput:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.HarvestSyncInput
+  HarvestRecordSyncInput:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.HarvestRecordSyncInput
+  MandorDashboardData:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorDashboardData
+  MandorDashboardStats:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorDashboardStats
+  MandorActivity:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorActivity
+  MandorActivityType:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorActivityType
+  MandorTodayWork:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorTodayWork
+  MandorSyncStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorSyncStatus
+  MandorHarvestSummary:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorHarvestSummary
+  MandorHarvestRecord:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorHarvestRecord
+  HarvestPhoto:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.HarvestPhoto
+  MandorHarvestResult:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorHarvestResult
+  CreateMandorHarvestInput:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.CreateMandorHarvestInput
+  UpdateMandorHarvestInput:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.UpdateMandorHarvestInput
+  MandorSyncInput:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorSyncInput
+  MandorHarvestSyncRecord:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorHarvestSyncRecord
+  MandorHarvestSyncData:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorHarvestSyncData
+  MandorSyncResult:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorSyncResult
+  MandorSyncItemResult:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorSyncItemResult
+  MandorHistoryFilter:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorHistoryFilter
+  MandorHistoryResponse:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorHistoryResponse
+  MandorHistorySummary:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorHistorySummary
+  MandorHistorySortField:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorHistorySortField
+  MandorProfile:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorProfile
+  MandorStats:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorStats
+  MandorWorkload:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorWorkload
+  MandorStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorStatus
+  MandorPhotoSyncInput:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorPhotoSyncInput
+  MandorPhotoSyncResult:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorPhotoSyncResult
+  MandorPendingSyncItem:
+    model: agrinovagraphql/server/internal/graphql/domain/mandor.MandorPendingSyncItem
+
+  # ============================================================================
+  # DOMAIN: Asisten - Approval, monitoring
+  # ============================================================================
+  AsistenDashboardData:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.AsistenDashboardData
+  AsistenDashboardStats:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.AsistenDashboardStats
+  AsistenTodaySummary:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.AsistenTodaySummary
+  AsistenQuickAction:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.AsistenQuickAction
+  AsistenActionType:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.AsistenActionType
+  ApprovalItem:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.ApprovalItem
+  ApprovalPriority:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.ApprovalPriority
+  ValidationStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.ValidationStatus
+  ApprovalFilterInput:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.ApprovalFilterInput
+  ApprovalListResponse:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.ApprovalListResponse
+  ApprovalPageInfo:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.ApprovalPageInfo
+  ApprovalSortField:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.ApprovalSortField
+  ApproveHarvestResult:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.ApproveHarvestResult
+  BatchApprovalInput:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.BatchApprovalInput
+  BatchApprovalAction:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.BatchApprovalAction
+  BatchApprovalResult:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.BatchApprovalResult
+  BatchItemResult:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.BatchItemResult
+  AsistenMonitoringData:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.AsistenMonitoringData
+  AsistenDivisionSummary:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.AsistenDivisionSummary
+  BlockActivity:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.BlockActivity
+  BlockActivityStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.BlockActivityStatus
+  AsistenRealtimeStats:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.AsistenRealtimeStats
+  ActivityTimelineItem:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.ActivityTimelineItem
+  ActivityType:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.ActivityType
+  ApprovalStatsData:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.ApprovalStatsData
+  DailyApprovalStats:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.DailyApprovalStats
+  AsistenProfile:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.AsistenProfile
+  AsistenStats:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.AsistenStats
+  AsistenWorkload:
+    model: agrinovagraphql/server/internal/graphql/domain/asisten.AsistenWorkload
+
+  # ============================================================================
+  # DOMAIN: Satpam - Gate check, QR
+  # ============================================================================
+  SatpamDashboardData:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamDashboardData
+  SatpamDashboardStats:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamDashboardStats
+  POSInfo:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.POSInfo
+  VehicleInsideInfo:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.VehicleInsideInfo
+  VehicleOutsideInfo:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.VehicleOutsideInfo
+  VehicleCompletedInfo:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.VehicleCompletedInfo
+  SatpamActivity:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamActivity
+  SatpamActivityType:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamActivityType
+  SatpamSyncStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamSyncStatus
+  ShiftInfo:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.ShiftInfo
+  SatpamGuestLog:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamGuestLog
+  GuestLogStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.GuestLogStatus
+  VehicleType:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.VehicleType
+  CreateGuestRegistrationInput:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.CreateGuestRegistrationInput
+  GuestRegistrationResult:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.GuestRegistrationResult
+  SatpamQRToken:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamQRToken
+  QRTokenStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.QRTokenStatus
+  GateIntent:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.GateIntent
+  QRValidationResult:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.QRValidationResult
+  ProcessExitInput:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.ProcessExitInput
+  ExitIdentifierType:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.ExitIdentifierType
+  ProcessExitResult:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.ProcessExitResult
+  SatpamSyncInput:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamSyncInput
+  SatpamGuestLogSyncRecord:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamGuestLogSyncRecord
+  SatpamGuestLogSyncData:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamGuestLogSyncData
+  SatpamSyncResult:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamSyncResult
+  SatpamSyncItemResult:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamSyncItemResult
+  SatpamHistoryFilter:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamHistoryFilter
+  SatpamHistorySortField:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamHistorySortField
+  SatpamHistoryResponse:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamHistoryResponse
+  SatpamHistorySummary:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamHistorySummary
+  SyncStatusStats:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SyncStatusStats
+  SatpamProfile:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.SatpamProfile
+  GateStats:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.GateStats
+  GateSecuritySummary:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.GateSecuritySummary
+  PhotoType:
+    model: agrinovagraphql/server/internal/graphql/domain/satpam.PhotoType
+
+  # ============================================================================
+  # DOMAIN: Manager - Dashboard, analytics
+  # ============================================================================
+  ManagerDashboardData:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ManagerDashboardData
+  ManagerDashboardStats:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ManagerDashboardStats
+  ManagerActionItem:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ManagerActionItem
+  ManagerActionType:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ManagerActionType
+  ManagerTeamSummary:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ManagerTeamSummary
+  TeamMemberPerformance:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.TeamMemberPerformance
+  ManagerTodayHighlights:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ManagerTodayHighlights
+  ManagerEvent:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ManagerEvent
+  ManagerMonitorData:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ManagerMonitorData
+  EstateMonitorSummary:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.EstateMonitorSummary
+  DivisionMonitorSummary:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.DivisionMonitorSummary
+  HarvestActivity:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.HarvestActivity
+  RealtimeStats:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.RealtimeStats
+  ManagerAnalyticsData:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ManagerAnalyticsData
+  AnalyticsPeriod:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.AnalyticsPeriod
+  ProductionTrendData:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ProductionTrendData
+  ComparisonMetrics:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ComparisonMetrics
+  DivisionPerformanceData:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.DivisionPerformanceData
+  QualityAnalysisData:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.QualityAnalysisData
+  QualityDistribution:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.QualityDistribution
+  EfficiencyMetrics:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.EfficiencyMetrics
+  ManagerDailySummaryData:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ManagerDailySummaryData
+  ManagerDailySummaryResult:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ManagerDailySummaryResult
+  ManagerProfile:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ManagerProfile
+  ManagerStats:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.ManagerStats
+  EstatePerformance:
+    model: agrinovagraphql/server/internal/graphql/domain/manager.EstatePerformance
+
+  # ============================================================================
+  # DOMAIN: Timbangan - Weighing
+  # ============================================================================
+  WeighingRecord:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.WeighingRecord
+  WeighingStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.WeighingStatus
+  CreateWeighingRecordInput:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.CreateWeighingRecordInput
+  UpdateWeighingRecordInput:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.UpdateWeighingRecordInput
+  TimbanganDashboardData:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.TimbanganDashboardData
+  TimbanganDashboardStats:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.TimbanganDashboardStats
+  PKSInfo:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.PKSInfo
+  WeighingQueueItem:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.WeighingQueueItem
+  QueuePriority:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.QueuePriority
+  QueueStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.QueueStatus
+  WeighingSummary:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.WeighingSummary
+  EstateWeighingSummary:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.EstateWeighingSummary
+  PerformFirstWeighingInput:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.PerformFirstWeighingInput
+  PerformSecondWeighingInput:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.PerformSecondWeighingInput
+  WeighingResult:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.WeighingResult
+  DoValidationResult:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.DoValidationResult
+  DoDetails:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.DoDetails
+  TimbanganProfile:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.TimbanganProfile
+  TimbanganStats:
+    model: agrinovagraphql/server/internal/graphql/domain/timbangan.TimbanganStats
+
+  # ============================================================================
+  # DOMAIN: RBAC - Roles and Permissions
+  # ============================================================================
+  Role:
+    model: agrinovagraphql/server/internal/graphql/domain/rbac.Role
+  Permission:
+    model: agrinovagraphql/server/internal/graphql/domain/rbac.Permission
+  RolePermission:
+    model: agrinovagraphql/server/internal/graphql/domain/rbac.RolePermission
+  RolePermissionInput:
+    model: agrinovagraphql/server/internal/graphql/domain/rbac.RolePermissionInput
+  PermissionScope:
+    model: agrinovagraphql/server/internal/graphql/domain/rbac.PermissionScope
+  PermissionScopeInput:
+    model: agrinovagraphql/server/internal/graphql/domain/rbac.PermissionScopeInput
+  PermissionCheckInput:
+    model: agrinovagraphql/server/internal/graphql/domain/rbac.PermissionCheckInput
+  PermissionCheckResult:
+    model: agrinovagraphql/server/internal/graphql/domain/rbac.PermissionCheckResult
+  BatchPermissionCheckInput:
+    model: agrinovagraphql/server/internal/graphql/domain/rbac.BatchPermissionCheckInput
+  BatchPermissionCheckResult:
+    model: agrinovagraphql/server/internal/graphql/domain/rbac.BatchPermissionCheckResult
+  RoleHierarchyNode:
+    model: agrinovagraphql/server/internal/graphql/domain/rbac.RoleHierarchyNode
+  RoleRelationship:
+    model: agrinovagraphql/server/internal/graphql/domain/rbac.RoleRelationship
+  RBACStats:
+    model: agrinovagraphql/server/internal/graphql/domain/rbac.RBACStats
+
+  # ============================================================================
+  # DOMAIN: Features - Feature flags
+  # ============================================================================
+  Feature:
+    model: agrinovagraphql/server/internal/graphql/domain/features.Feature
+  FeatureMetadata:
+    model: agrinovagraphql/server/internal/graphql/domain/features.FeatureMetadata
+  FeatureMetadataInput:
+    model: agrinovagraphql/server/internal/graphql/domain/features.FeatureMetadataInput
+  RoleFeature:
+    model: agrinovagraphql/server/internal/graphql/domain/features.RoleFeature
+  AssignRoleFeaturesInput:
+    model: agrinovagraphql/server/internal/graphql/domain/features.AssignRoleFeaturesInput
+  UserFeature:
+    model: agrinovagraphql/server/internal/graphql/domain/features.UserFeature
+  FeatureScope:
+    model: agrinovagraphql/server/internal/graphql/domain/features.FeatureScope
+  FeatureScopeInput:
+    model: agrinovagraphql/server/internal/graphql/domain/features.FeatureScopeInput
+  GrantUserFeatureInput:
+    model: agrinovagraphql/server/internal/graphql/domain/features.GrantUserFeatureInput
+  DenyUserFeatureInput:
+    model: agrinovagraphql/server/internal/graphql/domain/features.DenyUserFeatureInput
+  RevokeUserFeatureInput:
+    model: agrinovagraphql/server/internal/graphql/domain/features.RevokeUserFeatureInput
+  FeatureCheckInput:
+    model: agrinovagraphql/server/internal/graphql/domain/features.FeatureCheckInput
+  FeatureCheckResult:
+    model: agrinovagraphql/server/internal/graphql/domain/features.FeatureCheckResult
+  BatchFeatureCheckInput:
+    model: agrinovagraphql/server/internal/graphql/domain/features.BatchFeatureCheckInput
+  BatchFeatureCheckResult:
+    model: agrinovagraphql/server/internal/graphql/domain/features.BatchFeatureCheckResult
+  CreateFeatureInput:
+    model: agrinovagraphql/server/internal/graphql/domain/features.CreateFeatureInput
+  FeatureFilterInput:
+    model: agrinovagraphql/server/internal/graphql/domain/features.FeatureFilterInput
+  FeaturesResponse:
+    model: agrinovagraphql/server/internal/graphql/domain/features.FeaturesResponse
+  FeatureHierarchy:
+    model: agrinovagraphql/server/internal/graphql/domain/features.FeatureHierarchy
+  FeatureStats:
+    model: agrinovagraphql/server/internal/graphql/domain/features.FeatureStats
+  FeatureUpdateEvent:
+    model: agrinovagraphql/server/internal/graphql/domain/features.FeatureUpdateEvent
+  UpdateFeatureInput:
+    model: agrinovagraphql/server/internal/graphql/domain/features.UpdateFeatureInput
+  UserFeatureSet:
+    model: agrinovagraphql/server/internal/graphql/domain/features.UserFeatureSet
+  ScopedFeature:
+    model: agrinovagraphql/server/internal/graphql/domain/features.ScopedFeature
+  UserFeatureUpdateEvent:
+    model: agrinovagraphql/server/internal/graphql/domain/features.UserFeatureUpdateEvent
+
+  # ============================================================================
+  # DOMAIN: BKM Sync - Oracle sync types
+  # ============================================================================
+  BkmMasterUpsertInput:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmMasterUpsertInput
+  BkmDetailUpsertInput:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmDetailUpsertInput
+  UpsertBkmResult:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.UpsertBkmResult
+
+  # ============================================================================
+  # DOMAIN: BKM Report - Potong Buah report types
+  # ============================================================================
+  BkmPotongBuahFilter:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmPotongBuahFilter
+  BkmPotongBuahDetail:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmPotongBuahDetail
+  BkmPotongBuahBlock:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmPotongBuahBlock
+  BkmPotongBuahDivision:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmPotongBuahDivision
+  BkmPotongBuahEstate:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmPotongBuahEstate
+  BkmPotongBuahSummary:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmPotongBuahSummary
+  BkmPotongBuahFlatItem:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmPotongBuahFlatItem
+  BkmPotongBuahFlatResponse:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmPotongBuahFlatResponse
+  BkmPotongBuahKPI:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmPotongBuahKPI
+  BkmPotongBuahDailyPoint:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmPotongBuahDailyPoint
+  BkmPotongBuahOutputPoint:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmPotongBuahOutputPoint
+  BkmPotongBuahHarvesterPoint:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmPotongBuahHarvesterPoint
+  BkmPotongBuahAnalytics:
+    model: agrinovagraphql/server/internal/graphql/domain/bkm.BkmPotongBuahAnalytics

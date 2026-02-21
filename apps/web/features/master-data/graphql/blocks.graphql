@@ -1,0 +1,76 @@
+fragment BlockFields on Block {
+  id
+  blockCode
+  name
+  divisionId
+  luasHa
+  plantingYear
+  cropType
+  # status removed
+  # bjrValue removed
+  createdAt
+  updatedAt
+}
+
+fragment BlockWithRelations on Block {
+  ...BlockFields
+  division {
+    id
+    name
+    # code removed (not in schema)
+    estate {
+      id
+      name
+      # code removed (not in schema)
+      company {
+        id
+        name
+        # code removed (not in schema)
+      }
+    }
+  }
+}
+
+# query GetBlocks($filters: BlockFilters) {
+#   blocks(filters: $filters) {
+#     ...BlockWithRelations
+#   }
+# }
+
+query GetBlock($id: ID!) {
+  block(id: $id) {
+    ...BlockWithRelations
+  }
+}
+
+# query GetBlocksByDivision($divisionId: ID!) {
+#   blocksByDivision(divisionId: $divisionId) {
+#     blocks {
+#       ...BlockWithRelations
+#     }
+#     totalCount
+#     hasMore
+#   }
+# }
+
+# query GetBlocksByEstate($estateId: ID!) {
+#   blocksByEstate(estateId: $estateId) {
+#     ...BlockWithRelations
+#   }
+# }
+
+mutation CreateBlock($input: CreateBlockInput!) {
+  createBlock(input: $input) {
+    ...BlockWithRelations
+  }
+}
+
+mutation UpdateBlock($input: UpdateBlockInput!) {
+  updateBlock(input: $input) {
+    ...BlockWithRelations
+  }
+}
+
+mutation DeleteBlock($id: ID!) {
+  deleteBlock(id: $id)
+}

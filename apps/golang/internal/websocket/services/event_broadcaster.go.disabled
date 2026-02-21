@@ -1,0 +1,311 @@
+package services
+
+import (
+	"log"
+	"time"
+
+	"gorm.io/gorm"
+
+	"agrinovagraphql/server/internal/graphql/generated"
+	"agrinovagraphql/server/internal/websocket/models"
+)
+
+// EventBroadcaster handles database event broadcasting for real-time updates
+type EventBroadcaster struct {
+	db        *gorm.DB
+	wsHandler *WebSocketHandler
+}
+
+// NewEventBroadcaster creates a new event broadcaster
+func NewEventBroadcaster(
+	db *gorm.DB,
+	wsHandler *WebSocketHandler,
+) *EventBroadcaster {
+	return &EventBroadcaster{
+		db:        db,
+		wsHandler: wsHandler,
+	}
+}
+
+// Harvest Event Broadcasting
+
+// OnHarvestRecordCreated broadcasts when a new harvest record is created
+func (eb *EventBroadcaster) OnHarvestRecordCreated(record *generated.HarvestRecord) {
+	log.Printf("Broadcasting harvest record created event: %s", record.ID)
+
+	// Direct WebSocket broadcasts
+	eb.wsHandler.BroadcastToChannel(models.ChannelHarvest, "harvestRecordCreated", record)
+	eb.wsHandler.BroadcastToRole("ASISTEN", "harvestRecordCreated", record)
+	eb.wsHandler.BroadcastToRole("MANAGER", "harvestRecordCreated", record)
+	eb.wsHandler.BroadcastToRole("AREA_MANAGER", "harvestRecordCreated", record)
+
+	// Additional role-specific notifications
+	eb.notifyAsistenForNewHarvest(record)
+	eb.notifyManagementForHarvestVolume(record)
+}
+
+// OnHarvestRecordApproved broadcasts when a harvest record is approved
+func (eb *EventBroadcaster) OnHarvestRecordApproved(record *generated.HarvestRecord) {
+	log.Printf("Broadcasting harvest record approved event: %s", record.ID)
+
+	// Direct WebSocket broadcasts
+	eb.wsHandler.BroadcastToChannel(models.ChannelHarvest, "harvestRecordApproved", record)
+
+	// Notify the mandor who created the record
+	if record.Mandor != nil {
+		eb.wsHandler.BroadcastToUser(record.Mandor.ID, "harvestRecordApproved", record)
+	}
+
+	// Also broadcast to management roles
+	eb.wsHandler.BroadcastToRole("MANAGER", "harvestRecordApproved", record)
+	eb.wsHandler.BroadcastToRole("AREA_MANAGER", "harvestRecordApproved", record)
+
+	// Send specific notifications
+	eb.notifyMandorForApproval(record, true)
+	eb.updateDashboardStats("harvest_approved", record)
+}
+
+// OnHarvestRecordRejected broadcasts when a harvest record is rejected
+func (eb *EventBroadcaster) OnHarvestRecordRejected(record *generated.HarvestRecord) {
+	log.Printf("Broadcasting harvest record rejected event: %s", record.ID)
+
+	// Use subscription resolver to trigger WebSocket broadcasts
+	eb.wsHandler.BroadcastToChannel(models.ChannelHarvest, "harvestRecordRejected", record)
+
+	// Send specific notifications
+	eb.notifyMandorForApproval(record, false)
+	eb.alertManagementForRejection(record)
+}
+
+// Gate Check Event Broadcasting
+
+// OnGateCheckCreated broadcasts when a new gate check record is created
+func (eb *EventBroadcaster) OnGateCheckCreated(record *generated.GateCheckRecord) {
+	log.Printf("Broadcasting gate check created event: %s", record.ID)
+
+	// Use subscription resolver to trigger WebSocket broadcasts
+	eb.wsHandler.BroadcastToChannel(models.ChannelGateCheck, "gateCheckCreated", record)
+
+	// Additional notifications
+	eb.notifySecurityTeamForGateCheck(record)
+	eb.validateGateCheckWithHarvestData(record)
+}
+
+// OnGateCheckCompleted broadcasts when a gate check is completed
+func (eb *EventBroadcaster) OnGateCheckCompleted(record *generated.GateCheckRecord) {
+	log.Printf("Broadcasting gate check completed event: %s", record.ID)
+
+	// Use subscription resolver to trigger WebSocket broadcasts
+	eb.wsHandler.BroadcastToChannel(models.ChannelGateCheck, "gateCheckCompleted", record)
+
+	// Update security statistics
+	eb.updateSecurityStats(record)
+}
+
+// System Event Broadcasting
+
+// OnSystemAlert broadcasts system alerts to appropriate roles
+func (eb *EventBroadcaster) OnSystemAlert(alertType, message string, severity string, data interface{}) {
+	log.Printf("Broadcasting system alert: %s - %s", alertType, message)
+
+	alertData := map[string]interface{}{
+		"type":      alertType,
+		"message":   message,
+		"severity":  severity,
+		"data":      data,
+		"timestamp": time.Now(),
+	}
+
+	eb.wsHandler.BroadcastToChannel(models.ChannelSystem, "systemAlert", alertData)
+
+	// Route based on severity
+	switch severity {
+	case "critical":
+		eb.escalateToSuperAdmin(alertData)
+	case "high":
+		eb.notifyCompanyAdmins(alertData)
+	case "medium":
+		eb.notifyManagers(alertData)
+	}
+}
+
+// OnUserStatusChange broadcasts user status changes
+func (eb *EventBroadcaster) OnUserStatusChange(userID, status string, metadata map[string]interface{}) {
+	log.Printf("Broadcasting user status change: %s -> %s", userID, status)
+
+	statusData := map[string]interface{}{
+		"userId":    userID,
+		"status":    status,
+		"metadata":  metadata,
+		"timestamp": time.Now(),
+	}
+
+	// Notify user's connections
+	eb.wsHandler.BroadcastToUser(userID, "userStatusChange", statusData)
+
+	// Notify administrators
+	eb.wsHandler.BroadcastToRole("COMPANY_ADMIN", "userStatusChange", statusData)
+	eb.wsHandler.BroadcastToRole("SUPER_ADMIN", "userStatusChange", statusData)
+}
+
+// Company Event Broadcasting
+
+// OnCompanyUpdate broadcasts company-wide updates
+func (eb *EventBroadcaster) OnCompanyUpdate(companyID, updateType, message string, data interface{}) {
+	log.Printf("Broadcasting company update for %s: %s", companyID, updateType)
+
+	updateData := map[string]interface{}{
+		"companyId": companyID,
+		"type":      updateType,
+		"message":   message,
+		"data":      data,
+		"timestamp": time.Now(),
+	}
+
+	eb.wsHandler.BroadcastToCompany(companyID, "companyUpdate", updateData)
+}
+
+// PKS Integration Events
+
+// OnPKSDataReceived broadcasts when PKS data is received
+func (eb *EventBroadcaster) OnPKSDataReceived(pksData interface{}) {
+	log.Printf("Broadcasting PKS data received event")
+
+	// Broadcast to PKS channel
+	eb.wsHandler.BroadcastToChannel(models.ChannelPKS, "pksDataReceived", pksData)
+
+	// Notify relevant roles
+	eb.wsHandler.BroadcastToRole("MANAGER", "pksDataReceived", pksData)
+	eb.wsHandler.BroadcastToRole("AREA_MANAGER", "pksDataReceived", pksData)
+}
+
+// Helper methods for specific business logic
+
+// notifyAsistenForNewHarvest sends targeted notifications to Asisten role
+func (eb *EventBroadcaster) notifyAsistenForNewHarvest(record *generated.HarvestRecord) {
+	notification := map[string]interface{}{
+		"type":      "harvest_approval_needed",
+		"message":   "New harvest record requires approval",
+		"harvestId": record.ID,
+		"mandor":    record.Mandor.Name,
+		"block":     record.Block.Name,
+		"weight":    record.BeratTbs,
+		"priority":  "high",
+	}
+
+	eb.wsHandler.BroadcastToRole("ASISTEN", "harvest_approval_needed", notification)
+}
+
+// notifyMandorForApproval sends approval/rejection notification to Mandor
+func (eb *EventBroadcaster) notifyMandorForApproval(record *generated.HarvestRecord, approved bool) {
+	var notificationType string
+
+	if approved {
+		notificationType = "harvest_approved"
+	} else {
+		notificationType = "harvest_rejected"
+	}
+
+	notification := map[string]interface{}{
+		"type":           notificationType,
+		"harvestId":      record.ID,
+		"block":          record.Block.Name,
+		"weight":         record.BeratTbs,
+		"approved":       approved,
+		"rejectedReason": record.RejectedReason,
+	}
+
+	eb.wsHandler.BroadcastToUser(record.Mandor.ID, notificationType, notification)
+}
+
+// notifyManagementForHarvestVolume sends volume alerts to management
+func (eb *EventBroadcaster) notifyManagementForHarvestVolume(record *generated.HarvestRecord) {
+	// Check if this is a high-volume harvest that needs management attention
+	if record.BeratTbs > 1000 { // Example threshold
+		alert := map[string]interface{}{
+			"type":      "high_volume_harvest",
+			"harvestId": record.ID,
+			"weight":    record.BeratTbs,
+			"mandor":    record.Mandor.Name,
+			"block":     record.Block.Name,
+		}
+
+		eb.wsHandler.BroadcastToRole("MANAGER", "high_volume_harvest", alert)
+	}
+}
+
+// alertManagementForRejection sends rejection alerts to management
+func (eb *EventBroadcaster) alertManagementForRejection(record *generated.HarvestRecord) {
+	alert := map[string]interface{}{
+		"type":           "harvest_rejection",
+		"harvestId":      record.ID,
+		"mandor":         record.Mandor.Name,
+		"rejectedReason": record.RejectedReason,
+		"weight":         record.BeratTbs,
+		"block":          record.Block.Name,
+	}
+
+	eb.wsHandler.BroadcastToRole("MANAGER", "harvest_rejection", alert)
+}
+
+// notifySecurityTeamForGateCheck sends gate check notifications to security
+func (eb *EventBroadcaster) notifySecurityTeamForGateCheck(record *generated.GateCheckRecord) {
+	notification := map[string]interface{}{
+		"type":        "gate_check_created",
+		"gateCheckId": record.ID,
+		"nomorPolisi": record.NomorPolisi,
+		"namaSupir":   record.NamaSupir,
+		"intent":      record.Intent,
+		"satpam":      record.Satpam.Name,
+	}
+
+	eb.wsHandler.BroadcastToRole("SATPAM", "gate_check_created", notification)
+}
+
+// validateGateCheckWithHarvestData checks gate check against harvest data
+func (eb *EventBroadcaster) validateGateCheckWithHarvestData(record *generated.GateCheckRecord) {
+	// This would implement business logic to validate gate check against expected harvest
+	// For now, just log the validation attempt
+	log.Printf("Validating gate check %s against harvest data", record.ID)
+
+	// If validation fails, send alert
+	// eb.OnSystemAlert("gate_check_validation", "Gate check validation failed", "medium", record)
+}
+
+// updateDashboardStats updates real-time dashboard statistics
+func (eb *EventBroadcaster) updateDashboardStats(statsType string, data interface{}) {
+	statsUpdate := map[string]interface{}{
+		"type":      statsType,
+		"data":      data,
+		"timestamp": time.Now(),
+	}
+
+	eb.wsHandler.BroadcastToChannel(models.ChannelWebDashboard, "statsUpdate", statsUpdate)
+}
+
+// updateSecurityStats updates security-related statistics
+func (eb *EventBroadcaster) updateSecurityStats(record *generated.GateCheckRecord) {
+	securityStats := map[string]interface{}{
+		"type":        "gate_check_completed",
+		"gateCheckId": record.ID,
+		"duration":    time.Now().Sub(*record.WaktuMasuk),
+		"status":      record.Status,
+	}
+
+	eb.wsHandler.BroadcastToChannel(models.ChannelGateCheck, "securityStatsUpdate", securityStats)
+}
+
+// escalateToSuperAdmin escalates critical alerts to super admin
+func (eb *EventBroadcaster) escalateToSuperAdmin(alertData map[string]interface{}) {
+	eb.wsHandler.BroadcastToRole("SUPER_ADMIN", "critical_alert", alertData)
+}
+
+// notifyCompanyAdmins notifies company admins of high severity issues
+func (eb *EventBroadcaster) notifyCompanyAdmins(alertData map[string]interface{}) {
+	eb.wsHandler.BroadcastToRole("COMPANY_ADMIN", "high_severity_alert", alertData)
+}
+
+// notifyManagers notifies managers of medium severity issues
+func (eb *EventBroadcaster) notifyManagers(alertData map[string]interface{}) {
+	eb.wsHandler.BroadcastToRole("MANAGER", "management_alert", alertData)
+}

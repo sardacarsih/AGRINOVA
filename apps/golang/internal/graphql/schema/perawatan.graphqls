@@ -1,0 +1,143 @@
+# =============================================================================
+# Perawatan (Maintenance) Schema
+# =============================================================================
+
+"""
+PerawatanRecord represents maintenance activities on plantation blocks.
+"""
+type PerawatanRecord {
+  id: ID!
+  blockId: String!
+  block: Block!
+  jenisPerawatan: JenisPerawatan!
+  tanggalPerawatan: Time!
+  pekerjaId: String!
+  pekerja: User!
+  luasArea: Float!
+  pupukDigunakan: String
+  herbisidaDigunakan: String
+  catatan: String
+  status: StatusPerawatan!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"""
+Maintenance activity types.
+"""
+enum JenisPerawatan {
+  PEMUPUKAN
+  PENYEMPROTAN_HERBISIDA
+  PEMANGKASAN
+  PEMBERSIHAN_PARIT
+  PEMBERSIHAN_GULMA
+  PERAWATAN_JALAN
+  LAINNYA
+}
+
+"""
+Maintenance status.
+"""
+enum StatusPerawatan {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+"""
+Pupuk (Fertilizer) usage record.
+"""
+type PupukUsage {
+  id: ID!
+  perawatanRecordId: String!
+  perawatanRecord: PerawatanRecord!
+  jenisPupuk: String!
+  jumlahKg: Float!
+  hargaPerKg: Float!
+  totalBiaya: Float!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"""
+Herbisida (Herbicide) usage record.
+"""
+type HerbisidaUsage {
+  id: ID!
+  perawatanRecordId: String!
+  perawatanRecord: PerawatanRecord!
+  jenisHerbisida: String!
+  jumlahLiter: Float!
+  hargaPerLiter: Float!
+  totalBiaya: Float!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+input CreatePerawatanRecordInput {
+  blockId: String!
+  jenisPerawatan: JenisPerawatan!
+  tanggalPerawatan: Time!
+  pekerjaId: String!
+  luasArea: Float!
+  pupukDigunakan: String
+  herbisidaDigunakan: String
+  catatan: String
+}
+
+input UpdatePerawatanRecordInput {
+  id: ID!
+  jenisPerawatan: JenisPerawatan
+  tanggalPerawatan: Time
+  luasArea: Float
+  pupukDigunakan: String
+  herbisidaDigunakan: String
+  catatan: String
+  status: StatusPerawatan
+}
+
+input CreatePupukUsageInput {
+  perawatanRecordId: String!
+  jenisPupuk: String!
+  jumlahKg: Float!
+  hargaPerKg: Float!
+}
+
+input CreateHerbisidaUsageInput {
+  perawatanRecordId: String!
+  jenisHerbisida: String!
+  jumlahLiter: Float!
+  hargaPerLiter: Float!
+}
+
+# Perawatan queries
+extend type Query {
+  # Perawatan Queries
+  "Retrieve all maintenance records"
+  perawatanRecords: [PerawatanRecord!]!
+  "Get a specific maintenance record by ID"
+  perawatanRecord(id: ID!): PerawatanRecord
+  "Filter maintenance records by type"
+  perawatanRecordsByType(jenisPerawatan: JenisPerawatan!): [PerawatanRecord!]!
+  "Filter maintenance records by status"
+  perawatanRecordsByStatus(status: StatusPerawatan!): [PerawatanRecord!]!
+  
+  # Usage Queries
+  "Get fertilizer usage records"
+  pupukUsageRecords: [PupukUsage!]!
+  "Get herbicide usage records"
+  herbisidaUsageRecords: [HerbisidaUsage!]!
+}
+
+# Perawatan mutations
+extend type Mutation {
+  # Perawatan mutations
+  createPerawatanRecord(input: CreatePerawatanRecordInput!): PerawatanRecord!
+  updatePerawatanRecord(input: UpdatePerawatanRecordInput!): PerawatanRecord!
+  deletePerawatanRecord(id: ID!): Boolean!
+  
+  # Usage mutations
+  createPupukUsage(input: CreatePupukUsageInput!): PupukUsage!
+  createHerbisidaUsage(input: CreateHerbisidaUsageInput!): HerbisidaUsage!
+}

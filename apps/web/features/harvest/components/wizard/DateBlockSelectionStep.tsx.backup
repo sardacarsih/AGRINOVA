@@ -1,0 +1,611 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useQuery } from '@apollo/client/react';
+import { motion } from 'framer-motion';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  Calendar, 
+  MapPin, 
+  Leaf, 
+  TrendingUp,
+  Info,
+  CheckCircle2,
+  AlertCircle,
+  Package
+} from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
+import { GET_MY_ASSIGNMENTS, type UserAssignments } from '@/lib/apollo/queries/harvest';
+import { GraphQLErrorWrapper } from '@/components/ui/graphql-error-handler';
+import type { BlockWithBJR, HarvestWizardFormData } from '../../types/wizard';
+
+interface DateBlockSelectionStepProps {
+  formData: HarvestWizardFormData;
+  onUpdateFormData: (data: Partial<HarvestWizardFormData>) => void;
+  onNext: () => void;
+  onValidationChange: (isValid: boolean) => void;
+}
+
+export function DateBlockSelectionStep({ 
+  formData, 
+  onUpdateFormData, 
+  onNext,
+  onValidationChange 
+}: DateBlockSelectionStepProps) {
+  const { user } = useAuth();
+  const [selectedBlockId, setSelectedBlockId] = useState<string>('');
+
+  // Get user's assigned divisions and blocks
+  const { data: assignmentsData, loading: assignmentsLoading, error, refetch } = useQuery<{ myAssignments: UserAssignments }>(
+    GET_MY_ASSIGNMENTS,
+    {
+      errorPolicy: 'all', // Return both data and errors
+      notifyOnNetworkStatusChange: true,
+      fetchPolicy: 'cache-and-network', // Try cache first, then network
+    }
+  );
+
+  // Get available blocks from assignments
+  const availableBlocks: BlockWithBJR[] = React.useMemo(() => {
+    if (!assignmentsData?.myAssignments?.divisions) return [];
+    
+    // Debug: Log the raw GraphQL response
+    console.log('🔍 Debug - assignmentsData:', assignmentsData);
+    
+    return assignmentsData.myAssignments.divisions.flatMap(division => 
+      (division.blocks || []).map(block => {
+        
+        return {
+          id: block.id,
+          kodeBlok: block.kodeBlok,
+          nama: block.nama,
+          luasHa: block.luasHa,
+          jenisTanaman: block.jenisTanaman,
+          tahunTanam: block.tahunTanam,
+          bjrValue: 0.85, // Default BJR value - should come from master data
+          division: {
+            id: division.id,
+            nama: division.nama,
+            estate: division.estate
+          }
+        } as BlockWithBJR;
+      })
+    );
+  }, [assignmentsData]);
+
+
+  // Validation effect
+  useEffect(() => {
+    const isValid = !!(formData.harvestDate && formData.selectedBlock);
+    onValidationChange(isValid);
+  }, [formData.harvestDate, formData.selectedBlock, onValidationChange]);
+
+  // Handle date change
+  const handleDateChange = (date: string) => {
+    onUpdateFormData({ harvestDate: date });
+  };
+
+  // Handle block selection
+  const handleBlockSelection = (blockId: string) => {
+    const block = availableBlocks.find(b => b.id === blockId);
+    setSelectedBlockId(blockId);
+    onUpdateFormData({ 
+      selectedBlock: block || null
+    });
+  };
+
+
+  // Handle next step
+  const handleNext = () => {
+    if (formData.harvestDate && formData.selectedBlock) {
+      onNext();
+    }
+  };
+
+  if (assignmentsLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-green-600" />
+            Pilih Tanggal & Blok Panen
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              <div className="flex items-center gap-2">
+                <div className="h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                <span>Memuat data blok yang ditugaskan untuk Anda...</span>
+              </div>
+            </AlertDescription>
+          </Alert>
+          
+          <div className="space-y-4">
+            <div>
+              <Label>Tanggal Panen</Label>
+              <Skeleton className="h-10 w-full mt-1" />
+            </div>
+            
+            <div>
+              <Label>Pilih Blok Panen</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
+              </div>
+            </div>
+            
+            <div>
+              <Label>TPH (Tempat Penumpukan Hasil)</Label>
+              <Skeleton className="h-20 w-full mt-1" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card>
+        <CardContent>
+          <GraphQLErrorWrapper 
+            error={error}
+            onRetry={refetch}
+            title="Gagal Memuat Data Blok"
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className="space-y-6"
+    >
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-green-600" />
+            Pilih Tanggal & Blok Panen
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Date Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="harvestDate" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Tanggal Panen
+            </Label>
+            <Input
+              id="harvestDate"
+              type="date"
+              value={formData.harvestDate}
+              onChange={(e) => handleDateChange(e.target.value)}
+              max={new Date().toISOString().split('T')[0]} // Can't select future dates
+              className="w-full"
+            />
+            {!formData.harvestDate && (
+              <p className="text-sm text-red-500">Tanggal panen harus dipilih</p>
+            )}
+          </div>
+
+          {/* Division Info */}
+          {availableBlocks.length > 0 && (
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-1">
+                  <p className="font-medium">Divisi yang Ditugaskan:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from(new Set(availableBlocks.map(b => b.division.nama))).map((divisionName) => (
+                      <Badge key={divisionName} variant="outline" className="text-xs">
+                        {divisionName}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Block Selection */}
+          <div className="space-y-3">
+            <Label className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Pilih Blok Panen
+            </Label>
+            
+            {availableBlocks.length === 0 ? (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="font-medium">Tidak ada blok yang ditugaskan untuk Anda</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Hubungi supervisor atau admin untuk mendapatkan penugasan blok panen.
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Langkah selanjutnya:</p>
+                      <ul className="text-sm text-muted-foreground space-y-1">
+                        <li>• Hubungi Asisten atau Manager divisi</li>
+                        <li>• Pastikan akun Anda sudah terdaftar di divisi yang benar</li>
+                        <li>• Verifikasi dengan admin sistem jika masalah berlanjut</li>
+                      </ul>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => refetch()}
+                      >
+                        Coba Lagi
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => window.location.reload()}
+                      >
+                        Refresh Data
+                      </Button>
+                    </div>
+
+                    {/* Debug info for development */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <details className="mt-4">
+                        <summary className="text-xs cursor-pointer text-muted-foreground">
+                          Debug Info (Development Only)
+                        </summary>
+                        <div className="text-xs bg-gray-100 p-2 mt-2 rounded space-y-1">
+                          <p><strong>User ID:</strong> {user?.id}</p>
+                          <p><strong>Username:</strong> {user?.username}</p>
+                          <p><strong>Role:</strong> {user?.role}</p>
+                          <p><strong>Assignments Data:</strong></p>
+                          <pre className="overflow-auto max-h-20">
+                            {JSON.stringify(assignmentsData, null, 2)}
+                          </pre>
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {availableBlocks.map((block) => (
+                  <motion.div
+                    key={block.id}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Card 
+                      className={`cursor-pointer border-2 transition-all duration-200 ${
+                        selectedBlockId === block.id 
+                          ? 'border-green-500 bg-green-50' 
+                          : 'border-gray-200 hover:border-green-300'
+                      }`}
+                      onClick={() => handleBlockSelection(block.id)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <h4 className="font-semibold text-sm">{block.kodeBlok}</h4>
+                              <p className="text-xs text-muted-foreground">{block.nama}</p>
+                            </div>
+                            {selectedBlockId === block.id && (
+                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                            )}
+                          </div>
+                          
+                          <div className="space-y-1 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              <span>Divisi {block.division.nama}</span>
+                            </div>
+                            
+                            {block.luasHa && (
+                              <div className="flex items-center gap-1">
+                                <Leaf className="h-3 w-3" />
+                                <span>{block.luasHa} ha</span>
+                              </div>
+                            )}
+                            
+                            <div className="flex items-center gap-1">
+                              <TrendingUp className="h-3 w-3" />
+                              <span>BJR: {(block.bjrValue || 0.85).toFixed(2)}</span>
+                            </div>
+                            
+                            <div className="flex items-center gap-1">
+                              <Package className="h-3 w-3 text-blue-600" />
+                              <span className="text-blue-700 font-medium">
+                                {block.tphLocations?.length || 0} TPH tersedia
+                              </span>
+                              {(block.tphLocations?.length || 0) > 0 && (
+                                <Badge className="bg-blue-100 text-blue-700 text-xs px-1 py-0.5 ml-1">
+                                  Aktif
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            {block.tahunTanam && (
+                              <div className="text-xs">
+                                Tanam: {block.tahunTanam}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* TPH Selection */}
+          {formData.selectedBlock && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              transition={{ duration: 0.3 }}
+              className="space-y-3"
+            >
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border border-blue-200">
+                <Label className="flex items-center gap-2 text-blue-800 font-semibold">
+                  <Package className="h-5 w-5 text-blue-600" />
+                  Pilih TPH (Tempat Penumpukan Hasil)
+                  <Badge className="bg-blue-600 text-white">Step 2</Badge>
+                </Label>
+                <p className="text-sm text-blue-700 mt-2">
+                  TPH adalah lokasi strategis untuk penyimpanan sementara hasil panen TBS sebelum dikirim ke PKS.
+                </p>
+              </div>
+              
+              {availableTPHs.length === 0 ? (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="space-y-2">
+                      <p className="font-medium">Tidak ada TPH yang aktif di blok {formData.selectedBlock.kodeBlok}</p>
+                      <p className="text-sm">Hubungi supervisor atau admin untuk menambahkan TPH di blok ini.</p>
+                      <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                        <p className="text-sm font-medium text-yellow-800">Informasi Blok:</p>
+                        <ul className="text-sm text-yellow-700 mt-1 space-y-1">
+                          <li>• Blok: {formData.selectedBlock.kodeBlok} - {formData.selectedBlock.nama}</li>
+                          <li>• Divisi: {formData.selectedBlock.division.nama}</li>
+                          <li>• Status TPH: Belum tersedia</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <>
+                  <Alert>
+                    <Package className="h-4 w-4 text-blue-600" />
+                    <AlertDescription>
+                      <div className="flex items-center justify-between">
+                        <span className="text-blue-800 font-medium">
+                          {availableTPHs.length} TPH tersedia di blok {formData.selectedBlock.kodeBlok}
+                        </span>
+                        <Badge variant="outline" className="bg-blue-100 text-blue-700">
+                          Semua Aktif
+                        </Badge>
+                      </div>
+                    </AlertDescription>
+                  </Alert>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {availableTPHs.map((tph) => (
+                      <motion.div
+                        key={tph.id}
+                        whileHover={{ scale: 1.03, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                      >
+                        <Card 
+                          className={`cursor-pointer border-2 transition-all duration-300 relative overflow-hidden ${
+                            selectedTPHId === tph.id 
+                              ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-blue-100 shadow-lg' 
+                              : 'border-gray-200 hover:border-blue-300 hover:shadow-md'
+                          }`}
+                          onClick={() => handleTPHSelection(tph.id)}
+                        >
+                          {selectedTPHId === tph.id && (
+                            <div className="absolute top-0 right-0 w-0 h-0 border-l-[30px] border-l-transparent border-t-[30px] border-t-blue-500">
+                              <CheckCircle2 className="h-4 w-4 text-white absolute -top-6 -right-1" />
+                            </div>
+                          )}
+                          
+                          <CardContent className="p-4">
+                            <div className="space-y-3">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <h4 className="font-bold text-sm text-gray-900">{tph.kode}</h4>
+                                  <p className="text-xs text-muted-foreground">{tph.nama}</p>
+                                </div>
+                                <Badge 
+                                  variant="outline" 
+                                  className={`text-xs ${selectedTPHId === tph.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-green-100 text-green-700'}`}
+                                >
+                                  Aktif
+                                </Badge>
+                              </div>
+                              
+                              <div className="space-y-2">
+                                {tph.lokasi && (
+                                  <div className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                                    <MapPin className="h-3 w-3 text-gray-600" />
+                                    <span className="text-xs text-gray-700">{tph.lokasi}</span>
+                                  </div>
+                                )}
+                                
+                                {tph.kapasitasTon && (
+                                  <div className="flex items-center gap-2 p-2 bg-orange-50 rounded">
+                                    <Package className="h-3 w-3 text-orange-600" />
+                                    <span className="text-xs text-orange-700 font-medium">
+                                      Kapasitas: {tph.kapasitasTon} ton
+                                    </span>
+                                  </div>
+                                )}
+                                
+                                {tph.koordinat && (
+                                  <div className="flex items-center gap-2 p-2 bg-green-50 rounded">
+                                    <MapPin className="h-3 w-3 text-green-600" />
+                                    <span className="font-mono text-xs text-green-700">{tph.koordinat}</span>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {selectedTPHId === tph.id && (
+                                <div className="mt-3 p-2 bg-blue-100 rounded border border-blue-200">
+                                  <div className="flex items-center gap-2">
+                                    <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                                    <span className="text-xs font-medium text-blue-800">TPH Terpilih</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </motion.div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Selected Block Details */}
+      {formData.selectedBlock && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+        >
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-700">
+                <CheckCircle2 className="h-5 w-5" />
+                Blok Terpilih
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Kode Blok</p>
+                  <p className="font-semibold">{formData.selectedBlock.kodeBlok}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Nama Blok</p>
+                  <p className="font-semibold">{formData.selectedBlock.nama}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Divisi</p>
+                  <p className="font-semibold">{formData.selectedBlock.division.nama}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">BJR Value</p>
+                  <Badge variant="outline" className="text-green-700 bg-green-50">
+                    {(formData.selectedBlock.bjrValue || 0.85).toFixed(3)}
+                  </Badge>
+                </div>
+                {formData.selectedBlock.luasHa && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Luas Area</p>
+                    <p className="font-semibold">{formData.selectedBlock.luasHa} ha</p>
+                  </div>
+                )}
+                {formData.selectedBlock.jenisTanaman && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Jenis Tanaman</p>
+                    <p className="font-semibold">{formData.selectedBlock.jenisTanaman}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total TPH Tersedia</p>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-blue-700 bg-blue-50">
+                      {formData.selectedBlock.tphLocations?.length || 0} lokasi
+                    </Badge>
+                    {(formData.selectedBlock.tphLocations?.length || 0) > 0 && (
+                      <Badge className="bg-green-100 text-green-700 text-xs">
+                        Semua Aktif
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                {formData.selectedTPH && (
+                  <>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">TPH Terpilih</p>
+                      <Badge variant="outline" className="text-blue-700 bg-blue-50">
+                        {formData.selectedTPH.kode} - {formData.selectedTPH.nama}
+                      </Badge>
+                    </div>
+                    {formData.selectedTPH.kapasitasTon && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Kapasitas TPH</p>
+                        <p className="font-semibold">{formData.selectedTPH.kapasitasTon} ton</p>
+                      </div>
+                    )}
+                    {formData.selectedTPH.koordinat && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Koordinat TPH</p>
+                        <p className="font-mono text-sm">{formData.selectedTPH.koordinat}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              
+              <Alert className="mt-4">
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-1">
+                    <p>BJR (Bunch Yield Ratio) akan digunakan untuk menghitung estimasi berat TBS matang dan lewat matang secara otomatis.</p>
+                    <p className="text-blue-600">TPH (Tempat Penumpukan Hasil) adalah lokasi penyimpanan sementara hasil panen di blok ini.</p>
+                    {formData.selectedTPH && (
+                      <p className="text-green-600 font-medium">
+                        TPH {formData.selectedTPH.kode} telah dipilih untuk penyimpanan hasil panen.
+                      </p>
+                    )}
+                  </div>
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="flex justify-end">
+        <Button 
+          onClick={handleNext}
+          disabled={!formData.harvestDate || !formData.selectedBlock || !formData.selectedTPH}
+          className="bg-green-600 hover:bg-green-700"
+        >
+          Lanjut ke Pilih Karyawan
+        </Button>
+      </div>
+    </motion.div>
+  );
+}

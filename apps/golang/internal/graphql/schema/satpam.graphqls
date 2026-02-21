@@ -1,0 +1,1091 @@
+# =============================================================================
+# Satpam Role Schema
+# Features: Dashboard, Registrasi, Validasi, History, Offline-First Sync
+# =============================================================================
+
+# =============================================================================
+# SATPAM DASHBOARD TYPES
+# =============================================================================
+
+"""
+SatpamDashboardData represents aggregated dashboard data for Satpam.
+"""
+type SatpamDashboardData {
+  "Basic user information"
+  user: User!
+  "Current POS information"
+  posInfo: POSInfo!
+  "Dashboard statistics"
+  stats: SatpamDashboardStats!
+  "Current vehicles inside"
+  vehiclesInside: [VehicleInsideInfo!]!
+  "Current vehicles outside (exited today, no same-day entry)"
+  vehiclesOutside: [VehicleOutsideInfo!]!
+  "Current vehicles completed (entry and exit today)"
+  vehiclesCompleted: [VehicleCompletedInfo!]!
+  "Recent activities"
+  recentActivities: [SatpamActivity!]!
+  "Sync status"
+  syncStatus: SatpamSyncStatus!
+  "Current shift info"
+  shiftInfo: ShiftInfo!
+}
+
+"""
+POSInfo represents gate position information.
+"""
+type POSInfo {
+  "POS number"
+  posNumber: String!
+  "POS name"
+  posName: String!
+  "Company ID"
+  companyId: String!
+  "Company name"
+  companyName: String!
+  "Is active gate"
+  isActive: Boolean!
+}
+
+"""
+SatpamDashboardStats represents key metrics for satpam dashboard.
+"""
+type SatpamDashboardStats {
+  "Vehicles currently inside"
+  vehiclesInside: Int!
+  "Vehicles currently outside (exited today without same-day entry)"
+  vehiclesOutside: Int!
+  "Today's entries"
+  todayEntries: Int!
+  "Today's exits"
+  todayExits: Int!
+  "Pending exits"
+  pendingExits: Int!
+  "Guests registered today"
+  guestsToday: Int!
+  "QR scans today"
+  qrScansToday: Int!
+  "Average processing time (minutes)"
+  avgProcessingTime: Float!
+  "Overstay count (> 8 hours)"
+  overstayCount: Int!
+  "Missing exit count (ENTRY > 24h without EXIT)"
+  missingExitCount: Int!
+  "Missing entry count (EXIT without prior ENTRY)"
+  missingEntryCount: Int!
+}
+
+"""
+VehicleInsideInfo represents a vehicle currently inside.
+"""
+type VehicleInsideInfo {
+  "Log ID"
+  id: ID!
+  "Company ID"
+  companyId: String!
+  "Vehicle plate"
+  vehiclePlate: String!
+  "Driver name"
+  driverName: String!
+  "Vehicle type"
+  vehicleType: VehicleType!
+  "Destination"
+  destination: String
+  "Entry time"
+  entryTime: Time!
+  "Duration inside (minutes)"
+  durationMinutes: Int!
+  "Is overstay"
+  isOverstay: Boolean!
+  "QR code data"
+  qrCode: String
+  "Load type"
+  loadType: String
+  "Cargo volume"
+  cargoVolume: String
+  "Cargo owner"
+  cargoOwner: String
+  "Estimated weight"
+  estimatedWeight: Float
+  "Delivery order number"
+  deliveryOrderNumber: String
+  "ID card number"
+  idCardNumber: String
+  "Second cargo"
+  secondCargo: String
+  "Entry gate name"
+  entryGate: String
+  "Photo URL"
+  photoUrl: String
+  "Photos associated with this vehicle"
+  photos: [SatpamPhoto!]
+}
+
+"""
+VehicleOutsideInfo represents a vehicle that exited the estate today
+with no matching entry on the same calendar day.
+"""
+type VehicleOutsideInfo {
+  "Log ID"
+  id: ID!
+  "Company ID"
+  companyId: String!
+  "Vehicle plate"
+  vehiclePlate: String!
+  "Driver name"
+  driverName: String!
+  "Vehicle type"
+  vehicleType: VehicleType!
+  "Destination"
+  destination: String
+  "Exit time"
+  exitTime: Time!
+  "Exit gate"
+  exitGate: String
+  "Duration outside (minutes since exit)"
+  durationMinutes: Int!
+  "Load type"
+  loadType: String
+  "Cargo volume"
+  cargoVolume: String
+  "Cargo owner"
+  cargoOwner: String
+  "Estimated weight"
+  estimatedWeight: Float
+  "Delivery order number"
+  deliveryOrderNumber: String
+  "ID card number"
+  idCardNumber: String
+  "Second cargo"
+  secondCargo: String
+  "Photo URL"
+  photoUrl: String
+  "Photos associated with this vehicle"
+  photos: [SatpamPhoto!]
+}
+
+"""
+VehicleCompletedInfo represents a vehicle that has completed both entry and exit today.
+"""
+type VehicleCompletedInfo {
+  "Log ID"
+  id: ID!
+  "Company ID"
+  companyId: String!
+  "Vehicle plate"
+  vehiclePlate: String!
+  "Driver name"
+  driverName: String!
+  "Vehicle type"
+  vehicleType: VehicleType!
+  "Destination"
+  destination: String
+  "Entry time"
+  entryTime: Time!
+  "Exit time"
+  exitTime: Time!
+  "Entry gate"
+  entryGate: String
+  "Exit gate"
+  exitGate: String
+  "Duration inside (minutes)"
+  durationInsideMinutes: Int!
+  "Load type"
+  loadType: String
+  "Cargo volume"
+  cargoVolume: String
+  "Cargo owner"
+  cargoOwner: String
+  "Estimated weight"
+  estimatedWeight: Float
+  "Delivery order number"
+  deliveryOrderNumber: String
+  "ID card number"
+  idCardNumber: String
+  "Second cargo"
+  secondCargo: String
+  "Photo URL"
+  photoUrl: String
+  "Photos associated with this vehicle"
+  photos: [SatpamPhoto!]
+}
+
+"""
+SatpamActivity represents a recent activity.
+"""
+type SatpamActivity {
+  "Activity ID"
+  id: ID!
+  "Activity type"
+  type: SatpamActivityType!
+  "Title"
+  title: String!
+  "Description"
+  description: String!
+  "Gate name/position"
+  gate: String
+  "Generation intent (ENTRY or EXIT)"
+  generationIntent: GateIntent
+  "Related entity ID"
+  entityId: String
+  "Timestamp"
+  timestamp: Time!
+}
+
+"""
+SatpamActivityType enum.
+"""
+enum SatpamActivityType {
+  "Vehicle entered"
+  VEHICLE_ENTRY
+  "Vehicle exited"
+  VEHICLE_EXIT
+  "Guest registered"
+  GUEST_REGISTERED
+  "QR scanned"
+  QR_SCANNED
+  "Overstay alert"
+  OVERSTAY_ALERT
+  "Data synced"
+  DATA_SYNCED
+}
+
+"""
+SatpamSyncStatus represents offline sync status.
+"""
+type SatpamSyncStatus {
+  "Is online"
+  isOnline: Boolean!
+  "Last sync timestamp"
+  lastSyncAt: Time
+  "Pending sync count"
+  pendingSyncCount: Int!
+  "Failed sync count"
+  failedSyncCount: Int!
+  "Photos pending upload"
+  photosPendingUpload: Int!
+  "Last sync result"
+  lastSyncResult: String
+  "Unique device count"
+  uniqueDeviceCount: Int!
+}
+
+"""
+ShiftInfo represents current shift information.
+"""
+type ShiftInfo {
+  "Shift name"
+  shiftName: String!
+  "Shift start"
+  shiftStart: Time!
+  "Shift end"
+  shiftEnd: Time!
+  "Entries this shift"
+  entriesThisShift: Int!
+  "Exits this shift"
+  exitsThisShift: Int!
+}
+
+"""
+SatpamPendingSyncItem represents a pending sync item returned from server.
+"""
+type SatpamPendingSyncItem {
+  "Local ID"
+  id: String!
+  "Server ID (if exists)"
+  serverId: String
+  "Operation type"
+  operation: SyncOperation!
+  "Guest log data"
+  data: SatpamPendingSyncData
+  "Local version"
+  localVersion: Int!
+  "Last updated locally"
+  lastUpdated: Time!
+  "Photo IDs to sync"
+  photoIds: [String!]
+}
+
+"""
+SatpamPendingSyncData represents sync data returned from server.
+"""
+type SatpamPendingSyncData {
+  "Driver name"
+  driverName: String!
+  "Vehicle plate"
+  vehiclePlate: String!
+  "Vehicle type"
+  vehicleType: VehicleType!
+  "Destination"
+  destination: String
+  "Notes"
+  notes: String
+  "Local ID"
+  id: String
+
+  "Load type (Jenis Muatan - e.g., TBS, Pupuk, Alat Berat)"
+  loadType: String
+  "Cargo volume (e.g., Seperempat, Setengah, Penuh)"
+  cargoVolume: String
+  "Cargo owner"
+  cargoOwner: String
+  "Estimated weight"
+  estimatedWeight: Float
+  "Delivery order number"
+  deliveryOrderNumber: String
+  "ID card number"
+  idCardNumber: String
+  "Gate Position"
+  gatePosition: String
+}
+
+# =============================================================================
+# SATPAM REGISTRATION TYPES
+# =============================================================================
+
+"""
+CreateGuestRegistrationInput for registering new guest.
+"""
+input CreateGuestRegistrationInput {
+  "ID card number"
+  idCardNumber: String
+  "Driver name"
+  driverName: String!
+  "Vehicle plate"
+  vehiclePlate: String!
+  "Vehicle type"
+  vehicleType: VehicleType!
+  "Destination within estate"
+  destination: String
+  "Gate position"
+  gatePosition: String!
+  "Notes"
+  notes: String
+  "Device ID"
+  deviceId: String!
+  "Client timestamp"
+  clientTimestamp: Time!
+  "Local ID for offline-first"
+  localId: String!
+  "GPS latitude"
+  latitude: Float
+  "GPS longitude"
+  longitude: Float
+
+  "Load type"
+  loadType: String
+  "Cargo volume"
+  cargoVolume: String
+  "Cargo owner"
+  cargoOwner: String
+  "Estimated weight"
+  estimatedWeight: Float
+  "Delivery order number"
+  deliveryOrderNumber: String
+  "Second cargo"
+  secondCargo: String
+  "Registration source"
+  registrationSource: RegistrationSource
+}
+
+"""
+GuestRegistrationResult for registration operation.
+"""
+type GuestRegistrationResult {
+  "Success status"
+  success: Boolean!
+  "Message"
+  message: String!
+  "Created guest log"
+  guestLog: SatpamGuestLog
+  "Generated QR token"
+  qrToken: SatpamQRToken
+  "Errors"
+  errors: [String!]
+}
+
+"""
+SatpamGuestLog represents a guest log entry for satpam.
+"""
+type SatpamGuestLog {
+  "Log ID"
+  id: ID!
+  "Company ID"
+  companyId: String!
+  "Local ID"
+  localId: String
+  "Registration source"
+  registrationSource: RegistrationSource
+  "ID card number"
+  idCardNumber: String
+  "Driver name"
+  driverName: String!
+  "Vehicle plate"
+  vehiclePlate: String!
+  "Vehicle type"
+  vehicleType: VehicleType!
+  "Destination"
+  destination: String
+  "Gate position (POS ID)"
+  gatePosition: String
+  "Generation intent (ENTRY or EXIT) - single source of truth"
+  generationIntent: GateIntent
+  "Entry time"
+  entryTime: Time
+  "Exit time"
+  exitTime: Time
+  "Entry gate name"
+  entryGate: String
+  "Exit gate name"
+  exitGate: String
+  "Notes"
+  notes: String
+
+  "GPS latitude"
+  latitude: Float
+  "GPS longitude"
+  longitude: Float
+
+  "Load type (Jenis Muatan - e.g., TBS, Pupuk, Alat Berat)"
+  loadType: String
+  "Cargo volume (e.g., Seperempat, Setengah, Penuh)"
+  cargoVolume: String
+  "Cargo owner"
+  cargoOwner: String
+  "Estimated weight"
+  estimatedWeight: Float
+  "Delivery order number"
+  deliveryOrderNumber: String
+  "Second cargo (Muatan 2nd from Satpam validation)"
+  secondCargo: String
+  "QR code"
+  qrCodeData: String
+  "Created by"
+  createdBy: String!
+  "Created at"
+  createdAt: Time!
+  "Sync status"
+  syncStatus: SyncStatus!
+  "Device ID"
+  deviceId: String
+  "Photo URL (Representative photo)"
+  photoUrl: String
+  "Photos associated with this log"
+  photos: [SatpamPhoto!]
+}
+
+"""
+SatpamPhoto represents a photo attached to a guest log.
+"""
+type SatpamPhoto {
+  "Internal ID"
+  id: ID!
+  "Public Photo ID"
+  photoId: String!
+  "Context of the photo (ENTRY, EXIT, FRONT, BACK, etc.)"
+  photoType: PhotoType!
+  "Full URL to the photo"
+  photoUrl: String!
+  "When the photo was taken"
+  takenAt: Time!
+}
+
+"""
+SatpamQRToken represents a QR token for satpam operations.
+"""
+type SatpamQRToken {
+  "Token ID"
+  id: ID!
+  "JWT token string"
+  token: String!
+  "Token JTI"
+  jti: String!
+  "Generation intent"
+  generationIntent: GateIntent!
+  "Allowed scan intent"
+  allowedScan: GateIntent!
+  "Status"
+  status: QRTokenStatus!
+  "Expires at"
+  expiresAt: Time!
+  "Generated at"
+  generatedAt: Time!
+  "Associated guest log ID"
+  guestLogId: String
+}
+
+# =============================================================================
+# SATPAM VALIDATION TYPES
+# =============================================================================
+
+"""
+ValidateQRInput for QR validation.
+"""
+input ValidateQRInput {
+  "QR code content (JWT token)"
+  qrData: String!
+  "Expected intent"
+  expectedIntent: GateIntent!
+  "Device ID"
+  deviceId: String!
+  "GPS latitude"
+  latitude: Float
+  "GPS longitude"
+  longitude: Float
+}
+
+"""
+QRValidationResult for validation operation.
+"""
+type QRValidationResult {
+  "Is valid"
+  isValid: Boolean!
+  "Validation message"
+  message: String!
+  "Token info if valid"
+  tokenInfo: SatpamQRToken
+  "Guest log if found"
+  guestLog: SatpamGuestLog
+  "Allowed operations"
+  allowedOperations: [GateIntent!]!
+  "Validation errors"
+  errors: [String!]
+}
+
+"""
+ProcessExitInput for processing guest exit.
+"""
+input ProcessExitInput {
+  "Guest log ID or QR token"
+  identifier: String!
+  "Identifier type"
+  identifierType: ExitIdentifierType!
+  "Exit gate"
+  exitGate: String!
+  "Notes"
+  notes: String
+  "Device ID"
+  deviceId: String!
+  "Client timestamp"
+  clientTimestamp: Time!
+  "Second cargo (Muatan Sekunder)"
+  secondCargo: String
+}
+
+"""
+ExitIdentifierType enum.
+"""
+enum ExitIdentifierType {
+  "Guest log ID"
+  GUEST_LOG_ID
+  "QR token"
+  QR_TOKEN
+  "Vehicle plate"
+  VEHICLE_PLATE
+}
+
+"""
+ProcessExitResult for exit operation.
+"""
+type ProcessExitResult {
+  "Success status"
+  success: Boolean!
+  "Message"
+  message: String!
+  "Updated guest log"
+  guestLog: SatpamGuestLog
+  "Was overstay"
+  wasOverstay: Boolean!
+  "Errors"
+  errors: [String!]
+}
+
+# =============================================================================
+# SATPAM HISTORY TYPES
+# =============================================================================
+
+"""
+SatpamHistoryFilter for filtering history.
+"""
+input SatpamHistoryFilter {
+  "Filter by status"
+  status: GuestLogStatus
+  "Filter by vehicle type"
+  vehicleType: VehicleType
+  "Date from"
+  dateFrom: Time
+  "Date to"
+  dateTo: Time
+  "Search query (plate, name, company)"
+  search: String
+  "Sort by"
+  sortBy: SatpamHistorySortField
+  "Sort direction"
+  sortDirection: SortDirection
+  "Page"
+  page: Int = 1
+  "Page size"
+  pageSize: Int = 20
+}
+
+"""
+SatpamHistorySortField enum.
+"""
+enum SatpamHistorySortField {
+  ENTRY_TIME
+  EXIT_TIME
+  DURATION
+  VEHICLE_PLATE
+  DRIVER_NAME
+}
+
+"""
+SatpamHistoryResponse for paginated history.
+"""
+type SatpamHistoryResponse {
+  "History items"
+  items: [SatpamGuestLog!]!
+  "Total count"
+  totalCount: Int!
+  "Has more"
+  hasMore: Boolean!
+  "Summary"
+  summary: SatpamHistorySummary!
+  "Sync status statistics across all data"
+  syncStats: SyncStatusStats!
+}
+
+"""
+SatpamHistorySummary for history statistics.
+"""
+type SatpamHistorySummary {
+  "Total entries"
+  totalEntries: Int!
+  "Total exits"
+  totalExits: Int!
+  "Currently inside"
+  currentlyInside: Int!
+  "Avg duration"
+  avgDuration: Float!
+  "Overstay count"
+  overstayCount: Int!
+}
+
+"""
+SyncStatusStats for sync status aggregate counts (across all data).
+"""
+type SyncStatusStats {
+  "Total synced records"
+  totalSynced: Int!
+  "Total pending records"
+  totalPending: Int!
+  "Total failed records"
+  totalFailed: Int!
+  "Total conflict records"
+  totalConflict: Int!
+}
+
+# =============================================================================
+# SATPAM OFFLINE SYNC TYPES
+# =============================================================================
+
+"""
+SatpamSyncInput for syncing gate check records.
+"""
+input SatpamSyncInput {
+  "Device ID"
+  deviceId: String!
+  "Guest logs to sync"
+  guestLogs: [SatpamGuestLogSyncRecord!]!
+  "QR tokens to sync"
+  qrTokens: [SatpamQRTokenSyncRecord!]
+  "Client timestamp"
+  clientTimestamp: Time!
+  "Batch ID"
+  batchId: String
+  "Conflict resolution"
+  conflictResolution: ConflictResolution = LATEST_WINS
+}
+
+"""
+SatpamGuestLogSyncRecord for sync.
+"""
+input SatpamGuestLogSyncRecord {
+  "Local ID (Client UUID)"
+  id: String!
+  "Server ID"
+  serverId: String
+  "Operation"
+  operation: SyncOperation!
+  "Guest log data"
+  data: SatpamGuestLogSyncData!
+  "Local version"
+  localVersion: Int!
+  "Last updated"
+  lastUpdated: Time!
+  "Photo IDs"
+  photoIds: [String!]
+}
+
+"""
+SatpamGuestLogSyncData for sync payload.
+"""
+input SatpamGuestLogSyncData {
+  "Driver name"
+  driverName: String!
+  "Vehicle plate"
+  vehiclePlate: String!
+  "Vehicle type"
+  vehicleType: VehicleType!
+  "Destination"
+  destination: String
+  "Gate position"
+  gatePosition: String!
+  "Notes"
+  notes: String
+  "Latitude"
+  latitude: Float
+  "Longitude"
+  longitude: Float
+  "ID card number"
+  idCardNumber: String
+  "Second cargo"
+  secondCargo: String
+  "QR Token"
+  qrToken: String
+  "Local ID"
+  localId: String
+
+  "Load type (Jenis Muatan - e.g., TBS, Pupuk, Alat Berat)"
+  loadType: String
+  "Cargo volume (e.g., Seperempat, Setengah, Penuh)"
+  cargoVolume: String
+  "Cargo owner"
+  cargoOwner: String
+  "Estimated weight"
+  estimatedWeight: Float
+  "Delivery order number"
+  deliveryOrderNumber: String
+
+  "Entry time"
+  entryTime: Time
+  "Exit time"
+  exitTime: Time
+  "Entry gate name/position"
+  entryGate: String
+  "Exit gate name/position"
+  exitGate: String
+  "Generation intent (ENTRY or EXIT)"
+  generationIntent: GateIntent!
+  "Status from mobile (ENTRY or EXIT) - raw pass-through"
+  status: GuestLogStatus
+  "Registration source"
+  registrationSource: RegistrationSource
+}
+
+"""
+SatpamQRTokenSyncRecord for QR token sync.
+"""
+input SatpamQRTokenSyncRecord {
+  "Local ID"
+  localId: String!
+  "Server ID"
+  serverId: String
+  "JTI"
+  jti: String!
+  "Generation intent"
+  generationIntent: GateIntent!
+  "Current usage"
+  currentUsage: Int!
+  "Status"
+  status: QRTokenStatus!
+  "Guest log ID"
+  guestLogId: String
+  "Local version"
+  localVersion: Int!
+}
+
+"""
+SatpamSyncResult for sync operation.
+"""
+type SatpamSyncResult {
+  "Success"
+  success: Boolean!
+  "Transaction ID"
+  transactionId: String!
+  "Guest logs processed"
+  guestLogsProcessed: Int!
+  "Guest logs successful"
+  guestLogsSuccessful: Int!
+  "Guest logs failed"
+  guestLogsFailed: Int!
+  "QR tokens processed"
+  qrTokensProcessed: Int!
+  "QR tokens successful"
+  qrTokensSuccessful: Int!
+  "Conflicts detected"
+  conflictsDetected: Int!
+  "Results"
+  results: [SatpamSyncItemResult!]!
+  "Server timestamp"
+  serverTimestamp: Time!
+  "Message"
+  message: String!
+}
+
+"""
+SatpamSyncItemResult for individual item.
+"""
+type SatpamSyncItemResult {
+  "Local ID"
+  id: String!
+  "Record type"
+  recordType: String!
+  "Server ID"
+  serverId: String
+  "Success (kept for backward compatibility)"
+  success: Boolean!
+  "Sync status: ACCEPTED or REJECTED"
+  status: SyncItemStatus!
+  "Reason for rejection (populated when status=REJECTED)"
+  reason: String
+  "Server version"
+  serverVersion: Int
+  "Error"
+  error: String
+  "Has conflict"
+  hasConflict: Boolean!
+}
+
+"""
+SatpamPhotoSyncInput for photo sync.
+"""
+input SatpamPhotoSyncInput {
+  "Device ID"
+  deviceId: String!
+  "Photos"
+  photos: [SatpamPhotoSyncRecord!]!
+  "Batch ID"
+  batchId: String
+}
+
+"""
+SatpamPhotoSyncRecord for photo.
+"""
+input SatpamPhotoSyncRecord {
+  "Local ID"
+  localId: String!
+  "Photo ID"
+  photoId: String!
+  "Related guest log ID"
+  guestLogId: String!
+  "Photo type"
+  photoType: PhotoType!
+  "Local path"
+  localPath: String!
+  "File name"
+  fileName: String!
+  "File size"
+  fileSize: Int!
+  "File hash"
+  fileHash: String!
+  "Photo data (base64)"
+  photoData: String!
+  "Taken at"
+  takenAt: Time!
+}
+
+"""
+SatpamPhotoSyncResult for photo sync.
+"""
+type SatpamPhotoSyncResult {
+  "Photos processed"
+  photosProcessed: Int!
+  "Successful"
+  successfulUploads: Int!
+  "Failed"
+  failedUploads: Int!
+  "Bytes uploaded"
+  totalBytesUploaded: Int!
+  "Errors"
+  errors: [PhotoUploadError!]!
+  "Synced at"
+  syncedAt: Time!
+}
+
+"""
+EmployeeLogSyncInput for employee access log sync.
+"""
+input EmployeeLogSyncInput {
+  "Device ID"
+  deviceId: String!
+  "Client timestamp"
+  clientTimestamp: Time!
+  "Log record"
+  record: EmployeeLogSyncRecord!
+}
+
+"""
+EmployeeLogSyncRecord data.
+"""
+input EmployeeLogSyncRecord {
+  "Local ID"
+  localId: String!
+  "Server ID"
+  serverId: String
+  "Company ID"
+  companyId: String
+  "ID Data (QR content)"
+  iddata: String
+  "NIK / Employee ID"
+  nik: String
+  "Name"
+  nama: String
+  "Department"
+  departement: String
+  "Action (ENTRY/EXIT)"
+  action: String!
+  "Gate Position"
+  gatePosition: String!
+  "Scanned at timestamp"
+  scannedAt: String
+  "QR timestamp"
+  qrTimestamp: String
+  "Scanned by ID"
+  scannedById: String
+  "Device ID"
+  deviceId: String
+  "Photo path"
+  photoPath: String
+  "Notes"
+  notes: String
+  "Local version"
+  localVersion: Int
+}
+
+"""
+EmployeeLogSyncResult response.
+"""
+type EmployeeLogSyncResult {
+  "Success"
+  success: Boolean!
+  "Message"
+  message: String!
+  "Server Record ID"
+  employeeLogId: String
+  "Server Timestamp"
+  serverTimestamp: Time!
+}
+
+
+"""
+RegistrationSource enum for identifying how a guest log was created.
+"""
+enum RegistrationSource {
+  "Manual entry by Satpam"
+  MANUAL
+  "Entry via QR code scan"
+  QR_SCAN
+}
+
+# =============================================================================
+# SATPAM QUERIES
+# =============================================================================
+
+extend type Query {
+  # Satpam Dashboard Queries
+  "Get satpam dashboard data"
+  satpamDashboard: SatpamDashboardData! @requireAuth @hasRole(roles: [SATPAM])
+  
+  "Get satpam dashboard stats"
+  satpamDashboardStats: SatpamDashboardStats! @requireAuth @hasRole(roles: [SATPAM])
+  
+  "Get vehicles currently inside"
+  vehiclesInside(search: String): [VehicleInsideInfo!]! @requireAuth @hasRole(roles: [SATPAM])
+
+  "Get vehicles currently outside (exited today, no same-day entry)"
+  vehiclesOutside(search: String): [VehicleOutsideInfo!]! @requireAuth @hasRole(roles: [SATPAM])
+
+  "Get satpam sync status"
+  satpamSyncStatus: SatpamSyncStatus! @requireAuth @hasRole(roles: [SATPAM])
+  
+  # Satpam Validation Queries
+  "Validate QR code"
+  validateSatpamQR(input: ValidateQRInput!): QRValidationResult! @requireAuth @hasRole(roles: [SATPAM])
+  
+  "Search guest by plate or name"
+  searchGuest(query: String!): [SatpamGuestLog!]! @requireAuth @hasRole(roles: [SATPAM])
+  
+  # Satpam History Queries
+  "Get satpam history"
+  satpamHistory(filter: SatpamHistoryFilter): SatpamHistoryResponse! @requireAuth @hasRole(roles: [SATPAM])
+  
+  "Get single guest log"
+  satpamGuestLog(id: ID!): SatpamGuestLog @requireAuth @hasRole(roles: [SATPAM])
+  
+  # Satpam Sync Queries
+  "Get pending sync items"
+  satpamPendingSyncItems(deviceId: String!): [SatpamPendingSyncItem!]! @requireAuth @hasRole(roles: [SATPAM])
+  
+  "Get server updates since last sync"
+  satpamServerUpdates(since: Time!, deviceId: String!): [SatpamGuestLog!]! @requireAuth @hasRole(roles: [SATPAM])
+}
+
+# =============================================================================
+# SATPAM MUTATIONS
+# =============================================================================
+
+extend type Mutation {
+  # Satpam Registration Mutations
+  "Register new guest"
+  registerGuest(input: CreateGuestRegistrationInput!): GuestRegistrationResult! @requireAuth @hasRole(roles: [SATPAM])
+  
+  "Generate QR token for guest"
+  generateGuestQR(
+    guestLogId: String!
+    intent: GateIntent!
+    deviceId: String!
+    expiryMinutes: Int = 60
+  ): SatpamQRToken! @requireAuth @hasRole(roles: [SATPAM])
+  
+  # Satpam Validation Mutations
+  "Process guest exit"
+  processGuestExit(input: ProcessExitInput!): ProcessExitResult! @requireAuth @hasRole(roles: [SATPAM])
+  
+  "Mark vehicle as overstay"
+  markOverstay(guestLogId: String!, notes: String): SatpamGuestLog! @requireAuth @hasRole(roles: [SATPAM])
+  
+  # Satpam Sync Mutations
+  "Sync satpam records"
+  syncSatpamRecords(input: SatpamSyncInput!): SatpamSyncResult! @requireAuth @hasRole(roles: [SATPAM])
+  
+  "Sync satpam photos"
+  syncSatpamPhotos(input: SatpamPhotoSyncInput!): SatpamPhotoSyncResult! @requireAuth @hasRole(roles: [SATPAM])
+  
+  "Sync employee access log"
+  syncEmployeeLog(input: EmployeeLogSyncInput!): EmployeeLogSyncResult! @requireAuth @hasRole(roles: [SATPAM])
+  
+  "Mark sync completed"
+  markSatpamSyncCompleted(
+    deviceId: String!
+    transactionId: String!
+  ): Boolean! @requireAuth @hasRole(roles: [SATPAM])
+}
+
+# =============================================================================
+# SATPAM SUBSCRIPTIONS
+# =============================================================================
+
+extend type Subscription {
+  "New vehicle entry notification"
+  satpamVehicleEntry: SatpamGuestLog! @requireAuth @hasRole(roles: [SATPAM, MANAGER, AREA_MANAGER])
+
+  "Vehicle exit notification"
+  satpamVehicleExit: SatpamGuestLog! @requireAuth @hasRole(roles: [SATPAM, MANAGER, AREA_MANAGER])
+
+  "Overstay alerts"
+  satpamOverstayAlert: VehicleInsideInfo! @requireAuth @hasRole(roles: [SATPAM, MANAGER, AREA_MANAGER])
+
+  "Sync status updates"
+  satpamSyncUpdate(deviceId: String!): SatpamSyncStatus! @requireAuth @hasRole(roles: [SATPAM, MANAGER, AREA_MANAGER])
+}

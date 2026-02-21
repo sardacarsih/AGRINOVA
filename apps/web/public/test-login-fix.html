@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apollo Client Login Fix Test</title>
+    <style>
+        body { 
+            font-family: system-ui; 
+            padding: 20px; 
+            background: #1a1a1a; 
+            color: #fff; 
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { 
+            background: #2a2a2a; 
+            padding: 20px; 
+            margin: 10px 0; 
+            border-radius: 8px; 
+            border-left: 4px solid #00ff00;
+        }
+        .error { border-left-color: #ff0000; }
+        .success { border-left-color: #00ff00; }
+        pre { 
+            background: #0f0f0f; 
+            padding: 15px; 
+            border-radius: 4px; 
+            overflow-x: auto;
+            white-space: pre-wrap;
+            font-size: 12px;
+        }
+        button { 
+            background: #007acc; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            margin: 10px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-size: 14px;
+        }
+        button:hover { background: #005f99; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Apollo Client Login Fix Test</h1>
+        
+        <div class="section">
+            <h2>Live Frontend Login Test</h2>
+            <p>This tests the actual Apollo Client configuration used by the frontend</p>
+            <button onclick="testRealLogin()">Test Frontend Login</button>
+            <pre id="login-output">Click button to test...</pre>
+        </div>
+
+        <div class="section">
+            <h2>Direct API Test</h2>
+            <p>Bypass Apollo Client and test GraphQL API directly</p>
+            <button onclick="testDirectAPI()">Test Direct API</button>
+            <pre id="direct-output">Click button to test...</pre>
+        </div>
+
+        <div class="section">
+            <h2>Configuration Check</h2>
+            <pre id="config-output">Loading...</pre>
+        </div>
+    </div>
+
+    <script type="module">
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.textContent = `[${timestamp}] ${message}`;
+            
+            const section = element.closest('.section');
+            section.className = `section ${type}`;
+        }
+
+        // Test direct API (should work)
+        window.testDirectAPI = async function() {
+            try {
+                log('direct-output', 'Testing direct GraphQL API...', 'warning');
+                
+                const response = await fetch('http://localhost:8080/graphql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'Origin': 'http://localhost:3000',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        query: `mutation { webLogin(input: { identifier: "asisten", password: "demo123" }) { success message user { username nama role } sessionId } }`
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.data && result.data.webLogin && result.data.webLogin.success) {
+                    log('direct-output', 
+                        `✅ DIRECT API SUCCESS\n` +
+                        `User: ${result.data.webLogin.user.nama} (${result.data.webLogin.user.role})\n` +
+                        `Message: ${result.data.webLogin.message}\n` +
+                        `Session ID: ${result.data.webLogin.sessionId}`,
+                        'success'
+                    );
+                } else {
+                    log('direct-output', `❌ DIRECT API FAILED\n${JSON.stringify(result, null, 2)}`, 'error');
+                }
+            } catch (error) {
+                log('direct-output', `❌ ERROR: ${error.message}`, 'error');
+            }
+        };
+
+        // Test frontend Apollo Client (the actual problem)
+        window.testRealLogin = async function() {
+            try {
+                log('login-output', 'Testing real frontend login flow...', 'warning');
+                
+                // Simulate actual login form data
+                const loginData = {
+                    email: 'asisten',
+                    password: 'demo123',
+                    rememberMe: false
+                };
+
+                // Call the actual cookie auth service (like the frontend does)
+                const response = await fetch('/api/test-apollo-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(loginData)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        log('login-output', 
+                            `✅ FRONTEND LOGIN SUCCESS\n` +
+                            `User: ${result.data?.user?.nama || 'Unknown'}\n` +
+                            `Role: ${result.data?.user?.role || 'Unknown'}\n` +
+                            `Message: ${result.message}`,
+                            'success'
+                        );
+                    } else {
+                        log('login-output', `❌ FRONTEND LOGIN FAILED\n${result.message}\n${JSON.stringify(result.errors || {}, null, 2)}`, 'error');
+                    }
+                } else {
+                    // API endpoint doesn't exist, simulate the Apollo Client call
+                    log('login-output', 'Simulating Apollo Client call in browser...', 'warning');
+                    
+                    // This will use the actual Apollo Client configuration from the frontend
+                    const apolloTest = await simulateApolloLogin(loginData);
+                    
+                    if (apolloTest.success) {
+                        log('login-output', 
+                            `✅ APOLLO CLIENT SUCCESS\n` +
+                            `User: ${apolloTest.data?.user?.nama || 'Unknown'}\n` +
+                            `Role: ${apolloTest.data?.user?.role || 'Unknown'}`,
+                            'success'
+                        );
+                    } else {
+                        log('login-output', `❌ APOLLO CLIENT FAILED\n${apolloTest.message}\n${JSON.stringify(apolloTest, null, 2)}`, 'error');
+                    }
+                }
+            } catch (error) {
+                log('login-output', `❌ ERROR: ${error.message}\n${error.stack}`, 'error');
+            }
+        };
+
+        // Simulate Apollo Client login (actual browser Apollo Client)
+        async function simulateApolloLogin(loginData) {
+            try {
+                // Import Apollo Client from the actual frontend
+                const { apolloClient } = await import('/lib/apollo/client.js');
+                const { WEB_LOGIN_MUTATION } = await import('/lib/apollo/queries/auth.js');
+                
+                console.log('🔍 Testing with real Apollo Client configuration');
+                
+                const response = await apolloClient.mutate({
+                    mutation: WEB_LOGIN_MUTATION,
+                    variables: {
+                        input: {
+                            identifier: loginData.email,
+                            password: loginData.password
+                        }
+                    },
+                    errorPolicy: 'all',
+                    fetchPolicy: 'no-cache'
+                });
+
+                console.log('🔍 Apollo Client response:', response);
+
+                if (response.data && response.data.webLogin) {
+                    return {
+                        success: true,
+                        data: {
+                            user: response.data.webLogin.user
+                        },
+                        message: response.data.webLogin.message
+                    };
+                } else {
+                    return {
+                        success: false,
+                        message: 'No data returned from Apollo Client',
+                        response: response
+                    };
+                }
+            } catch (error) {
+                console.error('Apollo Client test error:', error);
+                return {
+                    success: false,
+                    message: error.message,
+                    error: error
+                };
+            }
+        }
+
+        // Check configuration
+        function checkConfiguration() {
+            const config = {
+                'Current URL': window.location.href,
+                'Expected GraphQL URL': 'http://localhost:8080/graphql',
+                'User Agent': navigator.userAgent,
+                'Cookies Enabled': navigator.cookieEnabled,
+                'Storage Available': !!window.localStorage && !!window.sessionStorage,
+                'Fetch Available': !!window.fetch,
+                'Environment': {
+                    'NODE_ENV': window.process?.env?.NODE_ENV || 'Not available',
+                    'Development Mode': window.location.hostname === 'localhost'
+                }
+            };
+            
+            log('config-output', JSON.stringify(config, null, 2));
+        }
+
+        // Initialize
+        checkConfiguration();
+    </script>
+</body>
+</html>

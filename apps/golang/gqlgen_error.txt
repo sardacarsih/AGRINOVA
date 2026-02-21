@@ -1,0 +1,2 @@
+failed to load schema: internal/graphql/schema/mandor.graphqls:584:5: OBJECT Query: field must be one of SCALAR, OBJECT, INTERFACE, UNION, ENUM.
+exit status 1

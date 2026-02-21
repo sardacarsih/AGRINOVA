@@ -1,0 +1,637 @@
+# =============================================================================
+# Feature-Based Authorization Schema
+# =============================================================================
+# This schema defines a flexible, hierarchical feature-based authorization
+# system that replaces traditional RBAC with fine-grained capabilities.
+# Features can be composed, scoped, and granted/denied at user or role level.
+# =============================================================================
+
+"""
+Feature represents a specific functionality or capability in the system.
+Features can be hierarchically organized (e.g., harvest.view, harvest.create).
+Features are more granular than permissions and compose into capabilities.
+"""
+type Feature {
+  "Unique identifier for the feature"
+  id: ID!
+  "Feature code/name (e.g., 'harvest.view', 'gatecheck.approve')"
+  name: String!
+  "Human-readable display name"
+  displayName: String!
+  "Detailed description of what this feature enables"
+  description: String
+  "Module/domain this feature belongs to (harvest, gatecheck, user, etc.)"
+  module: String!
+  "Parent feature ID for hierarchical organization"
+  parentId: ID
+  "Parent feature object"
+  parent: Feature
+  "Child features under this feature"
+  children: [Feature!]
+  "Whether this feature is currently active"
+  isActive: Boolean!
+  "Whether this is a system feature (cannot be deleted)"
+  isSystem: Boolean!
+  "Additional metadata for feature configuration"
+  metadata: FeatureMetadata
+  "When this feature was created"
+  createdAt: Time!
+  "When this feature was last updated"
+  updatedAt: Time!
+}
+
+"""
+FeatureMetadata stores additional configuration for features.
+Includes resource types, actions, scope requirements, and UI hints.
+"""
+type FeatureMetadata {
+  "Resource type this feature applies to (harvest_record, gate_check, etc.)"
+  resourceType: String
+  "Actions this feature enables (read, create, update, delete, approve, etc.)"
+  actions: [String!]
+  "Required scope level for this feature (company, estate, division, block)"
+  requiredScope: String
+  "Conditions that must be met for this feature to be enabled"
+  conditions: JSON
+  "UI metadata for frontend rendering (icons, colors, tooltips, etc.)"
+  uiMetadata: JSON
+}
+
+"""
+FeatureScope represents the context in which a feature is being checked.
+Enables scoped authorization (e.g., user can harvest.create in Estate A but not Estate B).
+"""
+type FeatureScope {
+  "Scope type (company, estate, division, block, global)"
+  type: String!
+  "UUID of the scoped resource"
+  id: String!
+}
+
+"""
+UserFeature represents a user-specific feature grant or denial.
+Allows fine-grained control beyond role-based features.
+"""
+type UserFeature {
+  "Unique identifier"
+  id: ID!
+  "User who has this feature assignment"
+  userId: ID!
+  "Feature being assigned"
+  featureId: ID!
+  "Feature details"
+  feature: Feature!
+  "Whether this is a grant (true) or denial (false)"
+  isGranted: Boolean!
+  "Scope for this feature (optional, null means global)"
+  scopeType: String
+  "Scoped resource ID"
+  scopeId: ID
+  "When this assignment becomes effective"
+  effectiveFrom: Time
+  "When this assignment expires"
+  expiresAt: Time
+  "User who granted this feature"
+  grantedBy: ID!
+  "Reason for granting/denying this feature"
+  reason: String
+  "When this assignment was created"
+  createdAt: Time!
+  "When this assignment was last updated"
+  updatedAt: Time!
+}
+
+"""
+RoleFeature represents the assignment of features to roles.
+This is the primary mechanism for feature-based authorization.
+"""
+type RoleFeature {
+  "Unique identifier"
+  id: ID!
+  "Role ID"
+  roleId: ID!
+  "Feature ID"
+  featureId: ID!
+  "Feature details"
+  feature: Feature!
+  "Role this feature was inherited from (if applicable)"
+  inheritedFromRoleId: ID
+  "Whether this feature is denied for this role"
+  isDenied: Boolean!
+  "When this feature was granted to the role"
+  grantedAt: Time!
+  "User who granted this feature"
+  grantedBy: ID!
+  "When this assignment expires"
+  expiresAt: Time
+  "When this assignment was created"
+  createdAt: Time!
+}
+
+"""
+FeatureCheckResult represents the result of checking if a user has a feature.
+"""
+type FeatureCheckResult {
+  "User ID being checked"
+  userId: String!
+  "Feature code being checked"
+  feature: String!
+  "Whether the user has access to this feature"
+  hasAccess: Boolean!
+  "Reason for granting access"
+  accessReason: String
+  "Reason for denying access"
+  denialReason: String
+  "When this check was performed"
+  checkedAt: Time!
+}
+
+"""
+BatchFeatureCheckResult represents the result of checking multiple features.
+"""
+type BatchFeatureCheckResult {
+  "User ID being checked"
+  userId: String!
+  "Features being checked"
+  features: [String!]!
+  "Whether the user has access (based on requireAll setting)"
+  hasAccess: Boolean!
+  "Features that were granted"
+  grantedFeatures: [String!]
+  "Features that were denied"
+  deniedFeatures: [String!]
+}
+
+"""
+UserFeatureSet represents a user's complete set of features.
+This is typically cached for performance.
+"""
+type UserFeatureSet {
+  "User ID"
+  userId: String!
+  "User's role"
+  role: String!
+  "List of all feature codes the user has"
+  features: [String!]!
+  "Scoped features with detailed access information"
+  scopedFeatures: [ScopedFeature!]
+  "When this feature set was computed"
+  computedAt: Time!
+  "When this feature set expires (cache TTL)"
+  expiresAt: Time!
+}
+
+"""
+ScopedFeature represents a feature with scope information.
+"""
+type ScopedFeature {
+  "Feature code"
+  feature: String!
+  "Whether this feature is granted"
+  isGranted: Boolean!
+  "Scope information (if scoped)"
+  scope: FeatureScope
+  "When this feature access expires"
+  expiresAt: Time
+}
+
+"""
+FeatureHierarchy represents a feature tree for UI rendering.
+Includes parent-child relationships and depth information.
+"""
+type FeatureHierarchy {
+  "The feature at this node"
+  feature: Feature!
+  "Child features under this feature"
+  children: [FeatureHierarchy!]
+  "Depth in the hierarchy (0 = root)"
+  depth: Int!
+}
+
+"""
+FeatureStats provides statistics about the feature system.
+"""
+type FeatureStats {
+  "Total number of features in the system"
+  totalFeatures: Int!
+  "Number of active features"
+  activeFeatures: Int!
+  "Number of system features (cannot be deleted)"
+  systemFeatures: Int!
+  "Number of custom (user-created) features"
+  customFeatures: Int!
+  "Total role-feature assignments"
+  totalRoleFeatures: Int!
+  "Total user feature overrides"
+  totalUserOverrides: Int!
+  "Features grouped by module"
+  featuresByModule: JSON!
+  "Cache hit rate percentage"
+  cacheHitRate: Float!
+  "Average feature check latency in milliseconds"
+  averageCheckLatencyMs: Float!
+  "Additional cache statistics"
+  cacheStats: JSON
+}
+
+"""
+FeaturesResponse represents paginated feature list response.
+"""
+type FeaturesResponse {
+  "List of features"
+  features: [Feature!]!
+  "Total number of features (without pagination)"
+  totalCount: Int!
+  "Whether there are more pages"
+  hasNextPage: Boolean!
+  "Pagination information"
+  pageInfo: PageInfo!
+}
+
+# =============================================================================
+# Input Types
+# =============================================================================
+
+"""
+CreateFeatureInput represents input for creating a new feature.
+"""
+input CreateFeatureInput {
+  "Feature code (alphanumeric, dots, underscores only)"
+  name: String!
+  "Human-readable display name"
+  displayName: String!
+  "Detailed description"
+  description: String
+  "Module this feature belongs to"
+  module: String!
+  "Parent feature ID (for hierarchical features)"
+  parentId: ID
+  "Whether this feature is active"
+  isActive: Boolean = true
+  "Additional metadata (JSON)"
+  metadata: FeatureMetadataInput
+}
+
+"""
+UpdateFeatureInput represents input for updating an existing feature.
+"""
+input UpdateFeatureInput {
+  "Feature ID to update"
+  id: ID!
+  "New display name"
+  displayName: String
+  "New description"
+  description: String
+  "New active status"
+  isActive: Boolean
+  "Updated metadata"
+  metadata: FeatureMetadataInput
+}
+
+"""
+FeatureMetadataInput represents input for feature metadata.
+"""
+input FeatureMetadataInput {
+  "Resource type"
+  resourceType: String
+  "Actions list"
+  actions: [String!]
+  "Required scope"
+  requiredScope: String
+  "Conditions (JSON)"
+  conditions: JSON
+  "UI metadata (JSON)"
+  uiMetadata: JSON
+}
+
+"""
+FeatureScopeInput represents input for feature scope.
+"""
+input FeatureScopeInput {
+  "Scope type (company, estate, division, block, global)"
+  type: String!
+  "Scoped resource UUID"
+  id: String!
+}
+
+"""
+GrantUserFeatureInput represents input for granting a feature to a user.
+"""
+input GrantUserFeatureInput {
+  "User ID to grant feature to"
+  userId: ID!
+  "Feature code to grant"
+  feature: String!
+  "Scope for this grant (optional)"
+  scope: FeatureScopeInput
+  "When this grant becomes effective"
+  effectiveFrom: Time
+  "When this grant expires"
+  expiresAt: Time
+  "Reason for granting"
+  reason: String
+}
+
+"""
+DenyUserFeatureInput represents input for denying a feature to a user.
+"""
+input DenyUserFeatureInput {
+  "User ID to deny feature for"
+  userId: ID!
+  "Feature code to deny"
+  feature: String!
+  "Scope for this denial (optional)"
+  scope: FeatureScopeInput
+  "When this denial becomes effective"
+  effectiveFrom: Time
+  "When this denial expires"
+  expiresAt: Time
+  "Reason for denying"
+  reason: String
+}
+
+"""
+RevokeUserFeatureInput represents input for revoking a user feature assignment.
+"""
+input RevokeUserFeatureInput {
+  "User ID"
+  userId: ID!
+  "Feature code to revoke"
+  feature: String!
+  "Scope (must match the original grant/denial)"
+  scope: FeatureScopeInput
+}
+
+"""
+FeatureCheckInput represents input for checking a single feature.
+"""
+input FeatureCheckInput {
+  "User ID to check"
+  userId: ID!
+  "Feature code to check"
+  feature: String!
+  "Scope context for the check"
+  scope: FeatureScopeInput
+}
+
+"""
+BatchFeatureCheckInput represents input for checking multiple features.
+"""
+input BatchFeatureCheckInput {
+  "User ID to check"
+  userId: ID!
+  "Feature codes to check"
+  features: [String!]!
+  "Whether all features are required (true) or any (false)"
+  requireAll: Boolean = false
+  "Scope context for the check"
+  scope: FeatureScopeInput
+}
+
+"""
+AssignRoleFeaturesInput represents input for assigning features to a role.
+"""
+input AssignRoleFeaturesInput {
+  "Role name (e.g., 'MANDOR', 'SUPER_ADMIN')"
+  roleName: String!
+  "Feature codes to assign"
+  features: [String!]!
+  "Role to inherit features from (optional)"
+  inheritFrom: String
+}
+
+"""
+FeatureFilterInput represents filters for listing features.
+"""
+input FeatureFilterInput {
+  "Filter by module"
+  module: String
+  "Filter by parent feature ID"
+  parentId: ID
+  "Filter by active status"
+  isActive: Boolean
+  "Filter by system/custom"
+  isSystem: Boolean
+  "Search by name or display name"
+  search: String
+}
+
+# =============================================================================
+# Queries
+# =============================================================================
+
+extend type Query {
+  """
+  List all features with optional filtering and pagination.
+  Requires SUPER_ADMIN or COMPANY_ADMIN role.
+  """
+  listFeatures(
+    "Filter criteria"
+    filter: FeatureFilterInput
+    "Page number (1-indexed)"
+    page: Int = 1
+    "Items per page"
+    limit: Int = 50
+  ): FeaturesResponse!
+
+  """
+  Get a specific feature by ID.
+  Requires SUPER_ADMIN or COMPANY_ADMIN role.
+  """
+  getFeature(id: ID!): Feature
+
+  """
+  Get a feature by its code/name.
+  Requires SUPER_ADMIN or COMPANY_ADMIN role.
+  """
+  getFeatureByName(name: String!): Feature
+
+  """
+  Get the complete feature hierarchy tree.
+  Useful for rendering feature trees in the UI.
+  Requires SUPER_ADMIN or COMPANY_ADMIN role.
+  """
+  getFeatureHierarchy(
+    "Filter by module (optional)"
+    module: String
+  ): [FeatureHierarchy!]!
+
+  """
+  Check if a user has a specific feature.
+  Can be called by the user themselves or by admins.
+  """
+  checkUserFeature(input: FeatureCheckInput!): FeatureCheckResult!
+
+  """
+  Check if a user has multiple features.
+  Can be called by the user themselves or by admins.
+  """
+  checkUserFeatures(input: BatchFeatureCheckInput!): BatchFeatureCheckResult!
+
+  """
+  Get all features for a specific user.
+  Returns the computed feature set including role and user-level features.
+  Can be called by the user themselves or by admins.
+  """
+  getUserFeatures(
+    "User ID to get features for"
+    userId: ID!
+    "Scope context (optional)"
+    scope: FeatureScopeInput
+  ): UserFeatureSet!
+
+  """
+  Get all user-specific feature overrides for a user.
+  Requires SUPER_ADMIN or COMPANY_ADMIN role.
+  """
+  getUserFeatureOverrides(userId: ID!): [UserFeature!]!
+
+  """
+  Get all features assigned to a role.
+  Requires SUPER_ADMIN or COMPANY_ADMIN role.
+  """
+  getRoleFeatures(roleName: String!): [RoleFeature!]!
+
+  """
+  Get feature system statistics.
+  Requires SUPER_ADMIN role.
+  """
+  getFeatureStats: FeatureStats!
+}
+
+# =============================================================================
+# Mutations
+# =============================================================================
+
+extend type Mutation {
+  """
+  Create a new custom feature.
+  Only SUPER_ADMIN can create features.
+  """
+  createFeature(input: CreateFeatureInput!): Feature!
+
+  """
+  Update an existing feature.
+  System features can only be updated by SUPER_ADMIN.
+  Only SUPER_ADMIN can update features.
+  """
+  updateFeature(input: UpdateFeatureInput!): Feature!
+
+  """
+  Delete a feature.
+  System features cannot be deleted.
+  Only SUPER_ADMIN can delete features.
+  """
+  deleteFeature(id: ID!): Boolean!
+
+  """
+  Grant a feature to a specific user.
+  Creates a user-level feature grant that can override role-based features.
+  Requires SUPER_ADMIN or COMPANY_ADMIN role (with appropriate scope).
+  """
+  grantUserFeature(input: GrantUserFeatureInput!): UserFeature!
+
+  """
+  Deny a feature to a specific user.
+  Creates a user-level feature denial that overrides role-based features.
+  Requires SUPER_ADMIN or COMPANY_ADMIN role (with appropriate scope).
+  """
+  denyUserFeature(input: DenyUserFeatureInput!): UserFeature!
+
+  """
+  Revoke a user-specific feature assignment (grant or denial).
+  Requires SUPER_ADMIN or COMPANY_ADMIN role (with appropriate scope).
+  """
+  revokeUserFeature(input: RevokeUserFeatureInput!): Boolean!
+
+  """
+  Clear all user-specific feature overrides for a user.
+  Requires SUPER_ADMIN role.
+  """
+  clearUserFeatures(userId: ID!): Boolean!
+
+  """
+  Assign features to a role.
+  Only SUPER_ADMIN can assign role features.
+  """
+  assignRoleFeatures(input: AssignRoleFeaturesInput!): [RoleFeature!]!
+
+  """
+  Remove features from a role.
+  Only SUPER_ADMIN can remove role features.
+  """
+  removeRoleFeatures(
+    "Role name"
+    roleName: String!
+    "Feature codes to remove"
+    features: [String!]!
+  ): Boolean!
+
+  """
+  Bulk grant features to multiple users.
+  Useful for batch operations.
+  Requires SUPER_ADMIN role.
+  """
+  bulkGrantUserFeatures(
+    "User IDs"
+    userIds: [ID!]!
+    "Features to grant"
+    features: [String!]!
+    "Scope for the grants"
+    scope: FeatureScopeInput
+    "Reason for granting"
+    reason: String
+  ): [UserFeature!]!
+}
+
+# =============================================================================
+# Subscriptions (Optional - for real-time feature updates)
+# =============================================================================
+
+extend type Subscription {
+  """
+  Subscribe to feature updates.
+  Emits events when features are created, updated, or deleted.
+  Requires SUPER_ADMIN or COMPANY_ADMIN role.
+  """
+  featureUpdates: FeatureUpdateEvent!
+
+  """
+  Subscribe to user feature changes.
+  Emits events when a user's features are modified.
+  Users can subscribe to their own updates, admins can subscribe to any user.
+  """
+  userFeatureUpdates(userId: ID!): UserFeatureUpdateEvent!
+}
+
+"""
+FeatureUpdateEvent represents a feature modification event.
+"""
+type FeatureUpdateEvent {
+  "Event type (CREATED, UPDATED, DELETED)"
+  eventType: String!
+  "The feature that was modified"
+  feature: Feature!
+  "When the event occurred"
+  timestamp: Time!
+  "User who performed the action"
+  performedBy: ID!
+}
+
+"""
+UserFeatureUpdateEvent represents a user feature modification event.
+"""
+type UserFeatureUpdateEvent {
+  "Event type (GRANTED, DENIED, REVOKED)"
+  eventType: String!
+  "User ID whose features were modified"
+  userId: ID!
+  "The feature that was modified"
+  feature: String!
+  "Whether this was a grant or denial"
+  isGranted: Boolean
+  "When the event occurred"
+  timestamp: Time!
+  "User who performed the action"
+  performedBy: ID!
+}

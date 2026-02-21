@@ -1,0 +1,805 @@
+# =============================================================================
+# Super Admin Role Schema
+# Features: System Dashboard, Multi-Tenant Management, System Settings, Audit
+# =============================================================================
+
+# =============================================================================
+# SUPER ADMIN DASHBOARD TYPES
+# =============================================================================
+
+"""
+SuperAdminDashboardData represents dashboard for Super Admin.
+"""
+type SuperAdminDashboardData {
+  "User information"
+  user: User!
+  "System overview"
+  systemOverview: SystemOverview!
+  "Tenant (companies) overview"
+  tenantOverview: TenantOverview!
+  "Platform statistics"
+  platformStats: PlatformStats!
+  "System alerts"
+  systemAlerts: [SystemAlert!]!
+  "Recent system activities"
+  recentActivities: [SystemActivityLog!]!
+}
+
+"""
+SystemOverview for system health.
+"""
+type SystemOverview {
+  "System status"
+  status: SystemStatus!
+  "API uptime percentage"
+  apiUptime: Float!
+  "Database status"
+  databaseStatus: ServiceStatus!
+  "Redis status"
+  redisStatus: ServiceStatus!
+  "Queue status"
+  queueStatus: ServiceStatus!
+  "Storage status"
+  storageStatus: ServiceStatus!
+  "Active websockets"
+  activeWebsockets: Int!
+  "Pending background jobs"
+  pendingJobs: Int!
+  "Error rate (last hour)"
+  errorRate: Float!
+}
+
+"""
+ServiceStatus enum.
+"""
+enum ServiceStatus {
+  ONLINE
+  DEGRADED
+  OFFLINE
+  UNKNOWN
+}
+
+"""
+TenantOverview for multi-tenant stats.
+"""
+type TenantOverview {
+  "Total companies"
+  totalCompanies: Int!
+  "Active companies"
+  activeCompanies: Int!
+  "Suspended companies"
+  suspendedCompanies: Int!
+  "Trial companies"
+  trialCompanies: Int!
+  "Total users across all companies"
+  totalUsers: Int!
+  "Active users today"
+  activeUsersToday: Int!
+  "New users this month"
+  newUsersThisMonth: Int!
+  "Companies by status"
+  companiesByStatus: [CompanyStatusCount!]!
+}
+
+"""
+CompanyStatusCount for status breakdown.
+"""
+type CompanyStatusCount {
+  "Status"
+  status: String!
+  "Count"
+  count: Int!
+}
+
+"""
+PlatformStats for platform statistics.
+"""
+type PlatformStats {
+  "Total estates"
+  totalEstates: Int!
+  "Total divisions"
+  totalDivisions: Int!
+  "Total blocks"
+  totalBlocks: Int!
+  "Total harvests this month"
+  totalHarvestsThisMonth: Int!
+  "Total production this month (tons)"
+  totalProductionThisMonth: Float!
+  "Total gate checks this month"
+  totalGateChecksThisMonth: Int!
+  "API calls today"
+  apiCallsToday: Int!
+  "Storage used (GB)"
+  storageUsedGb: Float!
+  "Storage limit (GB)"
+  storageLimitGb: Float!
+}
+
+"""
+SystemAlert for system alerts.
+"""
+type SystemAlert {
+  "Alert ID"
+  id: ID!
+  "Alert type"
+  type: SystemAlertType!
+  "Severity"
+  severity: AlertSeverity!
+  "Title"
+  title: String!
+  "Message"
+  message: String!
+  "Component"
+  component: String
+  "Company ID (if company-specific)"
+  companyId: String
+  "Company name"
+  companyName: String
+  "Created at"
+  createdAt: Time!
+  "Acknowledged"
+  acknowledged: Boolean!
+  "Acknowledged by"
+  acknowledgedBy: String
+  "Acknowledged at"
+  acknowledgedAt: Time
+}
+
+"""
+SystemAlertType enum.
+"""
+enum SystemAlertType {
+  "System error"
+  SYSTEM_ERROR
+  "High resource usage"
+  HIGH_RESOURCE_USAGE
+  "Security issue"
+  SECURITY_ISSUE
+  "Database issue"
+  DATABASE_ISSUE
+  "API issue"
+  API_ISSUE
+  "Storage issue"
+  STORAGE_ISSUE
+  "License issue"
+  LICENSE_ISSUE
+  "Billing issue"
+  BILLING_ISSUE
+}
+
+"""
+SystemActivityLog for system activity.
+"""
+type SystemActivityLog {
+  "Log ID"
+  id: ID!
+  "Activity type"
+  type: SystemActivityType!
+  "Actor"
+  actor: String!
+  "Actor type"
+  actorType: ActorType!
+  "Description"
+  description: String!
+  "Company ID"
+  companyId: String
+  "Company name"
+  companyName: String
+  "Entity type"
+  entityType: String
+  "Entity ID"
+  entityId: String
+  "IP address"
+  ipAddress: String
+  "User agent"
+  userAgent: String
+  "Metadata"
+  metadata: String
+  "Timestamp"
+  timestamp: Time!
+}
+
+"""
+SystemActivityType enum.
+"""
+enum SystemActivityType {
+  "Company created"
+  COMPANY_CREATED
+  "Company updated"
+  COMPANY_UPDATED
+  "Company suspended"
+  COMPANY_SUSPENDED
+  "Company activated"
+  COMPANY_ACTIVATED
+  "Admin created"
+  ADMIN_CREATED
+  "Settings changed"
+  SYSTEM_SETTINGS_CHANGED
+  "Feature toggled"
+  FEATURE_TOGGLED
+  "Database migration"
+  DATABASE_MIGRATION
+  "System restart"
+  SYSTEM_RESTART
+  "Backup created"
+  BACKUP_CREATED
+  "Security event"
+  SECURITY_EVENT
+}
+
+"""
+ActorType enum.
+"""
+enum ActorType {
+  "Super admin user"
+  SUPER_ADMIN
+  "System process"
+  SYSTEM
+  "API client"
+  API_CLIENT
+  "Scheduled job"
+  SCHEDULED_JOB
+}
+
+# =============================================================================
+# COMPANY MANAGEMENT TYPES
+# =============================================================================
+
+"""
+CompanyDetailAdmin for admin company view.
+"""
+type CompanyDetailAdmin {
+  "Company ID"
+  id: ID!
+  "Company name"
+  name: String!
+  "Company code"
+  code: String!
+  "Address"
+  address: String
+  "Phone"
+  phone: String
+  "Email"
+  email: String
+  "Status"
+  status: CompanyStatus!
+  "Created at"
+  createdAt: Time!
+  "Subscription info"
+  subscription: SubscriptionInfo!
+  "Usage stats"
+  usage: CompanyUsageStats!
+  "Admins"
+  admins: [CompanyUser!]!
+  "Area managers"
+  areaManagers: [CompanyUser!]!
+  "Statistics"
+  statistics: CompanyStatistics!
+}
+
+"""
+SubscriptionInfo for subscription details.
+"""
+type SubscriptionInfo {
+  "Plan name"
+  planName: String!
+  "Plan type"
+  planType: PlanType!
+  "Start date"
+  startDate: Time!
+  "End date"
+  endDate: Time
+  "Is trial"
+  isTrial: Boolean!
+  "Trial ends at"
+  trialEndsAt: Time
+  "Max users"
+  maxUsers: Int!
+  "Max estates"
+  maxEstates: Int!
+  "Max storage (GB)"
+  maxStorageGb: Float!
+  "Features enabled"
+  featuresEnabled: [String!]!
+}
+
+"""
+PlanType enum.
+"""
+enum PlanType {
+  TRIAL
+  BASIC
+  STANDARD
+  PREMIUM
+  ENTERPRISE
+  CUSTOM
+}
+
+"""
+CompanyUsageStats for usage statistics.
+"""
+type CompanyUsageStats {
+  "Current users"
+  currentUsers: Int!
+  "Max users"
+  maxUsers: Int!
+  "Current estates"
+  currentEstates: Int!
+  "Max estates"
+  maxEstates: Int!
+  "Storage used (GB)"
+  storageUsedGb: Float!
+  "Max storage (GB)"
+  maxStorageGb: Float!
+  "API calls this month"
+  apiCallsThisMonth: Int!
+}
+
+"""
+CompanyStatistics for company stats.
+"""
+type CompanyStatistics {
+  "Total estates"
+  totalEstates: Int!
+  "Total divisions"
+  totalDivisions: Int!
+  "Total blocks"
+  totalBlocks: Int!
+  "Total users"
+  totalUsers: Int!
+  "Active users today"
+  activeUsersToday: Int!
+  "Harvests this month"
+  harvestsThisMonth: Int!
+  "Production this month (tons)"
+  productionThisMonth: Float!
+}
+
+"""
+CreateCompanyAdminInput for creating company.
+"""
+input CreateCompanyAdminInput {
+  "Company name"
+  name: String!
+  "Company code"
+  code: String!
+  "Address"
+  address: String
+  "Phone"
+  phone: String
+  "Email"
+  email: String
+  "Plan type"
+  planType: PlanType!
+  "Max users"
+  maxUsers: Int!
+  "Max estates"
+  maxEstates: Int!
+  "Max storage (GB)"
+  maxStorageGb: Float!
+  "Trial days (if trial)"
+  trialDays: Int
+  "Features enabled"
+  featuresEnabled: [String!]
+  "Initial admin username"
+  adminUsername: String!
+  "Initial admin email"
+  adminEmail: String!
+  "Initial admin password"
+  adminPassword: String!
+}
+
+"""
+UpdateCompanyAdminInput for updating company.
+"""
+input UpdateCompanyAdminInput {
+  "Company ID"
+  companyId: ID!
+  "Company name"
+  name: String
+  "Address"
+  address: String
+  "Phone"
+  phone: String
+  "Email"
+  email: String
+  "Status"
+  status: CompanyStatus
+  "Max users"
+  maxUsers: Int
+  "Max estates"
+  maxEstates: Int
+  "Max storage (GB)"
+  maxStorageGb: Float
+}
+
+"""
+CompanyManagementResult for operations.
+"""
+type CompanyManagementResult {
+  "Success"
+  success: Boolean!
+  "Message"
+  message: String!
+  "Company"
+  company: CompanyDetailAdmin
+  "Errors"
+  errors: [String!]
+}
+
+# =============================================================================
+# SYSTEM SETTINGS TYPES
+# =============================================================================
+
+"""
+SystemSettings for system configuration.
+"""
+type SystemSettings {
+  "General settings"
+  general: SystemGeneralSettings!
+  "Security settings"
+  security: SystemSecuritySettings!
+  "Email settings"
+  email: EmailSettings!
+  "Storage settings"
+  storage: StorageSettings!
+  "Feature flags"
+  features: [FeatureFlag!]!
+  "API settings"
+  api: ApiSettings!
+}
+
+"""
+SystemGeneralSettings for general config.
+"""
+type SystemGeneralSettings {
+  "Platform name"
+  platformName: String!
+  "Platform URL"
+  platformUrl: String!
+  "Support email"
+  supportEmail: String!
+  "Default timezone"
+  defaultTimezone: String!
+  "Default language"
+  defaultLanguage: String!
+  "Maintenance mode"
+  maintenanceMode: Boolean!
+  "Maintenance message"
+  maintenanceMessage: String
+}
+
+"""
+SystemSecuritySettings for security config.
+"""
+type SystemSecuritySettings {
+  "JWT expiry (hours)"
+  jwtExpiryHours: Int!
+  "Refresh token expiry (days)"
+  refreshTokenExpiryDays: Int!
+  "Max concurrent sessions"
+  maxConcurrentSessions: Int!
+  "Password min length"
+  passwordMinLength: Int!
+  "Require uppercase"
+  requireUppercase: Boolean!
+  "Require numbers"
+  requireNumbers: Boolean!
+  "Require symbols"
+  requireSymbols: Boolean!
+  "Rate limit per minute"
+  rateLimitPerMinute: Int!
+  "Allowed origins"
+  allowedOrigins: [String!]!
+}
+
+"""
+EmailSettings for email configuration.
+"""
+type EmailSettings {
+  "SMTP enabled"
+  smtpEnabled: Boolean!
+  "SMTP host"
+  smtpHost: String
+  "SMTP port"
+  smtpPort: Int
+  "From email"
+  fromEmail: String
+  "From name"
+  fromName: String
+}
+
+"""
+StorageSettings for storage configuration.
+"""
+type StorageSettings {
+  "Provider"
+  provider: String!
+  "Max upload size (MB)"
+  maxUploadSizeMb: Int!
+  "Allowed file types"
+  allowedFileTypes: [String!]!
+  "Auto cleanup days"
+  autoCleanupDays: Int
+}
+
+"""
+FeatureFlag for feature toggles.
+"""
+type FeatureFlag {
+  "Feature key"
+  key: String!
+  "Feature name"
+  name: String!
+  "Description"
+  description: String
+  "Is enabled"
+  enabled: Boolean!
+  "Is beta"
+  isBeta: Boolean!
+  "Companies with access (empty = all)"
+  companiesWithAccess: [String!]
+}
+
+"""
+ApiSettings for API configuration.
+"""
+type ApiSettings {
+  "Version"
+  version: String!
+  "Rate limit enabled"
+  rateLimitEnabled: Boolean!
+  "Default rate limit"
+  defaultRateLimit: Int!
+  "CORS enabled"
+  corsEnabled: Boolean!
+  "API keys enabled"
+  apiKeysEnabled: Boolean!
+  "Webhook enabled"
+  webhookEnabled: Boolean!
+}
+
+"""
+UpdateSystemSettingsInput for updating settings.
+"""
+input UpdateSystemSettingsInput {
+  "General settings"
+  general: SystemGeneralSettingsInput
+  "Security settings"
+  security: SystemSecuritySettingsInput
+  "Email settings"
+  email: EmailSettingsInput
+  "Storage settings"
+  storage: StorageSettingsInput
+}
+
+"""
+SystemGeneralSettingsInput for general.
+"""
+input SystemGeneralSettingsInput {
+  "Platform name"
+  platformName: String
+  "Platform URL"
+  platformUrl: String
+  "Support email"
+  supportEmail: String
+  "Default timezone"
+  defaultTimezone: String
+  "Default language"
+  defaultLanguage: String
+  "Maintenance mode"
+  maintenanceMode: Boolean
+  "Maintenance message"
+  maintenanceMessage: String
+}
+
+"""
+SystemSecuritySettingsInput for security.
+"""
+input SystemSecuritySettingsInput {
+  "JWT expiry hours"
+  jwtExpiryHours: Int
+  "Refresh token expiry days"
+  refreshTokenExpiryDays: Int
+  "Max concurrent sessions"
+  maxConcurrentSessions: Int
+  "Password min length"
+  passwordMinLength: Int
+  "Rate limit per minute"
+  rateLimitPerMinute: Int
+}
+
+"""
+EmailSettingsInput for email.
+"""
+input EmailSettingsInput {
+  "SMTP enabled"
+  smtpEnabled: Boolean
+  "SMTP host"
+  smtpHost: String
+  "SMTP port"
+  smtpPort: Int
+  "From email"
+  fromEmail: String
+  "From name"
+  fromName: String
+}
+
+"""
+StorageSettingsInput for storage.
+"""
+input StorageSettingsInput {
+  "Max upload size (MB)"
+  maxUploadSizeMb: Int
+  "Auto cleanup days"
+  autoCleanupDays: Int
+}
+
+# =============================================================================
+# SUPER ADMIN QUERIES
+# =============================================================================
+
+extend type Query {
+  "Get super admin dashboard"
+  superAdminDashboard: SuperAdminDashboardData! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Get all companies (admin view)"
+  allCompanies(
+    status: CompanyStatus
+    planType: PlanType
+    search: String
+    page: Int = 1
+    pageSize: Int = 20
+  ): CompanyListResponse! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Get company detail (admin view)"
+  companyDetail(companyId: ID!): CompanyDetailAdmin @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Get system settings"
+  systemSettings: SystemSettings! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Get system alerts"
+  systemAlerts(
+    severity: AlertSeverity
+    unacknowledgedOnly: Boolean = false
+    limit: Int = 50
+  ): [SystemAlert!]! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Get system activity logs"
+  systemActivityLogs(
+    activityType: SystemActivityType
+    companyId: ID
+    dateFrom: Time
+    dateTo: Time
+    limit: Int = 100
+  ): [SystemActivityLog!]! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Get feature flags"
+  featureFlags: [FeatureFlag!]! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Get platform statistics"
+  platformStatistics(
+    dateFrom: Time
+    dateTo: Time
+  ): PlatformStats! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Get all super admins"
+  superAdmins: [User!]! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+
+  "Get device statistics per company"
+  adminDeviceStats: [CompanyDeviceStat!]! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+}
+
+"""
+CompanyDeviceStat for device usage statistics.
+"""
+type CompanyDeviceStat {
+  "Company ID"
+  companyId: ID!
+  "Company name"
+  companyName: String!
+  "Device count"
+  deviceCount: Int!
+  "Last active"
+  lastActive: Time
+}
+
+"""
+CompanyListResponse for company listing.
+"""
+type CompanyListResponse {
+  "Companies"
+  companies: [CompanyDetailAdmin!]!
+  "Total count"
+  totalCount: Int!
+  "Has more"
+  hasMore: Boolean!
+}
+
+# =============================================================================
+# SUPER ADMIN MUTATIONS
+# =============================================================================
+
+extend type Mutation {
+  "Create new company"
+  createCompanyAdmin(input: CreateCompanyAdminInput!): CompanyManagementResult! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Update company"
+  updateCompanyAdmin(input: UpdateCompanyAdminInput!): CompanyManagementResult! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Suspend company"
+  suspendCompany(companyId: ID!, reason: String!): CompanyManagementResult! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Activate company"
+  activateCompany(companyId: ID!): CompanyManagementResult! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Delete company"
+  deleteCompanyAdmin(companyId: ID!, confirmPhrase: String!): CompanyManagementResult! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Extend company trial"
+  extendCompanyTrial(companyId: ID!, days: Int!): CompanyManagementResult! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Update company plan"
+  updateCompanyPlan(
+    companyId: ID!
+    planType: PlanType!
+    maxUsers: Int
+    maxEstates: Int
+    maxStorageGb: Float
+  ): CompanyManagementResult! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Update system settings"
+  updateSystemSettings(input: UpdateSystemSettingsInput!): SystemSettings! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Toggle feature flag"
+  toggleFeatureFlag(key: String!, enabled: Boolean!): FeatureFlag! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Set feature for companies"
+  setFeatureForCompanies(key: String!, companyIds: [ID!]!): FeatureFlag! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Acknowledge system alert"
+  acknowledgeAlert(alertId: ID!): SystemAlert! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Create super admin"
+  createSuperAdmin(
+    username: String!
+    email: String!
+    fullName: String!
+    password: String!
+  ): User! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Trigger system backup"
+  triggerSystemBackup: BackupResult! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Set maintenance mode"
+  setMaintenanceMode(enabled: Boolean!, message: String): Boolean! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+}
+
+"""
+BackupResult for backup operation.
+"""
+type BackupResult {
+  "Success"
+  success: Boolean!
+  "Backup ID"
+  backupId: String
+  "Message"
+  message: String!
+  "Started at"
+  startedAt: Time!
+}
+
+# =============================================================================
+# SUPER ADMIN SUBSCRIPTIONS
+# =============================================================================
+
+extend type Subscription {
+  "New system alert"
+  newSystemAlert: SystemAlert! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "System status change"
+  systemStatusChange: SystemOverview! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "New company registration"
+  newCompanyRegistration: CompanyDetailAdmin! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+}

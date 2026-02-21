@@ -1,0 +1,18 @@
+fix-null-timestamps.go:9:2: no required module provides package github.com/lib/pq; to add it:
+	go get github.com/lib/pq
+internal\auth\api\cache_stats.go:9:2: package agrinovagraphql/server/internal/auth/services/authServices is not in std (C:\Program Files\Go\src\agrinovagraphql\server\internal\auth\services\authServices)
+internal\master\services\mocks\mock_MasterService.go:11:2: missing go.sum entry for module providing package github.com/stretchr/testify/mock (imported by agrinovagraphql/server/internal/master/services/mocks); to add:
+	go get agrinovagraphql/server/internal/master/services/mocks
+internal\sync\services\photo_service.go:14:2: package agrinovagraphql/server/internal/models is not in std (C:\Program Files\Go\src\agrinovagraphql\server\internal\models)
+internal\testing\testing.go:11:2: no required module provides package github.com/DATA-DOG/go-sqlmock; to add it:
+	go get github.com/DATA-DOG/go-sqlmock
+internal\testing\graphql_test_utils.go:15:2: missing go.sum entry for module providing package github.com/stretchr/testify/assert (imported by agrinovagraphql/server/internal/testing); to add:
+	go get agrinovagraphql/server/internal/testing
+internal\testing\graphql_test_utils.go:16:2: missing go.sum entry for module providing package github.com/stretchr/testify/require (imported by agrinovagraphql/server/internal/testing); to add:
+	go get agrinovagraphql/server/internal/testing
+internal\testing\testing.go:17:2: missing go.sum entry for module providing package github.com/stretchr/testify/suite (imported by agrinovagraphql/server/internal/testing); to add:
+	go get agrinovagraphql/server/internal/testing
+internal\testing\fixtures\fixtures.go:9:2: package agrinovagraphql/server/internal/auth/models/auth_models is not in std (C:\Program Files\Go\src\agrinovagraphql\server\internal\auth\models\auth_models)
+internal\testing\fixtures\fixtures.go:10:2: package agrinovagraphql/server/internal/master/models/master_models is not in std (C:\Program Files\Go\src\agrinovagraphql\server\internal\master\models\master_models)
+internal\testing\fixtures\fixtures.go:11:2: package agrinovagraphql/server/internal/panen/models/panen_models is not in std (C:\Program Files\Go\src\agrinovagraphql\server\internal\panen\models\panen_models)
+internal\testing\testutils\testutils.go:23:2: package agrinovagraphql/server/internal/auth/services/jwt_service is not in std (C:\Program Files\Go\src\agrinovagraphql\server\internal\auth\services\jwt_service)

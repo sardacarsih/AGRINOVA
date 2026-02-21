@@ -1,0 +1,102 @@
+# fragment AssignmentFields on UserAssignment {
+#   id
+#   userId
+#   assignedBy
+#   assignedAt
+# }
+
+fragment EstateAssignmentFields on UserEstateAssignment {
+  id
+  userId
+  assignedBy
+  assignedAt
+  estateId
+  estate {
+    id
+    name
+    # code removed (not in schema)
+  }
+  user {
+    id
+    name
+    role
+  }
+}
+
+fragment DivisionAssignmentFields on UserDivisionAssignment {
+  id
+  userId
+  assignedBy
+  assignedAt
+  divisionId
+  division {
+    id
+    name
+    # code removed (not in schema)
+  }
+  user {
+    id
+    name
+    role
+  }
+}
+
+fragment CompanyAssignmentFields on UserCompanyAssignment {
+  id
+  userId
+  assignedBy
+  assignedAt
+  companyId
+  company {
+    id
+    name
+    # code removed (not in schema)
+  }
+  user {
+    id
+    name
+    role
+  }
+}
+
+# query GetDivisionAssignments($divisionId: ID!) {
+#   divisionAssignments(divisionId: $divisionId) {
+#     ...DivisionAssignmentFields
+#   }
+# }
+#
+# query GetCompanyAssignments($companyId: ID!) {
+#   companyAssignments(companyId: $companyId) {
+#     ...CompanyAssignmentFields
+#   }
+# }
+#
+# mutation AssignUserToEstate($input: AssignUserToEstateInput!) {
+#   assignUserToEstate(input: $input) {
+#     ...EstateAssignmentFields
+#   }
+# }
+#
+# mutation AssignUserToDivision($input: AssignUserToDivisionInput!) {
+#   assignUserToDivision(input: $input) {
+#     ...DivisionAssignmentFields
+#   }
+# }
+#
+# mutation AssignUserToCompany($input: AssignUserToCompanyInput!) {
+#   assignUserToCompany(input: $input) {
+#     ...CompanyAssignmentFields
+#   }
+# }
+#
+# mutation RemoveEstateAssignment($id: ID!) {
+#   removeEstateAssignment(id: $id)
+# }
+#
+# mutation RemoveDivisionAssignment($id: ID!) {
+#   removeDivisionAssignment(id: $id)
+# }
+#
+# mutation RemoveCompanyAssignment($id: ID!) {
+#   removeCompanyAssignment(id: $id)
+# }

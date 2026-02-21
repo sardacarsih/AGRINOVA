@@ -1,0 +1,211 @@
+package services
+
+import (
+	"context"
+	"time"
+
+	gateCheckModels "agrinovagraphql/server/internal/gatecheck/models"
+	gateCheckServices "agrinovagraphql/server/internal/gatecheck/services"
+	"agrinovagraphql/server/internal/graphql/generated"
+	"agrinovagraphql/server/internal/websocket/models"
+)
+
+// GateCheckEventService wraps the gate check service and adds event broadcasting
+type GateCheckEventService struct {
+	gateCheckService *gateCheckServices.GateCheckService
+	eventBroadcaster *EventBroadcaster
+}
+
+// NewGateCheckEventService creates a new gate check event service
+func NewGateCheckEventService(gateCheckService *gateCheckServices.GateCheckService, eventBroadcaster *EventBroadcaster) *GateCheckEventService {
+	return &GateCheckEventService{
+		gateCheckService: gateCheckService,
+		eventBroadcaster: eventBroadcaster,
+	}
+}
+
+// CreateGateCheck creates a gate check record and broadcasts the event
+func (s *GateCheckEventService) CreateGateCheck(ctx context.Context, input generated.CreateGateCheckInput) (*gateCheckModels.GateCheckRecord, error) {
+	// Create the gate check record using the original service
+	record, err := s.gateCheckService.CreateGateCheck(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to GraphQL model for broadcasting
+	graphqlRecord := s.convertToGraphQLGateCheckRecord(record)
+
+	// Broadcast the event
+	s.eventBroadcaster.OnGateCheckCreated(graphqlRecord)
+
+	return record, nil
+}
+
+// CompleteGateCheck completes a gate check record and broadcasts the event
+func (s *GateCheckEventService) CompleteGateCheck(ctx context.Context, id string) (*gateCheckModels.GateCheckRecord, error) {
+	// Complete the gate check record using the original service
+	record, err := s.gateCheckService.CompleteGateCheck(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to GraphQL model for broadcasting
+	graphqlRecord := s.convertToGraphQLGateCheckRecord(record)
+
+	// Broadcast the event
+	s.eventBroadcaster.OnGateCheckCompleted(graphqlRecord)
+
+	return record, nil
+}
+
+// UpdateGateCheck updates a gate check record and broadcasts the event
+func (s *GateCheckEventService) UpdateGateCheck(ctx context.Context, input generated.UpdateGateCheckInput) (*gateCheckModels.GateCheckRecord, error) {
+	// Update the gate check record using the original service
+	record, err := s.gateCheckService.UpdateGateCheck(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to GraphQL model for broadcasting
+	graphqlRecord := s.convertToGraphQLGateCheckRecord(record)
+
+	// Broadcast a generic update event
+	s.eventBroadcaster.wsHandler.BroadcastToChannel(models.ChannelGateCheck, "gateCheckUpdated", graphqlRecord)
+
+	return record, nil
+}
+
+// DeleteGateCheck deletes a gate check record and broadcasts the event
+func (s *GateCheckEventService) DeleteGateCheck(ctx context.Context, id string) (bool, error) {
+	// Get the record before deletion for broadcasting
+	record, err := s.gateCheckService.GetGateCheckRecord(ctx, id)
+	if err != nil {
+		return false, err
+	}
+
+	// Delete the gate check record using the original service
+	success, err := s.gateCheckService.DeleteGateCheck(ctx, id)
+	if err != nil {
+		return false, err
+	}
+
+	if success {
+		// Convert to GraphQL model for broadcasting
+		graphqlRecord := s.convertToGraphQLGateCheckRecord(record)
+
+		// Broadcast deletion event
+		s.eventBroadcaster.wsHandler.BroadcastToChannel(models.ChannelGateCheck, "gateCheckDeleted", graphqlRecord)
+	}
+
+	return success, nil
+}
+
+// ProcessGateCheckSecurity handles security-related gate check processing
+func (s *GateCheckEventService) ProcessGateCheckSecurity(ctx context.Context, gateCheckID string) error {
+	// Get the gate check record
+	record, err := s.gateCheckService.GetGateCheckRecord(ctx, gateCheckID)
+	if err != nil {
+		return err
+	}
+
+	// Perform security validations
+	if record.Intent == gateCheckModels.GateEntry {
+		// Handle entry logic
+		s.eventBroadcaster.OnSystemAlert("gate_entry", "Vehicle entry detected", "info", map[string]interface{}{
+			"gateCheckId": gateCheckID,
+			"nomorPolisi": record.NomorPolisi,
+			"namaSupir":   record.NamaSupir,
+			"intent":      string(record.Intent),
+		})
+	} else {
+		// Handle exit logic
+		s.eventBroadcaster.OnSystemAlert("gate_exit", "Vehicle exit detected", "info", map[string]interface{}{
+			"gateCheckId": gateCheckID,
+			"nomorPolisi": record.NomorPolisi,
+			"namaSupir":   record.NamaSupir,
+			"intent":      string(record.Intent),
+		})
+	}
+
+	return nil
+}
+
+// ValidateGateCheckQR validates QR code for gate check
+func (s *GateCheckEventService) ValidateGateCheckQR(ctx context.Context, qrToken string, scannedBy string) error {
+	// This would integrate with the QR token service for validation
+	// For now, broadcast the validation attempt
+	s.eventBroadcaster.OnSystemAlert("qr_validation", "QR code validation attempted", "info", map[string]interface{}{
+		"qrToken":   qrToken,
+		"scannedBy": scannedBy,
+	})
+
+	return nil
+}
+
+// Delegate other methods to the original service
+
+// GetGateChecks delegates to the original service
+func (s *GateCheckEventService) GetGateCheckRecords(ctx context.Context) ([]*gateCheckModels.GateCheckRecord, error) {
+	return s.gateCheckService.GetGateCheckRecords(ctx)
+}
+
+// GetGateCheckRecord delegates to the original service
+func (s *GateCheckEventService) GetGateCheckRecord(ctx context.Context, id string) (*gateCheckModels.GateCheckRecord, error) {
+	return s.gateCheckService.GetGateCheckRecord(ctx, id)
+}
+
+// GetGateCheckRecordsByStatus delegates to the original service
+func (s *GateCheckEventService) GetGateCheckRecordsByStatus(ctx context.Context, status generated.GateStatus) ([]*gateCheckModels.GateCheckRecord, error) {
+	return s.gateCheckService.GetGateCheckRecordsByStatus(ctx, status)
+}
+
+// convertToGraphQLGateCheckRecord converts internal model to GraphQL model
+func (s *GateCheckEventService) convertToGraphQLGateCheckRecord(record *gateCheckModels.GateCheckRecord) *generated.GateCheckRecord {
+	// This is a simplified conversion - in practice, you would implement proper mapping
+	// based on your actual model structures
+
+	// Convert optional timestamps
+	var waktuMasuk, waktuKeluar *time.Time
+	if record.WaktuMasuk != nil {
+		waktuMasuk = record.WaktuMasuk
+	}
+	if record.WaktuKeluar != nil {
+		waktuKeluar = record.WaktuKeluar
+	}
+
+	// Convert optional strings
+	var muatan, nomorDo *string
+	if record.Muatan != nil {
+		muatan = record.Muatan
+	}
+	if record.NomorDo != nil {
+		nomorDo = record.NomorDo
+	}
+
+	return &generated.GateCheckRecord{
+		ID:          record.ID,
+		SatpamID:    record.SatpamID,
+		NomorPolisi: record.NomorPolisi,
+		NamaSupir:   record.NamaSupir,
+
+		Intent:      generated.GateIntent(record.Intent),
+		Status:      generated.GateStatus(record.Status),
+		WaktuMasuk:  waktuMasuk,
+		WaktuKeluar: waktuKeluar,
+		Muatan:      muatan,
+		NomorDo:     nomorDo,
+		CreatedAt:   record.CreatedAt,
+		UpdatedAt:   record.UpdatedAt,
+		// Note: Relations like Satpam and Block would need to be populated separately
+	}
+}
+
+// NotifySecurityTeam sends security notifications for gate check events
+func (s *GateCheckEventService) NotifySecurityTeam(event string, data interface{}) {
+	s.eventBroadcaster.wsHandler.BroadcastToRole("SATPAM", event, data)
+}
+
+// TriggerSecurityAlert triggers a security-specific alert
+func (s *GateCheckEventService) TriggerSecurityAlert(alertType, message string, severity string, data interface{}) {
+	s.eventBroadcaster.OnSystemAlert(alertType, message, severity, data)
+}

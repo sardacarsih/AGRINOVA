@@ -1,0 +1,69 @@
+fragment UserFields on User {
+  id
+  username
+  email
+  name
+  role
+  isActive
+  createdAt
+  updatedAt
+}
+
+mutation WebLogin($input: WebLoginInput!) {
+  webLogin(input: $input) {
+    success
+    message
+    user {
+      ...UserFields
+      managerId
+      manager {
+        id
+        name
+      }
+    }
+    assignments {
+      companies {
+        id
+        name
+        status
+        address
+      }
+      estates {
+        id
+        name
+        companyId
+        location
+        luasHa
+      }
+      divisions {
+        id
+        name
+        code
+        estateId
+      }
+    }
+    sessionId
+  }
+}
+
+
+mutation Logout {
+  logout
+}
+
+query Me {
+  me {
+    ...UserFields
+  }
+}
+
+mutation RefreshToken($input: RefreshTokenInput!) {
+  refreshToken(input: $input) {
+    accessToken
+    refreshToken
+    expiresAt
+    user {
+      ...UserFields
+    }
+  }
+}

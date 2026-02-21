@@ -1,0 +1,99 @@
+@media (max-width: 480px) {
+  [data-page="login"] {
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  [data-page="login"] .login-bg-pattern,
+  [data-page="login"] #fluid,
+  [data-page="login"] .login-desktop-panel,
+  [data-page="login"] .login-quick-access {
+    display: none !important;
+  }
+
+  [data-page="login"] .login-main {
+    min-height: 100dvh;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+  }
+
+  [data-page="login"] .login-layout {
+    min-height: auto;
+    gap: 12px;
+  }
+
+  [data-page="login"] .login-mobile-brand {
+    margin-bottom: 12px;
+    padding-inline: 0;
+  }
+
+  [data-page="login"] .login-mobile-brand svg {
+    max-width: 20px;
+    max-height: 20px;
+  }
+
+  [data-page="login"] .login-form-section,
+  [data-page="login"] .login-form-wrapper {
+    width: 100%;
+    max-width: none;
+    padding-inline: 0;
+  }
+
+  [data-page="login"] .login-card {
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  [data-page="login"] .login-form-shell {
+    min-height: auto;
+  }
+
+  [data-page="login"] .login-form-content {
+    gap: 16px;
+  }
+
+  [data-page="login"] .login-form-content label {
+    font-size: 14px;
+    line-height: 1.4;
+  }
+
+  [data-page="login"] .login-form-content input[type="text"],
+  [data-page="login"] .login-form-content input[type="email"],
+  [data-page="login"] .login-form-content input[type="password"] {
+    min-height: 44px;
+    font-size: 16px;
+    line-height: 1.25;
+  }
+
+  [data-page="login"] .login-form-content button[type="submit"],
+  [data-page="login"] .login-form-content [role="tab"] {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  [data-page="login"] .login-form-content p,
+  [data-page="login"] .login-form-content span {
+    overflow-wrap: anywhere;
+  }
+
+  [data-page="login"] .login-form-content :focus-visible {
+    outline: 2px solid #10b981;
+    outline-offset: 2px;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 1023px) {
+  [data-page="login"] {
+    overflow-x: hidden;
+  }
+
+  [data-page="login"] #fluid {
+    display: none !important;
+  }
+
+  [data-page="login"] .login-layout,
+  [data-page="login"] .login-form-shell {
+    min-height: auto;
+  }
+}

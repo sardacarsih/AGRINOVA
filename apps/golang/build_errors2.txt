@@ -1,0 +1,1 @@
+internal\sync\services\sync_service.go:10:2: package agrinovagraphql/server/internal/models is not in std (C:\Program Files\Go\src\agrinovagraphql\server\internal\models)

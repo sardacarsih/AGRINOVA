@@ -1,0 +1,123 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+      return _buildEmptyState(
+        icon: Icons.cloud_done,
+        title: 'Tidak Ada Item Pending',
+        subtitle: 'Semua data sudah tersinkronisasi',
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadPendingItems,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _pendingItems.length,
+        itemBuilder: (context, index) {
+          final item = _pendingItems[index];
+          return _buildSyncItemCard(item, isPending: true);
+        },
+      ),
+    );
+  }
+
+  /// Build failed items tab
+  Widget _buildFailedItemsTab() {
+    if (_failedItems.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.check_circle,
+        title: 'Tidak Ada Item Gagal',
+        subtitle: 'Semua sinkronisasi berjalan lancar',
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadFailedItems,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _failedItems.length,
+        itemBuilder: (context, index) {
+          final item = _failedItems[index];
+          return _buildSyncItemCard(item, isFailed: true);
+        },
+      ),
+    );
+  }
+
+  /// Build sync history tab
+  Widget _buildSyncHistoryTab() {
+    if (_historyItems.isEmpty) {
+      return _buildEmptyState(
+        icon: Icons.history,
+        title: 'Belum Ada Riwayat',
+        subtitle: 'Riwayat sinkronisasi akan muncul di sini',
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadHistoryItems,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _historyItems.length,
+        itemBuilder: (context, index) {
+          final item = _historyItems[index];
+          return _buildHistoryItemCard(item);
+        },
+      ),
+    );
+  }
+
+          SnackBar(
+            content: Text('Gagal: ${result['error']}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _retryItem(Map<String, dynamic> item) async {
+    try {
+      final tableName = item['table_name'] ?? item['tableName'];
+      final recordId = item['record_id'] ?? item['recordId'] ?? item['guest_id'] ?? item['log_id'] ?? item['id'];
+      
+      if (tableName == null || recordId == null) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mencoba ulang sinkronisasi...')),
+      );
+
+      final result = await _repository.retrySingleItem(
+        tableName: tableName,
+        recordId: recordId.toString(),
+      );
+
+      if (result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Item berhasil di-reset dan masuk antrian')),
+        );
+        _loadAllData(); // Refresh lists
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal: ${result['error']}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+}

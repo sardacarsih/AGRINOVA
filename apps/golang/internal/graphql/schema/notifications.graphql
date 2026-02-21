@@ -1,0 +1,524 @@
+# =============================================================================
+# Notification System Types
+# =============================================================================
+
+"""
+NotificationType represents the type/category of notification
+"""
+enum NotificationType {
+  # Harvest workflow notifications
+  HARVEST_CREATED
+  HARVEST_APPROVAL_NEEDED
+  HARVEST_APPROVED
+  HARVEST_REJECTED
+  HIGH_VOLUME_HARVEST
+  
+  # Gate check notifications
+  GATE_CHECK_CREATED
+  GATE_CHECK_COMPLETED
+  GATE_CHECK_ALERT
+  
+  # System notifications
+  SYSTEM_ALERT
+  USER_STATUS_CHANGE
+  COMPANY_UPDATE
+  
+  # PKS Integration notifications
+  PKS_DATA_RECEIVED
+  PKS_DATA_SYNC
+  
+  # Security and compliance notifications
+  SECURITY_ALERT
+  COMPLIANCE_ALERT
+  DATA_INTEGRITY
+  
+  # Manager-specific notifications
+  MANAGER_DAILY_SUMMARY
+  MANAGER_WEEKLY_SUMMARY
+  MANAGER_PERFORMANCE_ALERT
+  MANAGER_TARGET_ACHIEVED
+  MANAGER_LOW_PERFORMANCE
+  MANAGER_MANDOR_ABSENCE
+}
+
+"""
+NotificationPriority represents the urgency level of a notification
+"""
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+"""
+NotificationStatus represents the current status of a notification
+"""
+enum NotificationStatus {
+  UNREAD
+  READ
+  DISMISSED
+  ARCHIVED
+}
+
+"""
+Notification represents a system notification
+"""
+type Notification {
+  "Unique identifier for the notification"
+  id: ID!
+  "Type/category of the notification"
+  type: NotificationType!
+  "Priority level of the notification"
+  priority: NotificationPriority!
+  "Current status of the notification"
+  status: NotificationStatus!
+  "Notification title"
+  title: String!
+  "Notification message content"
+  message: String!
+  
+  # Recipients and targeting
+  "ID of the recipient user"
+  recipientId: String
+  "Role of the recipient (for role-based notifications)"
+  recipientRole: String
+  "Company ID for company-wide notifications"
+  recipientCompanyId: String
+  
+  # Related entity information
+  "Type of the related entity"
+  relatedEntityType: String
+  "ID of the related entity"
+  relatedEntityId: String
+  
+  # Action information
+  "URL for notification action"
+  actionUrl: String
+  "Label for the action button"
+  actionLabel: String
+  
+  # Metadata for rich notifications
+  "Additional metadata as JSON string"
+  metadata: String
+  
+  # Sender information
+  "ID of the user who triggered this notification"
+  senderId: String
+  "Role of the sender"
+  senderRole: String
+  
+  # Scheduling
+  "When the notification should be delivered"
+  scheduledFor: Time
+  "When the notification expires"
+  expiresAt: Time
+  
+  # Interaction tracking
+  "When the notification was read"
+  readAt: Time
+  "When the notification was dismissed"
+  dismissedAt: Time
+  "When the notification was archived"
+  archivedAt: Time
+  "When the notification action was clicked"
+  clickedAt: Time
+  
+  # Standard timestamps
+  "When the notification was created"
+  createdAt: Time!
+  "When the notification was last updated"
+  updatedAt: Time!
+}
+
+"""
+NotificationTemplate represents a reusable notification template
+"""
+type NotificationTemplate {
+  "Unique identifier for the template"
+  id: ID!
+  "Template name"
+  name: String!
+  "Notification type this template is for"
+  type: NotificationType!
+  "Default priority for notifications from this template"
+  priority: NotificationPriority!
+  "Template for the notification title"
+  titleTemplate: String!
+  "Template for the notification message"
+  messageTemplate: String!
+  "Default action URL"
+  actionUrl: String
+  "Default action label"
+  actionLabel: String
+  "Default metadata"
+  defaultMetadata: String
+  "Whether this template is active"
+  isActive: Boolean!
+  "When the template was created"
+  createdAt: Time!
+  "When the template was last updated"
+  updatedAt: Time!
+}
+
+"""
+NotificationPreferences represents user preferences for notifications
+"""
+type NotificationPreferences {
+  "Unique identifier for the preferences"
+  id: ID!
+  "User ID these preferences belong to"
+  userId: String!
+  
+  # Channel preferences
+  "Enable web notifications"
+  enableWebNotifications: Boolean!
+  "Enable mobile notifications"
+  enableMobileNotifications: Boolean!
+  "Enable email notifications"
+  enableEmailNotifications: Boolean!
+  
+  # Type-specific preferences
+  "Preferences for specific notification types (JSON)"
+  typePreferences: String
+  
+  # Priority filtering
+  "Minimum priority level to receive"
+  minimumPriority: NotificationPriority!
+  
+  # Quiet hours
+  "Start of quiet hours (HH:MM format)"
+  quietHoursStart: String
+  "End of quiet hours (HH:MM format)"
+  quietHoursEnd: String
+  "Timezone for quiet hours"
+  quietHoursTimezone: String
+  
+  "When the preferences were created"
+  createdAt: Time!
+  "When the preferences were last updated"
+  updatedAt: Time!
+}
+
+"""
+NotificationSummary provides aggregated notification statistics
+"""
+type NotificationSummary {
+  "Total number of unread notifications"
+  unreadCount: Int!
+  "Number of high priority unread notifications"
+  highPriorityCount: Int!
+  "Number of critical priority unread notifications"
+  criticalCount: Int!
+  "Count by notification type"
+  countByType: [NotificationTypeCount!]!
+  "Most recent notifications"
+  recentNotifications: [Notification!]!
+}
+
+"""
+NotificationTypeCount represents count for a specific notification type
+"""
+type NotificationTypeCount {
+  "Notification type"
+  type: NotificationType!
+  "Count of notifications of this type"
+  count: Int!
+  "Count of unread notifications of this type"
+  unreadCount: Int!
+}
+
+# =============================================================================
+# Input Types
+# =============================================================================
+
+"""
+CreateNotificationInput for creating new notifications
+"""
+input CreateNotificationInput {
+  "Type of notification"
+  type: NotificationType!
+  "Priority level"
+  priority: NotificationPriority
+  "Notification title"
+  title: String!
+  "Notification message"
+  message: String!
+  
+  # Recipients
+  "Specific recipient user ID"
+  recipientId: String
+  "Role-based targeting"
+  recipientRole: String
+  "Company-wide targeting"
+  recipientCompanyId: String
+  
+  # Related entity
+  "Type of related entity"
+  relatedEntityType: String
+  "ID of related entity"
+  relatedEntityId: String
+  
+  # Action
+  "Action URL"
+  actionUrl: String
+  "Action button label"
+  actionLabel: String
+  
+  # Metadata
+  "Additional metadata as JSON string"
+  metadata: String
+  
+  # Scheduling
+  "Schedule delivery for later"
+  scheduledFor: Time
+  "Expiration time"
+  expiresAt: Time
+}
+
+"""
+UpdateNotificationInput for updating notification status
+"""
+input UpdateNotificationInput {
+  "Notification ID"
+  id: ID!
+  "New status"
+  status: NotificationStatus
+  "Mark as read"
+  markAsRead: Boolean
+  "Mark as dismissed"
+  markAsDismissed: Boolean
+  "Mark as archived"
+  markAsArchived: Boolean
+  "Record click action"
+  recordClick: Boolean
+}
+
+"""
+NotificationFilterInput for filtering notifications
+"""
+input NotificationFilterInput {
+  "Filter by notification types"
+  types: [NotificationType!]
+  "Filter by priority levels"
+  priorities: [NotificationPriority!]
+  "Filter by status"
+  statuses: [NotificationStatus!]
+  "Filter by recipient role"
+  recipientRole: String
+  "Filter by related entity type"
+  relatedEntityType: String
+  "Filter notifications after this date"
+  createdAfter: Time
+  "Filter notifications before this date"
+  createdBefore: Time
+  "Only show unread notifications"
+  unreadOnly: Boolean
+}
+
+"""
+UpdateNotificationPreferencesInput for updating user notification preferences
+"""
+input UpdateNotificationPreferencesInput {
+  "Enable web notifications"
+  enableWebNotifications: Boolean
+  "Enable mobile notifications"
+  enableMobileNotifications: Boolean
+  "Enable email notifications"
+  enableEmailNotifications: Boolean
+  "Type-specific preferences (JSON)"
+  typePreferences: String
+  "Minimum priority level"
+  minimumPriority: NotificationPriority
+  "Quiet hours start"
+  quietHoursStart: String
+  "Quiet hours end"
+  quietHoursEnd: String
+  "Quiet hours timezone"
+  quietHoursTimezone: String
+}
+
+"""
+CreateNotificationTemplateInput for creating notification templates
+"""
+input CreateNotificationTemplateInput {
+  "Template name"
+  name: String!
+  "Notification type"
+  type: NotificationType!
+  "Default priority"
+  priority: NotificationPriority!
+  "Title template"
+  titleTemplate: String!
+  "Message template"
+  messageTemplate: String!
+  "Default action URL"
+  actionUrl: String
+  "Default action label"
+  actionLabel: String
+  "Default metadata"
+  defaultMetadata: String
+}
+
+# =============================================================================
+# Queries
+# =============================================================================
+
+extend type Query {
+  # Notification queries
+  "Get notifications for the current user"
+  notifications(
+    filter: NotificationFilterInput
+    limit: Int
+    offset: Int
+    orderBy: String
+  ): [Notification!]!
+  
+  "Get a specific notification by ID"
+  notification(id: ID!): Notification
+  
+  "Get notification summary for the current user"
+  notificationSummary: NotificationSummary!
+  
+  "Get unread notification count"
+  unreadNotificationCount: Int!
+  
+  # Notification preferences
+  "Get current user's notification preferences"
+  notificationPreferences: NotificationPreferences
+  
+  # Notification templates (admin only)
+  "Get all notification templates"
+  notificationTemplates: [NotificationTemplate!]!
+  
+  "Get a specific notification template"
+  notificationTemplate(id: ID!): NotificationTemplate
+}
+
+# =============================================================================
+# Mutations
+# =============================================================================
+
+extend type Mutation {
+  # Notification management
+  "Create a new notification"
+  createNotification(input: CreateNotificationInput!): Notification!
+  
+  "Update notification status"
+  updateNotification(input: UpdateNotificationInput!): Notification!
+  
+  "Mark notification as read"
+  markNotificationAsRead(id: ID!): Notification!
+  
+  "Mark notification as dismissed"
+  dismissNotification(id: ID!): Notification!
+  
+  "Archive notification"
+  archiveNotification(id: ID!): Notification!
+  
+  "Mark all notifications as read"
+  markAllNotificationsAsRead: Boolean!
+  
+  "Clear all read notifications"
+  clearReadNotifications: Boolean!
+  
+  # Notification preferences
+  "Update notification preferences"
+  updateNotificationPreferences(input: UpdateNotificationPreferencesInput!): NotificationPreferences!
+  
+  # Notification templates (admin only)
+  "Create notification template"
+  createNotificationTemplate(input: CreateNotificationTemplateInput!): NotificationTemplate!
+  
+  "Update notification template"
+  updateNotificationTemplate(id: ID!, input: CreateNotificationTemplateInput!): NotificationTemplate!
+  
+  "Delete notification template"
+  deleteNotificationTemplate(id: ID!): Boolean!
+  
+  # Manager-specific mutations
+  "Manually trigger daily summary notification (for testing) - sends yesterday's summary"
+  triggerManagerDailySummary: ManagerDailySummaryResult! @requireAuth @hasRole(roles: [MANAGER])
+}
+
+# =============================================================================
+# Manager Daily Summary Types
+# =============================================================================
+
+"""
+ManagerDailySummaryData represents aggregated data for manager daily summary notification
+Contains YESTERDAY's data - sent at 08:00 to ensure Mandor sync completion
+"""
+type ManagerDailySummaryData {
+  "Formatted date label (e.g., 'Kemarin, 9 Desember 2025')"
+  dateLabel: String!
+  "Yesterday's date (ISO format)"
+  summaryDate: Time!
+  "Yesterday's total production in tons"
+  yesterdayProduction: Float!
+  "Weekly production (last 7 days) in tons"
+  weeklyProduction: Float!
+  "Monthly target in tons"
+  monthlyTarget: Float!
+  "Target achievement percentage (based on monthly progress)"
+  targetAchievement: Float!
+  "Number of pending approvals"
+  pendingApprovals: Int!
+  "Number of active mandors yesterday"
+  activeMandors: Int!
+  "Total mandors under this manager"
+  totalMandors: Int!
+  "Top performer mandor name"
+  topPerformerName: String
+  "Top performer production in kg"
+  topPerformerProduction: Float
+  "Number of alerts/issues"
+  alertCount: Int!
+  "Alert messages if any"
+  alerts: [String!]!
+}
+
+"""
+ManagerDailySummaryResult represents the result of triggering a daily summary
+"""
+type ManagerDailySummaryResult {
+  "Whether the summary was sent successfully"
+  success: Boolean!
+  "The summary data that was sent"
+  summaryData: ManagerDailySummaryData
+  "Number of notifications sent"
+  notificationsSent: Int!
+  "Error message if failed"
+  errorMessage: String
+}
+
+# =============================================================================
+# Subscriptions
+# =============================================================================
+
+extend type Subscription {
+  # Real-time notification updates
+  "Subscribe to new notifications for the current user"
+  notificationReceived: Notification!
+  
+  "Subscribe to notification status changes"
+  notificationUpdated: Notification!
+  
+  "Subscribe to notification summary changes"
+  notificationSummaryUpdated: NotificationSummary!
+  
+  # Role-based subscriptions
+  "Subscribe to notifications for a specific role"
+  roleNotifications(role: String!): Notification!
+  
+  # Type-based subscriptions
+  "Subscribe to notifications of specific types"
+  typeNotifications(types: [NotificationType!]!): Notification!
+  
+  # Priority-based subscriptions
+  "Subscribe to high priority notifications"
+  highPriorityNotifications: Notification!
+  
+  "Subscribe to critical notifications"
+  criticalNotifications: Notification!
+}

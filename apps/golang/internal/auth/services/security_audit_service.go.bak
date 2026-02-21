@@ -1,0 +1,373 @@
+package services
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"agrinovagraphql/server/internal/graphql/generated"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
+
+// SecurityAuditLog represents a security audit log entry in the database
+type SecurityAuditLog struct {
+	ID                  string    `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	UserID              *string   `gorm:"type:uuid;index"`
+	EventType           string    `gorm:"type:varchar(50);not null;index"`
+	DeviceID            *string   `gorm:"type:varchar(255);index"`
+	Platform            *string   `gorm:"type:varchar(20)"`
+	IPAddress           *string   `gorm:"type:inet"`
+	UserAgent           *string   `gorm:"type:text"`
+	LogoutType          *string   `gorm:"type:varchar(50)"`
+	Success             bool      `gorm:"default:false;not null;index"`
+	ErrorMessage        *string   `gorm:"type:text"`
+	DurationMs          *int64    `gorm:"type:bigint"`
+	SessionID           *string   `gorm:"type:uuid"`
+	RemainingSessions   *int      `gorm:"type:int"`
+	TokensInvalidated   bool      `gorm:"default:false"`
+	SessionsTerminated  *int      `gorm:"type:int"`
+	Metadata            string    `gorm:"type:jsonb;default:'{}'"`
+	CreatedAt           time.Time `gorm:"default:NOW()"`
+	UpdatedAt           time.Time `gorm:"default:NOW()"`
+	DeletedAt           *time.Time `gorm:"index"`
+}
+
+// TableName specifies the table name for SecurityAuditLog
+func (SecurityAuditLog) TableName() string {
+	return "security_audit_logs"
+}
+
+// SecurityAuditService handles writing security audit logs to database
+type SecurityAuditService struct {
+	db                *gorm.DB
+	enableAsync       bool
+	logChannel        chan SecurityAuditLog
+	retentionDays     int
+}
+
+// SecurityAuditConfig holds configuration for security audit logging
+type SecurityAuditConfig struct {
+	EnableAsync   bool
+	RetentionDays int // Default: 90 days
+}
+
+// NewSecurityAuditService creates a new security audit service
+func NewSecurityAuditService(db *gorm.DB, config SecurityAuditConfig) *SecurityAuditService {
+	if config.RetentionDays == 0 {
+		config.RetentionDays = 90 // Default retention
+	}
+
+	service := &SecurityAuditService{
+		db:            db,
+		enableAsync:   config.EnableAsync,
+		retentionDays: config.RetentionDays,
+		logChannel:    make(chan SecurityAuditLog, 1000), // Buffer for async logging
+	}
+
+	// Start async logging goroutine if enabled
+	if config.EnableAsync {
+		go service.asyncLogWriter()
+	}
+
+	return service
+}
+
+// LogLogoutAttempt logs a logout attempt
+func (s *SecurityAuditService) LogLogoutAttempt(ctx context.Context, input LogoutInput, auditLogID string) error {
+	log := SecurityAuditLog{
+		ID:         auditLogID,
+		UserID:     &input.UserID,
+		EventType:  "logout_attempt",
+		Success:    false, // Attempt, not confirmed success yet
+		IPAddress:  stringPtr(input.IPAddress),
+		UserAgent:  stringPtr(input.UserAgent),
+		LogoutType: stringPtr(string(input.LogoutType)),
+		SessionID:  input.SessionID,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+
+	if input.DeviceContext != nil {
+		log.DeviceID = &input.DeviceContext.DeviceID
+		platform := string(input.DeviceContext.Platform)
+		log.Platform = &platform
+	}
+
+	if input.Reason != nil {
+		log.ErrorMessage = input.Reason // Use error_message field for reason
+	}
+
+	return s.writeLog(ctx, log)
+}
+
+// LogLogoutSuccess logs a successful logout
+func (s *SecurityAuditService) LogLogoutSuccess(ctx context.Context, input LogoutInput, auditLogID string, durationMs int64, result *LogoutResult) error {
+	log := SecurityAuditLog{
+		ID:                 auditLogID,
+		UserID:             &input.UserID,
+		EventType:          "logout_success",
+		Success:            true,
+		IPAddress:          stringPtr(input.IPAddress),
+		UserAgent:          stringPtr(input.UserAgent),
+		LogoutType:         stringPtr(string(input.LogoutType)),
+		SessionID:          input.SessionID,
+		DurationMs:         &durationMs,
+		TokensInvalidated:  result.TokensInvalidated,
+		RemainingSessions:  &result.RemainingSessions,
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
+	}
+
+	if input.DeviceContext != nil {
+		log.DeviceID = &input.DeviceContext.DeviceID
+		platform := string(input.DeviceContext.Platform)
+		log.Platform = &platform
+	}
+
+	return s.writeLog(ctx, log)
+}
+
+// LogLogoutFailure logs a failed logout attempt
+func (s *SecurityAuditService) LogLogoutFailure(ctx context.Context, input LogoutInput, auditLogID string, errorMsg string) error {
+	log := SecurityAuditLog{
+		ID:           auditLogID,
+		UserID:       &input.UserID,
+		EventType:    "logout_failure",
+		Success:      false,
+		IPAddress:    stringPtr(input.IPAddress),
+		UserAgent:    stringPtr(input.UserAgent),
+		LogoutType:   stringPtr(string(input.LogoutType)),
+		SessionID:    input.SessionID,
+		ErrorMessage: &errorMsg,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+
+	if input.DeviceContext != nil {
+		log.DeviceID = &input.DeviceContext.DeviceID
+		platform := string(input.DeviceContext.Platform)
+		log.Platform = &platform
+	}
+
+	return s.writeLog(ctx, log)
+}
+
+// LogLogoutAllDevices logs a logout from all devices event
+func (s *SecurityAuditService) LogLogoutAllDevices(ctx context.Context, userID string, deviceContext *generated.DeviceContextInput, auditLogID string, sessionsTerminated int, durationMs int64) error {
+	log := SecurityAuditLog{
+		ID:                 auditLogID,
+		UserID:             &userID,
+		EventType:          "logout_all_devices",
+		Success:            true,
+		LogoutType:         stringPtr("USER_INITIATED"),
+		DurationMs:         &durationMs,
+		SessionsTerminated: &sessionsTerminated,
+		TokensInvalidated:  true,
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
+	}
+
+	if deviceContext != nil {
+		log.DeviceID = &deviceContext.DeviceID
+		platform := string(deviceContext.Platform)
+		log.Platform = &platform
+	}
+
+	return s.writeLog(ctx, log)
+}
+
+// LogEmergencyLogout logs an emergency logout event
+func (s *SecurityAuditService) LogEmergencyLogout(ctx context.Context, userID string, deviceContext *generated.DeviceContextInput) error {
+	auditLogID := uuid.New().String()
+
+	log := SecurityAuditLog{
+		ID:                auditLogID,
+		UserID:            &userID,
+		EventType:         "emergency_logout",
+		Success:           true,
+		LogoutType:        stringPtr(string(generated.LogoutTypeEmergency)),
+		TokensInvalidated: true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	}
+
+	if deviceContext != nil {
+		log.DeviceID = &deviceContext.DeviceID
+		platform := string(deviceContext.Platform)
+		log.Platform = &platform
+	}
+
+	return s.writeLog(ctx, log)
+}
+
+// LogSessionTimeout logs a session timeout event
+func (s *SecurityAuditService) LogSessionTimeout(ctx context.Context, userID, sessionID string) error {
+	auditLogID := uuid.New().String()
+
+	log := SecurityAuditLog{
+		ID:         auditLogID,
+		UserID:     &userID,
+		EventType:  "session_timeout",
+		Success:    true,
+		LogoutType: stringPtr(string(generated.LogoutTypeSessionTimeout)),
+		SessionID:  &sessionID,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+
+	return s.writeLog(ctx, log)
+}
+
+// LogTokenExpired logs a token expiration event
+func (s *SecurityAuditService) LogTokenExpired(ctx context.Context, userID, deviceID string) error {
+	auditLogID := uuid.New().String()
+
+	log := SecurityAuditLog{
+		ID:         auditLogID,
+		UserID:     &userID,
+		EventType:  "token_expired",
+		Success:    true,
+		LogoutType: stringPtr(string(generated.LogoutTypeTokenExpired)),
+		DeviceID:   &deviceID,
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+
+	return s.writeLog(ctx, log)
+}
+
+// LogSecurityViolation logs a security violation logout
+func (s *SecurityAuditService) LogSecurityViolation(ctx context.Context, userID, reason, ipAddress string) error {
+	auditLogID := uuid.New().String()
+
+	log := SecurityAuditLog{
+		ID:           auditLogID,
+		UserID:       &userID,
+		EventType:    "security_violation",
+		Success:      true,
+		LogoutType:   stringPtr(string(generated.LogoutTypeSecurityViolation)),
+		ErrorMessage: &reason,
+		IPAddress:    &ipAddress,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
+	}
+
+	return s.writeLog(ctx, log)
+}
+
+// writeLog writes a log entry to database (sync or async based on configuration)
+func (s *SecurityAuditService) writeLog(ctx context.Context, log SecurityAuditLog) error {
+	if s.enableAsync {
+		// Non-blocking async write
+		select {
+		case s.logChannel <- log:
+			return nil
+		default:
+			// Channel full, write synchronously as fallback
+			return s.db.WithContext(ctx).Create(&log).Error
+		}
+	}
+
+	// Synchronous write
+	return s.db.WithContext(ctx).Create(&log).Error
+}
+
+// asyncLogWriter processes logs from channel asynchronously
+func (s *SecurityAuditService) asyncLogWriter() {
+	for log := range s.logChannel {
+		// Use background context for async writes
+		ctx := context.Background()
+		if err := s.db.WithContext(ctx).Create(&log).Error; err != nil {
+			// Log error but continue processing
+			fmt.Printf("Failed to write security audit log %s: %v\n", log.ID, err)
+		}
+	}
+}
+
+// GetRecentLogs retrieves recent audit logs for a user
+func (s *SecurityAuditService) GetRecentLogs(ctx context.Context, userID string, limit int) ([]SecurityAuditLog, error) {
+	if limit == 0 {
+		limit = 50 // Default limit
+	}
+
+	var logs []SecurityAuditLog
+	err := s.db.WithContext(ctx).
+		Where("user_id = ? AND deleted_at IS NULL", userID).
+		Order("created_at DESC").
+		Limit(limit).
+		Find(&logs).Error
+
+	return logs, err
+}
+
+// GetFailedAttempts retrieves failed logout attempts for security monitoring
+func (s *SecurityAuditService) GetFailedAttempts(ctx context.Context, userID string, since time.Time) ([]SecurityAuditLog, error) {
+	var logs []SecurityAuditLog
+	err := s.db.WithContext(ctx).
+		Where("user_id = ? AND success = ? AND created_at >= ? AND deleted_at IS NULL", userID, false, since).
+		Order("created_at DESC").
+		Find(&logs).Error
+
+	return logs, err
+}
+
+// CleanupOldLogs removes audit logs older than retention period
+func (s *SecurityAuditService) CleanupOldLogs(ctx context.Context) error {
+	cutoffDate := time.Now().AddDate(0, 0, -s.retentionDays)
+
+	result := s.db.WithContext(ctx).
+		Where("created_at < ?", cutoffDate).
+		Delete(&SecurityAuditLog{})
+
+	if result.Error != nil {
+		return fmt.Errorf("failed to cleanup old logs: %w", result.Error)
+	}
+
+	fmt.Printf("Cleaned up %d old security audit logs (older than %d days)\n", result.RowsAffected, s.retentionDays)
+	return nil
+}
+
+// GetLogoutStatistics retrieves logout statistics for a time period
+func (s *SecurityAuditService) GetLogoutStatistics(ctx context.Context, startTime, endTime time.Time) (map[string]interface{}, error) {
+	var stats struct {
+		TotalLogouts      int64
+		SuccessfulLogouts int64
+		FailedLogouts     int64
+		AvgDurationMs     float64
+		MaxDurationMs     int64
+	}
+
+	err := s.db.WithContext(ctx).Model(&SecurityAuditLog{}).
+		Select(`
+			COUNT(*) as total_logouts,
+			COUNT(*) FILTER (WHERE success = true) as successful_logouts,
+			COUNT(*) FILTER (WHERE success = false) as failed_logouts,
+			AVG(duration_ms) as avg_duration_ms,
+			MAX(duration_ms) as max_duration_ms
+		`).
+		Where("event_type LIKE 'logout%' AND created_at BETWEEN ? AND ? AND deleted_at IS NULL", startTime, endTime).
+		Scan(&stats).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"total_logouts":      stats.TotalLogouts,
+		"successful_logouts": stats.SuccessfulLogouts,
+		"failed_logouts":     stats.FailedLogouts,
+		"avg_duration_ms":    stats.AvgDurationMs,
+		"max_duration_ms":    stats.MaxDurationMs,
+		"success_rate":       float64(stats.SuccessfulLogouts) / float64(stats.TotalLogouts) * 100,
+	}, nil
+}
+
+
+// Close gracefully shuts down the audit service
+func (s *SecurityAuditService) Close() {
+	if s.enableAsync {
+		close(s.logChannel)
+	}
+}

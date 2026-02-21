@@ -1,0 +1,60 @@
+{
+  "name": "agrinova",
+  "private": true,
+  "description": "Sistem digital panen & gate check kebun sawit dengan dukungan offline-first",
+  "version": "1.0.0",
+  "scripts": {
+    "dev:api": "cd apps/golang && go run ./cmd/server/main.go",
+    "dev:web": "cd apps/web && npm run dev",
+    "dev:mobile": "cd apps/mobile && flutter run",
+    "build:mobile:apk": "cd apps/mobile && flutter build apk --release --dart-define-from-file=env/prod.json",
+    "build:mobile:aab": "cd apps/mobile && flutter build appbundle --release --dart-define-from-file=env/prod.json",
+    "build:mobile": "npm run build:mobile:apk && npm run build:mobile:aab",
+    "release:api": "powershell -ExecutionPolicy Bypass -File ./apps/golang/scripts/release-production-runtime.ps1",
+    "release:api:windows": "powershell -ExecutionPolicy Bypass -File ./apps/golang/scripts/release-production-windows.ps1",
+    "release:mobile": "powershell -ExecutionPolicy Bypass -File ./apps/mobile/scripts/release-production-runtime.ps1",
+    "release:mobile:apk": "powershell -ExecutionPolicy Bypass -File ./apps/mobile/scripts/release-production-runtime.ps1 -ApkOnly",
+    "release:mobile:aab": "powershell -ExecutionPolicy Bypass -File ./apps/mobile/scripts/release-production-runtime.ps1 -AabOnly",
+    "release:mobile:skip-build": "powershell -ExecutionPolicy Bypass -File ./apps/mobile/scripts/release-production-runtime.ps1 -SkipBuild",
+    "build:api": "cd apps/golang && go build ./cmd/server",
+    "build:web": "cd apps/web && npm run build",
+    "start:api": "cd apps/golang && go run ./cmd/server/main.go",
+    "start:web": "cd apps/web && npm start",
+    "start:api:safe": "node scripts/port-manager.js startup 8080 && cd apps/golang && go run ./cmd/server/main.go",
+    "install:all": "cd apps/golang && go mod download && cd ../web && npm install --legacy-peer-deps && cd ../mobile && flutter pub get",
+    "port:check": "node scripts/port-manager.js check 8080",
+    "port:kill": "node scripts/port-manager.js kill 8080",
+    "port:find": "node scripts/port-manager.js find 8080",
+    "diagnostics": "node scripts/server-diagnostics.js",
+    "db:seed": "cd apps/golang && go run ./cmd/seed/main.go"
+  },
+  "devDependencies": {
+    "axios": "^1.11.0",
+    "axios-cookiejar-support": "^6.0.4",
+    "concurrently": "^9.2.0",
+    "lightningcss": "^1.30.1",
+    "tough-cookie": "^5.1.2",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "keywords": [
+    "agrinova",
+    "palm-oil",
+    "harvest",
+    "gate-check",
+    "offline-first",
+    "react-native",
+    "nestjs",
+    "nextjs"
+  ],
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e",
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "docx": "^9.5.1",
+    "node-fetch": "^2.7.0",
+    "socket.io-client": "^4.8.1"
+  }
+}

@@ -1,0 +1,82 @@
+import createMiddleware from 'next-intl/middleware';
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+// Create internationalization middleware
+const intlMiddleware = createMiddleware({
+  locales: ['id', 'en'],
+  defaultLocale: 'id',
+  localeDetection: true,
+  alternateLinks: false
+});
+
+// Helper function to detect locale from request
+function getLocaleFromRequest(request: NextRequest): string {
+  const languageCookie = request.cookies.get('agrinova-language');
+  if (languageCookie?.value) {
+    return languageCookie.value === 'en' ? 'en' : 'id';
+  }
+
+  const acceptLanguage = request.headers.get('accept-language') || '';
+  const browserLang = acceptLanguage.split(',')[0]?.split('-')[0]?.toLowerCase();
+  return browserLang === 'en' ? 'en' : 'id';
+}
+
+// Enhanced middleware with authentication cookie validation and internationalization
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Skip for API routes and static files
+  if (pathname.startsWith('/api/') || pathname.startsWith('/_next/') || pathname.includes('.')) {
+    return NextResponse.next();
+  }
+
+  // Redirect root to default locale
+  if (pathname === '/') {
+    console.log('🔄 Middleware: Redirecting root to /id');
+    return NextResponse.redirect(new URL('/id', request.url));
+  }
+
+  // Define legacy routes that need immediate redirects
+  const legacyRoutes = ['/dashboard', '/login', '/profile'];
+  if (legacyRoutes.some(route => pathname === route)) {
+    const targetLocale = getLocaleFromRequest(request);
+    const newUrl = new URL(`/${targetLocale}${pathname}`, request.url);
+
+    // Preserve any query parameters
+    request.nextUrl.searchParams.forEach((value, key) => {
+      newUrl.searchParams.set(key, value);
+    });
+
+    console.log(`🔄 Middleware: Redirecting legacy route ${pathname} to ${newUrl.pathname}`);
+    return NextResponse.redirect(newUrl);
+  }
+
+  // Redirect dashboard sub-routes
+  if (pathname.startsWith('/dashboard/') && !pathname.startsWith('/dashboard/api/')) {
+    const targetLocale = getLocaleFromRequest(request);
+    const newUrl = new URL(`/${targetLocale}${pathname}`, request.url);
+
+    // Preserve any query parameters
+    request.nextUrl.searchParams.forEach((value, key) => {
+      newUrl.searchParams.set(key, value);
+    });
+
+    console.log(`🔄 Middleware: Redirecting dashboard sub-route ${pathname} to ${newUrl.pathname}`);
+    return NextResponse.redirect(newUrl);
+  }
+
+  
+  
+  // Apply internationalization middleware for other routes
+  return intlMiddleware(request);
+}
+
+// Configure which paths this middleware should run on
+export const config = {
+  matcher: [
+    '/',
+    '/((?!api|_next|_vercel|.*\\..*).*)',
+    '/(id|en)/:path*',
+  ],
+};

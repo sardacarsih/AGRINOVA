@@ -1,0 +1,65 @@
+# Quality Grading Schema for TBS Quality Control
+
+type GradingRecord {
+  id: ID!
+  harvestRecordId: ID!
+  graderId: ID!
+  qualityScore: Int!
+  maturityLevel: String!
+  brondolanPercentage: Float!
+  looseFruitPercentage: Float!
+  dirtPercentage: Float!
+  gradingNotes: String
+  gradingDate: Time!
+  isApproved: Boolean!
+  approvedBy: ID
+  approvedAt: Time
+  rejectionReason: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+input CreateGradingRecordInput {
+  harvestRecordId: ID!
+  qualityScore: Int!
+  maturityLevel: String!
+  brondolanPercentage: Float!
+  looseFruitPercentage: Float!
+  dirtPercentage: Float!
+  gradingNotes: String
+  gradingDate: Time!
+}
+
+input UpdateGradingRecordInput {
+  qualityScore: Int
+  maturityLevel: String
+  brondolanPercentage: Float
+  looseFruitPercentage: Float
+  dirtPercentage: Float
+  gradingNotes: String
+}
+
+input GradingApprovalInput {
+  approved: Boolean!
+  rejectionReason: String
+}
+
+extend type Query {
+  gradingRecords: [GradingRecord!]! @requireAuth @hasRole(roles: [GRADING, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+  gradingRecord(id: ID!): GradingRecord @requireAuth @hasRole(roles: [GRADING, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+  gradingRecordsByHarvest(harvestRecordId: ID!): [GradingRecord!]! @requireAuth @hasRole(roles: [GRADING, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+  pendingGradingApprovals: [GradingRecord!]! @requireAuth @hasRole(roles: [MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+}
+
+extend type Mutation {
+  createGradingRecord(input: CreateGradingRecordInput!): GradingRecord! @requireAuth @hasRole(roles: [GRADING])
+  updateGradingRecord(id: ID!, input: UpdateGradingRecordInput!): GradingRecord! @requireAuth @hasRole(roles: [GRADING, MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+  approveGrading(id: ID!, input: GradingApprovalInput!): GradingRecord! @requireAuth @hasRole(roles: [MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+  rejectGrading(id: ID!, input: GradingApprovalInput!): GradingRecord! @requireAuth @hasRole(roles: [MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+}
+
+extend type Subscription {
+  gradingUpdated: GradingRecord! @requireAuth @hasRole(roles: [GRADING, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+  gradingApproved: GradingRecord! @requireAuth @hasRole(roles: [MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+  gradingRejected: GradingRecord! @requireAuth @hasRole(roles: [MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+}

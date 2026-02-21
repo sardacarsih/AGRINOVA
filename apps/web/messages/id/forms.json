@@ -1,0 +1,1729 @@
+{
+  "login": {
+    "title": "Masuk ke Dashboard",
+    "subtitle": "Selamat datang di Sistem Manajemen Perkebunan Agrinova",
+    "identifier": "Username atau Email",
+    "identifierPlaceholder": "Masukkan username atau email",
+    "password": "Password",
+    "passwordPlaceholder": "Masukkan password",
+    "rememberMe": "Ingat saya",
+    "forgotPassword": "Lupa password?",
+    "loginButton": "Masuk",
+    "loggingIn": "Sedang masuk...",
+    "loginSuccess": "Login berhasil! Mengalihkan ke dashboard...",
+    "loginError": "Login gagal. Periksa kembali username dan password Anda.",
+    "invalidCredentials": "Username atau password salah",
+    "accountLocked": "Akun terkunci. Silakan hubungi administrator.",
+    "networkError": "Terjadi kesalahan jaringan. Silakan coba lagi."
+  },
+  "register": {
+    "title": "Daftar Akun Baru",
+    "subtitle": "Buat akun baru untuk mengakses sistem",
+    "fullName": "Nama Lengkap",
+    "fullNamePlaceholder": "Masukkan nama lengkap",
+    "email": "Email",
+    "emailPlaceholder": "masukkan@email.com",
+    "phone": "Nomor Telepon",
+    "phonePlaceholder": "Masukkan nomor telepon",
+    "password": "Password",
+    "passwordPlaceholder": "Minimal 8 karakter",
+    "confirmPassword": "Konfirmasi Password",
+    "confirmPasswordPlaceholder": "Masukkan kembali password",
+    "agreeTerms": "Saya setuju dengan syarat dan ketentuan",
+    "registerButton": "Daftar",
+    "registering": "Mendaftar...",
+    "registerSuccess": "Pendaftaran berhasil! Silakan cek email untuk verifikasi.",
+    "registerError": "Pendaftaran gagal. Silakan coba lagi.",
+    "emailExists": "Email sudah terdaftar",
+    "weakPassword": "Password terlalu lemah. Gun kombinasi huruf, angka, dan simbol."
+  },
+  "profile": {
+    "title": "Profil Pengguna",
+    "subtitle": "Kelola informasi profil dan pengaturan akun",
+    "personalInfo": "Informasi Pribadi",
+    "accountSettings": "Pengaturan Akun",
+    "security": "Keamanan",
+    "notifications": "Notifikasi",
+    "preferences": "Preferensi",
+    "language": "Bahasa",
+    "theme": "Tema",
+    "timezone": "Zona Waktu",
+    "changePassword": "Ubah Password",
+    "oldPassword": "Password Lama",
+    "newPassword": "Password Baru",
+    "confirmNewPassword": "Konfirmasi Password Baru",
+    "updateProfile": "Perbarui Profil",
+    "updating": "Memperbarui...",
+    "updateSuccess": "Profil berhasil diperbarui",
+    "updateError": "Gagal memperbarui profil",
+    "passwordChanged": "Password berhasil diubah",
+    "passwordChangeError": "Gagal mengubah password"
+  },
+  "features": {
+    "realTimeAnalytics": {
+      "title": "Analytics Real-Time",
+      "description": "Monitor panen & gate check secara langsung"
+    },
+    "secureOperations": {
+      "title": "Operasi Aman",
+      "description": "Keamanan tingkat enterprise dengan enkripsi end-to-end"
+    },
+    "offlineFirstMobile": {
+      "title": "Mobile Offline-First",
+      "description": "Tetap produktif meski tanpa koneksi internet"
+    },
+    "multiRoleAccess": {
+      "title": "Akses Multi-Peran",
+      "description": "Mandor, Asisten, Satpam, Manager - semua terintegrasi"
+    }
+  },
+  "offlineMode": {
+    "title": "Mode Offline 30 Hari",
+    "description": "Aplikasi mobile dapat bekerja sepenuhnya offline hingga 30 hari tanpa koneksi internet.",
+    "jwtAuth": "JWT authentication offline",
+    "autoSync": "Auto-sync saat koneksi tersedia",
+    "deviceBinding": "Device binding untuk keamanan"
+  },
+  "forgotPasswordComingSoon": "Fitur lupa password akan segera tersedia",
+  "qrLoginSuccess": "Selamat datang via QR, {name}!",
+  "qrLoginError": "Terjadi kesalahan saat login dengan QR. Silakan coba lagi.",
+  "roleAutoDetermined": "Peran Anda akan ditentukan secara otomatis berdasarkan akun yang terdaftar.",
+  "quickDemoAccess": "Akses Demo Cepat",
+  "demoPasswordForAll": "Password untuk semua akun demo:",
+  "loginIssue": "Login Mungkin Bermasalah",
+  "loginIssueShort": "Login Issue",
+  "authServiceUnavailable": "Layanan autentikasi tidak tersedia. Login mungkin gagal atau lambat.",
+  "loginConfirmed": "Login berhasil dikonfirmasi!",
+  "authServiceWarning": "Peringatan Layanan Autentikasi",
+  "qr": {
+    "tabText": "QR",
+    "tabTextFull": "QR Code",
+    "validFor": "Berlaku",
+    "generating": "Generating QR Code...",
+    "willRedirect": "Anda akan dialihkan ke dashboard...",
+    "loginSuccess": "Login Berhasil!",
+    "expired": "QR Code Kedaluwarsa",
+    "expiredMessage": "Kode QR telah habis masa berlakunya",
+    "generateNew": "Generate QR Baru",
+    "scanToLogin": "Scan untuk Masuk",
+    "useAppDescription": "Gunakan aplikasi AgrInova di ponsel Anda untuk scan QR code ini",
+    "loginWithMobile": "Login dengan Mobile",
+    "steps": {
+      "title": "Cara Menggunakan",
+      "step1": "Buka aplikasi AgrInova di ponsel",
+      "step2": "Tap menu 'QR Login' di beranda",
+      "step3": "Arahkan kamera ke QR code ini",
+      "step4": "Konfirmasi login di aplikasi"
+    },
+    "demo": {
+      "confirm": "Demo: Konfirmasi login?",
+      "instruction": "Gunakan tombol 'Demo' untuk simulasi konfirmasi dari mobile app.",
+      "productionNote": "Pada production, konfirmasi dilakukan via scan QR di aplikasi mobile."
+    },
+    "features": {
+      "secure": "Aman",
+      "fast": "Cepat",
+      "realtime": "Real-time"
+    },
+    "regenerate": "Generate Ulang",
+    "demoButton": "Demo",
+    "devMode": {
+      "title": "Mode Development",
+      "description": "Gunakan tombol 'Demo' untuk simulasi konfirmasi dari mobile app.",
+      "productionNote": "Pada production, konfirmasi dilakukan via scan QR di aplikasi mobile."
+    }
+  },
+  "clickToAutofill": "Klik untuk mengisi otomatis kredensial",
+  "clickToLogin": "Klik \"Masuk\" untuk login",
+  "demoCredentialsLoaded": "Kredensial demo dimuat: {role}",
+  "validation": {
+    "required": "Field ini wajib diisi",
+    "emailInvalid": "Format email tidak valid",
+    "phoneInvalid": "Format nomor telepon tidak valid",
+    "passwordTooShort": "Password minimal 8 karakter",
+    "passwordTooWeak": "Password terlalu lemah",
+    "passwordMismatch": "Password tidak cocok",
+    "nameTooShort": "Nama minimal 2 karakter",
+    "nameTooLong": "Nama maksimal 100 karakter",
+    "emailExists": "Email sudah terdaftar",
+    "usernameExists": "Username sudah digunakan",
+    "invalidDate": "Format tanggal tidak valid",
+    "invalidTime": "Format waktu tidak valid",
+    "numberInvalid": "Harus berupa angka",
+    "numberMin": "Nilai minimal {min}",
+    "numberMax": "Nilai maksimal {max}",
+    "fileTooBig": "Ukuran file maksimal {size}MB",
+    "fileInvalid": "Format file tidak didukung",
+    "urlInvalid": "Format URL tidak valid",
+    "selectOption": "Silakan pilih opsi",
+    "minItems": "Minimal {min} item harus dipilih",
+    "maxItems": "Maksimal {max} item bisa dipilih"
+  },
+  "harvest": {
+    "title": "Input Data Panen",
+    "date": "Tanggal Panen",
+    "block": "Blok",
+    "tph": "TPH",
+    "workers": "Jumlah Pekerja",
+    "tbsCount": "Jumlah TBS",
+    "tbsWeight": "Berat TBS (kg)",
+    "notes": "Catatan Panen",
+    "saveButton": "Simpan Data",
+    "saving": "Menyimpan...",
+    "success": "Data panen berhasil disimpan",
+    "error": "Gagal menyimpan data panen",
+    "duplicateEntry": "Data panen untuk TPH ini sudah ada"
+  },
+  "gateCheck": {
+    "title": "Pemeriksaan Gerbang",
+    "vehicleNumber": "Nomor Kendaraan",
+    "driverName": "Nama Pengemudi",
+    "vehicleType": "Jenis Kendaraan",
+    "entryTime": "Waktu Masuk",
+    "exitTime": "Waktu Keluar",
+    "purpose": "Tujuan Kunjungan",
+    "notes": "Catatan",
+    "checkIn": "Check In",
+    "checkOut": "Check Out",
+    "processing": "Memproses...",
+    "success": "Data berhasil disimpan",
+    "error": "Gagal menyimpan data"
+  },
+  "company": {
+    "title": "Data Perusahaan",
+    "name": "Nama Perusahaan",
+    "code": "Kode Perusahaan",
+    "address": "Alamat Perusahaan",
+    "phone": "Telepon",
+    "email": "Email",
+    "website": "Website",
+    "description": "Deskripsi",
+    "logo": "Logo Perusahaan",
+    "active": "Status Aktif",
+    "saveButton": "Simpan Perusahaan",
+    "success": "Data perusahaan berhasil disimpan",
+    "error": "Gagal menyimpan data perusahaan",
+    "codeExists": "Kode perusahaan sudah digunakan"
+  },
+  "user": {
+    "addUser": "Tambah User",
+    "editUser": "Edit User",
+    "deleteUser": "Hapus User",
+    "searchPlaceholder": "Cari nama, email, ID karyawan...",
+    "selectRole": "Role",
+    "selectEstate": "Estate",
+    "selectDivision": "Divisi",
+    "selectStatus": "Status",
+    "saveUser": "Simpan User",
+    "updateUser": "Update User",
+    "deleteConfirm": "Apakah Anda yakin ingin menghapus user ini?",
+    "deleteSuccess": "User berhasil dihapus",
+    "allRoles": "Semua Role",
+    "allEstates": "Semua Estate",
+    "allDivisions": "Semua Divisi",
+    "allStatus": "Semua Status",
+    "active": "Aktif",
+    "inactive": "Tidak Aktif",
+    "suspended": "Ditangguangkan",
+    "title": "Data Pengguna",
+    "username": "Username",
+    "fullName": "Nama Lengkap",
+    "email": "Email",
+    "phone": "Telepon",
+    "role": "Peran",
+    "company": "Perusahaan",
+    "estate": "Perkebunan",
+    "division": "Divisi",
+    "active": "Status Aktif",
+    "saveButton": "Simpan Pengguna",
+    "success": "Data pengguna berhasil disimpan",
+    "error": "Gagal menyimpan data pengguna",
+    "usernameExists": "Username sudah digunakan",
+    "emailExists": "Email sudah terdaftar"
+  },
+  "table": {
+    "headers": {
+      "no": "No",
+      "id": "ID",
+      "name": "Nama",
+      "username": "Username",
+      "email": "Email",
+      "phone": "Telepon",
+      "role": "Role",
+      "company": "Perusahaan",
+      "estate": "Perkebunan",
+      "division": "Divisi",
+      "status": "Status",
+      "active": "Aktif",
+      "inactive": "Tidak Aktif",
+      "suspended": "Ditangguhkan",
+      "createdAt": "Dibuat Pada",
+      "updatedAt": "Diperbarui Pada",
+      "actions": "Aksi",
+      "view": "Lihat",
+      "edit": "Edit",
+      "delete": "Hapus",
+      "block": "Blok",
+      "tph": "TPH",
+      "workers": "Pekerja",
+      "tbsCount": "Jumlah TBS",
+      "tbsWeight": "Berat TBS (kg)",
+      "date": "Tanggal",
+      "time": "Waktu",
+      "notes": "Catatan",
+      "vehicleNumber": "Nomor Kendaraan",
+      "driverName": "Nama Pengemudi",
+      "vehicleType": "Jenis Kendaraan",
+      "entryTime": "Waktu Masuk",
+      "exitTime": "Waktu Keluar",
+      "purpose": "Tujuan",
+      "harvestDate": "Tanggal Panen",
+      "harvestStatus": "Status Panen",
+      "pending": "Menunggu",
+      "approved": "Disetujui",
+      "rejected": "Ditolak"
+    },
+    "pagination": {
+      "previous": "Sebelumnya",
+      "next": "Selanjutnya",
+      "first": "Pertama",
+      "last": "Terakhir",
+      "page": "Halaman",
+      "of": "dari",
+      "showing": "Menampilkan",
+      "to": "hingga",
+      "of": "dari",
+      "entries": "data",
+      "noData": "Tidak ada data",
+      "loading": "Memuat...",
+      "error": "Error memuat data",
+      "retry": "Coba Lagi",
+      "itemsPerPage": "Data per halaman",
+      "10": "10",
+      "25": "25",
+      "50": "50",
+      "100": "100"
+    },
+    "empty": {
+      "noData": "Tidak ada data tersedia",
+      "noUsers": "Tidak ada user ditemukan",
+      "noCompanies": "Tidak ada perusahaan ditemukan",
+      "noEstates": "Tidak ada perkebunan ditemukan",
+      "noDivisions": "Tidak ada divisi ditemukan",
+      "noBlocks": "Tidak ada blok ditemukan",
+      "noHarvests": "Tidak ada data panen ditemukan",
+      "noGateChecks": "Tidak ada catatan pemeriksaan gerbang ditemukan",
+      "noAssignments": "Tidak ada penugasan ditemukan",
+      "searchNoResults": "Tidak ada hasil untuk pencarian Anda",
+      "filterNoResults": "Tidak ada hasil yang cocok dengan filter yang dipilih",
+      "createFirst": "Buat {item} pertama",
+      "addFirstUser": "Tambah user pertama Anda",
+      "addFirstCompany": "Tambah perusahaan pertama Anda",
+      "addFirstEstate": "Tambah perkebunan pertama Anda"
+    },
+    "actions": {
+      "select": "Pilih",
+      "selectAll": "Pilih Semua",
+      "clearSelection": "Hapus Pilihan",
+      "bulkActions": "Aksi Massal",
+      "deleteSelected": "Hapus yang Dipilih",
+      "exportSelected": "Ekspor yang Dipilih",
+      "approveSelected": "Setujui yang Dipilih",
+      "rejectSelected": "Tolak yang Dipilih",
+      "refresh": "Refresh",
+      "filter": "Filter",
+      "sort": "Urutkan",
+      "search": "Cari",
+      "clearSearch": "Hapus Pencarian",
+      "export": "Ekspor",
+      "import": "Impor",
+      "print": "Cetak",
+      "download": "Unduh",
+      "viewDetails": "Lihat Detail",
+      "editDetails": "Edit Detail",
+      "deleteItem": "Hapus Item"
+    }
+  },
+  "notifications": {
+    "success": {
+      "login": "Login berhasil! Mengalihkan ke dashboard...",
+      "logout": "Anda telah berhasil logout",
+      "save": "Data berhasil disimpan",
+      "update": "Data berhasil diperbarui",
+      "delete": "Data berhasil dihapus",
+      "create": "Data berhasil dibuat",
+      "approve": "Data berhasil disetujui",
+      "reject": "Data berhasil ditolak",
+      "upload": "File berhasil diunggah",
+      "download": "File berhasil diunduh",
+      "export": "Data berhasil diekspor",
+      "import": "Data berhasil diimpor",
+      "sync": "Data berhasil disinkronisasi",
+      "send": "Data berhasil dikirim",
+      "copy": "Data berhasil disalin ke clipboard",
+      "move": "Data berhasil dipindahkan",
+      "archive": "Data berhasil diarsipkan",
+      "restore": "Data berhasil dipulihkan",
+      "activate": "Akun berhasil diaktifkan",
+      "deactivate": "Akun berhasil dinonaktifkan",
+      "reset": "Password berhasil di-reset",
+      "change": "Password berhasil diubah",
+      "verify": "Email berhasil diverifikasi",
+      "register": "Pendaftaran berhasil! Silakan cek email Anda",
+      "assign": "Penugasan berhasil diselesaikan",
+      "unassign": "Penugasan berhasil dihapus",
+      "connect": "Koneksi berhasil dibuat",
+      "disconnect": "Terputus dari koneksi"
+    },
+    "error": {
+      "login": "Login gagal. Periksa kembali kredensial Anda",
+      "logout": "Logout gagal. Silakan coba lagi",
+      "save": "Gagal menyimpan data",
+      "update": "Gagal memperbarui data",
+      "delete": "Gagal menghapus data",
+      "create": "Gagal membuat data",
+      "approve": "Gagal menyetujui data",
+      "reject": "Gagal menolak data",
+      "upload": "Gagal mengunggah file",
+      "download": "Gagal mengunduh file",
+      "export": "Gagal mengekspor data",
+      "import": "Gagal mengimpor data",
+      "sync": "Gagal menyinkronkan data",
+      "send": "Gagal mengirim data",
+      "copy": "Gagal menyalin ke clipboard",
+      "move": "Gagal memindahkan data",
+      "archive": "Gagal mengarsipkan data",
+      "restore": "Gagal memulihkan data",
+      "activate": "Gagal mengaktifkan akun",
+      "deactivate": "Gagal menonaktifkan akun",
+      "reset": "Gagal me-reset password",
+      "change": "Gagal mengubah password",
+      "verify": "Gagal memverifikasi email",
+      "register": "Pendaftaran gagal. Silakan coba lagi",
+      "assign": "Gagal menyelesaikan penugasan",
+      "unassign": "Gagal menghapus penugasan",
+      "connect": "Gagal membuat koneksi",
+      "disconnect": "Gagal memutus koneksi",
+      "network": "Terjadi kesalahan jaringan. Periksa koneksi Anda",
+      "server": "Terjadi kesalahan server. Silakan coba lagi nanti",
+      "timeout": "Request timeout. Silakan coba lagi",
+      "unauthorized": "Akses tidak sah. Silakan login",
+      "forbidden": "Akses ditolak. Anda tidak memiliki izin",
+      "notFound": "Data tidak ditemukan",
+      "alreadyExists": "Data sudah ada",
+      "invalid": "Data tidak valid",
+      "required": "Field wajib tidak ada",
+      "format": "Format data tidak valid",
+      "size": "Ukuran file terlalu besar",
+      "type": "Tipe file tidak didukung",
+      "limit": "Batas request terlampaui",
+      "maintenance": "Sistem dalam maintenance. Silakan coba lagi nanti"
+    },
+    "warning": {
+      "unsaved": "Ada perubahan yang belum disimpan. Yakin ingin keluar?",
+      "delete": "Yakin ingin menghapus item ini?",
+      "bulkDelete": "Yakin ingin menghapus {count} item?",
+      "overwrite": "Aksi ini akan menimpa data yang ada. Lanjutkan?",
+      "irreversible": "Aksi ini tidak dapat dibatalkan. Lanjutkan?",
+      "session": "Sesi Anda akan segera berakhir",
+      "quota": "Anda mendekati batas penyimpanan",
+      "connection": "Koneksi tidak stabil terdeteksi",
+      "battery": "Baterai lemah. Simpan pekerjaan Anda",
+      "incomplete": "Beberapa data tidak dapat disinkronkan",
+      "duplicate": "Data duplikat terdeteksi",
+      "conflict": "Konflik data terdeteksi. Silakan periksa",
+      "outdated": "Data mungkin sudah usang. Silakan refresh",
+      "deprecated": "Fitur ini akan segera dihentikan"
+    },
+    "info": {
+      "loading": "Memuat...",
+      "processing": "Memproses...",
+      "saving": "Menyimpan...",
+      "updating": "Memperbarui...",
+      "deleting": "Menghapus...",
+      "uploading": "Mengunggah...",
+      "downloading": "Mengunduh...",
+      "syncing": "Menyinkronkan...",
+      "connecting": "Menghubungkan...",
+      "disconnecting": "Memutus...",
+      "refreshing": "Menyegarkan...",
+      "searching": "Mencari...",
+      "filtering": "Memfilter...",
+      "sorting": "Mengurutkan...",
+      "exporting": "Mengekspor...",
+      "importing": "Mengimpor...",
+      "generating": "Membuat laporan...",
+      "compiling": "Mengompilasi data...",
+      "validating": "Memvalidasi data...",
+      "backingUp": "Membuat backup...",
+      "restoring": "Memulihkan backup...",
+      "noChanges": "Tidak ada perubahan untuk disimpan",
+      "upToDate": "Data sudah terbaru",
+      "newVersion": "Versi baru tersedia",
+      "featureAvailable": "Fitur baru tersedia",
+      "tip": "Tip: {message}",
+      "help": "Bantuan: {message}"
+    }
+  },
+  "dashboard": {
+    "titles": {
+      "mandor": "Dashboard Mandor - Manajemen Panen",
+      "asisten": "Dashboard Asisten - Persetujuan Panen",
+      "manager": "Dashboard Manager - Monitoring Perkebunan",
+      "areaManager": "Dashboard Area Manager - Pengawasan Regional",
+      "satpam": "Dashboard Satpam - Kontrol Gerbang",
+      "companyAdmin": "Dashboard Company Admin - Manajemen Perusahaan",
+      "superAdmin": "Dashboard Super Admin - Administrasi Sistem",
+      "guest": "Dashboard Tamu - Akses Terbatas",
+      "admin": "Dashboard Admin - Administrasi Umum"
+    },
+    "subtitles": {
+      "mandor": "Input dan kelola data panen harian",
+      "asisten": "Review dan setujui pengajuan panen",
+      "manager": "Monitor performa perkebunan dan laporan",
+      "areaManager": "Awasi multiple perkebunan lintas wilayah",
+      "satpam": "Kelola akses gerbang dan monitoring keamanan",
+      "companyAdmin": "Kelola pengaturan perusahaan dan pengguna",
+      "superAdmin": "Administrasi dan konfigurasi sistem-wide",
+      "guest": "Mode akses lihat terbatas",
+      "admin": "Tugas administrasi sistem umum"
+    },
+    "navigation": {
+      "overview": "Ringkasan",
+      "harvest": "Panen",
+      "gateCheck": "Pemeriksaan Gerbang",
+      "reports": "Laporan",
+      "users": "Pengguna",
+      "settings": "Pengaturan",
+      "profile": "Profil",
+      "companies": "Perusahaan",
+      "estates": "Perkebunan",
+      "divisions": "Divisi",
+      "blocks": "Blok",
+      "analytics": "Analitik",
+      "notifications": "Notifikasi",
+      "assignments": "Penugasan",
+      "approvals": "Persetujuan",
+      "history": "Riwayat",
+      "logs": "Log",
+      "monitoring": "Monitoring",
+      "maintenance": "Maintenance",
+      "backup": "Backup",
+      "security": "Keamanan",
+      "api": "Manajemen API",
+      "integrations": "Integrasi",
+      "help": "Bantuan & Dukungan",
+      "about": "Tentang"
+    },
+    "widgets": {
+      "welcome": "Selamat datang kembali, {name}!",
+      "todaysTasks": "Tugas Hari Ini",
+      "pendingApprovals": "Persetujuan Menunggu",
+      "recentActivity": "Aktivitas Terbaru",
+      "quickActions": "Aksi Cepat",
+      "statistics": "Statistik",
+      "performance": "Performa",
+      "alerts": "Peringatan",
+      "notifications": "Notifikasi",
+      "weather": "Cuaca",
+      "events": "Acara Mendatang",
+      "reminders": "Pengingat"
+    },
+    "actions": {
+      "newHarvest": "Input Panen Baru",
+      "viewReports": "Lihat Laporan",
+      "manageUsers": "Kelola Pengguna",
+      "gateEntry": "Masuk Gerbang",
+      "gateExit": "Keluar Gerbang",
+      "addUser": "Tambah Pengguna",
+      "addCompany": "Tambah Perusahaan",
+      "addEstate": "Tambah Perkebunan",
+      "exportData": "Ekspor Data",
+      "printReport": "Cetak Laporan",
+      "refreshData": "Refresh Data",
+      "viewDetails": "Lihat Detail",
+      "editProfile": "Edit Profil",
+      "changePassword": "Ubah Password",
+      "logout": "Logout"
+    },
+    "stats": {
+      "totalHarvests": "Total Panen",
+      "pendingHarvests": "Panen Menunggu",
+      "approvedHarvests": "Panen Disetujui",
+      "rejectedHarvests": "Panen Ditolak",
+      "totalTBS": "Total TBS",
+      "totalWeight": "Total Berat",
+      "averageWeight": "Berat Rata-rata",
+      "totalWorkers": "Total Pekerja",
+      "activeUsers": "Pengguna Aktif",
+      "totalCompanies": "Total Perusahaan",
+      "totalEstates": "Total Perkebunan",
+      "totalDivisions": "Total Divisi",
+      "totalBlocks": "Total Blok",
+      "gateEntries": "Masuk Gerbang",
+      "gateExits": "Keluar Gerbang",
+      "todayActivity": "Aktivitas Hari Ini",
+      "weeklyActivity": "Aktivitas Mingguan",
+      "monthlyActivity": "Aktivitas Bulanan",
+      "yearlyActivity": "Aktivitas Tahunan"
+    }
+  },
+  "charts": {
+    "labels": {
+      "harvest": "Panen",
+      "production": "Produksi",
+      "tbs": "TBS (Tandan Buah Segar)",
+      "weight": "Berat (kg)",
+      "workers": "Pekerja",
+      "blocks": "Blok",
+      "estates": "Perkebunan",
+      "divisions": "Divisi",
+      "companies": "Perusahaan",
+      "date": "Tanggal",
+      "time": "Waktu",
+      "month": "Bulan",
+      "year": "Tahun",
+      "quarter": "Kuartal",
+      "week": "Minggu",
+      "today": "Hari Ini",
+      "yesterday": "Kemarin",
+      "thisWeek": "Minggu Ini",
+      "lastWeek": "Minggu Lalu",
+      "thisMonth": "Bulan Ini",
+      "lastMonth": "Bulan Lalu",
+      "thisQuarter": "Kuartal Ini",
+      "lastQuarter": "Kuartal Lalu",
+      "thisYear": "Tahun Ini",
+      "lastYear": "Tahun Lalu",
+      "pending": "Menunggu",
+      "approved": "Disetujui",
+      "rejected": "Ditolak",
+      "completed": "Selesai",
+      "inProgress": "Dalam Proses",
+      "scheduled": "Terjadwal",
+      "cancelled": "Dibatalkan",
+      "onTime": "Tepat Waktu",
+      "delayed": "Terlambat",
+      "overdue": "Terlambat",
+      "active": "Aktif",
+      "inactive": "Tidak Aktif",
+      "online": "Online",
+      "offline": "Offline"
+    },
+    "metrics": {
+      "harvestMetrics": {
+        "totalHarvest": "Total Panen",
+        "dailyHarvest": "Panen Harian",
+        "weeklyHarvest": "Panen Mingguan",
+        "monthlyHarvest": "Panen Bulanan",
+        "yearlyHarvest": "Panen Tahunan",
+        "averageTBS": "Rata-rata TBS per Panen",
+        "totalTBS": "Total TBS Terkumpul",
+        "totalWeight": "Total Berat (kg)",
+        "averageWeight": "Rata-rata Berat per TBS (kg)",
+        "harvestEfficiency": "Efisiensi Panen (%)",
+        "workerProductivity": "Produktivitas Pekerja (TBS/pekerja)",
+        "blockProductivity": "Produktivitas Blok (TBS/blok)",
+        "yieldPerHectare": "Hasil per Hektar (ton/ha)",
+        "harvestQuality": "Skor Kualitas Panen",
+        "harvestFrequency": "Frekuensi Panen",
+        "peakHarvestTime": "Waktu Panen Puncak"
+      },
+      "gateCheckMetrics": {
+        "totalEntries": "Total Masuk Gerbang",
+        "totalExits": "Total Keluar Gerbang",
+        "activeVehicles": "Kendaraan Aktif",
+        "averageWaitTime": "Waktu Tunggu Rata-rata (menit)",
+        "peakHours": "Jam Sibuk",
+        "securityIncidents": "Insiden Keamanan",
+        "gateUtilization": "Utilisasi Gerbang (%)",
+        "vehicleTypes": "Jenis Kendaraan",
+        "entryExitRatio": "Rasio Masuk/Keluar",
+        "processingTime": "Waktu Proses Rata-rata",
+        "queueLength": "Panjang Antrian Rata-rata"
+      },
+      "userMetrics": {
+        "totalUsers": "Total Pengguna",
+        "activeUsers": "Pengguna Aktif",
+        "newUsers": "Pengguna Baru",
+        "userActivity": "Aktivitas Pengguna",
+        "loginFrequency": "Frekuensi Login",
+        "sessionDuration": "Durasi Sesi Rata-rata",
+        "roleDistribution": "Distribusi Peran",
+        "userRetention": "Tingkat Retensi Pengguna",
+        "userSatisfaction": "Skor Kepuasan Pengguna",
+        "supportTickets": "Tiket Dukungan",
+        "responseTime": "Waktu Respons Rata-rata"
+      },
+      "performanceMetrics": {
+        "systemUptime": "Uptime Sistem (%)",
+        "responseTime": "Waktu Respons Rata-rata (ms)",
+        "throughput": "Throughput Sistem (req/detik)",
+        "errorRate": "Tingkat Error (%)",
+        "databasePerformance": "Performa Database",
+        "apiPerformance": "Performa API",
+        "networkLatency": "Latensi Jaringan (ms)",
+        "cpuUsage": "Penggunaan CPU (%)",
+        "memoryUsage": "Penggunaan Memori (%)",
+        "diskUsage": "Penggunaan Disk (%)",
+        "cacheHitRate": "Tingkat Cache Hit (%)"
+      }
+    },
+    "chartTypes": {
+      "lineChart": "Grafik Garis",
+      "barChart": "Grafik Batang",
+      "pieChart": "Grafik Pie",
+      "donutChart": "Grafik Donat",
+      "areaChart": "Grafik Area",
+      "scatterChart": "Plot Sebar",
+      "bubbleChart": "Grafik Gelembung",
+      "radarChart": "Grafik Radar",
+      "heatmap": "Peta Panas",
+      "gaugeChart": "Grafik Gauge",
+      "histogram": "Histogram",
+      "boxPlot": "Box Plot",
+      "waterfall": "Grafik Air Terjun",
+      "funnel": "Grafik Corong",
+      "sankey": "Diagram Sankey"
+    },
+    "timeRanges": {
+      "last7Days": "7 Hari Terakhir",
+      "last30Days": "30 Hari Terakhir",
+      "last90Days": "90 Hari Terakhir",
+      "last6Months": "6 Bulan Terakhir",
+      "last12Months": "12 Bulan Terakhir",
+      "yearToDate": "Year to Date",
+      "quarterToDate": "Quarter to Date",
+      "monthToDate": "Month to Date",
+      "weekToDate": "Week to Date",
+      "customRange": "Rentang Kustom",
+      "allTime": "Semua Waktu"
+    },
+    "comparisons": {
+      "vsLastPeriod": "vs Periode Sebelumnya",
+      "vsLastYear": "vs Tahun Lalu",
+      "vsTarget": "vs Target",
+      "vsAverage": "vs Rata-rata",
+      "growth": "Pertumbuhan",
+      "decline": "Penurunan",
+      "increase": "Kenaikan",
+      "decrease": "Penurunan",
+      "stable": "Stabil",
+      "trend": "Tren",
+      "forecast": "Prakiraan",
+      "projection": "Proyeksi"
+    },
+    "filters": {
+      "filterByDate": "Filter Berdasarkan Tanggal",
+      "filterByRole": "Filter Berdasarkan Peran",
+      "filterByStatus": "Filter Berdasarkan Status",
+      "filterByLocation": "Filter Berdasarkan Lokasi",
+      "filterByType": "Filter Berdasarkan Tipe",
+      "filterByCategory": "Filter Berdasarkan Kategori",
+      "groupBy": "Kelompokkan Berdasarkan",
+      "sortBy": "Urutkan Berdasarkan",
+      "ascending": "Menaik",
+      "descending": "Menurun",
+      "customFilters": "Filter Kustom"
+    }
+  },
+  "reports": {
+    "names": {
+      "harvestReports": {
+        "dailyHarvestReport": "Laporan Panen Harian",
+        "weeklyHarvestReport": "Laporan Panen Mingguan",
+        "monthlyHarvestReport": "Laporan Panen Bulanan",
+        "quarterlyHarvestReport": "Laporan Panen Kuartalan",
+        "yearlyHarvestReport": "Laporan Panen Tahunan",
+        "harvestSummaryReport": "Laporan Ringkasan Panen",
+        "harvestTrendReport": "Analisis Tren Panen",
+        "harvestPerformanceReport": "Laporan Performa Panen",
+        "harvestComparisonReport": "Laporan Perbandingan Panen",
+        "harvestQualityReport": "Laporan Kualitas Panen",
+        "workerProductivityReport": "Laporan Produktivitas Pekerja",
+        "blockProductivityReport": "Laporan Produktivitas Blok",
+        "yieldAnalysisReport": "Analisis Hasil Panen",
+        "harvestForecastReport": "Prakiraan Panen",
+        "seasonalHarvestReport": "Laporan Panen Musiman"
+      },
+      "gateCheckReports": {
+        "dailyGateReport": "Laporan Pemeriksaan Gerbang Harian",
+        "gateActivityReport": "Laporan Aktivitas Gerbang",
+        "vehicleFlowReport": "Analisis Alur Kendaraan",
+        "securityIncidentReport": "Laporan Insiden Keamanan",
+        "gatePerformanceReport": "Laporan Performa Gerbang",
+        "peakHoursReport": "Analisis Jam Sibuk",
+        "queueAnalysisReport": "Analisis Antrian",
+        "vehicleTypeReport": "Laporan Distribusi Jenis Kendaraan",
+        "gateUtilizationReport": "Laporan Utilisasi Gerbang",
+        "accessControlReport": "Laporan Kontrol Akses"
+      },
+      "userManagementReports": {
+        "userActivityReport": "Laporan Aktivitas Pengguna",
+        "loginHistoryReport": "Laporan Riwayat Login",
+        "roleDistributionReport": "Laporan Distribusi Peran",
+        "userPerformanceReport": "Laporan Performa Pengguna",
+        "accessLogReport": "Laporan Log Akses",
+        "sessionReport": "Laporan Durasi Sesi",
+        "userSatisfactionReport": "Laporan Kepuasan Pengguna",
+        "supportTicketReport": "Laporan Tiket Dukungan",
+        "userComplianceReport": "Laporan Kepatuhan Pengguna"
+      },
+      "administrativeReports": {
+        "systemPerformanceReport": "Laporan Performa Sistem",
+        "apiUsageReport": "Laporan Penggunaan API",
+        "errorLogReport": "Laporan Log Error",
+        "auditTrailReport": "Laporan Audit Trail",
+        "backupStatusReport": "Laporan Status Backup",
+        "maintenanceReport": "Laporan Maintenance",
+        "securityReport": "Laporan Keamanan",
+        "complianceReport": "Laporan Kepatuhan",
+        "resourceUtilizationReport": "Laporan Utilisasi Sumber Daya"
+      },
+      "financialReports": {
+        "productionCostReport": "Laporan Biaya Produksi",
+        "revenueReport": "Laporan Pendapatan",
+        "profitabilityReport": "Analisis Profitabilitas",
+        "budgetReport": "Laporan Anggaran",
+        "expenseReport": "Laporan Pengeluaran",
+        "costPerTBSReport": "Laporan Biaya per TBS",
+        "ROIReport": "Laporan Return on Investment",
+        "financialSummaryReport": "Laporan Ringkasan Keuangan"
+      }
+    },
+    "filters": {
+      "dateFilters": {
+        "today": "Hari Ini",
+        "yesterday": "Kemarin",
+        "thisWeek": "Minggu Ini",
+        "lastWeek": "Minggu Lalu",
+        "thisMonth": "Bulan Ini",
+        "lastMonth": "Bulan Lalu",
+        "thisQuarter": "Kuartal Ini",
+        "lastQuarter": "Kuartal Lalu",
+        "thisYear": "Tahun Ini",
+        "lastYear": "Tahun Lalu",
+        "customDateRange": "Rentang Tanggal Kustom",
+        "yearToDate": "Year to Date",
+        "quarterToDate": "Quarter to Date",
+        "monthToDate": "Month to Date"
+      },
+      "locationFilters": {
+        "allCompanies": "Semua Perusahaan",
+        "allEstates": "Semua Perkebunan",
+        "allDivisions": "Semua Divisi",
+        "allBlocks": "Semua Blok",
+        "selectedCompany": "Perusahaan Terpilih",
+        "selectedEstate": "Perkebunan Terpilih",
+        "selectedDivision": "Divisi Terpilih",
+        "selectedBlock": "Blok Terpilih",
+        "multipleLocations": "Lokasi Multiple"
+      },
+      "statusFilters": {
+        "allStatus": "Semua Status",
+        "pending": "Menunggu",
+        "approved": "Disetujui",
+        "rejected": "Ditolak",
+        "completed": "Selesai",
+        "inProgress": "Dalam Proses",
+        "cancelled": "Dibatalkan",
+        "onHold": "Ditahan",
+        "draft": "Draft",
+        "archived": "Diarsipkan"
+      },
+      "roleFilters": {
+        "allRoles": "Semua Peran",
+        "mandor": "Mandor",
+        "asisten": "Asisten",
+        "manager": "Manager",
+        "areaManager": "Area Manager",
+        "satpam": "Satpam",
+        "companyAdmin": "Company Admin",
+        "superAdmin": "Super Admin",
+        "admin": "Admin",
+        "guest": "Tamu"
+      },
+      "qualityFilters": {
+        "allQuality": "Semua Level Kualitas",
+        "high": "Kualitas Tinggi",
+        "medium": "Kualitas Sedang",
+        "low": "Kualitas Rendah",
+        "premium": "Premium",
+        "standard": "Standar",
+        "substandard": "Substandar"
+      },
+      "performanceFilters": {
+        "topPerformers": "Performer Terbaik",
+        "bottomPerformers": "Performer Terendah",
+        "aboveAverage": "Di Atas Rata-rata",
+        "average": "Rata-rata",
+        "belowAverage": "Di Bawah Rata-rata",
+        "highProductivity": "Produktivitas Tinggi",
+        "lowProductivity": "Produktivitas Rendah"
+      }
+    },
+    "exportOptions": {
+      "formats": {
+        "pdf": "Dokumen PDF",
+        "excel": "Spreadsheet Excel",
+        "csv": "File CSV",
+        "word": "Dokumen Word",
+        "powerpoint": "Presentasi PowerPoint",
+        "json": "Data JSON",
+        "xml": "Data XML",
+        "print": "Cetak Langsung"
+      },
+      "excelOptions": {
+        "withFormulas": "Dengan Formula",
+        "withoutFormulas": "Tanpa Formula",
+        "withCharts": "Sertakan Grafik",
+        "withoutCharts": "Kecualikan Grafik",
+        "withImages": "Sertakan Gambar",
+        "withoutImages": "Kecualikan Gambar",
+        "conditionalFormatting": "Sertakan Conditional Formatting",
+        "rawData": "Data Mentah Saja",
+        "formattedData": "Data Terformat"
+      },
+      "pdfOptions": {
+        "withHeaders": "Sertakan Header",
+        "withoutHeaders": "Kecualikan Header",
+        "withFooters": "Sertakan Footer",
+        "withoutFooters": "Kecualikan Footer",
+        "withPageNumbers": "Sertakan Nomor Halaman",
+        "withoutPageNumbers": "Kecualikan Nomor Halaman",
+        "withWatermark": "Tambah Watermark",
+        "withoutWatermark": "Tanpa Watermark",
+        "landscape": "Orientasi Landscape",
+        "portrait": "Orientasi Portrait",
+        "fitToPage": "Paskan ke Halaman",
+        "actualSize": "Ukuran Asli",
+        "highQuality": "Kualitas Tinggi",
+        "lowQuality": "Kualitas Rendah"
+      },
+      "emailOptions": {
+        "sendEmail": "Kirim via Email",
+        "ccRecipients": "Penerima CC",
+        "bccRecipients": "Penerima BCC",
+        "addSubject": "Tambah Subjek",
+        "addMessage": "Tambah Pesan",
+        "attachAsLink": "Lampirkan sebagai Link",
+        "attachAsFile": "Lampirkan sebagai File",
+        "scheduleEmail": "Jadwalkan Email",
+        "sendImmediately": "Kirim Segera"
+      },
+      "scheduleOptions": {
+        "daily": "Harian",
+        "weekly": "Mingguan",
+        "monthly": "Bulanan",
+        "quarterly": "Kuartalan",
+        "yearly": "Tahunan",
+        "custom": "Jadwal Kustom",
+        "morning": "Pagi (06:00)",
+        "afternoon": "Siang (12:00)",
+        "evening": "Sore (18:00)",
+        "night": "Malam (00:00)",
+        "weekdays": "Hari Kerja Saja",
+        "weekends": "Akhir Pekan Saja",
+        "businessDays": "Hari Bisnis Saja"
+      }
+    },
+    "actions": {
+      "generateReport": "Buat Laporan",
+      "saveReport": "Simpan Laporan",
+      "saveAsTemplate": "Simpan sebagai Template",
+      "loadTemplate": "Muat Template",
+      "shareReport": "Bagikan Laporan",
+      "exportReport": "Ekspor Laporan",
+      "printReport": "Cetak Laporan",
+      "emailReport": "Email Laporan",
+      "scheduleReport": "Jadwalkan Laporan",
+      "viewReport": "Lihat Laporan",
+      "editReport": "Edit Laporan",
+      "deleteReport": "Hapus Laporan",
+      "duplicateReport": "Duplikat Laporan",
+      "archiveReport": "Arsipkan Laporan",
+      "restoreReport": "Pulihkan Laporan",
+      "refreshData": "Refresh Data",
+      "applyFilters": "Terapkan Filter",
+      "clearFilters": "Hapus Filter",
+      "resetFilters": "Reset Filter",
+      "saveFilters": "Simpan Filter",
+      "loadFilters": "Muat Filter"
+    }
+  },
+  "hierarchicalForm": {
+    "userForm": {
+      "title": "Form Manajemen Pengguna",
+      "subtitle": "Buat dan kelola akun pengguna dengan perizinan hierarkis",
+      "sections": {
+        "personalInfo": "Informasi Pribadi",
+        "accountDetails": "Detail Akun",
+        "roleAssignment": "Penugasan Peran",
+        "locationAssignment": "Penugasan Lokasi",
+        "permissions": "Perizinan",
+        "notifications": "Pengaturan Notifikasi",
+        "security": "Pengaturan Keamanan",
+        "preferences": "Preferensi Pengguna"
+      },
+      "fields": {
+        "firstName": {
+          "label": "Nama Depan",
+          "placeholder": "Masukkan nama depan",
+          "required": "Nama depan wajib diisi",
+          "minLength": "Nama depan minimal 2 karakter",
+          "maxLength": "Nama depan maksimal 50 karakter"
+        },
+        "lastName": {
+          "label": "Nama Belakang",
+          "placeholder": "Masukkan nama belakang",
+          "required": "Nama belakang wajib diisi",
+          "minLength": "Nama belakang minimal 2 karakter",
+          "maxLength": "Nama belakang maksimal 50 karakter"
+        },
+        "username": {
+          "label": "Username",
+          "placeholder": "Masukkan username",
+          "required": "Username wajib diisi",
+          "minLength": "Username minimal 3 karakter",
+          "maxLength": "Username maksimal 30 karakter",
+          "pattern": "Username hanya boleh mengandung huruf, angka, dan underscore",
+          "unique": "Username sudah digunakan"
+        },
+        "email": {
+          "label": "Alamat Email",
+          "placeholder": "Masukkan alamat email",
+          "required": "Alamat email wajib diisi",
+          "invalid": "Masukkan alamat email yang valid",
+          "unique": "Alamat email sudah terdaftar"
+        },
+        "phone": {
+          "label": "Nomor Telepon",
+          "placeholder": "Masukkan nomor telepon",
+          "required": "Nomor telepon wajib diisi",
+          "invalid": "Masukkan nomor telepon yang valid",
+          "format": "Nomor telepon harus dalam format internasional"
+        },
+        "password": {
+          "label": "Password",
+          "placeholder": "Masukkan password",
+          "required": "Password wajib diisi",
+          "minLength": "Password minimal 8 karakter",
+          "weak": "Password terlalu lemah",
+          "strong": "Kekuatan password",
+          "mismatch": "Password tidak cocok",
+          "confirm": "Konfirmasi Password",
+          "confirmPlaceholder": "Konfirmasi password"
+        },
+        "role": {
+          "label": "Peran Pengguna",
+          "placeholder": "Pilih peran pengguna",
+          "required": "Peran pengguna wajib dipilih",
+          "description": "Pilih peran yang sesuai untuk pengguna ini",
+          "roles": {
+            "mandor": "Mandor - Manajemen Panen",
+            "asisten": "Asisten - Persetujuan Panen",
+            "manager": "Manager - Monitoring Perkebunan",
+            "areaManager": "Area Manager - Pengawasan Regional",
+            "satpam": "Satpam - Kontrol Gerbang",
+            "companyAdmin": "Company Admin - Manajemen Perusahaan",
+            "superAdmin": "Super Admin - Administrasi Sistem"
+          }
+        },
+        "company": {
+          "label": "Perusahaan",
+          "placeholder": "Pilih perusahaan",
+          "required": "Pemilihan perusahaan wajib",
+          "description": "Pilih perusahaan tempat pengguna ini berada",
+          "noCompanies": "Tidak ada perusahaan tersedia",
+          "loadingCompanies": "Memuat perusahaan..."
+        },
+        "estate": {
+          "label": "Perkebunan",
+          "placeholder": "Pilih perkebunan",
+          "required": "Pemilihan perkebunan wajib",
+          "description": "Pilih perkebunan utama untuk pengguna ini",
+          "multipleEstates": "Pengguna dapat mengakses multiple perkebunan",
+          "noEstates": "Tidak ada perkebunan tersedia",
+          "loadingEstates": "Memuat perkebunan..."
+        },
+        "division": {
+          "label": "Divisi",
+          "placeholder": "Pilih divisi",
+          "required": "Pemilihan divisi wajib",
+          "description": "Pilih divisi yang dapat diakses pengguna ini",
+          "multipleDivisions": "Pengguna dapat mengakses multiple divisi",
+          "noDivisions": "Tidak ada divisi tersedia",
+          "loadingDivisions": "Memuat divisi..."
+        },
+        "block": {
+          "label": "Penugasan Blok",
+          "placeholder": "Pilih blok",
+          "description": "Pilih blok spesifik yang dapat dikelola pengguna ini",
+          "allBlocks": "Semua blok di divisi yang ditugaskan",
+          "selectedBlocks": "Blok yang dipilih",
+          "noBlocks": "Tidak ada blok tersedia",
+          "loadingBlocks": "Memuat blok..."
+        },
+        "status": {
+          "label": "Status Akun",
+          "placeholder": "Pilih status",
+          "required": "Status akun wajib dipilih",
+          "options": {
+            "active": "Aktif - Pengguna dapat login dan mengakses sistem",
+            "inactive": "Tidak Aktif - Pengguna tidak dapat login",
+            "suspended": "Ditangguhkan - Pengguna diblokir sementara",
+            "pending": "Menunggu - Menunggu persetujuan"
+          }
+        },
+        "employeeId": {
+          "label": "ID Karyawan",
+          "placeholder": "Masukkan ID karyawan",
+          "required": "ID karyawan wajib diisi",
+          "unique": "ID karyawan sudah digunakan",
+          "format": "ID karyawan harus dalam format yang benar"
+        }
+      },
+      "hierarchy": {
+        "title": "Penugasan Hierarkis",
+        "subtitle": "Konfigurasi akses pengguna berdasarkan hierarki organisasi",
+        "directReporting": {
+          "label": "Pelaporan Langsung",
+          "description": "Pengguna yang dikelola langsung oleh orang ini",
+          "noDirectReports": "Tidak ada laporan langsung ditugaskan",
+          "addReport": "Tambah Laporan Langsung"
+        },
+        "indirectReporting": {
+          "label": "Pelaporan Tidak Langsung",
+          "description": "Pengguna yang dikelola tidak langsung melalui bawahan",
+          "noIndirectReports": "Tidak ada laporan tidak langsung ditugaskan"
+        },
+        "reportingTo": {
+          "label": "Melapor Kepada",
+          "description": "Pilih supervisor yang menjadi atasan pengguna ini",
+          "noSupervisor": "Tidak ada supervisor ditugaskan",
+          "selectSupervisor": "Pilih Supervisor",
+          "supervisorInfo": "Informasi Supervisor"
+        },
+        "assignmentScope": {
+          "label": "Ruang Lingkup Penugasan",
+          "description": "Tentukan ruang lingkup wewenang pengguna ini",
+          "scopes": {
+            "self": "Diri Sendiri - Hanya dapat mengakses data sendiri",
+            "team": "Tim - Dapat mengakses data tim",
+            "department": "Departemen - Dapat mengakses data departemen",
+            "division": "Divisi - Dapat mengakses data divisi",
+            "estate": "Perkebunan - Dapat mengakses data perkebunan",
+            "company": "Perusahaan - Dapat mengakses data perusahaan",
+            "all": "Semua - Dapat mengakses semua data perusahaan"
+          }
+        }
+      },
+      "permissions": {
+        "title": "Konfigurasi Perizinan",
+        "subtitle": "Konfigurasi perizinan spesifik untuk pengguna ini",
+        "categories": {
+          "harvest": "Manajemen Panen",
+          "gateCheck": "Kontrol Gerbang",
+          "userManagement": "Manajemen Pengguna",
+          "reports": "Laporan & Analitik",
+          "administration": "Administrasi Sistem",
+          "api": "Akses API"
+        },
+        "actions": {
+          "create": "Buat",
+          "read": "Baca/Lihat",
+          "update": "Update/Edit",
+          "delete": "Hapus",
+          "approve": "Setujui",
+          "reject": "Tolak",
+          "export": "Ekspor",
+          "import": "Impor",
+          "manage": "Kelola"
+        },
+        "custom": {
+          "label": "Perizinan Kustom",
+          "description": "Tentukan perizinan kustom di luar akses berbasis peran",
+          "addCustom": "Tambah Perizinan Kustom",
+          "noCustom": "Tidak ada perizinan kustom ditugaskan"
+        }
+      },
+      "actions": {
+        "save": "Simpan Pengguna",
+        "saveAndContinue": "Simpan dan Lanjutkan Edit",
+        "saveAndAdd": "Simpan dan Tambah Lagi",
+        "cancel": "Batal",
+        "reset": "Reset Form",
+        "preview": "Pratinjau Profil Pengguna",
+        "testLogin": "Test Kredensial Login",
+        "sendWelcome": "Kirim Email Selamat Datang",
+        "generatePassword": "Generate Password",
+        "duplicate": "Duplikat Konfigurasi Pengguna",
+        "export": "Ekspor Data Pengguna"
+      },
+      "validation": {
+        "summary": "Ringkasan Validasi",
+        "errors": "Perbaiki error berikut:",
+        "warnings": "Review peringatan berikut:",
+        "incomplete": "Form belum lengkap",
+        "unsaved": "Ada perubahan yang belum disimpan",
+        "confirm": "Apakah Anda yakin ingin melanjutkan?",
+        "success": "Pengguna berhasil dibuat",
+        "error": "Error membuat pengguna",
+        "exists": "Pengguna sudah ada"
+      },
+      "sections": {
+        "step1": "Informasi Dasar",
+        "step2": "Peran & Akses",
+        "step3": "Setup Hierarki",
+        "step4": "Perizinan",
+        "step5": "Review & Konfirmasi"
+      },
+      "navigation": {
+        "previous": "Langkah Sebelumnya",
+        "next": "Langkah Berikutnya",
+        "skip": "Lewati Langkah Ini",
+        "finish": "Selesai Setup",
+        "progress": "Progres Setup",
+        "step": "Langkah {current} dari {total}"
+      }
+    }
+  },
+  "admin": {
+    "apiManagement": {
+      "title": "Manajemen API",
+      "subtitle": "Kelola API keys, endpoints, dan kontrol akses",
+      "sections": {
+        "apiKeys": "Manajemen API Keys",
+        "endpoints": "API Endpoints",
+        "usage": "Analisis Penggunaan",
+        "security": "Pengaturan Keamanan",
+        "documentation": "Dokumentasi API"
+      },
+      "apiKeys": {
+        "title": "API Keys",
+        "subtitle": "Generate dan kelola API keys untuk integrasi eksternal",
+        "actions": {
+          "generateKey": "Generate API Key Baru",
+          "regenerateKey": "Regenerate Key",
+          "revokeKey": "Revoke Key",
+          "activateKey": "Aktifkan Key",
+          "deactivateKey": "Deaktifkan Key",
+          "copyKey": "Salin Key",
+          "downloadKey": "Unduh Key",
+          "viewDetails": "Lihat Detail"
+        },
+        "fields": {
+          "keyName": "Nama Key",
+          "keyDescription": "Deskripsi",
+          "keyPermissions": "Perizinan",
+          "keyStatus": "Status",
+          "createdAt": "Dibuat Pada",
+          "expiresAt": "Kadaluarsa Pada",
+          "lastUsed": "Terakhir Digunakan",
+          "usageCount": "Jumlah Penggunaan",
+          "rateLimit": "Batas Rate",
+          "ipRestrictions": "Batasan IP"
+        },
+        "status": {
+          "active": "Aktif",
+          "inactive": "Tidak Aktif",
+          "expired": "Kadaluarsa",
+          "revoked": "Dicabut",
+          "suspended": "Ditangguhkan"
+        },
+        "permissions": {
+          "read": "Read Only",
+          "write": "Read & Write",
+          "admin": "Akses Penuh",
+          "custom": "Perizinan Kustom"
+        }
+      },
+      "endpoints": {
+        "title": "API Endpoints",
+        "subtitle": "Monitor dan kelola performa API endpoints",
+        "actions": {
+          "testEndpoint": "Test Endpoint",
+          "viewLogs": "Lihat Logs",
+          "configureEndpoint": "Konfigurasi",
+          "enableEndpoint": "Aktifkan",
+          "disableEndpoint": "Nonaktifkan",
+          "monitorEndpoint": "Monitor"
+        },
+        "fields": {
+          "endpointPath": "Path Endpoint",
+          "httpMethod": "HTTP Method",
+          "description": "Deskripsi",
+          "status": "Status",
+          "responseTime": "Response Time",
+          "successRate": "Success Rate",
+          "errorRate": "Error Rate",
+          "requestCount": "Jumlah Request",
+          "lastChecked": "Terakhir Dicek"
+        },
+        "methods": {
+          "GET": "GET - Baca Data",
+          "POST": "POST - Buat Data",
+          "PUT": "PUT - Update Data",
+          "PATCH": "PATCH - Update Parsial",
+          "DELETE": "DELETE - Hapus Data"
+        }
+      },
+      "usage": {
+        "title": "Analisis Penggunaan",
+        "subtitle": "Track pola penggunaan API dan metrik performa",
+        "charts": {
+          "requestsOverTime": "Request Per Waktu",
+          "topEndpoints": "Endpoint Terbanyak Digunakan",
+          "errorDistribution": "Distribusi Error",
+          "responseTimeTrends": "Tren Response Time",
+          "userActivity": "Aktivitas User",
+          "bandwidthUsage": "Penggunaan Bandwidth"
+        },
+        "metrics": {
+          "totalRequests": "Total Request",
+          "successfulRequests": "Request Berhasil",
+          "failedRequests": "Request Gagal",
+          "averageResponseTime": "Response Time Rata-rata",
+          "peakRequests": "Puncak Request per Menit",
+          "uniqueUsers": "User API Unik",
+          "dataTransferred": "Data Tertransfer"
+        },
+        "filters": {
+          "dateRange": "Rentang Tanggal",
+          "endpoint": "Endpoint",
+          "user": "API User",
+          "status": "Status Response",
+          "errorType": "Tipe Error"
+        }
+      },
+      "security": {
+        "title": "Pengaturan Keamanan",
+        "subtitle": "Konfigurasi keamanan API dan kontrol akses",
+        "sections": {
+          "authentication": "Autentikasi",
+          "authorization": "Autorisasi",
+          "rateLimiting": "Rate Limiting",
+          "ipWhitelist": "IP Whitelist",
+          "corsSettings": "Pengaturan CORS"
+        },
+        "authentication": {
+          "title": "Metode Autentikasi",
+          "methods": {
+            "apiKey": "Autentikasi API Key",
+            "jwt": "Autentikasi JWT Token",
+            "oauth2": "Autentikasi OAuth 2.0",
+            "basic": "Basic Authentication"
+          }
+        },
+        "rateLimiting": {
+          "title": "Konfigurasi Rate Limiting",
+          "settings": {
+            "requestsPerMinute": "Request per Menit",
+            "requestsPerHour": "Request per Jam",
+            "requestsPerDay": "Request per Hari",
+            "burstLimit": "Batasan Burst"
+          }
+        }
+      }
+    },
+    "systemAdministration": {
+      "title": "Administrasi Sistem",
+      "subtitle": "Manajemen dan konfigurasi sistem komprehensif",
+      "sections": {
+        "overview": "Ringkasan Sistem",
+        "maintenance": "Maintenance Sistem",
+        "monitoring": "Monitoring Sistem",
+        "backup": "Manajemen Backup",
+        "security": "Pusat Keamanan",
+        "configuration": "Konfigurasi Sistem"
+      },
+      "overview": {
+        "title": "Ringkasan Sistem",
+        "subtitle": "Status sistem saat ini dan informasi kesehatan",
+        "status": {
+          "systemHealth": "Kesehatan Sistem",
+          "serviceStatus": "Status Layanan",
+          "resourceUsage": "Penggunaan Sumber Daya",
+          "activeUsers": "User Aktif",
+          "systemUptime": "Uptime Sistem",
+          "lastRestart": "Terakhir Restart"
+        },
+        "metrics": {
+          "cpuUsage": "Penggunaan CPU",
+          "memoryUsage": "Penggunaan Memory",
+          "diskUsage": "Penggunaan Disk",
+          "networkIO": "Network I/O",
+          "databaseConnections": "Koneksi Database",
+          "activeProcesses": "Proses Aktif"
+        }
+      },
+      "maintenance": {
+        "title": "Maintenance Sistem",
+        "subtitle": "Jadwalkan dan lakukan tugas maintenance sistem",
+        "actions": {
+          "scheduleMaintenance": "Jadwalkan Maintenance",
+          "cancelMaintenance": "Batalkan Maintenance",
+          "restartServices": "Restart Layanan",
+          "clearCache": "Hapus Cache",
+          "optimizeDatabase": "Optimalkan Database",
+          "checkIntegrity": "Cek Integritas Data"
+        },
+        "maintenanceTypes": {
+          "scheduled": "Maintenance Terjadwal",
+          "emergency": "Maintenance Darurat",
+          "routine": "Maintenance Rutin",
+          "security": "Update Keamanan"
+        },
+        "status": {
+          "planned": "Direncanakan",
+          "inProgress": "Sedang Berjalan",
+          "completed": "Selesai",
+          "cancelled": "Dibatalkan",
+          "failed": "Gagal"
+        }
+      },
+      "monitoring": {
+        "title": "Monitoring Sistem",
+        "subtitle": "Monitoring sistem real-time dan alerting",
+        "alerts": {
+          "title": "Alert Sistem",
+          "types": {
+            "critical": "Alert Kritis",
+            "warning": "Peringatan",
+            "info": "Informasi",
+            "success": "Sukses"
+          }
+        },
+        "dashboards": {
+          "title": "Monitoring Dashboards",
+          "types": {
+            "performance": "Dashboard Performa",
+            "security": "Dashboard Keamanan",
+            "network": "Dashboard Jaringan",
+            "application": "Dashboard Aplikasi"
+          }
+        }
+      },
+      "backup": {
+        "title": "Manajemen Backup",
+        "subtitle": "Kelola backup sistem dan recovery",
+        "actions": {
+          "createBackup": "Buat Backup",
+          "restoreBackup": "Restore Backup",
+          "scheduleBackup": "Jadwalkan Backup",
+          "verifyBackup": "Verifikasi Backup",
+          "downloadBackup": "Unduh Backup",
+          "deleteBackup": "Hapus Backup"
+        },
+        "backupTypes": {
+          "full": "Backup Penuh",
+          "incremental": "Backup Inkremental",
+          "differential": "Backup Diferensial",
+          "snapshot": "Snapshot Sistem"
+        },
+        "schedule": {
+          "daily": "Backup Harian",
+          "weekly": "Backup Mingguan",
+          "monthly": "Backup Bulanan",
+          "custom": "Jadwal Kustom"
+        }
+      }
+    },
+    "userAdministration": {
+      "title": "Administrasi User",
+      "subtitle": "Manajemen user dan kontrol akses komprehensif",
+      "sections": {
+        "userAccounts": "Akun User",
+        "roleManagement": "Manajemen Peran",
+        "permissions": "Matriks Perizinan",
+        "sessions": "Sesi Aktif",
+        "audit": "Log Audit"
+      },
+      "bulkActions": {
+        "title": "Aksi Massal User",
+        "actions": {
+          "bulkImport": "Impor User",
+          "bulkExport": "Ekspor User",
+          "bulkActivate": "Aktifkan User",
+          "bulkDeactivate": "Nonaktifkan User",
+          "bulkAssign": "Assign Peran",
+          "bulkNotify": "Kirim Notifikasi"
+        }
+      },
+      "sessionManagement": {
+        "title": "Manajemen Sesi",
+        "actions": {
+          "viewSessions": "Lihat Semua Sesi",
+          "terminateSession": "Terminate Sesi",
+          "forceLogout": "Force Logout",
+          "extendSession": "Perpanjang Sesi",
+          "blockUser": "Blokir User"
+        }
+      }
+    }
+  },
+  "harvest": {
+    "components": {
+      "title": "Komponen Manajemen Panen",
+      "subtitle": "Operasi lapangan dan manajemen data panen",
+      "harvestEntry": {
+        "title": "Input Data Panen",
+        "subtitle": "Catat data panen harian dari operasi lapangan",
+        "sections": {
+          "basicInfo": "Informasi Dasar",
+          "harvestDetails": "Detail Panen",
+          "workerInfo": "Informasi Pekerja",
+          "qualityMetrics": "Metrik Kualitas",
+          "additionalNotes": "Catatan Tambahan"
+        },
+        "fields": {
+          "harvestDate": {
+            "label": "Tanggal Panen",
+            "placeholder": "Pilih tanggal panen",
+            "required": "Tanggal panen wajib diisi",
+            "today": "Hari Ini",
+            "yesterday": "Kemarin",
+            "custom": "Tanggal Kustom"
+          },
+          "block": {
+            "label": "Blok/TPH",
+            "placeholder": "Pilih blok",
+            "required": "Pemilihan blok wajib",
+            "loading": "Memuat blok...",
+            "noBlocks": "Tidak ada blok tersedia"
+          },
+          "tph": {
+            "label": "Nomor TPH",
+            "placeholder": "Masukkan nomor TPH",
+            "required": "Nomor TPH wajib diisi",
+            "description": "Titik kumpul Tandan Buah Segar"
+          },
+          "workers": {
+            "label": "Jumlah Pekerja",
+            "placeholder": "Masukkan jumlah pekerja",
+            "required": "Jumlah pekerja wajib diisi",
+            "min": "Minimal 1 pekerja diperlukan"
+          },
+          "tbsCount": {
+            "label": "Jumlah TBS",
+            "placeholder": "Masukkan jumlah TBS",
+            "required": "Jumlah TBS wajib diisi",
+            "description": "Total Tandan Buah Segar yang dipanen"
+          },
+          "tbsWeight": {
+            "label": "Total Berat TBS (kg)",
+            "placeholder": "Masukkan total berat",
+            "required": "Berat TBS wajib diisi",
+            "description": "Total berat dalam kilogram"
+          },
+          "averageWeight": {
+            "label": "Berat Rata-rata per TBS (kg)",
+            "calculated": "Dihitung otomatis",
+            "formula": "(Total Berat ÷ Jumlah TBS)"
+          },
+          "harvestTime": {
+            "label": "Waktu Panen",
+            "placeholder": "Pilih waktu panen",
+            "required": "Waktu panen wajib dipilih",
+            "morning": "Pagi (06:00-12:00)",
+            "afternoon": "Siang (12:00-18:00)",
+            "evening": "Sore (18:00-24:00)"
+          },
+          "weatherCondition": {
+            "label": "Kondisi Cuaca",
+            "placeholder": "Pilih kondisi cuaca",
+            "options": {
+              "sunny": "Cerah",
+              "cloudy": "Berawan",
+              "rainy": "Hujan",
+              "stormy": "Badai"
+            }
+          },
+          "notes": {
+            "label": "Catatan Panen",
+            "placeholder": "Masukkan catatan tambahan",
+            "optional": "Field opsional",
+            "examples": "Peralatan yang digunakan, kondisi khusus, dll."
+          }
+        },
+        "quality": {
+          "title": "Penilaian Kualitas",
+          "fields": {
+            "ripePercentage": {
+              "label": "Persentase Buah Matang (%)",
+              "placeholder": "Masukkan persentase",
+              "min": "0",
+              "max": "100"
+            },
+            "unripePercentage": {
+              "label": "Persentase Buah Mentah (%)",
+              "placeholder": "Masukkan persentase",
+              "min": "0",
+              "max": "100"
+            },
+            "overripePercentage": {
+              "label": "Persentase Buah Terlalu Matang (%)",
+              "placeholder": "Masukkan persentase",
+              "min": "0",
+              "max": "100"
+            },
+            "defectivePercentage": {
+              "label": "Persentase Buah Cacat (%)",
+              "placeholder": "Masukkan persentase",
+              "min": "0",
+              "max": "100"
+            },
+            "qualityScore": {
+              "label": "Skor Kualitas Keseluruhan",
+              "calculated": "Dihitung berdasarkan persentase",
+              "excellent": "Sangat Baik (90-100)",
+              "good": "Baik (75-89)",
+              "fair": "Cukup (60-74)",
+              "poor": "Kurang (<60)"
+            }
+          }
+        },
+        "validation": {
+          "totalPercentage": "Total persentase harus sama dengan 100%",
+          "weightPerTBS": "Berat rata-rata per TBS terlihat tidak biasa",
+          "lowProductivity": "Produktivitas pekerja di bawah rata-rata",
+          "highProductivity": "Produktivitas pekerja sangat tinggi"
+        },
+        "actions": {
+          "saveDraft": "Simpan sebagai Draft",
+          "submitForApproval": "Ajukan untuk Persetujuan",
+          "calculateMetrics": "Hitung Metrik",
+          "clearForm": "Hapus Form",
+          "loadTemplate": "Muat Template",
+          "saveTemplate": "Simpan sebagai Template"
+        }
+      },
+      "harvestApproval": {
+        "title": "Alur Persetujuan Panen",
+        "subtitle": "Review dan setujui pengajuan data panen",
+        "actions": {
+          "approve": "Setujui",
+          "reject": "Tolak",
+          "requestRevision": "Request Revisi",
+          "approveAll": "Setujui Semua",
+          "rejectAll": "Tolak Semua",
+          "bulkApprove": "Setujui Massal",
+          "sendBack": "Kirim Kembali untuk Koreksi"
+        },
+        "status": {
+          "pending": "Menunggu Persetujuan",
+          "approved": "Disetujui",
+          "rejected": "Ditolak",
+          "revised": "Direvisi dan Diajukan Kembali",
+          "underReview": "Sedang Direview"
+        },
+        "review": {
+          "title": "Review Data Panen",
+          "sections": {
+            "dataVerification": "Verifikasi Data",
+            "qualityCheck": "Cek Kualitas",
+            "productivityAnalysis": "Analisis Produktivitas",
+            "comparisonWithHistory": "Perbandingan Historis"
+          },
+          "comments": {
+            "placeholder": "Masukkan komentar review",
+            "required": "Komentar review wajib untuk penolakan",
+            "optional": "Opsional untuk persetujuan"
+          }
+        }
+      },
+      "fieldOperations": {
+        "title": "Manajemen Operasi Lapangan",
+        "subtitle": "Kelola operasi lapangan dan peralatan",
+        "equipment": {
+          "title": "Manajemen Peralatan",
+          "actions": {
+            "assignEquipment": "Assign Peralatan",
+            "trackUsage": "Track Penggunaan",
+            "scheduleMaintenance": "Jadwalkan Maintenance",
+            "reportIssue": "Laporkan Masalah"
+          },
+          "types": {
+            "harvester": "Pemanen",
+            "tractor": "Traktor",
+            "truck": "Truk Angkut",
+            "tools": "Alat Tangan",
+            "safety": "Peralatan Keselamatan"
+          },
+          "status": {
+            "available": "Tersedia",
+            "inUse": "Sedang Digunakan",
+            "maintenance": "Dalam Maintenance",
+            "repair": "Perlu Perbaikan",
+            "retired": "Tidak Digunakan"
+          }
+        },
+        "planning": {
+          "title": "Perencanaan Panen",
+          "sections": {
+            "dailyPlan": "Rencana Panen Harian",
+            "weeklySchedule": "Jadwal Mingguan",
+            "resourceAllocation": "Alokasi Sumber Daya",
+            "weatherForecast": "Prakiraan Cuaca"
+          },
+          "actions": {
+            "createPlan": "Buat Rencana Panen",
+            "assignWorkers": "Assign Pekerja",
+            "scheduleBlocks": "Jadwalkan Blok",
+            "optimizeRoutes": "Optimalkan Rute"
+          }
+        }
+      },
+      "analytics": {
+        "title": "Analitik Panen",
+        "subtitle": "Analisis data panen komprehensif dan wawasan",
+        "dashboards": {
+          "productivity": {
+            "title": "Dashboard Produktivitas",
+            "metrics": {
+              "tbsPerWorker": "TBS per Pekerja",
+              "tbsPerHour": "TBS per Jam",
+              "workerEfficiency": "Efisiensi Pekerja (%)",
+              "dailyYield": "Hasil Harian (ton)"
+            }
+          },
+          "quality": {
+            "title": "Dashboard Kualitas",
+            "metrics": {
+              "averageQualityScore": "Skor Kualitas Rata-rata",
+              "ripeFruitPercentage": "Persentase Buah Matang",
+              "defectRate": "Tingkat Cacat (%)",
+              "qualityTrends": "Tren Kualitas"
+            }
+          },
+          "forecasting": {
+            "title": "Prakiraan Hasil",
+            "metrics": {
+              "expectedYield": "Hasil yang Diharapkan",
+              "harvestReadiness": "Kesiapan Panen (%)",
+              "optimalHarvestTime": "Waktu Panen Optimal",
+              "yieldProjection": "Proyeksi Hasil"
+            }
+          }
+        },
+        "reports": {
+          "dailyReport": "Laporan Panen Harian",
+          "weeklySummary": "Ringkasan Mingguan",
+          "monthlyAnalysis": "Analisis Bulanan",
+          "performanceReview": "Review Performa",
+          "qualityReport": "Laporan Penilaian Kualitas"
+        }
+      }
+    },
+    "notifications": {
+      "harvestSubmitted": "Data panen berhasil diajukan",
+      "harvestApproved": "Data panen disetujui",
+      "harvestRejected": "Data panen ditolak - silakan review komentar",
+      "harvestRevised": "Data panen direvisi dan diajukan kembali",
+      "equipmentMaintenance": "Maintenance peralatan dijadwalkan",
+      "weatherAlert": "Peringatan cuaca untuk perencanaan panen",
+      "lowProductivity": "Produktivitas rendah terdeteksi",
+      "qualityIssue": "Masalah kualitas terdeteksi dalam data panen"
+    }
+  }
+}

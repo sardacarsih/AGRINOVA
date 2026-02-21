@@ -1,0 +1,228 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'gate_check_models.dart';
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+GuestLog _$GuestLogFromJson(Map<String, dynamic> json) => GuestLog(
+      logId: (json['logId'] as num?)?.toInt(),
+      guestId: json['guestId'] as String,
+      name: json['name'] as String,
+      vehiclePlate: json['vehiclePlate'] as String,
+      cargoType: json['cargoType'] as String,
+      cargoQty: (json['cargoQty'] as num?)?.toInt(),
+      unit: json['unit'] as String?,
+      gateId: json['gateId'] as String,
+      action: json['action'] as String,
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      qrToken: json['qrToken'] as String?,
+      status: json['status'] as String,
+      vehicleType: json['vehicleType'] as String?,
+      vehicleCharacteristics: json['vehicleCharacteristics'] as String?,
+      destination: json['destination'] as String?,
+      cargoOwner: json['cargoOwner'] as String?,
+      notes: json['notes'] as String?,
+      estimatedWeight: (json['estimatedWeight'] as num?)?.toDouble(),
+      actualWeight: (json['actualWeight'] as num?)?.toDouble(),
+      doNumber: json['doNumber'] as String?,
+      coordinates: json['coordinates'] as String?,
+      deviceId: json['deviceId'] as String?,
+      clientTimestamp: (json['clientTimestamp'] as num?)?.toInt(),
+      createdBy: json['createdBy'] as String?,
+      syncStatus: json['syncStatus'] as String? ?? 'PENDING',
+      version: (json['version'] as num?)?.toInt() ?? 1,
+      secondCargo: json['secondCargo'] as String?,
+      idCardNumber: json['idCardNumber'] as String?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      cargoVolume: json['cargoVolume'] as String?,
+      serverRecordId: json['serverRecordId'] as String?,
+      registrationSource: json['registrationSource'] as String?,
+    );
+
+Map<String, dynamic> _$GuestLogToJson(GuestLog instance) => <String, dynamic>{
+      'logId': instance.logId,
+      'guestId': instance.guestId,
+      'name': instance.name,
+      'vehiclePlate': instance.vehiclePlate,
+      'cargoType': instance.cargoType,
+      'cargoQty': instance.cargoQty,
+      'unit': instance.unit,
+      'gateId': instance.gateId,
+      'action': instance.action,
+      'timestamp': instance.timestamp.toIso8601String(),
+      'qrToken': instance.qrToken,
+      'status': instance.status,
+      'vehicleType': instance.vehicleType,
+      'vehicleCharacteristics': instance.vehicleCharacteristics,
+      'destination': instance.destination,
+      'cargoOwner': instance.cargoOwner,
+      'notes': instance.notes,
+      'estimatedWeight': instance.estimatedWeight,
+      'actualWeight': instance.actualWeight,
+      'doNumber': instance.doNumber,
+      'coordinates': instance.coordinates,
+      'deviceId': instance.deviceId,
+      'clientTimestamp': instance.clientTimestamp,
+      'createdBy': instance.createdBy,
+      'syncStatus': instance.syncStatus,
+      'version': instance.version,
+      'secondCargo': instance.secondCargo,
+      'idCardNumber': instance.idCardNumber,
+      'latitude': instance.latitude,
+      'longitude': instance.longitude,
+      'cargoVolume': instance.cargoVolume,
+      'serverRecordId': instance.serverRecordId,
+      'registrationSource': instance.registrationSource,
+    };
+
+RegisteredUser _$RegisteredUserFromJson(Map<String, dynamic> json) =>
+    RegisteredUser(
+      userId: json['userId'] as String,
+      name: json['name'] as String,
+      department: json['department'] as String?,
+      vehiclePlate: json['vehiclePlate'] as String?,
+      status: json['status'] as String,
+      position: json['position'] as String?,
+      phone: json['phone'] as String?,
+      email: json['email'] as String?,
+      lastSeen: json['lastSeen'] == null
+          ? null
+          : DateTime.parse(json['lastSeen'] as String),
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      syncStatus: json['syncStatus'] as String? ?? 'PENDING',
+      version: (json['version'] as num?)?.toInt() ?? 1,
+    );
+
+Map<String, dynamic> _$RegisteredUserToJson(RegisteredUser instance) =>
+    <String, dynamic>{
+      'userId': instance.userId,
+      'name': instance.name,
+      'department': instance.department,
+      'vehiclePlate': instance.vehiclePlate,
+      'status': instance.status,
+      'position': instance.position,
+      'phone': instance.phone,
+      'email': instance.email,
+      'lastSeen': instance.lastSeen?.toIso8601String(),
+      'createdAt': instance.createdAt.toIso8601String(),
+      'updatedAt': instance.updatedAt.toIso8601String(),
+      'syncStatus': instance.syncStatus,
+      'version': instance.version,
+    };
+
+AccessLog _$AccessLogFromJson(Map<String, dynamic> json) => AccessLog(
+      logId: (json['logId'] as num?)?.toInt(),
+      userType: json['userType'] as String,
+      userId: json['userId'] as String?,
+      name: json['name'] as String,
+      vehiclePlate: json['vehiclePlate'] as String?,
+      gateId: json['gateId'] as String,
+      action: json['action'] as String,
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      status: json['status'] as String,
+      validationNotes: json['validationNotes'] as String?,
+      coordinates: json['coordinates'] as String?,
+      deviceId: json['deviceId'] as String?,
+      createdBy: json['createdBy'] as String?,
+      username: json['username'] as String?,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      syncStatus: json['syncStatus'] as String? ?? 'PENDING',
+      version: (json['version'] as num?)?.toInt() ?? 1,
+    );
+
+Map<String, dynamic> _$AccessLogToJson(AccessLog instance) => <String, dynamic>{
+      'logId': instance.logId,
+      'userType': instance.userType,
+      'userId': instance.userId,
+      'name': instance.name,
+      'vehiclePlate': instance.vehiclePlate,
+      'gateId': instance.gateId,
+      'action': instance.action,
+      'timestamp': instance.timestamp.toIso8601String(),
+      'status': instance.status,
+      'validationNotes': instance.validationNotes,
+      'coordinates': instance.coordinates,
+      'deviceId': instance.deviceId,
+      'createdBy': instance.createdBy,
+      'username': instance.username,
+      'createdAt': instance.createdAt.toIso8601String(),
+      'syncStatus': instance.syncStatus,
+      'version': instance.version,
+    };
+
+GateCheckStats _$GateCheckStatsFromJson(Map<String, dynamic> json) =>
+    GateCheckStats(
+      gateId: json['gateId'] as String,
+      date: DateTime.parse(json['date'] as String),
+      vehiclesInside: (json['vehiclesInside'] as num).toInt(),
+      todayEntries: (json['todayEntries'] as num).toInt(),
+      todayExits: (json['todayExits'] as num).toInt(),
+      pendingExit: (json['pendingExit'] as num).toInt(),
+      averageLoadTime: (json['averageLoadTime'] as num).toDouble(),
+      complianceRate: (json['complianceRate'] as num).toDouble(),
+      totalWeightIn: (json['totalWeightIn'] as num).toDouble(),
+      totalWeightOut: (json['totalWeightOut'] as num).toDouble(),
+      violationCount: (json['violationCount'] as num).toInt(),
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      syncStatus: json['syncStatus'] as String? ?? 'PENDING',
+    );
+
+Map<String, dynamic> _$GateCheckStatsToJson(GateCheckStats instance) =>
+    <String, dynamic>{
+      'gateId': instance.gateId,
+      'date': instance.date.toIso8601String(),
+      'vehiclesInside': instance.vehiclesInside,
+      'todayEntries': instance.todayEntries,
+      'todayExits': instance.todayExits,
+      'pendingExit': instance.pendingExit,
+      'averageLoadTime': instance.averageLoadTime,
+      'complianceRate': instance.complianceRate,
+      'totalWeightIn': instance.totalWeightIn,
+      'totalWeightOut': instance.totalWeightOut,
+      'violationCount': instance.violationCount,
+      'createdAt': instance.createdAt.toIso8601String(),
+      'updatedAt': instance.updatedAt.toIso8601String(),
+      'syncStatus': instance.syncStatus,
+    };
+
+QRScanData _$QRScanDataFromJson(Map<String, dynamic> json) => QRScanData(
+      guestId: json['guestId'] as String,
+      name: json['name'] as String,
+      vehiclePlate: json['vehiclePlate'] as String,
+      cargoType: json['cargoType'] as String,
+      cargoQty: (json['cargoQty'] as num?)?.toInt(),
+      unit: json['unit'] as String?,
+      vehicleType: json['vehicleType'] as String?,
+      destination: json['destination'] as String?,
+      cargoOwner: json['cargoOwner'] as String?,
+      estimatedWeight: (json['estimatedWeight'] as num?)?.toDouble(),
+      doNumber: json['doNumber'] as String?,
+      issuedAt: DateTime.parse(json['issuedAt'] as String),
+      expiresAt: DateTime.parse(json['expiresAt'] as String),
+      issuer: json['issuer'] as String,
+      notes: json['notes'] as String?,
+    );
+
+Map<String, dynamic> _$QRScanDataToJson(QRScanData instance) =>
+    <String, dynamic>{
+      'guestId': instance.guestId,
+      'name': instance.name,
+      'vehiclePlate': instance.vehiclePlate,
+      'cargoType': instance.cargoType,
+      'cargoQty': instance.cargoQty,
+      'unit': instance.unit,
+      'vehicleType': instance.vehicleType,
+      'destination': instance.destination,
+      'cargoOwner': instance.cargoOwner,
+      'estimatedWeight': instance.estimatedWeight,
+      'doNumber': instance.doNumber,
+      'issuedAt': instance.issuedAt.toIso8601String(),
+      'expiresAt': instance.expiresAt.toIso8601String(),
+      'issuer': instance.issuer,
+      'notes': instance.notes,
+    };

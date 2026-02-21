@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cookie Authentication Debug</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #fff; }
+        .debug-section { margin: 20px 0; padding: 15px; background: #2a2a2a; border-radius: 5px; }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        .warning { color: #ff9800; }
+        .info { color: #2196F3; }
+        button { padding: 10px 20px; margin: 5px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #45a049; }
+        pre { background: #333; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        .cookie-item { margin: 5px 0; padding: 5px; background: #333; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>🍪 Cookie Authentication Debug Tool</h1>
+    
+    <div class="debug-section">
+        <h2>🌐 Current Environment</h2>
+        <div id="environment-info"></div>
+    </div>
+
+    <div class="debug-section">
+        <h2>🍪 Current Cookies</h2>
+        <button onclick="debugCookies()">🔍 Debug Cookies</button>
+        <div id="cookies-info"></div>
+    </div>
+
+    <div class="debug-section">
+        <h2>🔐 Test Login</h2>
+        <button onclick="testLogin()">🧪 Test Login Flow</button>
+        <div id="login-result"></div>
+    </div>
+
+    <div class="debug-section">
+        <h2>🏢 Test Companies API</h2>
+        <button onclick="testCompaniesAPI()">📊 Test /companies</button>
+        <div id="companies-result"></div>
+    </div>
+
+    <div class="debug-section">
+        <h2>🔄 Test Full Flow</h2>
+        <button onclick="testFullFlow()">🚀 Login → Companies</button>
+        <div id="full-flow-result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api/v1';
+        
+        function log(element, message, type = 'info') {
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : 'info';
+            element.innerHTML += `<div class="${className}">${message}</div>`;
+        }
+
+        function showEnvironment() {
+            const envDiv = document.getElementById('environment-info');
+            log(envDiv, `🌍 Current Domain: ${window.location.hostname}`);
+            log(envDiv, `🔗 Current URL: ${window.location.href}`);
+            log(envDiv, `🎯 API Base URL: ${API_BASE}`);
+            log(envDiv, `🍪 Document Domain: ${document.domain}`);
+            log(envDiv, `🔒 HTTPS: ${window.location.protocol === 'https:'}`);
+        }
+
+        function debugCookies() {
+            const cookiesDiv = document.getElementById('cookies-info');
+            cookiesDiv.innerHTML = '';
+            
+            log(cookiesDiv, '📋 All Cookies:');
+            const cookies = document.cookie;
+            
+            if (!cookies) {
+                log(cookiesDiv, '❌ No cookies found!', 'error');
+                return;
+            }
+
+            const cookieArray = cookies.split(';').map(c => c.trim());
+            cookieArray.forEach(cookie => {
+                const [name, value] = cookie.split('=');
+                const isSessionToken = name === 'session_token';
+                const type = isSessionToken ? 'success' : 'info';
+                log(cookiesDiv, `🍪 ${name}: ${value ? value.substring(0, 50) + '...' : 'EMPTY'}`, type);
+                
+                if (isSessionToken) {
+                    log(cookiesDiv, '✅ session_token cookie found!', 'success');
+                }
+            });
+
+            if (!cookies.includes('session_token=')) {
+                log(cookiesDiv, '❌ session_token cookie is MISSING!', 'error');
+                log(cookiesDiv, '💡 This explains the /companies request failure', 'warning');
+            }
+        }
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('login-result');
+            resultDiv.innerHTML = '';
+            
+            log(resultDiv, '🔐 Testing login flow...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-platform': 'WEB'
+                    },
+                    credentials: 'include', // Important for cookies
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123',
+                        rememberMe: true
+                    })
+                });
+
+                log(resultDiv, `📡 Response Status: ${response.status}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(resultDiv, '✅ Login successful!', 'success');
+                    log(resultDiv, `👤 User: ${data.user?.username} (${data.user?.role})`);
+                    
+                    // Check cookies after login
+                    setTimeout(() => {
+                        const cookiesAfterLogin = document.cookie;
+                        if (cookiesAfterLogin.includes('session_token=')) {
+                            log(resultDiv, '✅ session_token cookie set after login!', 'success');
+                        } else {
+                            log(resultDiv, '❌ session_token cookie NOT set after login!', 'error');
+                            log(resultDiv, '🔍 Available cookies: ' + cookiesAfterLogin, 'warning');
+                        }
+                    }, 100);
+                } else {
+                    const error = await response.text();
+                    log(resultDiv, `❌ Login failed: ${error}`, 'error');
+                }
+            } catch (error) {
+                log(resultDiv, `❌ Login error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCompaniesAPI() {
+            const resultDiv = document.getElementById('companies-result');
+            resultDiv.innerHTML = '';
+            
+            log(resultDiv, '🏢 Testing /companies API...');
+            
+            // Check cookies before request
+            const cookies = document.cookie;
+            if (cookies.includes('session_token=')) {
+                log(resultDiv, '✅ session_token cookie available', 'success');
+            } else {
+                log(resultDiv, '❌ session_token cookie missing!', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/companies`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-platform': 'WEB'
+                    },
+                    credentials: 'include' // Important for cookies
+                });
+
+                log(resultDiv, `📡 Response Status: ${response.status}`);
+                
+                if (response.ok) {
+                    const companies = await response.json();
+                    log(resultDiv, '✅ Companies API successful!', 'success');
+                    log(resultDiv, `📊 Found ${companies.length} companies`);
+                } else {
+                    const error = await response.text();
+                    log(resultDiv, `❌ Companies API failed: ${error}`, 'error');
+                    
+                    if (response.status === 401) {
+                        log(resultDiv, '🔍 This suggests cookie authentication failed', 'warning');
+                    }
+                }
+            } catch (error) {
+                log(resultDiv, `❌ Companies API error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testFullFlow() {
+            const resultDiv = document.getElementById('full-flow-result');
+            resultDiv.innerHTML = '';
+            
+            log(resultDiv, '🚀 Testing complete login → companies flow...');
+            
+            // Step 1: Login
+            log(resultDiv, '🔐 Step 1: Login...');
+            try {
+                const loginResponse = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-platform': 'WEB'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123',
+                        rememberMe: true
+                    })
+                });
+
+                if (loginResponse.ok) {
+                    log(resultDiv, '✅ Login successful', 'success');
+                    
+                    // Wait a bit and check cookies
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    
+                    const cookies = document.cookie;
+                    if (cookies.includes('session_token=')) {
+                        log(resultDiv, '✅ session_token cookie confirmed', 'success');
+                        
+                        // Step 2: Test companies API
+                        log(resultDiv, '🏢 Step 2: Testing companies API...');
+                        const companiesResponse = await fetch(`${API_BASE}/companies`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-platform': 'WEB'
+                            },
+                            credentials: 'include'
+                        });
+                        
+                        if (companiesResponse.ok) {
+                            const companies = await companiesResponse.json();
+                            log(resultDiv, '✅ Full flow successful!', 'success');
+                            log(resultDiv, `📊 Retrieved ${companies.length} companies`);
+                        } else {
+                            log(resultDiv, `❌ Companies request failed: ${companiesResponse.status}`, 'error');
+                            const errorText = await companiesResponse.text();
+                            log(resultDiv, `Error details: ${errorText}`, 'error');
+                        }
+                    } else {
+                        log(resultDiv, '❌ session_token cookie not set after login!', 'error');
+                        log(resultDiv, '🔍 This is the root cause of the issue', 'warning');
+                    }
+                } else {
+                    log(resultDiv, `❌ Login failed: ${loginResponse.status}`, 'error');
+                }
+            } catch (error) {
+                log(resultDiv, `❌ Full flow error: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize
+        showEnvironment();
+        debugCookies();
+    </script>
+</body>
+</html>

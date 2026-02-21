@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agrinova - Browser Authentication Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .disabled {
+            background: #6c757d !important;
+            cursor: not-allowed !important;
+        }
+        #cookieStatus {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Agrinova Browser Authentication Test</h1>
+    <p>This test verifies that the authentication cookie fix is working properly in the browser environment.</p>
+
+    <div class="test-section">
+        <h2>🍪 Current Cookie Status</h2>
+        <div id="cookieStatus">Loading...</div>
+        <button onclick="checkCookies()">Refresh Cookie Status</button>
+    </div>
+
+    <div class="test-section">
+        <h2>🔐 Authentication Test</h2>
+        <button onclick="testLogin()">Test Login</button>
+        <button onclick="testAuthenticatedRequest()" id="authButton" class="disabled">Test Authenticated Request</button>
+        <button onclick="testLogout()" id="logoutButton" class="disabled">Test Logout</button>
+        <div id="authResults"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>📋 Test Results</h2>
+        <div id="testResults"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:3001/api/v1';
+        
+        function log(message, type = 'info') {
+            const resultsDiv = document.getElementById('testResults');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `test-result ${type}`;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            resultsDiv.appendChild(logEntry);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+            
+            // Also log to console
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function checkCookies() {
+            const cookies = document.cookie;
+            const cookieList = cookies ? cookies.split(';').map(c => c.trim()) : [];
+            
+            const hasSessionToken = cookies.includes('session_token=');
+            const hasUserInfo = cookies.includes('user_info=');
+            const hasCsrfToken = cookies.includes('csrf_token=');
+            
+            const status = `
+Current Cookies: ${cookieList.length} found
+Session Token: ${hasSessionToken ? '✅ Present' : '❌ Missing'}
+User Info: ${hasUserInfo ? '✅ Present' : '❌ Missing'}
+CSRF Token: ${hasCsrfToken ? '✅ Present' : '❌ Missing'}
+
+All Cookies:
+${cookieList.map(c => `  • ${c}`).join('\n')}
+
+Raw Cookie String:
+${cookies || '(none)'}`;
+
+            document.getElementById('cookieStatus').textContent = status;
+            
+            // Update button states
+            updateButtonStates(hasSessionToken);
+            
+            return { hasSessionToken, hasUserInfo, hasCsrfToken, cookieList };
+        }
+        
+        function updateButtonStates(isAuthenticated) {
+            const authButton = document.getElementById('authButton');
+            const logoutButton = document.getElementById('logoutButton');
+            
+            if (isAuthenticated) {
+                authButton.classList.remove('disabled');
+                logoutButton.classList.remove('disabled');
+            } else {
+                authButton.classList.add('disabled');
+                logoutButton.classList.add('disabled');
+            }
+        }
+
+        async function testLogin() {
+            log('🔍 Starting login test...', 'info');
+            
+            try {
+                // Check cookies before login
+                const cookiesBefore = checkCookies();
+                log(`Cookies before login: ${cookiesBefore.cookieList.length} cookies`, 'info');
+                
+                // Perform login
+                const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'User-Agent': navigator.userAgent
+                    },
+                    credentials: 'include', // Important: include cookies
+                    body: JSON.stringify({
+                        username: 'superadmin',
+                        password: 'demo123',
+                        platform: 'WEB'
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Login failed: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                log(`✅ Login successful: ${data.user?.email} (${data.user?.role})`, 'success');
+                
+                // Check cookies immediately after login
+                setTimeout(() => {
+                    const cookiesAfter = checkCookies();
+                    log(`Cookies after login: ${cookiesAfter.cookieList.length} cookies`, 'info');
+                    
+                    if (cookiesAfter.hasSessionToken) {
+                        log('✅ Session token cookie successfully set!', 'success');
+                    } else {
+                        log('❌ CRITICAL: Session token cookie NOT set after login!', 'error');
+                        log('❌ This indicates a cookie reception issue in the browser.', 'error');
+                    }
+                    
+                    if (cookiesAfter.hasUserInfo) {
+                        log('✅ User info cookie successfully set!', 'success');
+                    } else {
+                        log('❌ WARNING: User info cookie NOT set after login!', 'error');
+                    }
+                }, 100);
+                
+            } catch (error) {
+                log(`❌ Login failed: ${error.message}`, 'error');
+                console.error('Login error details:', error);
+            }
+        }
+
+        async function testAuthenticatedRequest() {
+            const cookieStatus = checkCookies();
+            
+            if (!cookieStatus.hasSessionToken) {
+                log('❌ Cannot test authenticated request: No session token found', 'error');
+                return;
+            }
+            
+            log('🔍 Testing authenticated request...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/companies`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include' // Include cookies
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Authenticated request failed: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                log(`✅ Authenticated request successful: ${data.data?.length || 0} companies found`, 'success');
+                
+            } catch (error) {
+                log(`❌ Authenticated request failed: ${error.message}`, 'error');
+                
+                if (error.message.includes('401')) {
+                    log('❌ CRITICAL: 401 Unauthorized - cookies not being sent properly!', 'error');
+                }
+            }
+        }
+
+        async function testLogout() {
+            log('🔍 Testing logout...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/auth/web/logout`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Logout failed: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                log(`✅ Logout successful: ${data.message}`, 'success');
+                
+                // Check cookies after logout
+                setTimeout(() => {
+                    checkCookies();
+                    log('🍪 Cookie status updated after logout', 'info');
+                }, 100);
+                
+            } catch (error) {
+                log(`❌ Logout failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', () => {
+            log('🚀 Browser authentication test initialized', 'info');
+            log(`API URL: ${API_BASE_URL}`, 'info');
+            log(`User Agent: ${navigator.userAgent}`, 'info');
+            checkCookies();
+        });
+
+        // Auto-refresh cookie status every 5 seconds
+        setInterval(checkCookies, 5000);
+    </script>
+</body>
+</html>

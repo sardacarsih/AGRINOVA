@@ -1,0 +1,66 @@
+# =============================================================================
+# BKM Sync — Bulk upsert from Oracle via C# sync job
+# =============================================================================
+
+input BkmMasterUpsertInput {
+  masterid: ID!
+  periode: Int!
+  remise: Int
+  iddata: String!
+  nomor: Int
+  tanggal: String
+  jenisbkm: Int
+  isborongan: Boolean
+  divisi: String
+  mandor: String
+  userid: String
+  updateby: String
+  sign: Int
+  estate: String
+
+  createatRaw: String
+  updateatRaw: String
+  signatRaw: String
+
+  createAtTs: Time
+  updateAtTs: Time
+  signAtTs: Time
+}
+
+input BkmDetailUpsertInput {
+  detailid: ID!
+  masterid: ID!
+  baris: Int
+  pekerjaan: Int
+  keterangan: String
+  blok: String
+  blokstatus: String
+  tm: String
+  nik: String
+  nama: String
+  divisiKaryawan: String
+  qtyp1: Float
+  satp1: String
+  qtyp2: Float
+  satp2: String
+  qty: Float
+  satuan: String
+  tarif: Float
+  premi: Float
+  denda: Float
+  jumlah: Float
+  ackode: String
+}
+
+type UpsertBkmResult {
+  received: Int!
+  upserted: Int!
+}
+
+extend type Mutation {
+  """Bulk upsert BKM master records. Must be called BEFORE upsertBkmDetails."""
+  upsertBkmMasters(input: [BkmMasterUpsertInput!]!): UpsertBkmResult!
+
+  """Bulk upsert BKM detail records. Master records must already exist."""
+  upsertBkmDetails(input: [BkmDetailUpsertInput!]!): UpsertBkmResult!
+}

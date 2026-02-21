@@ -1,0 +1,1 @@
+export { LanguageSwitcher, CompactLanguageSwitcher } from './language-switcher';

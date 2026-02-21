@@ -1,0 +1,104 @@
+ Berdasarkan analisis codebase Agrinova, TIDAK - format endpoint untuk web dan mobile adalah SAMA.
+
+  🎯 Single Unified Endpoint
+
+  POST /api/v1/auth/login  # Endpoint yang sama untuk Web & Mobile
+
+  Penting: http://localhost:3000/login adalah halaman login frontend (Next.js), sedangkan API endpoint ada di http://localhost:3001/api/v1/auth/login.
+
+  🔍 Smart Platform Detection
+
+  Sistem otomatis mendeteksi platform dan menerapkan security yang sesuai:
+
+  Web Detection:
+  - User-Agent: Browser
+  - Response: HttpOnly cookies + CSRF protection
+
+  Mobile Detection:
+  - Header x-platform: ANDROID/IOS
+  - Device fields: deviceId, deviceFingerprint
+  - Response: JWT tokens + device binding
+
+  📊 Perbandingan Request
+
+  Web:
+  {
+    "username": "user@company.com",
+    "password": "password123"
+  }
+
+  Mobile:
+  {
+    "username": "mandor1",
+    "password": "password123",
+    "deviceId": "flutter-device-123",
+    "deviceFingerprint": "flutter-fp-hash-456"
+  }
+
+  Kesimpulan: Format endpoint sama, sistem otomatis detect platform dan memberikan response security yang sesuai.
+  
+  Berdasarkan analisis codebase Agrinova, berikut adalah format response dari unified authentication endpoint:
+
+  🎯 Format Response Berdasarkan Platform
+
+  📱 Mobile Response (JWT-based)
+
+  {
+    "success": true,
+    "message": "Mobile login successful",
+    "user": {
+      "id": "user-123",
+      "username": "mandor1",
+      "role": "mandor",
+      "companyId": "company-123"
+    },
+    "platform": "MOBILE_ANDROID",
+    "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIs...",
+    "offlineToken": "eyJhbGciOiJIUzI1NiIs...",
+    "tokenType": "Bearer",
+    "expiresIn": 900,
+    "expiresAt": "2025-01-01T12:15:00.000Z",
+    "deviceBinding": "abc123def456..."
+  }
+
+  🌐 Web Response (Cookie-based)
+
+  {
+    "success": true,
+    "message": "Web login successful",
+    "user": {
+      "id": "user-456",
+      "username": "admin@company.com",
+      "role": "company_admin",
+      "companyId": "company-123"
+    },
+    "platform": "WEB",
+    "expiresAt": "2025-01-01T13:00:00.000Z",
+    "session": {
+      "sessionId": "web-session-abc"
+    }
+  }
+
+  ❌ Error Response
+
+  {
+    "success": false,
+    "message": "Invalid credentials",
+    "errorCode": "INVALID_CREDENTIALS",
+    "platformDetection": {
+      "platform": "MOBILE_ANDROID",
+      "confidence": "HIGH"
+    }
+  }
+
+  🔍 Perbedaan Utama
+
+  | Aspect     | Mobile (JWT)                            | Web (Cookie)           |
+  |------------|-----------------------------------------|------------------------|
+  | Token Data | accessToken, refreshToken, offlineToken | Tidak ada (di cookies) |
+  | Security   | JWT + device binding                    | HttpOnly cookies       |
+  | Offline    | 30-day offline token                    | Online-only            |
+  | Storage    | Flutter Secure Storage                  | Browser cookies        |
+
+  Key Point: Endpoint sama (/auth/login), tapi format response berbeda sesuai platform detection otomatis.
