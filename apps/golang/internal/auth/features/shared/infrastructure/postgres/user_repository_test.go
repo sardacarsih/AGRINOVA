@@ -405,6 +405,102 @@ func TestUserRepository_FindWithFilters_Duplicates(t *testing.T) {
 	assert.Len(t, usersFound, 1, "Should only return 1 unique user")
 }
 
+func TestUserRepository_Delete_AllowsDeleteWhenNoTransactionsAndCleansDependencies(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewUserRepository(db)
+
+	err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS user_sessions (
+			id TEXT PRIMARY KEY,
+			user_id TEXT
+		)
+	`).Error
+	require.NoError(t, err)
+
+	user := &domain.User{
+		Username: "delete-me",
+		Name:     "Delete Me",
+		Role:     domain.RoleMandor,
+		IsActive: true,
+		Assignments: []domain.Assignment{
+			{ID: "assign-company", CompanyID: "company-1", IsActive: true},
+			{ID: "assign-estate", CompanyID: "company-1", EstateID: stringPtr("estate-1"), IsActive: true},
+			{ID: "assign-division", CompanyID: "company-1", DivisionID: stringPtr("division-1"), IsActive: true},
+		},
+	}
+	err = repo.Create(context.Background(), user)
+	require.NoError(t, err)
+
+	err = db.Exec("INSERT INTO user_sessions (id, user_id) VALUES (?, ?)", "session-1", user.ID).Error
+	require.NoError(t, err)
+
+	err = repo.Delete(context.Background(), user.ID)
+	require.NoError(t, err)
+
+	var usersCount int64
+	err = db.Table("users").Where("id = ?", user.ID).Count(&usersCount).Error
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), usersCount)
+
+	var companyAssignments int64
+	err = db.Table("user_company_assignments").Where("user_id = ?", user.ID).Count(&companyAssignments).Error
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), companyAssignments)
+
+	var estateAssignments int64
+	err = db.Table("user_estate_assignments").Where("user_id = ?", user.ID).Count(&estateAssignments).Error
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), estateAssignments)
+
+	var divisionAssignments int64
+	err = db.Table("user_division_assignments").Where("user_id = ?", user.ID).Count(&divisionAssignments).Error
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), divisionAssignments)
+
+	var sessionCount int64
+	err = db.Table("user_sessions").Where("user_id = ?", user.ID).Count(&sessionCount).Error
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), sessionCount)
+}
+
+func TestUserRepository_Delete_BlocksMandorWithHarvestTransactions(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewUserRepository(db)
+
+	err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS harvest_records (
+			id TEXT PRIMARY KEY,
+			mandor_id TEXT,
+			approved_by TEXT,
+			deleted_at DATETIME
+		)
+	`).Error
+	require.NoError(t, err)
+
+	user := &domain.User{
+		Username: "mandor-1",
+		Name:     "Mandor 1",
+		Role:     domain.RoleMandor,
+		IsActive: true,
+		Assignments: []domain.Assignment{
+			{ID: "assign-company", CompanyID: "company-1", IsActive: true},
+		},
+	}
+	err = repo.Create(context.Background(), user)
+	require.NoError(t, err)
+
+	err = db.Exec("INSERT INTO harvest_records (id, mandor_id) VALUES (?, ?)", "harvest-1", user.ID).Error
+	require.NoError(t, err)
+
+	err = repo.Delete(context.Background(), user.ID)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "transaksi panen")
+
+	stillExists, findErr := repo.FindByID(context.Background(), user.ID)
+	require.NoError(t, findErr)
+	require.NotNil(t, stillExists)
+}
+
 func TestSanity(t *testing.T) {
 	t.Log("Sanity test passed")
 }

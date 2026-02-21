@@ -2,10 +2,12 @@ package postgres
 
 import (
 	"context"
+	"errors"
 
 	"agrinovagraphql/server/internal/auth/features/shared/domain"
 
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -551,11 +553,164 @@ func cleanupActiveDivisionAssignmentDuplicates(tx *gorm.DB, userID string) error
 	return nil
 }
 
-// Delete soft deletes a user
+// Delete removes a user after ensuring there are no blocking transactional references.
 func (r *UserRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).
-		Where("id = ?", id).
-		Delete(&UserModel{}).Error
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var existing UserModel
+		if err := tx.Select("id").Where("id = ?", id).First(&existing).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("user not found")
+			}
+			return err
+		}
+
+		blockingReason, err := r.getDeleteBlockingReason(tx, id)
+		if err != nil {
+			return err
+		}
+		if blockingReason != "" {
+			return errors.New(blockingReason)
+		}
+
+		if err := r.cleanupDeleteDependencies(tx, id); err != nil {
+			return err
+		}
+
+		if err := tx.Where("id = ?", id).Delete(&UserModel{}).Error; err != nil {
+			return mapDeleteUserError(err)
+		}
+
+		return nil
+	})
+}
+
+func (r *UserRepository) getDeleteBlockingReason(tx *gorm.DB, userID string) (string, error) {
+	harvestCount, err := r.countUserReferences(tx, "harvest_records", []string{"mandor_id"}, userID)
+	if err != nil {
+		return "", err
+	}
+	if harvestCount > 0 {
+		return "Pengguna tidak bisa dihapus karena sudah memiliki transaksi panen. Nonaktifkan akun pengguna ini.", nil
+	}
+
+	gateCheckCount, err := r.countUserReferences(tx, "gate_check_records", []string{"satpam_id"}, userID)
+	if err != nil {
+		return "", err
+	}
+	gateGuestCount, err := r.countUserReferences(tx, "gate_guest_logs", []string{"created_by", "created_user_id"}, userID)
+	if err != nil {
+		return "", err
+	}
+	if gateCheckCount+gateGuestCount > 0 {
+		return "Pengguna tidak bisa dihapus karena sudah memiliki transaksi gate check. Nonaktifkan akun pengguna ini.", nil
+	}
+
+	approvalCount, err := r.countUserReferences(tx, "harvest_records", []string{"approved_by"}, userID)
+	if err != nil {
+		return "", err
+	}
+	if approvalCount > 0 {
+		return "Pengguna tidak bisa dihapus karena sudah melakukan approval. Nonaktifkan akun pengguna ini.", nil
+	}
+
+	budgetCount, err := r.countUserReferences(tx, "manager_division_production_budgets", []string{"created_by"}, userID)
+	if err != nil {
+		return "", err
+	}
+	if budgetCount > 0 {
+		return "Pengguna tidak bisa dihapus karena sudah memiliki data transaksi yang diproses. Nonaktifkan akun pengguna ini.", nil
+	}
+
+	return "", nil
+}
+
+func (r *UserRepository) countUserReferences(tx *gorm.DB, table string, candidateColumns []string, userID string) (int64, error) {
+	if !tx.Migrator().HasTable(table) {
+		return 0, nil
+	}
+
+	conditions := make([]string, 0, len(candidateColumns))
+	args := make([]interface{}, 0, len(candidateColumns))
+	for _, column := range candidateColumns {
+		if tx.Migrator().HasColumn(table, column) {
+			conditions = append(conditions, fmt.Sprintf("%s = ?", column))
+			args = append(args, userID)
+		}
+	}
+
+	if len(conditions) == 0 {
+		return 0, nil
+	}
+
+	query := tx.Table(table).Where(strings.Join(conditions, " OR "), args...)
+	if tx.Migrator().HasColumn(table, "deleted_at") {
+		query = query.Where("deleted_at IS NULL")
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+func (r *UserRepository) cleanupDeleteDependencies(tx *gorm.DB, userID string) error {
+	cleanupTables := []string{
+		"user_division_assignments",
+		"user_estate_assignments",
+		"user_company_assignments",
+		"user_sessions",
+		"device_bindings",
+		"jwt_tokens",
+		"security_events",
+		"security_audit_logs",
+	}
+
+	for _, table := range cleanupTables {
+		if !tx.Migrator().HasTable(table) || !tx.Migrator().HasColumn(table, "user_id") {
+			continue
+		}
+		if err := tx.Exec(fmt.Sprintf("DELETE FROM %s WHERE user_id = ?", table), userID).Error; err != nil {
+			return err
+		}
+	}
+
+	if tx.Migrator().HasTable("user_permission_assignments") {
+		if tx.Migrator().HasColumn("user_permission_assignments", "user_id") {
+			if err := tx.Exec("DELETE FROM user_permission_assignments WHERE user_id = ?", userID).Error; err != nil {
+				return err
+			}
+		}
+		if tx.Migrator().HasColumn("user_permission_assignments", "granted_by") {
+			if err := tx.Table("user_permission_assignments").
+				Where("granted_by = ?", userID).
+				Update("granted_by", nil).Error; err != nil {
+				return err
+			}
+		}
+	}
+
+	if tx.Migrator().HasTable("users") && tx.Migrator().HasColumn("users", "manager_id") {
+		if err := tx.Table("users").
+			Where("manager_id = ?", userID).
+			Update("manager_id", nil).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func mapDeleteUserError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	lowered := strings.ToLower(err.Error())
+	if strings.Contains(lowered, "foreign key") || strings.Contains(lowered, "sqlstate 23503") {
+		return errors.New("Pengguna tidak bisa dihapus karena masih terhubung ke data lain. Lepas relasi data terlebih dahulu atau nonaktifkan akun.")
+	}
+	return err
 }
 
 // Helper methods to convert between domain and GORM models
