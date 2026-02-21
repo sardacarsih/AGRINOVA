@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:logger/logger.dart';
 
 import '../../../auth/presentation/blocs/auth_bloc.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/role_service.dart';
 import '../../../../shared/widgets/server_profile_page.dart';
 
@@ -55,6 +56,16 @@ class DashboardPage extends StatelessWidget {
                           Icon(Icons.settings, size: 20),
                           SizedBox(width: 8),
                           Text('Settings'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'web_qr_login',
+                      child: Row(
+                        children: [
+                          Icon(Icons.qr_code_scanner, size: 20),
+                          SizedBox(width: 8),
+                          Text('QR Login Web'),
                         ],
                       ),
                     ),
@@ -434,6 +445,9 @@ class DashboardPage extends StatelessWidget {
         break;
       case 'settings':
         Navigator.pushNamed(context, '/settings');
+        break;
+      case 'web_qr_login':
+        Navigator.pushNamed(context, AppRoutes.webQRLogin);
         break;
       case 'logout':
         _showLogoutDialog(context);

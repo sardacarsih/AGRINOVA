@@ -1,11 +1,17 @@
 import { apolloClient } from '@/lib/apollo/client';
 import {
   WEB_LOGIN_MUTATION,
+  CREATE_WEB_QR_LOGIN_SESSION_MUTATION,
+  WEB_QR_LOGIN_STATUS_QUERY,
+  CONSUME_WEB_QR_LOGIN_MUTATION,
   LOGOUT_MUTATION,
   ME_QUERY,
   type WebLoginInput,
   type WebLoginPayload,
-  type User
+  type User,
+  type WebQRLoginSessionPayload,
+  type WebQRLoginStatusPayload,
+  type WebQRConsumeInput,
 } from '@/lib/apollo/queries/auth';
 
 // Response interface to match the expected structure
@@ -24,6 +30,23 @@ export interface CookieLoginResponse {
   // GraphQL-specific fields
   companies?: any[];
   sessionId?: string;
+}
+
+export interface QRLoginSessionResponse {
+  sessionId: string;
+  challenge: string;
+  qrData: string;
+  status: 'PENDING' | 'APPROVED' | 'EXPIRED' | 'CONSUMED';
+  expiresAt?: string;
+  message?: string;
+}
+
+export interface QRLoginStatusResponse {
+  sessionId?: string;
+  status: 'PENDING' | 'APPROVED' | 'EXPIRED' | 'CONSUMED';
+  expiresAt?: string;
+  message?: string;
+  user?: User;
 }
 
 // Login request interface for cookie-based authentication
@@ -196,6 +219,127 @@ class CookieApiClient {
       return {
         success: false,
         message: error.message || 'Login gagal. Silakan coba lagi.',
+      };
+    }
+  }
+
+  /**
+   * Create a short-lived web QR login session.
+   */
+  async createWebQRLoginSession(): Promise<ApiResponse<QRLoginSessionResponse>> {
+    try {
+      const response = await apolloClient.mutate({
+        mutation: CREATE_WEB_QR_LOGIN_SESSION_MUTATION,
+        errorPolicy: 'all',
+        fetchPolicy: 'no-cache',
+      });
+
+      const payload: WebQRLoginSessionPayload | undefined = response.data?.createWebQRLoginSession;
+      if (!payload?.success || !payload.sessionId || !payload.challenge || !payload.qrData) {
+        return {
+          success: false,
+          message: payload?.message || 'Gagal membuat sesi QR login.',
+        };
+      }
+
+      return {
+        success: true,
+        message: payload.message,
+        data: {
+          sessionId: payload.sessionId,
+          challenge: payload.challenge,
+          qrData: payload.qrData,
+          status: payload.status,
+          expiresAt: payload.expiresAt,
+          message: payload.message,
+        },
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error?.message || 'Terjadi kesalahan saat membuat sesi QR login.',
+      };
+    }
+  }
+
+  /**
+   * Poll QR login status.
+   */
+  async getWebQRLoginStatus(sessionId: string, challenge: string): Promise<ApiResponse<QRLoginStatusResponse>> {
+    try {
+      const response = await apolloClient.query({
+        query: WEB_QR_LOGIN_STATUS_QUERY,
+        variables: { sessionId, challenge },
+        errorPolicy: 'all',
+        fetchPolicy: 'network-only',
+      });
+
+      const payload: WebQRLoginStatusPayload | undefined = response.data?.webQRLoginStatus;
+      if (!payload) {
+        return {
+          success: false,
+          message: 'Status QR login tidak tersedia.',
+        };
+      }
+
+      return {
+        success: payload.success,
+        message: payload.message,
+        data: {
+          sessionId: payload.sessionId,
+          status: payload.status,
+          expiresAt: payload.expiresAt,
+          message: payload.message,
+          user: payload.user,
+        },
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error?.message || 'Gagal memeriksa status QR login.',
+      };
+    }
+  }
+
+  /**
+   * Consume approved QR login session and create cookie-based web session.
+   */
+  async consumeWebQRLogin(input: WebQRConsumeInput): Promise<ApiResponse<CookieLoginResponse>> {
+    try {
+      const response = await apolloClient.mutate({
+        mutation: CONSUME_WEB_QR_LOGIN_MUTATION,
+        variables: { input },
+        errorPolicy: 'all',
+        fetchPolicy: 'no-cache',
+      });
+
+      const payload: WebLoginPayload | undefined = response.data?.consumeWebQRLogin;
+      if (!payload?.success || !payload.user) {
+        return {
+          success: false,
+          message: payload?.message || 'QR login belum dapat digunakan.',
+        };
+      }
+
+      const responseData: CookieLoginResponse = {
+        user: {
+          ...payload.user,
+          permissions: this.getRolePermissions(payload.user.role),
+        },
+        message: payload.message,
+        companies: payload.assignments?.companies || [],
+        sessionId: payload.sessionId,
+      };
+
+      return {
+        success: true,
+        message: responseData.message,
+        data: responseData,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error?.message || 'Terjadi kesalahan saat menyelesaikan QR login.',
       };
     }
   }

@@ -4,9 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:logger/logger.dart';
 
 import '../../../../core/services/jwt_storage_service.dart';
-import '../../../../core/services/role_service.dart';
-import '../../../../core/services/jwt_qr_service.dart';
-import '../../../../shared/widgets/logout_menu_widget.dart';
 import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../data/models/gate_check_models.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -410,6 +407,9 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
                   ),
                 );
                 break;
+              case 'web_qr_login':
+                Navigator.pushNamed(context, AppRoutes.webQRLogin);
+                break;
               case 'logout':
                 context.read<AuthBloc>().add(AuthLogoutRequested());
                 break;
@@ -436,6 +436,18 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
                       color: Colors.white.withOpacity(0.7), size: 20),
                   const SizedBox(width: 12),
                   const Text('Keamanan Biometrik',
+                      style: TextStyle(color: Colors.white)),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'web_qr_login',
+              child: Row(
+                children: [
+                  Icon(Icons.qr_code_scanner_rounded,
+                      color: Colors.white.withOpacity(0.7), size: 20),
+                  const SizedBox(width: 12),
+                  const Text('QR Login Web',
                       style: TextStyle(color: Colors.white)),
                 ],
               ),
@@ -912,24 +924,24 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
   }
 
   Future<void> _processQRData(String qrData) async {
-    // Check if QR service is available
-    if (_serviceState == null || _serviceState!.qrService == null) {
-      SatpamDashboardHelpers.showSnackBar(
-        context,
-        'Service QR tidak tersedia, mohon tunggu...',
-        isError: true,
-      );
-      return;
-    }
-
-    final qrService = _serviceState!.qrService!;
-
     // Set processing state
     if (mounted) {
       setState(() => _isProcessingQR = true);
     }
 
     try {
+      // Check if QR service is available
+      if (_serviceState == null || _serviceState!.qrService == null) {
+        SatpamDashboardHelpers.showSnackBar(
+          context,
+          'Service QR tidak tersedia, mohon tunggu...',
+          isError: true,
+        );
+        return;
+      }
+
+      final qrService = _serviceState!.qrService!;
+
       // Parse QR data
       final parseResult = await qrService.parseQRData(qrData);
       if (!parseResult.isValid) {

@@ -158,6 +158,34 @@ type WebLoginPayload struct {
 	Assignments *UserAssignments `json:"assignments,omitempty"`
 }
 
+type WebQRSessionStatus string
+
+const (
+	WebQRSessionStatusPending  WebQRSessionStatus = "PENDING"
+	WebQRSessionStatusApproved WebQRSessionStatus = "APPROVED"
+	WebQRSessionStatusExpired  WebQRSessionStatus = "EXPIRED"
+	WebQRSessionStatusConsumed WebQRSessionStatus = "CONSUMED"
+)
+
+type WebQRLoginSessionPayload struct {
+	Success   bool               `json:"success"`
+	SessionID *string            `json:"sessionId,omitempty"`
+	Challenge *string            `json:"challenge,omitempty"`
+	QRData    *string            `json:"qrData,omitempty"`
+	Status    WebQRSessionStatus `json:"status"`
+	ExpiresAt *time.Time         `json:"expiresAt,omitempty"`
+	Message   string             `json:"message"`
+}
+
+type WebQRLoginStatusPayload struct {
+	Success   bool               `json:"success"`
+	SessionID *string            `json:"sessionId,omitempty"`
+	Status    WebQRSessionStatus `json:"status"`
+	ExpiresAt *time.Time         `json:"expiresAt,omitempty"`
+	Message   string             `json:"message"`
+	User      *User              `json:"user,omitempty"`
+}
+
 // RefreshTokenInput for token refresh.
 type RefreshTokenInput struct {
 	RefreshToken      string  `json:"refreshToken"`
@@ -171,6 +199,16 @@ type DeviceRenewInput struct {
 	OfflineToken      string  `json:"offlineToken"`
 	DeviceID          string  `json:"deviceId"`
 	DeviceFingerprint *string `json:"deviceFingerprint,omitempty"`
+}
+
+type WebQRApproveInput struct {
+	SessionID string `json:"sessionId"`
+	Challenge string `json:"challenge"`
+}
+
+type WebQRConsumeInput struct {
+	SessionID string `json:"sessionId"`
+	Challenge string `json:"challenge"`
 }
 
 // ============================================================================

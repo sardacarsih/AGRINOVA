@@ -3,126 +3,170 @@
 import * as React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  QrCode, 
-  RefreshCw, 
-  CheckCircle, 
-  XCircle, 
+import {
+  QrCode,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
   Clock,
   Smartphone,
-  Loader2 
+  Loader2
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { mockAuthService } from '@/lib/auth/mock-auth';
+import cookieApiClient from '@/lib/api/cookie-client';
 
 interface QRLoginProps {
-  onSuccess: (user: any, accessToken: string) => void;
+  onSuccess: (payload: { user: any; expiresAt: Date }) => Promise<void> | void;
   onError: (error: string) => void;
 }
 
 type QRStatus = 'generating' | 'pending' | 'approved' | 'expired' | 'error';
 
+const DEFAULT_QR_TTL_SECONDS = 120;
+
 export function QRLogin({ onSuccess, onError }: QRLoginProps) {
   const [status, setStatus] = React.useState<QRStatus>('generating');
-  const [qrCodeData, setQrCodeData] = React.useState<string>('');
-  const [sessionId, setSessionId] = React.useState<string>('');
-  const [timeLeft, setTimeLeft] = React.useState<number>(300); // 5 minutes
-  const [checkInterval, setCheckInterval] = React.useState<NodeJS.Timeout | null>(null);
-  const [countdownInterval, setCountdownInterval] = React.useState<NodeJS.Timeout | null>(null);
+  const [qrCodeData, setQrCodeData] = React.useState('');
+  const [timeLeft, setTimeLeft] = React.useState(DEFAULT_QR_TTL_SECONDS);
+  const [totalDurationSeconds, setTotalDurationSeconds] = React.useState(DEFAULT_QR_TTL_SECONDS);
 
-  const generateQRCode = async () => {
+  const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const countdownIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const clearTimers = React.useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+  }, []);
+
+  const consumeApprovedSession = React.useCallback(async (sid: string, sessionChallenge: string) => {
+    const consumeResponse = await cookieApiClient.consumeWebQRLogin({
+      sessionId: sid,
+      challenge: sessionChallenge,
+    });
+
+    if (!consumeResponse.success || !consumeResponse.data?.user) {
+      setStatus('error');
+      onError(consumeResponse.message || 'Gagal menyelesaikan login QR.');
+      return;
+    }
+
+    const authenticated = await cookieApiClient.checkAuth();
+    if (!authenticated) {
+      setStatus('error');
+      onError('QR login berhasil, tetapi sesi belum aktif. Silakan coba lagi.');
+      return;
+    }
+
+    setStatus('approved');
+    clearTimers();
+
     try {
-      setStatus('generating');
-      
-      const response = await mockAuthService.generateQRCode();
-      
-      if (response.success && response.sessionId) {
-        const qrData = JSON.stringify({
-          type: 'agrinova_login',
-          sessionId: response.sessionId,
-          expiresAt: response.expiresAt?.getTime(),
-          domain: window.location.origin,
-        });
-        
-        setQrCodeData(qrData);
-        setSessionId(response.sessionId);
-        setStatus('pending');
-        setTimeLeft(300); // Reset to 5 minutes
-        
-        startPolling(response.sessionId);
-        startCountdown();
-      } else {
-        setStatus('error');
-        onError('Gagal membuat QR Code. Silakan coba lagi.');
+      await onSuccess({
+        user: consumeResponse.data.user,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+    } catch (error: any) {
+      setStatus('error');
+      onError(error?.message || 'Gagal menyelesaikan login QR.');
+    }
+  }, [clearTimers, onError, onSuccess]);
+
+  const startPolling = React.useCallback((sid: string, sessionChallenge: string) => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
+
+    pollingIntervalRef.current = setInterval(async () => {
+      try {
+        const response = await cookieApiClient.getWebQRLoginStatus(sid, sessionChallenge);
+        const statusValue = response.data?.status;
+
+        if (!response.success && statusValue !== 'PENDING') {
+          setStatus('error');
+          clearTimers();
+          onError(response.message || 'Status QR login tidak valid.');
+          return;
+        }
+
+        if (statusValue === 'APPROVED') {
+          await consumeApprovedSession(sid, sessionChallenge);
+          return;
+        }
+
+        if (statusValue === 'EXPIRED' || statusValue === 'CONSUMED') {
+          setStatus('expired');
+          clearTimers();
+        }
+      } catch (error) {
+        console.error('QR status polling error:', error);
       }
+    }, 3000);
+  }, [clearTimers, consumeApprovedSession, onError]);
+
+  const startCountdown = React.useCallback((expiryMs: number) => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+
+    countdownIntervalRef.current = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((expiryMs - Date.now()) / 1000));
+      setTimeLeft(remaining);
+
+      if (remaining <= 0) {
+        setStatus('expired');
+        clearTimers();
+      }
+    }, 1000);
+  }, [clearTimers]);
+
+  const generateQRCode = React.useCallback(async () => {
+    try {
+      clearTimers();
+      setStatus('generating');
+
+      const response = await cookieApiClient.createWebQRLoginSession();
+      if (!response.success || !response.data?.sessionId || !response.data.challenge || !response.data.qrData) {
+        setStatus('error');
+        onError(response.message || 'Gagal membuat QR Code. Silakan coba lagi.');
+        return;
+      }
+
+      const expiryMs = response.data.expiresAt ? new Date(response.data.expiresAt).getTime() : Date.now() + DEFAULT_QR_TTL_SECONDS * 1000;
+      const remainingSeconds = Math.max(0, Math.ceil((expiryMs - Date.now()) / 1000));
+
+      setQrCodeData(response.data.qrData);
+      setTimeLeft(remainingSeconds);
+      setTotalDurationSeconds(Math.max(1, remainingSeconds));
+      setStatus('pending');
+
+      startPolling(response.data.sessionId, response.data.challenge);
+      startCountdown(expiryMs);
     } catch (error) {
       console.error('QR generation error:', error);
       setStatus('error');
       onError('Terjadi kesalahan saat membuat QR Code.');
     }
-  };
-
-  const startPolling = (sessionId: string) => {
-    // Clear existing interval
-    if (checkInterval) clearInterval(checkInterval);
-    
-    const interval = setInterval(async () => {
-      try {
-        const response = await mockAuthService.checkQRLogin(sessionId);
-        
-        if (response.status === 'approved' && response.user && response.accessToken) {
-          setStatus('approved');
-          clearInterval(interval);
-          if (countdownInterval) clearInterval(countdownInterval);
-          onSuccess(response.user, response.accessToken);
-        } else if (response.status === 'expired') {
-          setStatus('expired');
-          clearInterval(interval);
-          if (countdownInterval) clearInterval(countdownInterval);
-        }
-      } catch (error) {
-        console.error('QR check error:', error);
-      }
-    }, 3000); // Check every 3 seconds
-    
-    setCheckInterval(interval);
-  };
-
-  const startCountdown = () => {
-    // Clear existing countdown
-    if (countdownInterval) clearInterval(countdownInterval);
-    
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          setStatus('expired');
-          if (checkInterval) clearInterval(checkInterval);
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    
-    setCountdownInterval(interval);
-  };
-
-  const handleRefresh = () => {
-    if (checkInterval) clearInterval(checkInterval);
-    if (countdownInterval) clearInterval(countdownInterval);
-    generateQRCode();
-  };
+  }, [clearTimers, onError, startCountdown, startPolling]);
 
   React.useEffect(() => {
     generateQRCode();
-    
-    return () => {
-      if (checkInterval) clearInterval(checkInterval);
-      if (countdownInterval) clearInterval(countdownInterval);
-    };
-  }, []);
+    return () => clearTimers();
+  }, [clearTimers, generateQRCode]);
+
+  const handleRefresh = React.useCallback(() => {
+    setQrCodeData('');
+    setTimeLeft(DEFAULT_QR_TTL_SECONDS);
+    setTotalDurationSeconds(DEFAULT_QR_TTL_SECONDS);
+    generateQRCode();
+  }, [generateQRCode]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -139,7 +183,6 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
       case 'approved':
         return <CheckCircle className="h-6 w-6 text-green-500" />;
       case 'expired':
-        return <XCircle className="h-6 w-6 text-red-500" />;
       case 'error':
         return <XCircle className="h-6 w-6 text-red-500" />;
       default:
@@ -152,9 +195,9 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
       case 'generating':
         return 'Membuat QR Code...';
       case 'pending':
-        return 'Menunggu scan dari aplikasi mobile';
+        return 'Menunggu konfirmasi dari aplikasi mobile';
       case 'approved':
-        return 'QR Code berhasil di-scan! Mengalihkan...';
+        return 'QR Code berhasil dikonfirmasi. Mengalihkan...';
       case 'expired':
         return 'QR Code kedaluwarsa';
       case 'error':
@@ -172,9 +215,7 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
             {getStatusIcon()}
             <h3 className="text-lg font-semibold">QR Code Login</h3>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {getStatusText()}
-          </p>
+          <p className="text-sm text-muted-foreground">{getStatusText()}</p>
         </div>
 
         <AnimatePresence mode="wait">
@@ -188,9 +229,7 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
             >
               <div className="text-center space-y-4">
                 <Loader2 className="h-12 w-12 animate-spin text-blue-500 mx-auto" />
-                <p className="text-sm text-muted-foreground">
-                  Sedang membuat QR Code...
-                </p>
+                <p className="text-sm text-muted-foreground">Sedang membuat QR Code...</p>
               </div>
             </motion.div>
           )}
@@ -212,7 +251,7 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
                   className="border border-gray-200 rounded"
                 />
               </div>
-              
+
               {status === 'pending' && (
                 <div className="text-center space-y-2">
                   <div className="flex items-center justify-center space-x-2 text-sm">
@@ -222,7 +261,7 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
                       className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
-                      style={{ width: `${(timeLeft / 300) * 100}%` }}
+                      style={{ width: `${Math.max(0, (timeLeft / totalDurationSeconds) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -235,12 +274,8 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
                   className="text-center p-3 bg-green-50 border border-green-200 rounded-lg"
                 >
                   <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-green-800">
-                    Login berhasil!
-                  </p>
-                  <p className="text-xs text-green-600">
-                    Mengalihkan ke dashboard...
-                  </p>
+                  <p className="text-sm font-medium text-green-800">Login berhasil!</p>
+                  <p className="text-xs text-green-600">Mengalihkan ke dashboard...</p>
                 </motion.div>
               )}
             </motion.div>
@@ -257,13 +292,10 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
               <div className="p-8 bg-gray-50 rounded-lg">
                 <XCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
                 <p className="text-sm text-gray-600">
-                  {status === 'expired' 
-                    ? 'QR Code telah kedaluwarsa'
-                    : 'Terjadi kesalahan'
-                  }
+                  {status === 'expired' ? 'QR Code telah kedaluwarsa' : 'Terjadi kesalahan'}
                 </p>
               </div>
-              
+
               <Button
                 onClick={handleRefresh}
                 variant="outline"
@@ -279,9 +311,7 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
         {status === 'pending' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                QR Code masih berlaku
-              </span>
+              <span className="text-sm text-muted-foreground">QR Code masih berlaku</span>
               <Button
                 onClick={handleRefresh}
                 variant="ghost"
@@ -291,17 +321,17 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
                 <RefreshCw className="h-3 w-3" />
               </Button>
             </div>
-            
+
             <div className="text-xs text-muted-foreground space-y-1 p-3 bg-blue-50 rounded-lg border border-blue-200">
               <div className="flex items-center space-x-2">
                 <Smartphone className="h-4 w-4 text-blue-600" />
                 <span className="font-medium text-blue-800">Cara menggunakan:</span>
               </div>
               <ul className="space-y-1 text-blue-700">
-                <li>• Buka aplikasi Agrinova di mobile</li>
-                <li>• Pilih "Login dengan QR Code"</li>
-                <li>• Arahkan kamera ke QR Code ini</li>
-                <li>• Konfirmasi login di aplikasi mobile</li>
+                <li>- Buka aplikasi Agrinova di mobile</li>
+                <li>- Pilih menu scan login QR</li>
+                <li>- Scan QR Code ini</li>
+                <li>- Konfirmasi login di aplikasi mobile</li>
               </ul>
             </div>
           </div>

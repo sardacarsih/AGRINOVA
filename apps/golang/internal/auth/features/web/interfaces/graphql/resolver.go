@@ -10,6 +10,7 @@ import (
 	webDomain "agrinovagraphql/server/internal/auth/features/web/domain"
 	"agrinovagraphql/server/internal/graphql/domain/auth"
 	"agrinovagraphql/server/internal/graphql/domain/master"
+	"agrinovagraphql/server/internal/middleware"
 )
 
 // =============================================================================
@@ -52,6 +53,127 @@ func (r *Resolver) WebLogin(ctx context.Context, input auth.WebLoginInput) (*aut
 		SessionID:   &result.SessionID,
 		User:        mapUserToGraphQL(result.User),
 		Assignments: mapAssignmentsToUserAssignments(result.Assignments),
+		Message:     "Login berhasil",
+	}, nil
+}
+
+func (r *Resolver) CreateWebQRLoginSession(ctx context.Context) (*auth.WebQRLoginSessionPayload, error) {
+	result, err := r.webAuthService.CreateQRLoginSession(ctx, webDomain.CreateQRLoginSessionInput{
+		IPAddress: getClientIPAddress(ctx),
+		UserAgent: getClientUserAgent(ctx),
+	})
+	if err != nil {
+		return &auth.WebQRLoginSessionPayload{
+			Success: false,
+			Status:  auth.WebQRSessionStatusExpired,
+			Message: "Gagal membuat sesi QR login",
+		}, nil
+	}
+
+	return &auth.WebQRLoginSessionPayload{
+		Success:   true,
+		SessionID: &result.SessionID,
+		Challenge: &result.Challenge,
+		QRData:    &result.QRData,
+		Status:    mapQRSessionStatus(result.Status),
+		ExpiresAt: &result.ExpiresAt,
+		Message:   result.Message,
+	}, nil
+}
+
+func (r *Resolver) WebQRLoginStatus(ctx context.Context, sessionID string, challenge string) (*auth.WebQRLoginStatusPayload, error) {
+	result, err := r.webAuthService.GetQRLoginStatus(ctx, webDomain.GetQRLoginStatusInput{
+		SessionID: sessionID,
+		Challenge: challenge,
+	})
+	if err != nil {
+		if errors.Is(err, web.ErrQRLoginSessionNotFound) || errors.Is(err, web.ErrQRLoginSessionInvalid) {
+			return &auth.WebQRLoginStatusPayload{
+				Success: false,
+				Status:  auth.WebQRSessionStatusExpired,
+				Message: "Sesi QR tidak valid atau sudah kedaluwarsa",
+			}, nil
+		}
+
+		return nil, err
+	}
+
+	return &auth.WebQRLoginStatusPayload{
+		Success:   true,
+		SessionID: &result.SessionID,
+		Status:    mapQRSessionStatus(result.Status),
+		ExpiresAt: &result.ExpiresAt,
+		Message:   result.Message,
+	}, nil
+}
+
+func (r *Resolver) ApproveWebQRLogin(ctx context.Context, input auth.WebQRApproveInput) (*auth.WebQRLoginStatusPayload, error) {
+	userID := middleware.GetCurrentUserID(ctx)
+	if userID == "" {
+		return &auth.WebQRLoginStatusPayload{
+			Success: false,
+			Status:  auth.WebQRSessionStatusExpired,
+			Message: "Authentication required",
+		}, nil
+	}
+
+	result, err := r.webAuthService.ApproveQRLogin(ctx, webDomain.ApproveQRLoginInput{
+		SessionID: input.SessionID,
+		Challenge: input.Challenge,
+		UserID:    userID,
+	})
+	if err != nil {
+		if errors.Is(err, web.ErrQRLoginSessionNotFound) ||
+			errors.Is(err, web.ErrQRLoginSessionInvalid) ||
+			errors.Is(err, web.ErrQRLoginExpired) ||
+			errors.Is(err, web.ErrQRLoginAlreadyConsumed) {
+			return &auth.WebQRLoginStatusPayload{
+				Success: false,
+				Status:  auth.WebQRSessionStatusExpired,
+				Message: "QR login tidak dapat disetujui",
+			}, nil
+		}
+		return nil, err
+	}
+
+	return &auth.WebQRLoginStatusPayload{
+		Success:   true,
+		SessionID: &result.SessionID,
+		Status:    mapQRSessionStatus(result.Status),
+		ExpiresAt: &result.ExpiresAt,
+		Message:   result.Message,
+	}, nil
+}
+
+func (r *Resolver) ConsumeWebQRLogin(ctx context.Context, input auth.WebQRConsumeInput) (*auth.WebLoginPayload, error) {
+	result, err := r.webAuthService.ConsumeQRLogin(ctx, webDomain.ConsumeQRLoginInput{
+		SessionID: input.SessionID,
+		Challenge: input.Challenge,
+		IPAddress: getClientIPAddress(ctx),
+		UserAgent: getClientUserAgent(ctx),
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, web.ErrQRLoginSessionNotFound),
+			errors.Is(err, web.ErrQRLoginSessionInvalid),
+			errors.Is(err, web.ErrQRLoginNotApproved),
+			errors.Is(err, web.ErrQRLoginExpired),
+			errors.Is(err, web.ErrQRLoginAlreadyConsumed):
+			return &auth.WebLoginPayload{
+				Success: false,
+				Message: "QR login belum siap atau sudah kedaluwarsa",
+			}, nil
+		default:
+			return nil, err
+		}
+	}
+
+	return &auth.WebLoginPayload{
+		Success:     true,
+		SessionID:   &result.SessionID,
+		User:        mapUserToGraphQL(result.User),
+		Assignments: mapAssignmentsToUserAssignments(result.Assignments),
+		Message:     "Login QR berhasil",
 	}, nil
 }
 
@@ -102,6 +224,7 @@ func (r *Resolver) CurrentUser(ctx context.Context) (*auth.WebLoginPayload, erro
 		SessionID:   &result.SessionID,
 		User:        mapUserToGraphQL(result.User),
 		Assignments: mapAssignmentsToUserAssignments(result.Assignments),
+		Message:     "OK",
 	}, nil
 }
 
@@ -147,8 +270,27 @@ func mapWebAuthError(err error) error {
 		return errors.New("invalid username or password")
 	case web.ErrInvalidSession:
 		return errors.New("invalid or expired session")
+	case web.ErrQRLoginSessionNotFound, web.ErrQRLoginSessionInvalid, web.ErrQRLoginNotApproved:
+		return errors.New("invalid qr login session")
+	case web.ErrQRLoginExpired:
+		return errors.New("qr login session expired")
+	case web.ErrQRLoginAlreadyConsumed:
+		return errors.New("qr login session already consumed")
 	default:
 		return err
+	}
+}
+
+func mapQRSessionStatus(status webDomain.QRLoginStatus) auth.WebQRSessionStatus {
+	switch status {
+	case webDomain.QRLoginStatusApproved:
+		return auth.WebQRSessionStatusApproved
+	case webDomain.QRLoginStatusExpired:
+		return auth.WebQRSessionStatusExpired
+	case webDomain.QRLoginStatusConsumed:
+		return auth.WebQRSessionStatusConsumed
+	default:
+		return auth.WebQRSessionStatusPending
 	}
 }
 

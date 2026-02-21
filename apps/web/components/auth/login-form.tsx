@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2, CircleAlert, QrCode, Eye, EyeOff, WifiOff, Smartphone, Download, ExternalLink } from 'lucide-react';
+import { Loader2, CircleAlert, QrCode, WifiOff } from 'lucide-react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
 
@@ -16,9 +16,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 
 import { loginSchema } from '@/lib/auth/validation';
 import type { LoginFormData } from '@/lib/auth/validation';
-import { qrLoginManager, type QRLoginSession } from '@/lib/auth/qr-login';
-import { QRCodeDisplay } from '@/components/auth/qr-code-display';
-import { useAuth } from '@/hooks/use-auth';
+import { QRLogin } from '@/components/auth/qr-login';
 
 interface LoginFormProps {
   onSubmit: (data: LoginFormData) => Promise<void>;
@@ -37,11 +35,7 @@ export function LoginForm({
   onForgotPassword,
   defaultUsername,
 }: LoginFormProps) {
-  const { } = useAuth();
   const [loginMode, setLoginMode] = React.useState<'form' | 'qr'>('form');
-  const [qrSession, setQrSession] = React.useState<QRLoginSession | null>(null);
-  const [isMounted, setIsMounted] = React.useState(false);
-  const [serverStatusDetails, setServerStatusDetails] = React.useState<string>('');
   const [isApiOnline, setIsApiOnline] = React.useState(true); // Assume online by default
   const [apiHealthStatus, setApiHealthStatus] = React.useState<any>(null);
   const shouldReduceMotion = useReducedMotion();
@@ -93,60 +87,6 @@ export function LoginForm({
 
       toast.error(message || 'Gagal masuk. Silakan coba lagi.');
     }
-  };
-
-  React.useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  React.useEffect(() => {
-    if (isMounted && loginMode === 'qr' && !qrSession) {
-      const session = qrLoginManager.generateSession();
-      setQrSession(session);
-
-      qrLoginManager.subscribeToSession(session.id, (updatedSession) => {
-        setQrSession(updatedSession);
-        
-        if (updatedSession.status === 'confirmed' && updatedSession.user) {
-          const loginData = {
-            user: updatedSession.user,
-            token: `qr-token-${updatedSession.id}`,
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          };
-          
-          onQRLogin(loginData);
-        }
-      });
-    }
-
-    return () => {
-      if (qrSession) {
-        qrLoginManager.unsubscribeFromSession(qrSession.id);
-      }
-    };
-  }, [isMounted, loginMode, qrSession, onQRLogin]);
-
-  const handleRefreshQR = () => {
-    if (qrSession) {
-      qrLoginManager.unsubscribeFromSession(qrSession.id);
-    }
-    
-    const newSession = qrLoginManager.generateSession();
-    setQrSession(newSession);
-
-    qrLoginManager.subscribeToSession(newSession.id, (updatedSession) => {
-      setQrSession(updatedSession);
-      
-      if (updatedSession.status === 'confirmed' && updatedSession.user) {
-        const loginData = {
-          user: updatedSession.user,
-          token: `qr-token-${updatedSession.id}`,
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        };
-        
-        onQRLogin(loginData);
-      }
-    });
   };
 
   // Animation variants that respect reduced motion
@@ -322,23 +262,20 @@ export function LoginForm({
         </TabsContent>
 
         <TabsContent value="qr" className="space-y-4 mt-6">
-          {qrSession ? (
-            <QRCodeDisplay
-              qrData={qrSession.qrData}
-              sessionId={qrSession.id}
-              status={qrSession.status}
-              expiresAt={qrSession.expiresAt}
-              onRefresh={handleRefreshQR}
-              onConfirmed={() => {
-                toast.success('Login berhasil dikonfirmasi!');
-              }}
-            />
-          ) : (
-            <div className="text-center p-8 bg-slate-50 dark:bg-slate-800 rounded-xl">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto text-emerald-600 mb-4" />
-              <p className="text-sm text-slate-600 dark:text-slate-400">Menyiapkan QR Code...</p>
-            </div>
-          )}
+          <QRLogin
+            onSuccess={async ({ user, expiresAt }) => {
+              const loginData = {
+                user,
+                token: '',
+                expiresAt,
+              };
+
+              await onQRLogin(loginData);
+            }}
+            onError={(message) => {
+              toast.error(message);
+            }}
+          />
         </TabsContent>
       </Tabs>
 

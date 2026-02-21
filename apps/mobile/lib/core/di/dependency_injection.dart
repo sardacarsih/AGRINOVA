@@ -42,6 +42,8 @@ import '../../features/monitoring/data/repositories/monitoring_repository.dart';
 import '../../features/monitoring/presentation/blocs/monitoring_bloc.dart';
 import '../../features/dashboard/data/repositories/area_manager_dashboard_repository.dart';
 import '../../features/dashboard/data/repositories/manager_dashboard_repository.dart';
+import '../../features/dashboard/data/repositories/company_admin_dashboard_repository.dart';
+import '../../features/dashboard/data/repositories/super_admin_dashboard_repository.dart';
 import '../../features/dashboard/presentation/blocs/area_manager_dashboard_bloc.dart';
 import '../../features/dashboard/presentation/blocs/manager_dashboard_bloc.dart';
 import '../services/fcm_service.dart';
@@ -189,6 +191,18 @@ class ServiceLocator {
     sl.registerLazySingleton<ManagerDashboardRepository>(
       () =>
           ManagerDashboardRepository(graphqlClient: sl<GraphQLClientService>()),
+    );
+
+    sl.registerLazySingleton<CompanyAdminDashboardRepository>(
+      () => CompanyAdminDashboardRepository(
+        graphqlClient: sl<GraphQLClientService>(),
+      ),
+    );
+
+    sl.registerLazySingleton<SuperAdminDashboardRepository>(
+      () => SuperAdminDashboardRepository(
+        graphqlClient: sl<GraphQLClientService>(),
+      ),
     );
   }
 

@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di/dependency_injection.dart';
+import '../../core/routes/app_routes.dart';
 import '../../features/auth/presentation/blocs/auth_bloc.dart';
 import '../../features/auth/presentation/blocs/biometric_auth_bloc.dart';
 import '../../features/auth/presentation/pages/biometric_settings_page.dart';
-import 'current_user_avatar.dart';
 import 'server_profile_page.dart';
 
 class LogoutMenuWidget extends StatelessWidget {
@@ -56,6 +56,16 @@ class LogoutMenuWidget extends StatelessWidget {
           ),
         ),
         PopupMenuItem(
+          value: 'web_qr_login',
+          child: Row(
+            children: [
+              Icon(Icons.qr_code_scanner, size: 20, color: Colors.grey[700]),
+              SizedBox(width: 12),
+              Text('QR Login Web'),
+            ],
+          ),
+        ),
+        PopupMenuItem(
           value: 'about',
           child: Row(
             children: [
@@ -78,23 +88,7 @@ class LogoutMenuWidget extends StatelessWidget {
         ),
       ],
       tooltip: 'User Menu',
-      child: Padding(
-        padding: EdgeInsets.all(6.0),
-        child: SizedBox(
-          width: 30,
-          height: 30,
-          child: CurrentUserAvatar(
-            size: 30,
-            shape: BoxShape.circle,
-            backgroundColor: Colors.white.withValues(alpha: 0.24),
-            initialsStyle: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
-            ),
-          ),
-        ),
-      ),
+      icon: const Icon(Icons.more_vert),
     );
   }
 
@@ -112,6 +106,9 @@ class LogoutMenuWidget extends StatelessWidget {
         break;
       case 'biometric':
         _navigateToBiometricSettings(context);
+        break;
+      case 'web_qr_login':
+        _navigateToWebQRLogin(context);
         break;
       case 'about':
         _showAboutDialog(context);
@@ -147,6 +144,10 @@ class LogoutMenuWidget extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _navigateToWebQRLogin(BuildContext context) {
+    Navigator.pushNamed(context, AppRoutes.webQRLogin);
   }
 
   void _showAboutDialog(BuildContext context) {

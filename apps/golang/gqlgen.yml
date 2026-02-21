@@ -245,8 +245,18 @@ models:
     model: agrinovagraphql/server/internal/graphql/domain/auth.WebLoginInput
   WebLoginPayload:
     model: agrinovagraphql/server/internal/graphql/domain/auth.WebLoginPayload
+  WebQRSessionStatus:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.WebQRSessionStatus
+  WebQRLoginSessionPayload:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.WebQRLoginSessionPayload
+  WebQRLoginStatusPayload:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.WebQRLoginStatusPayload
   RefreshTokenInput:
     model: agrinovagraphql/server/internal/graphql/domain/auth.RefreshTokenInput
+  WebQRApproveInput:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.WebQRApproveInput
+  WebQRConsumeInput:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.WebQRConsumeInput
   CreateUserInput:
     model: agrinovagraphql/server/internal/graphql/domain/auth.CreateUserInput
   ChangePasswordInput:

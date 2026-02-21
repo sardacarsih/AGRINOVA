@@ -3,9 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/dependency_injection.dart';
 import '../../../../core/services/role_service.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../../shared/widgets/auth_listener_wrapper.dart';
-import '../../../../shared/widgets/server_profile_page.dart';
 import '../blocs/area_manager_dashboard_bloc.dart';
 
 // Area Manager Dashboard Components
@@ -94,7 +94,7 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
           onPressed: () => _showComingSoon(context, 'Analytics'),
         ),
         IconButton(
-          icon: const Icon(Icons.menu),
+          icon: const Icon(Icons.more_vert),
           onPressed: () => _showMenu(context, state),
         ),
       ],
@@ -371,14 +371,15 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
               title: const Text('Profile'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ServerProfilePage(
-                      title: 'Profil Area Manager',
-                    ),
-                  ),
-                );
+                _showComingSoon(context, 'Profile');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.qr_code_scanner_outlined),
+              title: const Text('QR Login Web'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.pushNamed(context, AppRoutes.webQRLogin);
               },
             ),
             ListTile(

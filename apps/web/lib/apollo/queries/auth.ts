@@ -54,6 +54,104 @@ export const WEB_LOGIN_MUTATION = gql`
   }
 `;
 
+export const CREATE_WEB_QR_LOGIN_SESSION_MUTATION = gql`
+  mutation CreateWebQRLoginSession {
+    createWebQRLoginSession {
+      success
+      sessionId
+      challenge
+      qrData
+      status
+      expiresAt
+      message
+    }
+  }
+`;
+
+export const WEB_QR_LOGIN_STATUS_QUERY = gql`
+  query WebQRLoginStatus($sessionId: String!, $challenge: String!) {
+    webQRLoginStatus(sessionId: $sessionId, challenge: $challenge) {
+      success
+      sessionId
+      status
+      expiresAt
+      message
+      user {
+        id
+        username
+        name
+        email
+        phoneNumber
+        avatar
+        role
+        isActive
+        companyId
+      }
+    }
+  }
+`;
+
+export const APPROVE_WEB_QR_LOGIN_MUTATION = gql`
+  mutation ApproveWebQRLogin($input: WebQRApproveInput!) {
+    approveWebQRLogin(input: $input) {
+      success
+      sessionId
+      status
+      expiresAt
+      message
+    }
+  }
+`;
+
+export const CONSUME_WEB_QR_LOGIN_MUTATION = gql`
+  mutation ConsumeWebQRLogin($input: WebQRConsumeInput!) {
+    consumeWebQRLogin(input: $input) {
+      success
+      user {
+        id
+        username
+        name
+        email
+        phoneNumber
+        avatar
+        role
+        isActive
+        companyId
+        company {
+          id
+          name
+        }
+        companies {
+          id
+          name
+        }
+        managerId
+        manager {
+          id
+          name
+        }
+      }
+      assignments {
+        companies {
+          id
+          name
+          status
+          address
+        }
+        estates {
+          id
+          name
+          companyId
+          location
+          luasHa
+        }
+      }
+      sessionId
+      message
+    }
+  }
+`;
+
 // Logout mutation
 export const LOGOUT_MUTATION = gql`
   mutation Logout {
@@ -298,6 +396,37 @@ export interface WebLoginPayload {
   assignments: UserAssignments;
   sessionId: string;
   message: string;
+}
+
+export type WebQRSessionStatus = 'PENDING' | 'APPROVED' | 'EXPIRED' | 'CONSUMED';
+
+export interface WebQRLoginSessionPayload {
+  success: boolean;
+  sessionId?: string;
+  challenge?: string;
+  qrData?: string;
+  status: WebQRSessionStatus;
+  expiresAt?: string;
+  message: string;
+}
+
+export interface WebQRLoginStatusPayload {
+  success: boolean;
+  sessionId?: string;
+  status: WebQRSessionStatus;
+  expiresAt?: string;
+  message: string;
+  user?: User;
+}
+
+export interface WebQRApproveInput {
+  sessionId: string;
+  challenge: string;
+}
+
+export interface WebQRConsumeInput {
+  sessionId: string;
+  challenge: string;
 }
 
 // Update user profile input

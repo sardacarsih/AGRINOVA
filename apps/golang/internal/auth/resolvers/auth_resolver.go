@@ -67,6 +67,38 @@ func (r *AuthResolver) WebLogin(ctx context.Context, input auth.WebLoginInput) (
 	return nil, fmt.Errorf("web authentication service not initialized")
 }
 
+// CreateWebQRLoginSession creates a short-lived web QR login session.
+func (r *AuthResolver) CreateWebQRLoginSession(ctx context.Context) (*auth.WebQRLoginSessionPayload, error) {
+	if r.webResolver != nil {
+		return r.webResolver.CreateWebQRLoginSession(ctx)
+	}
+	return nil, fmt.Errorf("web authentication service not initialized")
+}
+
+// WebQRLoginStatus returns current status for a QR login session.
+func (r *AuthResolver) WebQRLoginStatus(ctx context.Context, sessionID string, challenge string) (*auth.WebQRLoginStatusPayload, error) {
+	if r.webResolver != nil {
+		return r.webResolver.WebQRLoginStatus(ctx, sessionID, challenge)
+	}
+	return nil, fmt.Errorf("web authentication service not initialized")
+}
+
+// ApproveWebQRLogin approves QR login from an authenticated device.
+func (r *AuthResolver) ApproveWebQRLogin(ctx context.Context, input auth.WebQRApproveInput) (*auth.WebQRLoginStatusPayload, error) {
+	if r.webResolver != nil {
+		return r.webResolver.ApproveWebQRLogin(ctx, input)
+	}
+	return nil, fmt.Errorf("web authentication service not initialized")
+}
+
+// ConsumeWebQRLogin consumes an approved QR session and issues web cookies.
+func (r *AuthResolver) ConsumeWebQRLogin(ctx context.Context, input auth.WebQRConsumeInput) (*auth.WebLoginPayload, error) {
+	if r.webResolver != nil {
+		return r.webResolver.ConsumeWebQRLogin(ctx, input)
+	}
+	return nil, fmt.Errorf("web authentication service not initialized")
+}
+
 // MobileLogin handles simplified mobile authentication with auto role detection
 func (r *AuthResolver) MobileLogin(ctx context.Context, input auth.MobileLoginInput) (*auth.AuthPayload, error) {
 	// Use new features resolver if available

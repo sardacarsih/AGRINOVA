@@ -58,6 +58,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
   bool _isNavigatingToLogin = false;
   String? _lastRouteArgsSignature;
   String? _focusHarvestId;
+  int _syncRefreshSignal = 0;
 
   @override
   void initState() {
@@ -463,6 +464,11 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
             context.read<HarvestBloc>().add(
                   HarvestSummaryRequested(date: DateTime.now()),
                 );
+            if (mounted) {
+              setState(() {
+                _syncRefreshSignal++;
+              });
+            }
           },
         ),
 
@@ -481,6 +487,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
         // Sync Tab
         MandorSyncPage(
           showAppBar: false,
+          refreshSignal: _syncRefreshSignal,
           onMasterSyncCompleted: () {
             if (!context.mounted) return;
             _reloadHarvestMasterData(context);
@@ -722,11 +729,20 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
         _reloadHarvestMasterData(blocContext);
       } else if (index == 2) {
         _refreshHarvestHistory(blocContext);
+      } else if (index == 3) {
+        setState(() {
+          _syncRefreshSignal++;
+        });
       }
       return;
     }
 
-    setState(() => _currentNavIndex = index);
+    setState(() {
+      _currentNavIndex = index;
+      if (index == 3) {
+        _syncRefreshSignal++;
+      }
+    });
 
     if (index == 0) {
       blocContext

@@ -8,6 +8,7 @@ import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../../shared/widgets/auth_listener_wrapper.dart';
 import '../../../../core/di/dependency_injection.dart';
 import '../../../../core/services/notification_storage_service.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../blocs/manager_dashboard_bloc.dart';
 
 // Import modular components
@@ -211,7 +212,7 @@ class _ManagerPageState extends State<ManagerPage> {
           tooltip: 'Analytics',
         ),
         PopupMenuButton<String>(
-          icon: const Icon(Icons.menu, color: Colors.white),
+          icon: const Icon(Icons.more_vert, color: Colors.white),
           onSelected: (value) {
             if (value == 'profile') {
               Navigator.push(
@@ -220,6 +221,10 @@ class _ManagerPageState extends State<ManagerPage> {
                   builder: (context) => const ManagerProfileTab(),
                 ),
               );
+              return;
+            }
+            if (value == 'web_qr_login') {
+              Navigator.pushNamed(context, AppRoutes.webQRLogin);
               return;
             }
             if (value == 'logout') {
@@ -234,6 +239,17 @@ class _ManagerPageState extends State<ManagerPage> {
                   Icon(Icons.person_outline, color: ManagerTheme.textSecondary),
                   const SizedBox(width: 12),
                   const Text('Profile'),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'web_qr_login',
+              child: Row(
+                children: [
+                  Icon(Icons.qr_code_scanner_outlined,
+                      color: ManagerTheme.textSecondary),
+                  const SizedBox(width: 12),
+                  const Text('QR Login Web'),
                 ],
               ),
             ),

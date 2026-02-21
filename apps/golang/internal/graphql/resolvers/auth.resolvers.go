@@ -115,6 +115,21 @@ func (r *mutationResolver) WebLogin(ctx context.Context, input auth.WebLoginInpu
 	return r.AuthResolver.WebLogin(ctx, input)
 }
 
+// CreateWebQRLoginSession is the resolver for the createWebQRLoginSession field.
+func (r *mutationResolver) CreateWebQRLoginSession(ctx context.Context) (*auth.WebQRLoginSessionPayload, error) {
+	return r.AuthResolver.CreateWebQRLoginSession(ctx)
+}
+
+// ApproveWebQRLogin is the resolver for the approveWebQRLogin field.
+func (r *mutationResolver) ApproveWebQRLogin(ctx context.Context, input auth.WebQRApproveInput) (*auth.WebQRLoginStatusPayload, error) {
+	return r.AuthResolver.ApproveWebQRLogin(ctx, input)
+}
+
+// ConsumeWebQRLogin is the resolver for the consumeWebQRLogin field.
+func (r *mutationResolver) ConsumeWebQRLogin(ctx context.Context, input auth.WebQRConsumeInput) (*auth.WebLoginPayload, error) {
+	return r.AuthResolver.ConsumeWebQRLogin(ctx, input)
+}
+
 // MobileLogin is the resolver for the mobileLogin field.
 func (r *mutationResolver) MobileLogin(ctx context.Context, input auth.MobileLoginInput) (*auth.AuthPayload, error) {
 	return r.AuthResolver.MobileLogin(ctx, input)
@@ -278,6 +293,11 @@ func (r *queryResolver) Me(ctx context.Context) (*auth.User, error) {
 // CurrentUser is the resolver for the currentUser field.
 func (r *queryResolver) CurrentUser(ctx context.Context) (*auth.WebLoginPayload, error) {
 	return r.AuthResolver.CurrentUser(ctx)
+}
+
+// WebQRLoginStatus is the resolver for the webQRLoginStatus field.
+func (r *queryResolver) WebQRLoginStatus(ctx context.Context, sessionID string, challenge string) (*auth.WebQRLoginStatusPayload, error) {
+	return r.AuthResolver.WebQRLoginStatus(ctx, sessionID, challenge)
 }
 
 // MyDevices is the resolver for the myDevices field.

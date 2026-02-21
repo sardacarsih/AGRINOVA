@@ -46,6 +46,54 @@ type WebLoginPayload {
   message: String!
 }
 
+"""
+WebQRSessionStatus represents QR login lifecycle state.
+"""
+enum WebQRSessionStatus {
+  PENDING
+  APPROVED
+  EXPIRED
+  CONSUMED
+}
+
+"""
+WebQRLoginSessionPayload represents a newly generated QR login session.
+"""
+type WebQRLoginSessionPayload {
+  "Whether the operation succeeded"
+  success: Boolean!
+  "QR session identifier"
+  sessionId: String
+  "Random challenge bound to the QR session"
+  challenge: String
+  "QR data content to be rendered/scanned"
+  qrData: String
+  "Current QR session status"
+  status: WebQRSessionStatus!
+  "Session expiration timestamp"
+  expiresAt: Time
+  "Result message"
+  message: String!
+}
+
+"""
+WebQRLoginStatusPayload represents status polling response for QR login.
+"""
+type WebQRLoginStatusPayload {
+  "Whether the operation succeeded"
+  success: Boolean!
+  "QR session identifier"
+  sessionId: String
+  "Current QR session status"
+  status: WebQRSessionStatus!
+  "Session expiration timestamp"
+  expiresAt: Time
+  "Result message"
+  message: String!
+  "Approved user (present when approved/consumed and resolvable)"
+  user: User
+}
+
 
 """
 MobileLoginInput represents simplified input for mobile authentication.
@@ -160,6 +208,22 @@ input DeviceRenewInput {
   deviceId: String!
   "Device fingerprint for additional security validation"
   deviceFingerprint: String
+}
+
+"""
+WebQRApproveInput is used by authenticated mobile/web users to approve QR login.
+"""
+input WebQRApproveInput {
+  sessionId: String!
+  challenge: String!
+}
+
+"""
+WebQRConsumeInput is used by web client to consume an approved QR login session.
+"""
+input WebQRConsumeInput {
+  sessionId: String!
+  challenge: String!
 }
 
 """
@@ -328,6 +392,8 @@ extend type Query {
   me: User
   "Get current user with full company context and permissions"
   currentUser: WebLoginPayload
+  "Check QR login status for web login polling"
+  webQRLoginStatus(sessionId: String!, challenge: String!): WebQRLoginStatusPayload!
   "Get current user's bound devices"
   myDevices: [Device!]!
   
@@ -382,6 +448,12 @@ extend type Mutation {
   # Authentication mutations
   "Web authentication with cookie-based session management"
   webLogin(input: WebLoginInput!): WebLoginPayload!
+  "Create short-lived QR session for web login"
+  createWebQRLoginSession: WebQRLoginSessionPayload!
+  "Approve a pending web QR login session from an authenticated device"
+  approveWebQRLogin(input: WebQRApproveInput!): WebQRLoginStatusPayload! @requireAuth
+  "Consume an approved web QR login session and establish cookie session"
+  consumeWebQRLogin(input: WebQRConsumeInput!): WebLoginPayload!
   "Mobile authentication with simplified input for mobile apps"
   mobileLogin(input: MobileLoginInput!): AuthPayload!
   "Refresh access token using standard AuthPayload"

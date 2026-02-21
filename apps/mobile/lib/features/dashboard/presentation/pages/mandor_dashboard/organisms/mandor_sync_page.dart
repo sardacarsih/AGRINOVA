@@ -19,11 +19,13 @@ import '../mandor_components.dart';
 class MandorSyncPage extends StatefulWidget {
   final VoidCallback? onMasterSyncCompleted;
   final bool showAppBar;
+  final int refreshSignal;
 
   const MandorSyncPage({
     Key? key,
     this.onMasterSyncCompleted,
     this.showAppBar = true,
+    this.refreshSignal = 0,
   }) : super(key: key);
 
   @override
@@ -61,6 +63,14 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
   void dispose() {
     _networkStatusSubscription?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant MandorSyncPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshSignal != widget.refreshSignal) {
+      unawaited(_refreshSyncIndicators());
+    }
   }
 
   Future<void> _initializeSyncIndicators() async {
@@ -695,10 +705,22 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
 
     try {
       final harvestSync = sl<HarvestSyncService>();
+      final pendingBefore = await harvestSync.getPendingSyncCount();
       await harvestSync.syncNow();
+      final pendingAfter = await harvestSync.getPendingSyncCount();
+      final syncedCount =
+          (pendingBefore - pendingAfter).clamp(0, pendingBefore);
 
       setState(() {
-        _lastHarvestSyncResult = 'Berhasil: upload panen selesai';
+        if (pendingBefore == 0) {
+          _lastHarvestSyncResult = 'Tidak ada data panen yang perlu dikirim';
+        } else if (syncedCount > 0) {
+          _lastHarvestSyncResult =
+              'Berhasil: $syncedCount data panen berhasil dikirim ke server';
+        } else {
+          _lastHarvestSyncResult =
+              'Sinkronisasi selesai, belum ada data yang berhasil dikirim';
+        }
         _lastSyncTime = DateTime.now();
       });
       _notifySyncCompleted();

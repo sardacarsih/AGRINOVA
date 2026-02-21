@@ -28,6 +28,7 @@ import 'asisten_dashboard/organisms/asisten_welcome_section.dart';
 import '../../../../core/di/service_locator.dart';
 import '../../../../core/services/notification_storage_service.dart';
 import '../../../../core/services/fcm_service.dart';
+import '../../../../core/routes/app_routes.dart';
 
 /// Asisten Page with Light Mode Design
 ///
@@ -306,10 +307,14 @@ class _AsistenPageState extends State<AsistenPage> {
           tooltip: 'Notifications',
         ),
         PopupMenuButton<String>(
-          icon: const Icon(Icons.menu, color: Colors.white),
+          icon: const Icon(Icons.more_vert, color: Colors.white),
           onSelected: (value) {
             if (value == 'profile') {
               setState(() => _currentNavIndex = 3);
+              return;
+            }
+            if (value == 'web_qr_login') {
+              Navigator.pushNamed(context, AppRoutes.webQRLogin);
               return;
             }
             if (value == 'logout') {
@@ -324,6 +329,17 @@ class _AsistenPageState extends State<AsistenPage> {
                   Icon(Icons.person_outline, color: AsistenTheme.textSecondary),
                   const SizedBox(width: 12),
                   const Text('Profile'),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: 'web_qr_login',
+              child: Row(
+                children: [
+                  Icon(Icons.qr_code_scanner_outlined,
+                      color: AsistenTheme.textSecondary),
+                  const SizedBox(width: 12),
+                  const Text('QR Login Web'),
                 ],
               ),
             ),

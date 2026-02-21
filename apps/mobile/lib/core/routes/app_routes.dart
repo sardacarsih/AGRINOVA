@@ -14,9 +14,11 @@ import '../../features/dashboard/presentation/pages/company_admin_page.dart';
 import '../../features/dashboard/presentation/pages/super_admin_page.dart';
 import '../../features/harvest/presentation/pages/harvest_input_screen.dart';
 import '../../features/harvest/presentation/blocs/harvest_bloc.dart';
+import '../../features/auth/presentation/pages/web_qr_login_page.dart';
 
 class AppRoutes {
-  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
   static const String login = '/login';
   static const String authWrapper = '/';
   static const String dashboard = '/dashboard';
@@ -28,6 +30,7 @@ class AppRoutes {
   static const String companyAdmin = '/company_admin';
   static const String superAdmin = '/super_admin';
   static const String harvestInput = '/harvest/input';
+  static const String webQRLogin = '/web_qr_login';
 
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -58,6 +61,8 @@ class AppRoutes {
             child: const HarvestInputScreen(),
           ),
         );
+      case webQRLogin:
+        return MaterialPageRoute(builder: (_) => const WebQRLoginPage());
       default:
         return MaterialPageRoute(
           builder: (_) => Scaffold(
@@ -101,12 +106,12 @@ class AppRoutes {
       superAdmin,
     ];
   }
-  
+
   // Get route name from role
   static String getRouteFromRole(String role) {
     return getDashboardRoute(role);
   }
-  
+
   // Get role from route name
   static String? getRoleFromRoute(String routeName) {
     switch (routeName) {
