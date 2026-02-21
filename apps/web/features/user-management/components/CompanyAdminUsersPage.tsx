@@ -139,7 +139,7 @@ export default function CompanyAdminUsersPage({ user }: CompanyAdminUsersPagePro
     }
 
     return (
-        <CompanyAdminDashboardLayout>
+        <CompanyAdminDashboardLayout contentMaxWidthClass="max-w-[1800px]">
             <div className="p-6 space-y-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div>

@@ -136,11 +136,12 @@ export function UserListTable({
 
     return (
         <div className="rounded-md border border-border bg-card">
-            <Table>
+            <Table className="min-w-[1200px]">
                 <TableHeader>
                     <TableRow>
                         <TableHead>Pengguna</TableHead>
                         <TableHead>Peran</TableHead>
+                        <TableHead>Atasan Langsung</TableHead>
                         <TableHead>Perusahaan</TableHead>
                         <TableHead>Kebun (Estate)</TableHead>
                         <TableHead>Divisi</TableHead>
@@ -152,7 +153,7 @@ export function UserListTable({
                 <TableBody>
                     {users.length === 0 ? (
                         <TableRow>
-                            <TableCell colSpan={8} className="text-center h-24 text-muted-foreground">
+                            <TableCell colSpan={9} className="text-center h-24 text-muted-foreground">
                                 Tidak ada pengguna ditemukan.
                             </TableCell>
                         </TableRow>
@@ -179,6 +180,11 @@ export function UserListTable({
                                     <Badge variant="outline" className={getRoleBadgeColor(user.role)}>
                                         {user.role.replace('_', ' ')}
                                     </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <span className="text-sm font-medium">
+                                        {user.manager?.name || '-'}
+                                    </span>
                                 </TableCell>
                                 <TableCell>
                                     {(() => {

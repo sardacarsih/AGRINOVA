@@ -9101,7 +9101,7 @@ export type GetUsersQueryVariables = Exact<{
 }>;
 
 
-export type GetUsersQuery = { __typename?: 'Query', users: { __typename?: 'UserListResponse', totalCount: number, hasNextPage: boolean, users: Array<{ __typename?: 'User', id: string, username: string, name: string, email?: string | null, phoneNumber?: string | null, avatar?: string | null, role: UserRole, isActive: boolean, createdAt: Date, updatedAt: Date, managerId?: string | null, companyId?: string | null, companies?: Array<{ __typename?: 'Company', id: string, name: string }> | null, company?: { __typename?: 'Company', id: string, name: string } | null, estates?: Array<{ __typename?: 'Estate', id: string, name: string }> | null, divisions?: Array<{ __typename?: 'Division', id: string, name: string }> | null }>, pageInfo: { __typename?: 'PageInfo', currentPage: number, totalPages: number, hasNextPage: boolean, hasPreviousPage: boolean } } };
+export type GetUsersQuery = { __typename?: 'Query', users: { __typename?: 'UserListResponse', totalCount: number, hasNextPage: boolean, users: Array<{ __typename?: 'User', id: string, username: string, name: string, email?: string | null, phoneNumber?: string | null, avatar?: string | null, role: UserRole, isActive: boolean, createdAt: Date, updatedAt: Date, managerId?: string | null, companyId?: string | null, manager?: { __typename?: 'User', id: string, name: string } | null, companies?: Array<{ __typename?: 'Company', id: string, name: string }> | null, company?: { __typename?: 'Company', id: string, name: string } | null, estates?: Array<{ __typename?: 'Estate', id: string, name: string }> | null, divisions?: Array<{ __typename?: 'Division', id: string, name: string }> | null }>, pageInfo: { __typename?: 'PageInfo', currentPage: number, totalPages: number, hasNextPage: boolean, hasPreviousPage: boolean } } };
 
 export type GetUserQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -10276,6 +10276,10 @@ export const GetUsersDocument = gql`
       createdAt
       updatedAt
       managerId
+      manager {
+        id
+        name
+      }
       companyId
       companies {
         id

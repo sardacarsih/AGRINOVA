@@ -17,10 +17,7 @@ export function useRoleStatistics({ companyId, roles }: RoleStatisticsOptions = 
         notifyOnNetworkStatusChange: true,
     };
 
-    // Initial state for counts
-    const counts: Record<string, number> = {};
     let isLoading = false;
-    let hasError = false;
 
     // We can't use hooks in a loop easily without breaking rules of hooks or using a list component.
     // However, since the number of roles is static and small, we can just use multiple useQuery calls
@@ -36,55 +33,55 @@ export function useRoleStatistics({ companyId, roles }: RoleStatisticsOptions = 
     // This is a bit repetitive but safe for Rules of Hooks.
 
     const { data: superAdminData, loading: l1 } = useQuery(GetUsersDocument, {
-        variables: { role: UserRole.SuperAdmin, companyId, limit: 1 },
+        variables: { role: UserRole.SuperAdmin, companyId, isActive: true, limit: 1 },
         skip: !rolesToQuery.includes(UserRole.SuperAdmin),
         ...realtimeQueryOptions,
     });
 
     const { data: companyAdminData, loading: l2 } = useQuery(GetUsersDocument, {
-        variables: { role: UserRole.CompanyAdmin, companyId, limit: 1 },
+        variables: { role: UserRole.CompanyAdmin, companyId, isActive: true, limit: 1 },
         skip: !rolesToQuery.includes(UserRole.CompanyAdmin),
         ...realtimeQueryOptions,
     });
 
     const { data: areaManagerData, loading: l3 } = useQuery(GetUsersDocument, {
-        variables: { role: UserRole.AreaManager, companyId, limit: 1 },
+        variables: { role: UserRole.AreaManager, companyId, isActive: true, limit: 1 },
         skip: !rolesToQuery.includes(UserRole.AreaManager),
         ...realtimeQueryOptions,
     });
 
     const { data: managerData, loading: l4 } = useQuery(GetUsersDocument, {
-        variables: { role: UserRole.Manager, companyId, limit: 1 },
+        variables: { role: UserRole.Manager, companyId, isActive: true, limit: 1 },
         skip: !rolesToQuery.includes(UserRole.Manager),
         ...realtimeQueryOptions,
     });
 
     const { data: asistenData, loading: l5 } = useQuery(GetUsersDocument, {
-        variables: { role: UserRole.Asisten, companyId, limit: 1 },
+        variables: { role: UserRole.Asisten, companyId, isActive: true, limit: 1 },
         skip: !rolesToQuery.includes(UserRole.Asisten),
         ...realtimeQueryOptions,
     });
 
     const { data: mandorData, loading: l6 } = useQuery(GetUsersDocument, {
-        variables: { role: UserRole.Mandor, companyId, limit: 1 },
+        variables: { role: UserRole.Mandor, companyId, isActive: true, limit: 1 },
         skip: !rolesToQuery.includes(UserRole.Mandor),
         ...realtimeQueryOptions,
     });
 
     const { data: satpamData, loading: l7 } = useQuery(GetUsersDocument, {
-        variables: { role: UserRole.Satpam, companyId, limit: 1 },
+        variables: { role: UserRole.Satpam, companyId, isActive: true, limit: 1 },
         skip: !rolesToQuery.includes(UserRole.Satpam),
         ...realtimeQueryOptions,
     });
 
     const { data: timbanganData, loading: l8 } = useQuery(GetUsersDocument, {
-        variables: { role: UserRole.Timbangan, companyId, limit: 1 },
+        variables: { role: UserRole.Timbangan, companyId, isActive: true, limit: 1 },
         skip: !rolesToQuery.includes(UserRole.Timbangan),
         ...realtimeQueryOptions,
     });
 
     const { data: gradingData, loading: l9 } = useQuery(GetUsersDocument, {
-        variables: { role: UserRole.Grading, companyId, limit: 1 },
+        variables: { role: UserRole.Grading, companyId, isActive: true, limit: 1 },
         skip: !rolesToQuery.includes(UserRole.Grading),
         ...realtimeQueryOptions,
     });

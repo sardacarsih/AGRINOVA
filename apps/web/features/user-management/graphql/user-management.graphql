@@ -19,6 +19,10 @@ query GetUsers($companyId: String, $role: UserRole, $isActive: Boolean, $search:
       createdAt
       updatedAt
       managerId
+      manager {
+        id
+        name
+      }
       companyId
       companies {
         id

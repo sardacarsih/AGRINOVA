@@ -16,6 +16,7 @@ interface CompanyAdminDashboardLayoutProps {
   title?: string;
   description?: string;
   actions?: React.ReactNode;
+  contentMaxWidthClass?: string;
   showBreadcrumb?: boolean;
   breadcrumbItems?: Array<{ label: string; href?: string }>;
 }
@@ -25,6 +26,7 @@ export function CompanyAdminDashboardLayout({
   title = 'Company Admin Dashboard',
   description = 'Complete company management and administration',
   actions,
+  contentMaxWidthClass = 'max-w-7xl',
   showBreadcrumb = true,
   breadcrumbItems = [],
 }: CompanyAdminDashboardLayoutProps) {
@@ -119,6 +121,7 @@ export function CompanyAdminDashboardLayout({
           orbPrimaryClass="bg-orange-500/12"
           orbSecondaryClass="bg-emerald-500/10"
           dotClass="bg-status-info"
+          maxWidthClass={contentMaxWidthClass}
         >
           {children}
         </RoleLayoutContent>
