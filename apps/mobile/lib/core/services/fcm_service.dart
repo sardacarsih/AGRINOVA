@@ -591,10 +591,10 @@ class FCMService {
 
     if (resolvedPath.startsWith('/')) {
       final args = <String, dynamic>{
-        if (panenId != null) 'panenId': panenId,
-        if (action != null) 'action': action,
-        if (type != null) 'type': type,
-      };
+        'panenId': panenId,
+        'action': action,
+        'type': type,
+      }..removeWhere((_, value) => value == null);
 
       if (resolvedPath == AppRoutes.asisten) {
         args['tab'] = 1;
