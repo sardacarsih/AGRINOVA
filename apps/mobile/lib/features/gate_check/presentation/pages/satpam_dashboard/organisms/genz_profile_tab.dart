@@ -22,11 +22,7 @@ class GenZProfileTab extends StatefulWidget {
   final VoidCallback? onLogout;
   final VoidCallback? onBiometricSettings;
 
-  const GenZProfileTab({
-    Key? key,
-    this.onLogout,
-    this.onBiometricSettings,
-  }) : super(key: key);
+  const GenZProfileTab({super.key, this.onLogout, this.onBiometricSettings});
 
   @override
   State<GenZProfileTab> createState() => _GenZProfileTabState();
@@ -139,8 +135,9 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border:
-            Border.all(color: GenZTheme.electricPurple.withValues(alpha: 0.3)),
+        border: Border.all(
+          color: GenZTheme.electricPurple.withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         children: [
@@ -157,7 +154,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
                         ? const LinearGradient(
                             colors: [
                               GenZTheme.electricPurple,
-                              GenZTheme.neoBlue
+                              GenZTheme.neoBlue,
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -196,8 +193,10 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
                     decoration: BoxDecoration(
                       color: GenZTheme.electricPurple,
                       shape: BoxShape.circle,
-                      border:
-                          Border.all(color: const Color(0xFF111827), width: 2),
+                      border: Border.all(
+                        color: const Color(0xFF111827),
+                        width: 2,
+                      ),
                     ),
                     child: const Icon(
                       Icons.camera_alt_rounded,
@@ -213,7 +212,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
 
           // Name
           Text(
-            user.fullName ?? user.username,
+            user.fullName,
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -230,7 +229,8 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
               color: GenZTheme.electricPurple.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                  color: GenZTheme.electricPurple.withValues(alpha: 0.5)),
+                color: GenZTheme.electricPurple.withValues(alpha: 0.5),
+              ),
             ),
             child: Text(
               _getRoleDisplayName(user.role),
@@ -404,21 +404,25 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
               backgroundColor: GenZTheme.mintGreen,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           );
         }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal mengubah foto: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengubah foto: $e'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() => _isLoadingPhoto = false);
@@ -437,8 +441,9 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
           content: const Text('Foto profil dihapus'),
           backgroundColor: Colors.orange,
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     }
@@ -485,15 +490,16 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
           _buildInfoRow(
             icon: Icons.email_rounded,
             label: 'Email',
-            value: state.user.email ?? '-',
+            value: state.user.email,
           ),
           const Divider(color: Color(0xFF374151), height: 24),
           _buildInfoRow(
             icon: Icons.wifi_off_rounded,
             label: 'Mode Offline',
             value: state.isOfflineMode ? 'Aktif' : 'Tidak Aktif',
-            valueColor:
-                state.isOfflineMode ? Colors.orange : GenZTheme.mintGreen,
+            valueColor: state.isOfflineMode
+                ? Colors.orange
+                : GenZTheme.mintGreen,
           ),
         ],
       ),
@@ -644,8 +650,10 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded,
-                    color: Color(0xFF6B7280)),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFF6B7280),
+                ),
               ],
             ),
           ),
@@ -670,8 +678,11 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
               ),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.security_rounded,
-                color: Colors.white, size: 20),
+            child: const Icon(
+              Icons.security_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -761,8 +772,10 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
               context.read<AuthBloc>().add(AuthLogoutRequested());
               widget.onLogout?.call();
             },
-            child:
-                const Text('Keluar', style: TextStyle(color: Colors.redAccent)),
+            child: const Text(
+              'Keluar',
+              style: TextStyle(color: Colors.redAccent),
+            ),
           ),
         ],
       ),
@@ -781,11 +794,9 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
   }
 
   void _openChangePassword() {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const ChangePasswordPage(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ChangePasswordPage()));
   }
 
   String _getRoleDisplayName(String role) {

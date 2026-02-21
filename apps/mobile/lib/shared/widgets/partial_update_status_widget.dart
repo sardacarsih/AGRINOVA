@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
-import '../../core/services/graphql_sync_service.dart';
 
 /// Widget to display partial update sync status
-/// 
+///
 /// Features:
 /// - Real-time sync progress
 /// - Conflict notifications
@@ -17,14 +14,15 @@ class PartialUpdateStatusWidget extends StatefulWidget {
   final VoidCallback? onViewConflicts;
 
   const PartialUpdateStatusWidget({
-    Key? key,
+    super.key,
     this.showDetailedInfo = false,
     this.onManualSync,
     this.onViewConflicts,
-  }) : super(key: key);
+  });
 
   @override
-  _PartialUpdateStatusWidgetState createState() => _PartialUpdateStatusWidgetState();
+  State<PartialUpdateStatusWidget> createState() =>
+      _PartialUpdateStatusWidgetState();
 }
 
 class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
@@ -50,7 +48,6 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
 
   Future<void> _loadSyncStatus() async {
     try {
-      final syncService = Provider.of<GraphQLSyncService>(context, listen: false);
       // TODO: Implement getPartialUpdateSyncStatus in GraphQLSyncService
       final status = {
         'pendingDeltas': 0,
@@ -62,7 +59,7 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
         'isOnline': true,
         'lastSyncAttempt': DateTime.now().toIso8601String(),
       };
-      
+
       if (mounted) {
         setState(() {
           _syncStatus = status;
@@ -85,10 +82,9 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
     });
 
     try {
-      final syncService = Provider.of<GraphQLSyncService>(context, listen: false);
       // TODO: Implement forcePartialSync in GraphQLSyncService
       // await syncService.forcePartialSync();
-      
+
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -96,10 +92,11 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
           backgroundColor: Colors.green,
         ),
       );
-      
+
       // Refresh status
       await _loadSyncStatus();
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Sync failed: ${e.toString()}'),
@@ -107,9 +104,11 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
         ),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -162,9 +161,9 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
         const SizedBox(width: 8),
         Text(
           'Sync Status',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const Spacer(),
         if (isSyncing) ...[
@@ -176,9 +175,9 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
           const SizedBox(width: 8),
           Text(
             'Syncing...',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.blue,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.blue),
           ),
         ],
       ],
@@ -192,7 +191,8 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
     final conflictedDeltas = _syncStatus!['conflictedDeltas'] ?? 0;
     final pendingConflicts = _syncStatus!['pendingConflicts'] ?? 0;
 
-    final totalDeltas = pendingDeltas + completedDeltas + failedDeltas + conflictedDeltas;
+    final totalDeltas =
+        pendingDeltas + completedDeltas + failedDeltas + conflictedDeltas;
 
     return Column(
       children: [
@@ -212,11 +212,7 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
             ),
             const SizedBox(width: 8),
             if (failedDeltas > 0)
-              _buildStatusChip(
-                'Failed',
-                failedDeltas.toString(),
-                Colors.red,
-              ),
+              _buildStatusChip('Failed', failedDeltas.toString(), Colors.red),
             if (conflictedDeltas > 0) ...[
               const SizedBox(width: 8),
               _buildStatusChip(
@@ -227,7 +223,7 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
             ],
           ],
         ),
-        
+
         if (totalDeltas > 0) ...[
           const SizedBox(height: 8),
           LinearProgressIndicator(
@@ -248,8 +244,8 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
             width: double.infinity,
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: Colors.purple.withOpacity(0.1),
-              border: Border.all(color: Colors.purple.withOpacity(0.3)),
+              color: Colors.purple.withValues(alpha: 0.1),
+              border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Row(
@@ -277,8 +273,8 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: color.withValues(alpha: 0.1),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -287,10 +283,7 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
           Container(
             width: 8,
             height: 8,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 4),
           Text(
@@ -302,13 +295,7 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
             ),
           ),
           const SizedBox(width: 2),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-            ),
-          ),
+          Text(label, style: TextStyle(color: color, fontSize: 12)),
         ],
       ),
     );
@@ -316,20 +303,23 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
 
   Widget _buildDetailedInfo() {
     final lastSyncAttempt = _syncStatus!['lastSyncAttempt'];
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Divider(),
         Text(
           'Detailed Information',
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         _buildInfoRow('Last Sync Attempt', _formatDateTime(lastSyncAttempt)),
-        _buildInfoRow('Network Status', _syncStatus!['isOnline'] ? 'Online' : 'Offline'),
+        _buildInfoRow(
+          'Network Status',
+          _syncStatus!['isOnline'] ? 'Online' : 'Offline',
+        ),
       ],
     );
   }
@@ -344,9 +334,9 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
             width: 120,
             child: Text(
               '$label:',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey[600],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
             ),
           ),
           Expanded(
@@ -362,7 +352,7 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
 
   Widget _buildActionButtons() {
     final hasConflicts = (_syncStatus!['pendingConflicts'] ?? 0) > 0;
-    
+
     return Row(
       children: [
         ElevatedButton.icon(
@@ -390,12 +380,12 @@ class _PartialUpdateStatusWidgetState extends State<PartialUpdateStatusWidget> {
 
   String _formatDateTime(String? timestamp) {
     if (timestamp == null) return 'Never';
-    
+
     try {
       final dateTime = DateTime.parse(timestamp);
       final now = DateTime.now();
       final difference = now.difference(dateTime);
-      
+
       if (difference.inMinutes < 1) {
         return 'Just now';
       } else if (difference.inHours < 1) {
@@ -436,10 +426,7 @@ class _ErrorWidget extends StatelessWidget {
   final String error;
   final VoidCallback onRetry;
 
-  const _ErrorWidget({
-    required this.error,
-    required this.onRetry,
-  });
+  const _ErrorWidget({required this.error, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -463,10 +450,7 @@ class _ErrorWidget extends StatelessWidget {
             const SizedBox(height: 8),
             Text(error),
             const SizedBox(height: 8),
-            ElevatedButton(
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
       ),
@@ -483,13 +467,13 @@ class PartialUpdateStatusBadge extends StatelessWidget {
   final VoidCallback? onTap;
 
   const PartialUpdateStatusBadge({
-    Key? key,
+    super.key,
     required this.pendingCount,
     required this.conflictCount,
     required this.isOnline,
     required this.isSyncing,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -503,8 +487,8 @@ class PartialUpdateStatusBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: badgeColor.withOpacity(0.1),
-          border: Border.all(color: badgeColor.withOpacity(0.3)),
+          color: badgeColor.withValues(alpha: 0.1),
+          border: Border.all(color: badgeColor.withValues(alpha: 0.3)),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(

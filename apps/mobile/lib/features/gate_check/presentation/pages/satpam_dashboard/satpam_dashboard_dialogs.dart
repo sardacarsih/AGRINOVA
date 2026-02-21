@@ -1,6 +1,4 @@
 import 'dart:io';
-import 'dart:convert';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -13,19 +11,13 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:agrinova_mobile/features/gate_check/presentation/pages/satpam_dashboard/satpam_dashboard_helpers.dart';
-import 'package:agrinova_mobile/core/services/bluetooth_printer_service.dart';
 import 'package:agrinova_mobile/core/services/pos_settings_service.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
-import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
-import 'package:logger/logger.dart'; // import logger
+// import logger
 
-import '../../../../../core/services/graphql_sync_service.dart';
 import '../../../data/models/gate_check_models.dart';
-import 'satpam_dashboard_helpers.dart';
 
 /// Collection of dialog widgets for Satpam Dashboard
 class SatpamDashboardDialogs {
-  
   /// Show QR Generation Dialog with generated QR Code
   static Future<void> showQRGenerationDialog(
     BuildContext context, {
@@ -38,7 +30,7 @@ class SatpamDashboardDialogs {
     Map<String, dynamic>? metadata,
   }) async {
     final GlobalKey qrKey = GlobalKey();
-    
+
     return showDialog(
       context: context,
       barrierDismissible: false,
@@ -81,15 +73,18 @@ class SatpamDashboardDialogs {
                       _buildInfoRow('Jenis Muatan', cargoType),
                       _buildInfoRow('Intent', generationIntent),
                       if (metadata?['expires_at'] != null)
-                        _buildInfoRow('Berlaku Hingga', 
-                          DateTime.parse(metadata!['expires_at']).toString().substring(0, 16)
+                        _buildInfoRow(
+                          'Berlaku Hingga',
+                          DateTime.parse(
+                            metadata!['expires_at'],
+                          ).toString().substring(0, 16),
                         ),
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // QR Code
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -99,7 +94,7 @@ class SatpamDashboardDialogs {
                     border: Border.all(color: Colors.grey[300]!, width: 2),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
+                        color: Colors.grey.withValues(alpha: 0.1),
                         spreadRadius: 1,
                         blurRadius: 4,
                         offset: const Offset(0, 2),
@@ -114,11 +109,10 @@ class SatpamDashboardDialogs {
                       size: 250.0,
                       errorCorrectionLevel: QrErrorCorrectLevel.M,
                       backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
                     ),
                   ),
                 ),
-                
+
                 const SizedBox(height: 8),
                 Text(
                   'Scan QR Code untuk verifikasi ${generationIntent == 'ENTRY' ? 'keluar' : 'masuk'}',
@@ -129,9 +123,9 @@ class SatpamDashboardDialogs {
                   ),
                   textAlign: TextAlign.center,
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Action buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -140,7 +134,12 @@ class SatpamDashboardDialogs {
                     ElevatedButton.icon(
                       onPressed: () async {
                         try {
-                          await _shareQRCodeImage(context, qrKey, guestName, vehiclePlate);
+                          await _shareQRCodeImage(
+                            context,
+                            qrKey,
+                            guestName,
+                            vehiclePlate,
+                          );
                         } catch (e) {
                           if (context.mounted) {
                             SatpamDashboardHelpers.showSnackBar(
@@ -156,21 +155,24 @@ class SatpamDashboardDialogs {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                       ),
                     ),
-                    
+
                     // Print data button
                     ElevatedButton.icon(
                       onPressed: () async {
                         await _printQRCodeFromDetails(
-                          context, 
-                          qrData, 
-                          guestName, 
-                          vehiclePlate, 
-                          purpose, 
+                          context,
+                          qrData,
+                          guestName,
+                          vehiclePlate,
+                          purpose,
                           generationIntent,
-                          metadata
+                          metadata,
                         );
                       },
                       icon: const Icon(Icons.print, size: 16),
@@ -178,7 +180,10 @@ class SatpamDashboardDialogs {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.indigo,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                       ),
                     ),
                   ],
@@ -198,22 +203,35 @@ class SatpamDashboardDialogs {
   }
 
   /// Share QR Code as image (simplified version)
-  static Future<void> _shareQRCodeImage(BuildContext context, GlobalKey qrKey, String guestName, String vehiclePlate) async {
+  static Future<void> _shareQRCodeImage(
+    BuildContext context,
+    GlobalKey qrKey,
+    String guestName,
+    String vehiclePlate,
+  ) async {
     try {
       // Capture QR code as image
-      RenderRepaintBoundary boundary = qrKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      RenderRepaintBoundary boundary =
+          qrKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       // Save to temporary file
       final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/guest_qr_${DateTime.now().millisecondsSinceEpoch}.png');
+      final file = File(
+        '${directory.path}/guest_qr_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
       await file.writeAsBytes(pngBytes);
 
       // Share the file
-      await Share.shareXFiles([XFile(file.path)], 
-        text: 'QR Code Tamu - $guestName ($vehiclePlate)'
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'QR Code Tamu - $guestName ($vehiclePlate)',
+        ),
       );
 
       if (context.mounted) {
@@ -249,7 +267,7 @@ class SatpamDashboardDialogs {
     final isOnline = repositoryStats['is_online'] == true;
     final isSyncing = repositoryStats['is_syncing'] == true;
     final lastSync = repositoryStats['last_sync'] as DateTime?;
-    
+
     // Colors
     const darkBg = Color(0xFF1F2937);
     const cardBg = Color(0xFF374151);
@@ -257,7 +275,7 @@ class SatpamDashboardDialogs {
     const neonGreen = Color(0xFF10B981);
     const neonOrange = Color(0xFFF59E0B);
     const neonBlue = Color(0xFF3B82F6);
-    
+
     showDialog(
       context: context,
       builder: (context) => Dialog(
@@ -268,12 +286,10 @@ class SatpamDashboardDialogs {
           decoration: BoxDecoration(
             color: darkBg,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.1),
-            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             boxShadow: [
               BoxShadow(
-                color: neonPurple.withOpacity(0.2),
+                color: neonPurple.withValues(alpha: 0.2),
                 blurRadius: 30,
                 spreadRadius: -5,
               ),
@@ -288,10 +304,14 @@ class SatpamDashboardDialogs {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: neonPurple.withOpacity(0.15),
+                      color: neonPurple.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: const Icon(Icons.sync_rounded, color: neonPurple, size: 24),
+                    child: const Icon(
+                      Icons.sync_rounded,
+                      color: neonPurple,
+                      size: 24,
+                    ),
                   ),
                   const SizedBox(width: 16),
                   const Expanded(
@@ -306,19 +326,28 @@ class SatpamDashboardDialogs {
                   ),
                   // Connection status indicator
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color: (isOnline ? neonGreen : Colors.red).withOpacity(0.15),
+                      color: (isOnline ? neonGreen : Colors.red).withValues(
+                        alpha: 0.15,
+                      ),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: (isOnline ? neonGreen : Colors.red).withOpacity(0.3),
+                        color: (isOnline ? neonGreen : Colors.red).withValues(
+                          alpha: 0.3,
+                        ),
                       ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          isOnline ? Icons.wifi_rounded : Icons.wifi_off_rounded,
+                          isOnline
+                              ? Icons.wifi_rounded
+                              : Icons.wifi_off_rounded,
                           color: isOnline ? neonGreen : Colors.red,
                           size: 16,
                         ),
@@ -336,9 +365,9 @@ class SatpamDashboardDialogs {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 28),
-              
+
               // Stats Grid - 3 cards in a row
               Row(
                 children: [
@@ -364,24 +393,24 @@ class SatpamDashboardDialogs {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: 20),
-              
+
               // Last sync info
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: cardBg.withOpacity(0.5),
+                  color: cardBg.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.05),
+                    color: Colors.white.withValues(alpha: 0.05),
                   ),
                 ),
                 child: Row(
                   children: [
                     Icon(
                       Icons.history_rounded,
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       size: 20,
                     ),
                     const SizedBox(width: 12),
@@ -392,7 +421,7 @@ class SatpamDashboardDialogs {
                           Text(
                             'Sync Terakhir',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                               fontSize: 12,
                             ),
                           ),
@@ -415,7 +444,7 @@ class SatpamDashboardDialogs {
                         Text(
                           'Database',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                             fontSize: 12,
                           ),
                         ),
@@ -433,34 +462,43 @@ class SatpamDashboardDialogs {
                   ],
                 ),
               ),
-              
+
               // Error message if any
               if (repositoryStats['error_message'] != null) ...[
                 const SizedBox(height: 16),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.withOpacity(0.1),
+                    color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    border: Border.all(
+                      color: Colors.red.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline_rounded, color: Colors.red, size: 18),
+                      const Icon(
+                        Icons.error_outline_rounded,
+                        color: Colors.red,
+                        size: 18,
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           repositoryStats['error_message'].toString(),
-                          style: const TextStyle(color: Colors.red, fontSize: 12),
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 12,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
               ],
-              
+
               const SizedBox(height: 24),
-              
+
               // Action buttons
               Row(
                 children: [
@@ -468,7 +506,7 @@ class SatpamDashboardDialogs {
                     child: TextButton(
                       onPressed: () => Navigator.pop(context),
                       style: TextButton.styleFrom(
-                        foregroundColor: Colors.white.withOpacity(0.7),
+                        foregroundColor: Colors.white.withValues(alpha: 0.7),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -481,10 +519,12 @@ class SatpamDashboardDialogs {
                   Expanded(
                     flex: 2,
                     child: ElevatedButton(
-                      onPressed: isSyncing ? null : () async {
-                        Navigator.pop(context);
-                        await onManualSync();
-                      },
+                      onPressed: isSyncing
+                          ? null
+                          : () async {
+                              Navigator.pop(context);
+                              await onManualSync();
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: neonPurple,
                         foregroundColor: Colors.white,
@@ -503,7 +543,9 @@ class SatpamDashboardDialogs {
                               height: 18,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation(Colors.white),
+                                valueColor: AlwaysStoppedAnimation(
+                                  Colors.white,
+                                ),
                               ),
                             )
                           else
@@ -534,11 +576,9 @@ class SatpamDashboardDialogs {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: color.withOpacity(0.2),
-          ),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Column(
           children: [
@@ -556,7 +596,7 @@ class SatpamDashboardDialogs {
             Text(
               label,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
               ),
@@ -621,7 +661,7 @@ class SatpamDashboardDialogs {
     String? companyName,
   }) {
     final GlobalKey qrKey = GlobalKey();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -647,7 +687,7 @@ class SatpamDashboardDialogs {
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
+                        color: Colors.grey.withValues(alpha: 0.1),
                         spreadRadius: 1,
                         blurRadius: 4,
                         offset: const Offset(0, 2),
@@ -661,7 +701,6 @@ class SatpamDashboardDialogs {
                       version: QrVersions.auto,
                       size: 200.0,
                       backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
                       errorCorrectionLevel: QrErrorCorrectLevel.M,
                       embeddedImage: null, // Could add logo here
                       embeddedImageStyle: const QrEmbeddedImageStyle(
@@ -671,7 +710,7 @@ class SatpamDashboardDialogs {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // QR Code Info
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -683,13 +722,17 @@ class SatpamDashboardDialogs {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.info_outline, color: Colors.blue[700], size: 16),
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.blue[700],
+                            size: 16,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              generationIntent == 'ENTRY' 
-                                ? 'QR Code untuk akses tamu - valid untuk KELUAR saja'
-                                : 'QR Code untuk akses tamu - valid untuk MASUK saja',
+                              generationIntent == 'ENTRY'
+                                  ? 'QR Code untuk akses tamu - valid untuk KELUAR saja'
+                                  : 'QR Code untuk akses tamu - valid untuk MASUK saja',
                               style: TextStyle(
                                 color: Colors.blue[700],
                                 fontSize: 12,
@@ -702,7 +745,11 @@ class SatpamDashboardDialogs {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          Icon(Icons.schedule, color: Colors.blue[600], size: 14),
+                          Icon(
+                            Icons.schedule,
+                            color: Colors.blue[600],
+                            size: 14,
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             'Berlaku hari ini',
@@ -717,7 +764,7 @@ class SatpamDashboardDialogs {
                   ),
                 ),
                 const SizedBox(height: 16),
-                
+
                 // Guest info card
                 Card(
                   elevation: 2,
@@ -735,11 +782,36 @@ class SatpamDashboardDialogs {
                           ),
                         ),
                         const SizedBox(height: 8),
-                        _buildInfoRow('Nama', formData.guestName ?? formData.driverName ?? 'N/A'),
-                        _buildInfoRow('Perusahaan', formData.guestCompany ?? 'N/A'),
-                        _buildInfoRow('No. Plat', formData.vehiclePlate ?? 'N/A'),
-                        _buildInfoRow('Tujuan', formData.purposeOfVisit ?? formData.destination ?? 'N/A'),
-                        _buildInfoRow('Jenis Kendaraan', formData.vehicleType ?? 'N/A'),
+                        _buildInfoRow(
+                          'Nama',
+                          formData.guestName ??
+                              (formData.driverName.isNotEmpty
+                                  ? formData.driverName
+                                  : 'N/A'),
+                        ),
+                        _buildInfoRow(
+                          'Perusahaan',
+                          formData.guestCompany ?? 'N/A',
+                        ),
+                        _buildInfoRow(
+                          'No. Plat',
+                          formData.vehiclePlate.isNotEmpty
+                              ? formData.vehiclePlate
+                              : 'N/A',
+                        ),
+                        _buildInfoRow(
+                          'Tujuan',
+                          formData.purposeOfVisit ??
+                              (formData.destination.isNotEmpty
+                                  ? formData.destination
+                                  : 'N/A'),
+                        ),
+                        _buildInfoRow(
+                          'Jenis Kendaraan',
+                          formData.vehicleType.isNotEmpty
+                              ? formData.vehicleType
+                              : 'N/A',
+                        ),
                         if (formData.loadType.isNotEmpty)
                           _buildInfoRow('Jenis Muatan', formData.loadType),
                         if (formData.loadVolume.isNotEmpty)
@@ -767,7 +839,8 @@ class SatpamDashboardDialogs {
             ),
           ),
           ElevatedButton.icon(
-            onPressed: () => _printQRCode(context, qrData, formData, generationIntent),
+            onPressed: () =>
+                _printQRCode(context, qrData, formData, generationIntent),
             icon: const Icon(Icons.print),
             label: const Text('Cetak'),
             style: ElevatedButton.styleFrom(
@@ -880,7 +953,12 @@ class SatpamDashboardDialogs {
   }
 
   /// Build sync status row
-  static Widget _buildSyncStatusRow(String label, String value, IconData icon, Color color) {
+  static Widget _buildSyncStatusRow(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -888,7 +966,7 @@ class SatpamDashboardDialogs {
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(6),
             ),
             child: Icon(icon, color: color, size: 16),
@@ -897,18 +975,15 @@ class SatpamDashboardDialogs {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 14,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
             ),
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: color.withOpacity(0.3)),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
             ),
             child: Text(
               value,
@@ -925,16 +1000,32 @@ class SatpamDashboardDialogs {
   }
 
   /// Build service status rows
-  static List<Widget> _buildServiceStatusRows(Map<String, dynamic> repositoryStats) {
-    final serviceStatus = repositoryStats['service_status'] as Map<String, dynamic>? ?? {};
+  // ignore: unused_element
+  static List<Widget> _buildServiceStatusRows(
+    Map<String, dynamic> repositoryStats,
+  ) {
+    final serviceStatus =
+        repositoryStats['service_status'] as Map<String, dynamic>? ?? {};
     final services = [
-      {'key': 'database_service', 'label': 'Database Service', 'icon': Icons.storage},
+      {
+        'key': 'database_service',
+        'label': 'Database Service',
+        'icon': Icons.storage,
+      },
       {'key': 'sync_service', 'label': 'Sync Service', 'icon': Icons.sync},
       {'key': 'qr_service', 'label': 'QR Service', 'icon': Icons.qr_code},
-      {'key': 'connectivity_service', 'label': 'Connectivity Service', 'icon': Icons.wifi},
-      {'key': 'jwt_storage_service', 'label': 'JWT Storage Service', 'icon': Icons.security},
+      {
+        'key': 'connectivity_service',
+        'label': 'Connectivity Service',
+        'icon': Icons.wifi,
+      },
+      {
+        'key': 'jwt_storage_service',
+        'label': 'JWT Storage Service',
+        'icon': Icons.security,
+      },
     ];
-    
+
     return services.map((service) {
       final isAvailable = serviceStatus[service['key']] ?? false;
       return _buildSyncStatusRow(
@@ -947,6 +1038,7 @@ class SatpamDashboardDialogs {
   }
 
   /// Get health status color
+  // ignore: unused_element
   static Color _getHealthStatusColor(String? status) {
     switch (status) {
       case 'healthy':
@@ -968,56 +1060,71 @@ class SatpamDashboardDialogs {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Text(
-            '$label: ',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-          Expanded(
-            child: Text(value),
-          ),
+          Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w500)),
+          Expanded(child: Text(value)),
         ],
       ),
     );
   }
 
   /// Share QR Code as image
-  static Future<void> _shareQRCode(BuildContext context, GlobalKey qrKey, GateCheckFormData formData) async {
+  static Future<void> _shareQRCode(
+    BuildContext context,
+    GlobalKey qrKey,
+    GateCheckFormData formData,
+  ) async {
     try {
       // Capture QR code as image
-      RenderRepaintBoundary boundary = qrKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
+      RenderRepaintBoundary boundary =
+          qrKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
       ui.Image image = await boundary.toImage(pixelRatio: 3.0);
-      ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      ByteData? byteData = await image.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       Uint8List pngBytes = byteData!.buffer.asUint8List();
 
       // Save to temporary file
       final directory = await getTemporaryDirectory();
-      final file = File('${directory.path}/guest_qr_${DateTime.now().millisecondsSinceEpoch}.png');
+      final file = File(
+        '${directory.path}/guest_qr_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
       await file.writeAsBytes(pngBytes);
 
       // Share the file
-      await Share.shareXFiles([XFile(file.path)], 
-        text: 'QR Code Tamu - ${formData.guestName ?? formData.driverName ?? 'Guest'} (${formData.vehiclePlate ?? 'N/A'})'
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text:
+              'QR Code Tamu - '
+              '${formData.guestName ?? (formData.driverName.isNotEmpty ? formData.driverName : 'Guest')} '
+              '(${formData.vehiclePlate.isNotEmpty ? formData.vehiclePlate : 'N/A'})',
+        ),
       );
+      if (!context.mounted) return;
 
       SatpamDashboardHelpers.showSnackBar(
         context,
         'QR Code berhasil dibagikan',
       );
     } catch (e) {
-      SatpamDashboardHelpers.showSnackBar(
-        context,
-        'Error membagikan QR Code: $e',
-        isError: true,
-      );
+      if (context.mounted) {
+        SatpamDashboardHelpers.showSnackBar(
+          context,
+          'Error membagikan QR Code: $e',
+          isError: true,
+        );
+      }
     }
   }
 
   /// Print QR Code as PDF (Alternative implementation without PDF dependency)
-  static Future<void> _printQRCode(BuildContext context, String qrData, GateCheckFormData formData, String? generationIntent) async {
+  static Future<void> _printQRCode(
+    BuildContext context,
+    String qrData,
+    GateCheckFormData formData,
+    String? generationIntent,
+  ) async {
     try {
-
-      
-
       // Create PDF document
       final pdf = pw.Document();
 
@@ -1029,7 +1136,9 @@ class SatpamDashboardDialogs {
         gapless: false,
       ).toImage(300);
 
-      final qrImageData = await qrImage.toByteData(format: ui.ImageByteFormat.png);
+      final qrImageData = await qrImage.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       final qrPngBytes = qrImageData!.buffer.asUint8List();
 
       pdf.addPage(
@@ -1041,22 +1150,35 @@ class SatpamDashboardDialogs {
               children: [
                 pw.Text(
                   'AGRINOVA',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14),
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
-                pw.Text(
-                  'Gate Pass',
-                  style: const pw.TextStyle(fontSize: 10),
-                ),
+                pw.Text('Gate Pass', style: const pw.TextStyle(fontSize: 10)),
                 pw.Divider(),
-                pw.Image(
-                  pw.MemoryImage(qrPngBytes),
-                  width: 150,
-                  height: 150,
-                ),
+                pw.Image(pw.MemoryImage(qrPngBytes), width: 150, height: 150),
                 pw.SizedBox(height: 10),
-                _buildPdfInfoRow('Nama', formData.guestName ?? formData.driverName ?? 'N/A'),
-                _buildPdfInfoRow('Plat', formData.vehiclePlate ?? 'N/A'),
-                _buildPdfInfoRow('Tujuan', formData.purposeOfVisit ?? formData.destination ?? 'N/A'),
+                _buildPdfInfoRow(
+                  'Nama',
+                  formData.guestName ??
+                      (formData.driverName.isNotEmpty
+                          ? formData.driverName
+                          : 'N/A'),
+                ),
+                _buildPdfInfoRow(
+                  'Plat',
+                  formData.vehiclePlate.isNotEmpty
+                      ? formData.vehiclePlate
+                      : 'N/A',
+                ),
+                _buildPdfInfoRow(
+                  'Tujuan',
+                  formData.purposeOfVisit ??
+                      (formData.destination.isNotEmpty
+                          ? formData.destination
+                          : 'N/A'),
+                ),
                 pw.Divider(),
                 pw.Text(
                   DateTime.now().toString().substring(0, 16),
@@ -1068,16 +1190,17 @@ class SatpamDashboardDialogs {
         ),
       );
 
-
-
       // Extract data for printing if needed
-      final vehiclePlate = formData.vehiclePlate ?? 'N/A';
+      final vehiclePlate = formData.vehiclePlate.isNotEmpty
+          ? formData.vehiclePlate
+          : 'N/A';
 
       // Use system print dialog (simplified after multi-POS removal)
       if (context.mounted) {
         await Printing.layoutPdf(
           onLayout: (PdfPageFormat format) async => pdf.save(),
-          name: 'QR_Code_Tamu_${vehiclePlate}_${DateTime.now().millisecondsSinceEpoch}',
+          name:
+              'QR_Code_Tamu_${vehiclePlate}_${DateTime.now().millisecondsSinceEpoch}',
         );
         if (context.mounted) {
           SatpamDashboardHelpers.showSnackBar(
@@ -1086,20 +1209,26 @@ class SatpamDashboardDialogs {
           );
         }
       }
-
     } catch (e) {
-      SatpamDashboardHelpers.showSnackBar(
-        context,
-        'Error mencetak QR Code: $e',
-        isError: true,
-      );
+      if (context.mounted) {
+        SatpamDashboardHelpers.showSnackBar(
+          context,
+          'Error mencetak QR Code: $e',
+          isError: true,
+        );
+      }
     }
   }
 
   /// Show alternative printing options when PDF is unavailable
-  static void _showPrintAlternatives(BuildContext context, String qrData, GateCheckFormData formData) {
+  // ignore: unused_element
+  static void _showPrintAlternatives(
+    BuildContext context,
+    String qrData,
+    GateCheckFormData formData,
+  ) {
     final GlobalKey qrKey = GlobalKey();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1136,31 +1265,31 @@ class SatpamDashboardDialogs {
                   style: TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.share, color: Colors.green),
-              title: const Text('Bagikan QR Code'),
-              subtitle: const Text('Simpan atau kirim gambar QR code'),
-              onTap: () {
-                Navigator.of(context).pop();
-                _shareQRCode(context, qrKey, formData);
-              },
+                ListTile(
+                  leading: const Icon(Icons.share, color: Colors.green),
+                  title: const Text('Bagikan QR Code'),
+                  subtitle: const Text('Simpan atau kirim gambar QR code'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _shareQRCode(context, qrKey, formData);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.screenshot, color: Colors.orange),
+                  title: const Text('Screenshot QR Code'),
+                  subtitle: const Text('Ambil screenshot dari layar QR code'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    SatpamDashboardHelpers.showSnackBar(
+                      context,
+                      'Silakan screenshot layar QR Code untuk mencetak',
+                    );
+                  },
+                ),
+              ],
             ),
-            ListTile(
-              leading: const Icon(Icons.screenshot, color: Colors.orange),
-              title: const Text('Screenshot QR Code'),
-              subtitle: const Text('Ambil screenshot dari layar QR code'),
-              onTap: () {
-                Navigator.of(context).pop();
-                SatpamDashboardHelpers.showSnackBar(
-                  context,
-                  'Silakan screenshot layar QR Code untuk mencetak',
-                );
-              },
-            ),
-            ],
           ),
         ),
-      ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -1173,9 +1302,9 @@ class SatpamDashboardDialogs {
 
   /// Print QR Code from details (for generated dialog)
   static Future<void> _printQRCodeFromDetails(
-    BuildContext context, 
-    String qrData, 
-    String guestName, 
+    BuildContext context,
+    String qrData,
+    String guestName,
     String vehiclePlate,
     String purpose,
     String generationIntent,
@@ -1193,7 +1322,9 @@ class SatpamDashboardDialogs {
         gapless: false,
       ).toImage(300);
 
-      final qrImageData = await qrImage.toByteData(format: ui.ImageByteFormat.png);
+      final qrImageData = await qrImage.toByteData(
+        format: ui.ImageByteFormat.png,
+      );
       final qrPngBytes = qrImageData!.buffer.asUint8List();
 
       pdf.addPage(
@@ -1205,7 +1336,10 @@ class SatpamDashboardDialogs {
               children: [
                 pw.Text(
                   'AGRINOVA',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 14),
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 14,
+                  ),
                 ),
                 pw.Text(
                   'Gate Pass System',
@@ -1214,20 +1348,24 @@ class SatpamDashboardDialogs {
                 pw.Divider(),
                 pw.Text(
                   generationIntent == 'ENTRY' ? 'MASUK' : 'KELUAR',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16),
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
                 pw.SizedBox(height: 10),
-                pw.Image(
-                  pw.MemoryImage(qrPngBytes),
-                  width: 150,
-                  height: 150,
-                ),
+                pw.Image(pw.MemoryImage(qrPngBytes), width: 150, height: 150),
                 pw.SizedBox(height: 10),
                 _buildPdfInfoRow('Nama', guestName),
                 _buildPdfInfoRow('Plat', vehiclePlate),
                 _buildPdfInfoRow('Tujuan', purpose),
                 if (metadata?['expires_at'] != null)
-                  _buildPdfInfoRow('Exp', DateTime.parse(metadata!['expires_at']).toString().substring(0, 16)),
+                  _buildPdfInfoRow(
+                    'Exp',
+                    DateTime.parse(
+                      metadata!['expires_at'],
+                    ).toString().substring(0, 16),
+                  ),
                 pw.Divider(),
                 pw.Text(
                   DateTime.now().toString().substring(0, 16),
@@ -1239,15 +1377,14 @@ class SatpamDashboardDialogs {
         ),
       );
 
-
       // Use system print dialog (simplified after multi-POS removal)
       if (context.mounted) {
         await Printing.layoutPdf(
           onLayout: (PdfPageFormat format) async => pdf.save(),
-          name: 'GatePass_${vehiclePlate}_${DateTime.now().millisecondsSinceEpoch}',
+          name:
+              'GatePass_${vehiclePlate}_${DateTime.now().millisecondsSinceEpoch}',
         );
       }
-
     } catch (e) {
       if (context.mounted) {
         SatpamDashboardHelpers.showSnackBar(
@@ -1267,10 +1404,7 @@ class SatpamDashboardDialogs {
         children: [
           pw.Text(
             '$label:',
-            style: pw.TextStyle(
-              fontWeight: pw.FontWeight.bold,
-              fontSize: 10,
-            ),
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
           ),
           pw.Expanded(
             child: pw.Text(
@@ -1283,8 +1417,12 @@ class SatpamDashboardDialogs {
       ),
     );
   }
+
   /// Show dialog to select Entry or Exit for employee scan
-  static Future<String?> showEmployeeActionDialog(BuildContext context, String employeeName) async {
+  static Future<String?> showEmployeeActionDialog(
+    BuildContext context,
+    String employeeName,
+  ) async {
     return showDialog<String>(
       context: context,
       barrierDismissible: false,
@@ -1294,7 +1432,10 @@ class SatpamDashboardDialogs {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Karyawan: $employeeName', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              'Karyawan: $employeeName',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             const Text('Silakan pilih akses untuk scan ini:'),
             const SizedBox(height: 24),
@@ -1338,6 +1479,4 @@ class SatpamDashboardDialogs {
       ),
     );
   }
-
 }
-

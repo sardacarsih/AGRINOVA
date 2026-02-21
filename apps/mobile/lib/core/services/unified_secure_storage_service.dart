@@ -41,7 +41,6 @@ class UnifiedSecureStorageService {
   // Storage instances with platform-specific configuration
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
       sharedPreferencesName: SecurityConstants.androidSharedPrefsName,
       preferencesKeyPrefix: SecurityConstants.secureStorageKeyPrefix,
     ),
@@ -86,7 +85,8 @@ class UnifiedSecureStorageService {
 
       _logger.i('✅ UnifiedSecureStorageService initialized');
       _logger.i(
-          '   Auth Status: ${authStatus.isAuthenticated ? "Authenticated" : "Not Authenticated"}');
+        '   Auth Status: ${authStatus.isAuthenticated ? "Authenticated" : "Not Authenticated"}',
+      );
       _logger.i('   User: ${authStatus.username ?? "Not logged in"}');
       _logger.i('   Role: ${authStatus.role ?? "No role"}');
     } catch (e) {
@@ -108,28 +108,45 @@ class UnifiedSecureStorageService {
       // Store all tokens and user data in secure storage
       await Future.wait([
         _secureStorage.write(
-            key: ApiConstants.accessTokenKey, value: response.accessToken),
+          key: ApiConstants.accessTokenKey,
+          value: response.accessToken,
+        ),
         _secureStorage.write(
-            key: ApiConstants.refreshTokenKey, value: response.refreshToken),
+          key: ApiConstants.refreshTokenKey,
+          value: response.refreshToken,
+        ),
         if (response.offlineToken != null)
           _secureStorage.write(
-              key: ApiConstants.offlineTokenKey, value: response.offlineToken!),
+            key: ApiConstants.offlineTokenKey,
+            value: response.offlineToken!,
+          ),
         _secureStorage.write(
-            key: ApiConstants.userInfoKey, value: jsonEncode(userJson)),
+          key: ApiConstants.userInfoKey,
+          value: jsonEncode(userJson),
+        ),
         _secureStorage.write(
-            key: 'auth_timestamp', value: DateTime.now().toIso8601String()),
+          key: 'auth_timestamp',
+          value: DateTime.now().toIso8601String(),
+        ),
         _secureStorage.write(
-            key: 'access_token_expires', value: response.expiresAt),
+          key: 'access_token_expires',
+          value: response.expiresAt,
+        ),
         if (response.refreshExpiresAt != null)
           _secureStorage.write(
-              key: 'refresh_token_expires', value: response.refreshExpiresAt!),
+            key: 'refresh_token_expires',
+            value: response.refreshExpiresAt!,
+          ),
         if (response.offlineExpiresAt != null)
           _secureStorage.write(
-              key: 'offline_token_expires', value: response.offlineExpiresAt!),
+            key: 'offline_token_expires',
+            value: response.offlineExpiresAt!,
+          ),
         if (response.assignments != null)
           _secureStorage.write(
-              key: 'user_assignments',
-              value: jsonEncode(response.assignments!.toJson())),
+            key: 'user_assignments',
+            value: jsonEncode(response.assignments!.toJson()),
+          ),
       ]);
 
       // Broadcast authentication status change
@@ -157,30 +174,47 @@ class UnifiedSecureStorageService {
 
       await Future.wait([
         _secureStorage.write(
-            key: ApiConstants.accessTokenKey, value: response.accessToken),
+          key: ApiConstants.accessTokenKey,
+          value: response.accessToken,
+        ),
         _secureStorage.write(
-            key: ApiConstants.refreshTokenKey, value: response.refreshToken),
+          key: ApiConstants.refreshTokenKey,
+          value: response.refreshToken,
+        ),
         _secureStorage.write(
-            key: ApiConstants.offlineTokenKey, value: response.offlineToken),
+          key: ApiConstants.offlineTokenKey,
+          value: response.offlineToken,
+        ),
         _secureStorage.write(
-            key: ApiConstants.deviceBindingKey, value: response.deviceBinding),
+          key: ApiConstants.deviceBindingKey,
+          value: response.deviceBinding,
+        ),
         _secureStorage.write(
-            key: ApiConstants.userInfoKey, value: jsonEncode(userJson)),
+          key: ApiConstants.userInfoKey,
+          value: jsonEncode(userJson),
+        ),
         if (response.session != null)
           _secureStorage.write(
-              key: 'session_info',
-              value: jsonEncode(response.session!.toJson())),
+            key: 'session_info',
+            value: jsonEncode(response.session!.toJson()),
+          ),
         _secureStorage.write(
-            key: 'access_token_expires',
-            value: response.expiresAt.toIso8601String()),
+          key: 'access_token_expires',
+          value: response.expiresAt.toIso8601String(),
+        ),
         if (offlineExpiresAt != null)
           _secureStorage.write(
-              key: 'offline_token_expires',
-              value: offlineExpiresAt.toIso8601String()),
+            key: 'offline_token_expires',
+            value: offlineExpiresAt.toIso8601String(),
+          ),
         _secureStorage.write(
-            key: 'device_trusted', value: response.deviceTrusted.toString()),
+          key: 'device_trusted',
+          value: response.deviceTrusted.toString(),
+        ),
         _secureStorage.write(
-            key: 'auth_timestamp', value: DateTime.now().toIso8601String()),
+          key: 'auth_timestamp',
+          value: DateTime.now().toIso8601String(),
+        ),
       ]);
 
       // Broadcast authentication status change
@@ -204,17 +238,25 @@ class UnifiedSecureStorageService {
 
       await Future.wait([
         _secureStorage.write(
-            key: ApiConstants.accessTokenKey, value: response.accessToken),
+          key: ApiConstants.accessTokenKey,
+          value: response.accessToken,
+        ),
         _secureStorage.write(
-            key: ApiConstants.refreshTokenKey, value: response.refreshToken),
+          key: ApiConstants.refreshTokenKey,
+          value: response.refreshToken,
+        ),
         // If refresh response includes full user info or other fields, update them here
         // But usually refresh just gives new tokens.
         // Assuming JWTRefreshResponse has expiresAt
         if (expiresAt != null)
           _secureStorage.write(
-              key: 'access_token_expires', value: expiresAt.toIso8601String()),
+            key: 'access_token_expires',
+            value: expiresAt.toIso8601String(),
+          ),
         _secureStorage.write(
-            key: 'auth_timestamp', value: DateTime.now().toIso8601String()),
+          key: 'auth_timestamp',
+          value: DateTime.now().toIso8601String(),
+        ),
       ]);
 
       _logger.i('✅ Refreshed tokens stored successfully');
@@ -236,16 +278,20 @@ class UnifiedSecureStorageService {
   }
 
   /// Check if biometric is enabled
-  static Future<bool> isBiometricEnabled(
-      {String? userId, String? username}) async {
+  static Future<bool> isBiometricEnabled({
+    String? userId,
+    String? username,
+  }) async {
     try {
       final value = await _secureStorage.read(key: _biometricEnabledKey);
       if (value != 'true') return false;
 
-      final ownerUserId =
-          await _secureStorage.read(key: _biometricOwnerUserIdKey);
-      final ownerUsername =
-          await _secureStorage.read(key: _biometricOwnerUsernameKey);
+      final ownerUserId = await _secureStorage.read(
+        key: _biometricOwnerUserIdKey,
+      );
+      final ownerUsername = await _secureStorage.read(
+        key: _biometricOwnerUsernameKey,
+      );
 
       // Backward compatibility: old installs may not have owner metadata yet.
       if ((ownerUserId == null || ownerUserId.isEmpty) &&
@@ -310,19 +356,23 @@ class UnifiedSecureStorageService {
         ];
 
         if (resolvedUserId != null && resolvedUserId.isNotEmpty) {
-          futures.add(_secureStorage.write(
-            key: _biometricOwnerUserIdKey,
-            value: resolvedUserId,
-          ));
+          futures.add(
+            _secureStorage.write(
+              key: _biometricOwnerUserIdKey,
+              value: resolvedUserId,
+            ),
+          );
         } else {
           futures.add(_secureStorage.delete(key: _biometricOwnerUserIdKey));
         }
 
         if (resolvedUsername != null && resolvedUsername.isNotEmpty) {
-          futures.add(_secureStorage.write(
-            key: _biometricOwnerUsernameKey,
-            value: resolvedUsername,
-          ));
+          futures.add(
+            _secureStorage.write(
+              key: _biometricOwnerUsernameKey,
+              value: resolvedUsername,
+            ),
+          );
         } else {
           futures.add(_secureStorage.delete(key: _biometricOwnerUsernameKey));
         }
@@ -385,10 +435,7 @@ class UnifiedSecureStorageService {
           key: _offlineCredentialUsernameKey,
           value: normalizedUsername,
         ),
-        _secureStorage.write(
-          key: _offlineCredentialSaltKey,
-          value: salt,
-        ),
+        _secureStorage.write(key: _offlineCredentialSaltKey, value: salt),
         _secureStorage.write(
           key: _offlineCredentialVerifierKey,
           value: verifier,
@@ -409,12 +456,15 @@ class UnifiedSecureStorageService {
       final normalizedUsername = username.trim().toLowerCase();
       if (normalizedUsername.isEmpty || password.isEmpty) return false;
 
-      final storedUsername =
-          await _secureStorage.read(key: _offlineCredentialUsernameKey);
-      final storedSalt =
-          await _secureStorage.read(key: _offlineCredentialSaltKey);
-      final storedVerifier =
-          await _secureStorage.read(key: _offlineCredentialVerifierKey);
+      final storedUsername = await _secureStorage.read(
+        key: _offlineCredentialUsernameKey,
+      );
+      final storedSalt = await _secureStorage.read(
+        key: _offlineCredentialSaltKey,
+      );
+      final storedVerifier = await _secureStorage.read(
+        key: _offlineCredentialVerifierKey,
+      );
 
       if (storedUsername == null ||
           storedSalt == null ||
@@ -454,7 +504,9 @@ class UnifiedSecureStorageService {
   static Future<void> updateAccessToken(String token) async {
     try {
       await _secureStorage.write(
-          key: ApiConstants.accessTokenKey, value: token);
+        key: ApiConstants.accessTokenKey,
+        value: token,
+      );
     } catch (e) {
       _logger.e('❌ Failed to update access token: $e');
     }
@@ -464,7 +516,9 @@ class UnifiedSecureStorageService {
   static Future<void> updateRefreshToken(String token) async {
     try {
       await _secureStorage.write(
-          key: ApiConstants.refreshTokenKey, value: token);
+        key: ApiConstants.refreshTokenKey,
+        value: token,
+      );
     } catch (e) {
       _logger.e('❌ Failed to update refresh token: $e');
     }
@@ -474,7 +528,9 @@ class UnifiedSecureStorageService {
   static Future<void> storeDeviceInfo(Map<String, dynamic> info) async {
     try {
       await _secureStorage.write(
-          key: ApiConstants.deviceInfoKey, value: jsonEncode(info));
+        key: ApiConstants.deviceInfoKey,
+        value: jsonEncode(info),
+      );
     } catch (e) {
       _logger.e('❌ Failed to store device info: $e');
     }
@@ -486,7 +542,9 @@ class UnifiedSecureStorageService {
   static Future<void> setDeviceTrusted(bool trusted) async {
     try {
       await _secureStorage.write(
-          key: 'device_trusted', value: trusted.toString());
+        key: 'device_trusted',
+        value: trusted.toString(),
+      );
     } catch (e) {
       _logger.e('❌ Failed to set device trusted: $e');
     }
@@ -513,8 +571,9 @@ class UnifiedSecureStorageService {
       if (value == 'true') return true;
       if (value == 'false') return false;
 
-      final legacyAccessToken =
-          await _secureStorage.read(key: ApiConstants.accessTokenKey);
+      final legacyAccessToken = await _secureStorage.read(
+        key: ApiConstants.accessTokenKey,
+      );
       return legacyAccessToken != null && legacyAccessToken.isNotEmpty;
     } catch (e) {
       _logger.e('❌ Failed to read remember device flag: $e');
@@ -682,7 +741,8 @@ class UnifiedSecureStorageService {
         final refreshToken = await getRefreshToken();
         if (refreshToken != null && !_isTokenExpired(refreshToken)) {
           _logger.i(
-              '🔄 Refresh token still valid, authentication can be refreshed');
+            '🔄 Refresh token still valid, authentication can be refreshed',
+          );
           return true; // Can still authenticate via refresh
         }
 
@@ -797,10 +857,7 @@ class UnifiedSecureStorageService {
       );
     } catch (e) {
       _logger.e('❌ Failed to get auth status: $e');
-      return AuthStatus(
-        isAuthenticated: false,
-        error: e.toString(),
-      );
+      return AuthStatus(isAuthenticated: false, error: e.toString());
     }
   }
 

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../data/models/gate_check_models.dart';
 import '../../widgets/guest_registration_form.dart';
 import '../../widgets/gate_stat_card_widget.dart';
@@ -15,7 +13,7 @@ class SatpamDashboardWidgets {
     required VoidCallback onSyncPressed,
   }) {
     final pendingCount = repositoryStats['pending_sync'] ?? 0;
-    
+
     return Stack(
       children: [
         IconButton(
@@ -56,12 +54,7 @@ class SatpamDashboardWidgets {
     return Expanded(
       child: TabBarView(
         controller: tabController,
-        children: [
-          dashboardTab,
-          registrationTab,
-          validationTab,
-          historyTab,
-        ],
+        children: [dashboardTab, registrationTab, validationTab, historyTab],
       ),
     );
   }
@@ -109,7 +102,9 @@ class SatpamDashboardWidgets {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(SatpamDashboardConstants.borderRadius * 2),
+        borderRadius: BorderRadius.circular(
+          SatpamDashboardConstants.borderRadius * 2,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,17 +120,18 @@ class SatpamDashboardWidgets {
                     // Greeting text
                     Text(
                       'Selamat datang',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                          ),
                     ),
                     if (userName != null) ...[
                       const SizedBox(height: 4),
                       // User's name
                       Text(
-                        userName!,
+                        userName,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
@@ -147,11 +143,11 @@ class SatpamDashboardWidgets {
                       const SizedBox(height: 6),
                       // Company and role
                       Text(
-                        userRole != null ? 
-                          '${companyName ?? 'Agrinova Palm Oil'} (${_getRoleDisplayName(userRole)})' : 
-                          'Sistem Pemeriksaan Gerbang Canggih',
+                        userRole != null
+                            ? '${companyName ?? 'Agrinova Palm Oil'} (${_getRoleDisplayName(userRole)})'
+                            : 'Sistem Pemeriksaan Gerbang Canggih',
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 14,
                         ),
                       ),
@@ -177,9 +173,11 @@ class SatpamDashboardWidgets {
     return Container(
       padding: const EdgeInsets.all(SatpamDashboardConstants.mediumPadding),
       decoration: BoxDecoration(
-        color: Colors.green.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(SatpamDashboardConstants.borderRadius),
-        border: Border.all(color: Colors.green.withOpacity(0.5)),
+        color: Colors.green.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(
+          SatpamDashboardConstants.borderRadius,
+        ),
+        border: Border.all(color: Colors.green.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
@@ -214,9 +212,11 @@ class SatpamDashboardWidgets {
       margin: const EdgeInsets.only(top: SatpamDashboardConstants.smallPadding),
       padding: const EdgeInsets.all(SatpamDashboardConstants.smallPadding),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(SatpamDashboardConstants.borderRadius),
-        border: Border.all(color: Colors.orange.withOpacity(0.5)),
+        color: Colors.orange.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(
+          SatpamDashboardConstants.borderRadius,
+        ),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
@@ -225,10 +225,7 @@ class SatpamDashboardWidgets {
           Expanded(
             child: Text(
               'Mode Offline - Data akan di-sync saat terhubung',
-              style: TextStyle(
-                color: Colors.orange[100],
-                fontSize: 12,
-              ),
+              style: TextStyle(color: Colors.orange[100], fontSize: 12),
             ),
           ),
         ],
@@ -246,9 +243,9 @@ class SatpamDashboardWidgets {
       children: [
         Text(
           'Aktivitas Hari Ini',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: SatpamDashboardConstants.mediumPadding),
         LayoutBuilder(
@@ -295,9 +292,11 @@ class SatpamDashboardWidgets {
     return Container(
       padding: const EdgeInsets.all(SatpamDashboardConstants.largePadding),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(SatpamDashboardConstants.mediumPadding),
-        border: Border.all(color: color.withOpacity(0.3)),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(
+          SatpamDashboardConstants.mediumPadding,
+        ),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,7 +333,7 @@ class SatpamDashboardWidgets {
                 Text(
                   subtitle,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: color.withOpacity(0.7),
+                    color: color.withValues(alpha: 0.7),
                   ),
                 ),
             ],
@@ -358,14 +357,11 @@ class SatpamDashboardWidgets {
           children: [
             Text(
               'Aktivitas Terkini',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
-            TextButton(
-              onPressed: onViewAll,
-              child: const Text('Lihat Semua'),
-            ),
+            TextButton(onPressed: onViewAll, child: const Text('Lihat Semua')),
           ],
         ),
         const SizedBox(height: SatpamDashboardConstants.mediumPadding),
@@ -402,7 +398,9 @@ class SatpamDashboardWidgets {
     ];
 
     return Column(
-      children: mockActivity.map((activity) => buildRecentActivityItem(activity)).toList(),
+      children: mockActivity
+          .map((activity) => buildRecentActivityItem(activity))
+          .toList(),
     );
   }
 
@@ -413,20 +411,28 @@ class SatpamDashboardWidgets {
     final actionColor = isEntry ? Colors.green : Colors.blue;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: SatpamDashboardConstants.smallPadding),
+      margin: const EdgeInsets.only(
+        bottom: SatpamDashboardConstants.smallPadding,
+      ),
       padding: const EdgeInsets.all(SatpamDashboardConstants.mediumPadding),
       decoration: BoxDecoration(
         color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(SatpamDashboardConstants.borderRadius),
+        borderRadius: BorderRadius.circular(
+          SatpamDashboardConstants.borderRadius,
+        ),
         border: Border.all(color: Colors.grey[200]!),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(SatpamDashboardConstants.smallPadding),
+            padding: const EdgeInsets.all(
+              SatpamDashboardConstants.smallPadding,
+            ),
             decoration: BoxDecoration(
-              color: actionColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(SatpamDashboardConstants.borderRadius),
+              color: actionColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(
+                SatpamDashboardConstants.borderRadius,
+              ),
             ),
             child: Icon(
               isEntry ? Icons.login : Icons.logout,
@@ -448,10 +454,7 @@ class SatpamDashboardWidgets {
                 ),
                 Text(
                   '${activity['driver']} • ${activity['time']} • ${activity['duration']}',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
                 ),
               ],
             ),
@@ -462,7 +465,7 @@ class SatpamDashboardWidgets {
               vertical: 4,
             ),
             decoration: BoxDecoration(
-              color: actionColor.withOpacity(0.1),
+              color: actionColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -485,7 +488,8 @@ class SatpamDashboardWidgets {
   /// Build registration tab with form and intent selection
   static Widget buildRegistrationTab({
     required Function(String) onVehiclePlateChanged,
-    Function(GateCheckFormData)? onFormDataChanged, // Complete form data callback
+    Function(GateCheckFormData)?
+    onFormDataChanged, // Complete form data callback
     required Function(String) onCameraPressed,
     required VoidCallback onQRGeneratePressed,
     required bool isLoading,
@@ -494,8 +498,10 @@ class SatpamDashboardWidgets {
     required GateCheckFormData initialData,
     required String generationIntent, // Current intent
     required Function(String) onIntentChanged, // Intent change callback
-    bool isRegistered = false, // Apakah form sudah ter-register (mode cetak ulang)
-    VoidCallback? onRegisterNewPressed, // Callback untuk tombol "Daftar Tamu Baru"
+    bool isRegistered =
+        false, // Apakah form sudah ter-register (mode cetak ulang)
+    VoidCallback?
+    onRegisterNewPressed, // Callback untuk tombol "Daftar Tamu Baru"
   }) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(SatpamDashboardConstants.largePadding),
@@ -519,35 +525,39 @@ class SatpamDashboardWidgets {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: RadioListTile<String>(
-                          title: const Text('ENTRY (Masuk)'),
-                          subtitle: const Text('Scan untuk EXIT'),
-                          value: 'ENTRY',
-                          groupValue: generationIntent,
-                          onChanged: (value) => onIntentChanged(value!),
-                          contentPadding: EdgeInsets.zero,
+                  RadioGroup<String>(
+                    groupValue: generationIntent,
+                    onChanged: (value) {
+                      if (value != null) {
+                        onIntentChanged(value);
+                      }
+                    },
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: RadioListTile<String>(
+                            title: const Text('ENTRY (Masuk)'),
+                            subtitle: const Text('Scan untuk EXIT'),
+                            value: 'ENTRY',
+                            contentPadding: EdgeInsets.zero,
+                          ),
                         ),
-                      ),
-                      Expanded(
-                        child: RadioListTile<String>(
-                          title: const Text('EXIT (Keluar)'),
-                          subtitle: const Text('Scan untuk ENTRY'),
-                          value: 'EXIT',
-                          groupValue: generationIntent,
-                          onChanged: (value) => onIntentChanged(value!),
-                          contentPadding: EdgeInsets.zero,
+                        Expanded(
+                          child: RadioListTile<String>(
+                            title: const Text('EXIT (Keluar)'),
+                            subtitle: const Text('Scan untuk ENTRY'),
+                            value: 'EXIT',
+                            contentPadding: EdgeInsets.zero,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
           ),
-          
+
           // Guest Registration Form
           GuestRegistrationForm(
             onVehiclePlateChanged: onVehiclePlateChanged,
@@ -615,12 +625,15 @@ class SatpamDashboardWidgets {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(6),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
               isDense: true,
             ),
             items: ['Semua', 'Masuk', 'Keluar'].map((action) {
               return DropdownMenuItem(
-                value: action, 
+                value: action,
                 child: Text(action, style: const TextStyle(fontSize: 14)),
               );
             }).toList(),
@@ -635,12 +648,17 @@ class SatpamDashboardWidgets {
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(6),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 8,
+              ),
               isDense: true,
             ),
-            items: ['Hari Ini', '7 Hari Terakhir', '30 Hari Terakhir'].map((period) {
+            items: ['Hari Ini', '7 Hari Terakhir', '30 Hari Terakhir'].map((
+              period,
+            ) {
               return DropdownMenuItem(
-                value: period, 
+                value: period,
                 child: Text(period, style: const TextStyle(fontSize: 14)),
               );
             }).toList(),
@@ -662,11 +680,15 @@ class SatpamDashboardWidgets {
       itemBuilder: (context, index) {
         final isEntry = index % 2 == 0;
         return Container(
-          margin: const EdgeInsets.only(bottom: SatpamDashboardConstants.mediumPadding),
+          margin: const EdgeInsets.only(
+            bottom: SatpamDashboardConstants.mediumPadding,
+          ),
           padding: const EdgeInsets.all(SatpamDashboardConstants.largePadding),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(SatpamDashboardConstants.mediumPadding),
+            borderRadius: BorderRadius.circular(
+              SatpamDashboardConstants.mediumPadding,
+            ),
             border: Border.all(color: Colors.grey[200]!),
           ),
           child: Column(
@@ -688,7 +710,9 @@ class SatpamDashboardWidgets {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: (isEntry ? Colors.green : Colors.blue).withOpacity(0.1),
+                      color: (isEntry ? Colors.green : Colors.blue).withValues(
+                        alpha: 0.1,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -709,8 +733,7 @@ class SatpamDashboardWidgets {
               Text('Sopir: Tamu Driver ${index + 1}'),
               Text('Waktu: ${09 + index}:${30 + index}'),
               const Text('Tujuan: Pengiriman'),
-              if (!isEntry)
-                Text('Durasi: ${45 + index * 15} menit'),
+              if (!isEntry) Text('Durasi: ${45 + index * 15} menit'),
             ],
           ),
         );
@@ -727,13 +750,13 @@ class SatpamDashboardWidgets {
     const Color darkBg = Color(0xFF1a1a2e);
     const Color neonPurple = Color(0xFF8B5CF6);
     const Color unselectedColor = Color(0xFF6B7280);
-    
+
     return Container(
       decoration: BoxDecoration(
         color: darkBg,
         boxShadow: [
           BoxShadow(
-            color: neonPurple.withOpacity(0.15),
+            color: neonPurple.withValues(alpha: 0.15),
             blurRadius: 20,
             spreadRadius: -5,
             offset: const Offset(0, -5),
@@ -741,7 +764,7 @@ class SatpamDashboardWidgets {
         ],
         border: Border(
           top: BorderSide(
-            color: Colors.white.withOpacity(0.08),
+            color: Colors.white.withValues(alpha: 0.08),
             width: 1,
           ),
         ),
@@ -763,11 +786,14 @@ class SatpamDashboardWidgets {
         ),
         items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_outlined, color: currentIndex == 0 ? neonPurple : unselectedColor),
+            icon: Icon(
+              Icons.dashboard_outlined,
+              color: currentIndex == 0 ? neonPurple : unselectedColor,
+            ),
             activeIcon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: neonPurple.withOpacity(0.15),
+                color: neonPurple.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(Icons.dashboard_rounded, color: neonPurple),
@@ -775,11 +801,14 @@ class SatpamDashboardWidgets {
             label: 'Dashboard',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_add_outlined, color: currentIndex == 1 ? neonPurple : unselectedColor),
+            icon: Icon(
+              Icons.person_add_outlined,
+              color: currentIndex == 1 ? neonPurple : unselectedColor,
+            ),
             activeIcon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: neonPurple.withOpacity(0.15),
+                color: neonPurple.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(Icons.person_add_rounded, color: neonPurple),
@@ -787,11 +816,14 @@ class SatpamDashboardWidgets {
             label: 'Daftar',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.qr_code_scanner_outlined, color: currentIndex == 2 ? neonPurple : unselectedColor),
+            icon: Icon(
+              Icons.qr_code_scanner_outlined,
+              color: currentIndex == 2 ? neonPurple : unselectedColor,
+            ),
             activeIcon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: neonPurple.withOpacity(0.15),
+                color: neonPurple.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(Icons.qr_code_scanner_rounded, color: neonPurple),
@@ -799,11 +831,14 @@ class SatpamDashboardWidgets {
             label: 'Validasi',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.history_outlined, color: currentIndex == 3 ? neonPurple : unselectedColor),
+            icon: Icon(
+              Icons.history_outlined,
+              color: currentIndex == 3 ? neonPurple : unselectedColor,
+            ),
             activeIcon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: neonPurple.withOpacity(0.15),
+                color: neonPurple.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(Icons.history_rounded, color: neonPurple),
@@ -811,11 +846,14 @@ class SatpamDashboardWidgets {
             label: 'Riwayat',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.sync_outlined, color: currentIndex == 4 ? neonPurple : unselectedColor),
+            icon: Icon(
+              Icons.sync_outlined,
+              color: currentIndex == 4 ? neonPurple : unselectedColor,
+            ),
             activeIcon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: neonPurple.withOpacity(0.15),
+                color: neonPurple.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(Icons.sync_rounded, color: neonPurple),
@@ -838,19 +876,19 @@ class SatpamDashboardWidgets {
   }
 
   /// Build sync status row
-  static Widget buildSyncStatusRow(String label, String value, IconData icon, Color color) {
+  static Widget buildSyncStatusRow(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Icon(icon, color: color, size: 16),
           const SizedBox(width: SatpamDashboardConstants.smallPadding),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 13),
-            ),
-          ),
+          Expanded(child: Text(label, style: const TextStyle(fontSize: 13))),
           Text(
             value,
             style: TextStyle(

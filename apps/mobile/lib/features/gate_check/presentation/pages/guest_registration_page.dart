@@ -18,14 +18,14 @@ import 'satpam_dashboard/satpam_dashboard_helpers.dart';
 import '../../../../core/services/pos_settings_service.dart';
 
 /// Guest Registration Page
-/// 
+///
 /// Dedicated page for guest registration functionality including:
 /// - Guest registration form
 /// - QR code generation with intent selection
 /// - Photo capture for vehicles
 /// - Form validation and submission
 class GuestRegistrationPage extends StatefulWidget {
-  const GuestRegistrationPage({Key? key}) : super(key: key);
+  const GuestRegistrationPage({super.key});
 
   @override
   State<GuestRegistrationPage> createState() => _GuestRegistrationPageState();
@@ -36,39 +36,43 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
 
   // Service state managed by SatpamDashboardServices
   SatpamDashboardServiceState? _serviceState;
-  
+
   // Form state
   final GateCheckFormData _registrationFormData = GateCheckFormData();
   bool _isRegistrationLoading = false;
   String? _registrationError;
-  
+
   // QR Generation Intent
   String _generationIntent = 'ENTRY'; // Default to ENTRY
 
   // Gate settings (simplified after multi-POS removal)
+  // ignore: unused_field
   String _shiftInfoText = SatpamDashboardConstants.defaultShiftInfo;
-  
+
   // User data
   String? _userName;
   String? _userRole;
   String? _companyName;
   final JWTStorageService _jwtStorage = JWTStorageService();
-  
+
   // Rate limiting for QR generation
   DateTime? _lastQRGenerationTime;
   int _qrGenerationCount = 0;
   static const int _maxQRGenerationsPerMinute = 5;
-  static const Duration _qrGenerationCooldown = Duration(seconds: 12); // 12 seconds between requests
+  static const Duration _qrGenerationCooldown = Duration(
+    seconds: 12,
+  ); // 12 seconds between requests
 
   // State untuk regenerate QR (cetak ulang tanpa duplikasi data)
   String? _currentGuestLogId;
   DateTime? _registeredAt;
-  String? _lastGeneratedQRData; // Simpan QR data terakhir untuk cetak ulang tanpa buat token baru
+  String?
+  _lastGeneratedQRData; // Simpan QR data terakhir untuk cetak ulang tanpa buat token baru
 
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize services and load data asynchronously
     _initializeAndLoadData();
   }
@@ -88,13 +92,9 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
 
       // Initialize services
       await _initializeServices();
-      
-      // Load user data and gate settings in parallel
-      await Future.wait([
-        _loadUserData(),
-        _loadGateSettings(),
-      ]);
 
+      // Load user data and gate settings in parallel
+      await Future.wait([_loadUserData(), _loadGateSettings()]);
     } catch (e) {
       _logger.e('Error during initialization', error: e);
       if (mounted) {
@@ -115,15 +115,15 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
   Future<void> _initializeServices() async {
     try {
       _logger.d('Initializing services...');
-      
+
       final serviceState = await SatpamDashboardServices.initializeServices();
-      
+
       if (mounted) {
         setState(() {
           _serviceState = serviceState;
         });
       }
-      
+
       _logger.i('Services initialized successfully');
     } catch (e) {
       _logger.e('Error initializing services', error: e);
@@ -160,17 +160,19 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
   Future<void> _loadUserData() async {
     try {
       _logger.d('Loading user data from JWT storage...');
-      
+
       final userData = await _jwtStorage.getUserInfo();
-      
+
       if (mounted && userData != null) {
         setState(() {
-          _userName = userData.fullName ?? userData.username;
+          _userName = userData.fullName;
           _userRole = userData.role;
           _companyName = userData.companyName;
         });
-        
-        _logger.i('User data loaded: $_userName ($_userRole) - Company: $_companyName');
+
+        _logger.i(
+          'User data loaded: $_userName ($_userRole) - Company: $_companyName',
+        );
       }
     } catch (e) {
       _logger.e('Error loading user data', error: e);
@@ -212,13 +214,17 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
             margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.door_front_door, size: 16, color: Colors.white),
+                const Icon(
+                  Icons.door_front_door,
+                  size: 16,
+                  color: Colors.white,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   _registrationFormData.posNumber,
@@ -242,11 +248,16 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
   /// Build main body
   Widget _buildBody() {
     if (_isRegistrationLoading) {
-      return SatpamDashboardHelpers.buildLoadingIndicator('Memuat halaman pendaftaran...');
+      return SatpamDashboardHelpers.buildLoadingIndicator(
+        'Memuat halaman pendaftaran...',
+      );
     }
 
     if (_registrationError != null) {
-      return SatpamDashboardHelpers.buildError(_registrationError!, _initializeAndLoadData);
+      return SatpamDashboardHelpers.buildError(
+        _registrationError!,
+        _initializeAndLoadData,
+      );
     }
 
     return _buildRegistrationForm();
@@ -254,11 +265,14 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
 
   /// Build registration form
   Widget _buildRegistrationForm() {
-    _logger.d('Building registration form with isLoading: $_isRegistrationLoading');
-    
+    _logger.d(
+      'Building registration form with isLoading: $_isRegistrationLoading',
+    );
+
     return SatpamDashboardWidgets.buildRegistrationTab(
       onVehiclePlateChanged: _handleVehiclePlateChanged,
-      onFormDataChanged: _handleFormDataChanged, // NEW: Complete form data callback
+      onFormDataChanged:
+          _handleFormDataChanged, // NEW: Complete form data callback
       onCameraPressed: _handleRegistrationPhoto,
       onQRGeneratePressed: _handleQRGeneration,
       isLoading: _isRegistrationLoading,
@@ -290,27 +304,35 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
     _logger.d('- Load Owner: "${_registrationFormData.loadOwner}"');
     _logger.d('- Form Valid: ${_registrationFormData.isValid}');
     _logger.d('=======================================');
-    
+
     // Additional validation - if vehicle plate is still empty, this indicates a sync issue
     if (_registrationFormData.vehiclePlate.isEmpty) {
-      _logger.w('SYNC ISSUE DETECTED: Vehicle plate is empty in parent form data');
-      _logger.w('This suggests the form widget callback is not working properly');
+      _logger.w(
+        'SYNC ISSUE DETECTED: Vehicle plate is empty in parent form data',
+      );
+      _logger.w(
+        'This suggests the form widget callback is not working properly',
+      );
     }
   }
 
   /// Handle vehicle plate input change
   void _handleVehiclePlateChanged(String plate) {
     final cleanedPlate = plate.trim().toUpperCase();
-    _logger.d('Vehicle plate changed from: "${_registrationFormData.vehiclePlate}" to: "$cleanedPlate"');
-    
+    _logger.d(
+      'Vehicle plate changed from: "${_registrationFormData.vehiclePlate}" to: "$cleanedPlate"',
+    );
+
     // Update form data in real-time with validation
     setState(() {
       _registrationFormData.vehiclePlate = cleanedPlate;
     });
-    
+
     // Log the updated state for debugging
-    _logger.d('Form data updated - Vehicle plate now: "${_registrationFormData.vehiclePlate}"');
-    
+    _logger.d(
+      'Form data updated - Vehicle plate now: "${_registrationFormData.vehiclePlate}"',
+    );
+
     // Check for existing registrations or validation if needed
   }
 
@@ -327,14 +349,15 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
     _logger.d('- Load Owner: "${formData.loadOwner}"');
     _logger.d('- Form Valid: ${formData.isValid}');
     _logger.d('==============================================');
-    
+
     setState(() {
       // Update complete form data from widget
       _registrationFormData.posNumber = formData.posNumber;
       _registrationFormData.driverName = formData.driverName;
       _registrationFormData.vehiclePlate = formData.vehiclePlate;
       _registrationFormData.vehicleType = formData.vehicleType;
-      _registrationFormData.vehicleCharacteristics = formData.vehicleCharacteristics;
+      _registrationFormData.vehicleCharacteristics =
+          formData.vehicleCharacteristics;
       _registrationFormData.destination = formData.destination;
       _registrationFormData.loadType = formData.loadType;
       _registrationFormData.loadVolume = formData.loadVolume;
@@ -345,7 +368,7 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
       _registrationFormData.notes = formData.notes;
       _registrationFormData.photos = formData.photos;
     });
-    
+
     _logger.i('Parent form data synchronized successfully');
   }
 
@@ -354,18 +377,22 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
     try {
       // Ensure form data is synchronized before validation
       _ensureFormDataSync();
-      
+
       // Debug logging for troubleshooting
-      _logger.d('Photo capture initiated. Current vehicle plate: "${_registrationFormData.vehiclePlate}"');
+      _logger.d(
+        'Photo capture initiated. Current vehicle plate: "${_registrationFormData.vehiclePlate}"',
+      );
       _logger.d('Type: $type');
-      
+
       // Check if vehicle plate is available with multiple validation approaches
       String vehiclePlate = _registrationFormData.vehiclePlate.trim();
-      
+
       if (vehiclePlate.isEmpty) {
         // Log detailed information for troubleshooting
-        _logger.w('Photo capture blocked: Vehicle plate is empty in parent form data');
-        
+        _logger.w(
+          'Photo capture blocked: Vehicle plate is empty in parent form data',
+        );
+
         // Give user a more specific message
         SatpamDashboardHelpers.showSnackBar(
           context,
@@ -388,7 +415,9 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
       // Ensure service state is available
       if (_serviceState == null) {
         _logger.e('Photo capture blocked: Service state not available');
-        throw Exception('Service tidak tersedia, mohon tunggu inisialisasi selesai');
+        throw Exception(
+          'Service tidak tersedia, mohon tunggu inisialisasi selesai',
+        );
       }
 
       _logger.i('Proceeding with photo capture for vehicle: "$vehiclePlate"');
@@ -399,7 +428,7 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
         serviceState: _serviceState!,
         note: type == 'FRONT' ? 'Foto Tampak Depan' : 'Foto Tampak Belakang',
       );
-      
+
       if (photoPath != null && mounted) {
         setState(() {
           // Ensure photos list has at least 2 slots
@@ -410,16 +439,22 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
               currentPhotos.add('');
             }
           }
-          
+
           // Update specific slot
           if (type == 'FRONT') {
             currentPhotos[0] = photoPath;
-            SatpamDashboardHelpers.showSnackBar(context, 'Foto Depan tersimpan');
+            SatpamDashboardHelpers.showSnackBar(
+              context,
+              'Foto Depan tersimpan',
+            );
           } else {
             currentPhotos[1] = photoPath;
-            SatpamDashboardHelpers.showSnackBar(context, 'Foto Belakang tersimpan');
+            SatpamDashboardHelpers.showSnackBar(
+              context,
+              'Foto Belakang tersimpan',
+            );
           }
-          
+
           _registrationFormData.photos = currentPhotos;
         });
       }
@@ -441,12 +476,16 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
     try {
       // Ensure form data is synchronized before validation
       _ensureFormDataSync();
-      
+
       // Get current user ID for security monitoring
       final currentUserId = await _jwtStorage.getCurrentUserId() ?? 'anonymous';
-      
+      if (!mounted) return;
+
       // Security monitoring - check submission attempts
-      if (!FormSecurityMonitor.monitorSubmissionAttempt(currentUserId, 'guest_registration')) {
+      if (!FormSecurityMonitor.monitorSubmissionAttempt(
+        currentUserId,
+        'guest_registration',
+      )) {
         SatpamDashboardHelpers.showSnackBar(
           context,
           SecureErrorMessageUtil.getSafeErrorMessage('RATE_LIMITED'),
@@ -454,7 +493,7 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
         );
         return;
       }
-      
+
       // Rate limiting check
       if (!_canGenerateQR()) {
         final remainingTime = _getRemainingCooldownTime();
@@ -465,63 +504,106 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
         );
         return;
       }
-      
+
       // Debug logging for form data validation
       _logger.d('=== QR Generation Form Validation ===');
-      _logger.d('POS Number: "${_registrationFormData.posNumber}" (length: ${_registrationFormData.posNumber.length})');
-      _logger.d('Driver Name: "${_registrationFormData.driverName}" (length: ${_registrationFormData.driverName.length})');
-      _logger.d('Vehicle Plate: "${_registrationFormData.vehiclePlate}" (length: ${_registrationFormData.vehiclePlate.length}, isEmpty: ${_registrationFormData.vehiclePlate.isEmpty})');
-      _logger.d('Vehicle Type: "${_registrationFormData.vehicleType}" (length: ${_registrationFormData.vehicleType.length})');
-      _logger.d('Destination: "${_registrationFormData.destination}" (length: ${_registrationFormData.destination.length})');
-      _logger.d('Load Type: "${_registrationFormData.loadType}" (length: ${_registrationFormData.loadType.length})');
+      _logger.d(
+        'POS Number: "${_registrationFormData.posNumber}" (length: ${_registrationFormData.posNumber.length})',
+      );
+      _logger.d(
+        'Driver Name: "${_registrationFormData.driverName}" (length: ${_registrationFormData.driverName.length})',
+      );
+      _logger.d(
+        'Vehicle Plate: "${_registrationFormData.vehiclePlate}" (length: ${_registrationFormData.vehiclePlate.length}, isEmpty: ${_registrationFormData.vehiclePlate.isEmpty})',
+      );
+      _logger.d(
+        'Vehicle Type: "${_registrationFormData.vehicleType}" (length: ${_registrationFormData.vehicleType.length})',
+      );
+      _logger.d(
+        'Destination: "${_registrationFormData.destination}" (length: ${_registrationFormData.destination.length})',
+      );
+      _logger.d(
+        'Load Type: "${_registrationFormData.loadType}" (length: ${_registrationFormData.loadType.length})',
+      );
       _logger.d('Load Volume: ${_registrationFormData.loadVolume}');
-      _logger.d('Load Owner: "${_registrationFormData.loadOwner}" (length: ${_registrationFormData.loadOwner.length})');
+      _logger.d(
+        'Load Owner: "${_registrationFormData.loadOwner}" (length: ${_registrationFormData.loadOwner.length})',
+      );
       _logger.d('Form isValid: ${_registrationFormData.isValid}');
       _logger.d('======================================');
-      
+
       // Security validation - check for injection attempts
       final formFields = {
         'driverName': _registrationFormData.driverName,
         'vehiclePlate': _registrationFormData.vehiclePlate,
         'destination': _registrationFormData.destination,
         'loadOwner': _registrationFormData.loadOwner,
-        'vehicleCharacteristics': _registrationFormData.vehicleCharacteristics ?? '',
+        'vehicleCharacteristics':
+            _registrationFormData.vehicleCharacteristics ?? '',
         'notes': _registrationFormData.notes ?? '',
       };
-      
+
       for (final entry in formFields.entries) {
-        if (FormSecurityMonitor.detectInjectionAttempt(entry.value, entry.key)) {
-          FormSecurityMonitor.monitorValidationFailure(currentUserId, entry.key, 'INJECTION_ATTEMPT');
+        if (FormSecurityMonitor.detectInjectionAttempt(
+          entry.value,
+          entry.key,
+        )) {
+          FormSecurityMonitor.monitorValidationFailure(
+            currentUserId,
+            entry.key,
+            'INJECTION_ATTEMPT',
+          );
           SatpamDashboardHelpers.showSnackBar(
             context,
-            SecureErrorMessageUtil.getSafeErrorMessage('INVALID_INPUT', context: entry.key),
+            SecureErrorMessageUtil.getSafeErrorMessage(
+              'INVALID_INPUT',
+              context: entry.key,
+            ),
             isError: true,
           );
           return;
         }
       }
-      
+
       // Validate form data
       if (!_registrationFormData.isValid) {
         List<String> missingFields = [];
-        if (_registrationFormData.posNumber.isEmpty) missingFields.add('Nomor POS');
-        if (_registrationFormData.driverName.isEmpty) missingFields.add('Nama Supir');
-        if (_registrationFormData.vehiclePlate.isEmpty) missingFields.add('Plat Kendaraan');
-        if (_registrationFormData.vehicleType.isEmpty) missingFields.add('Jenis Kendaraan');
-        if (_registrationFormData.destination.isEmpty) missingFields.add('Tujuan');
-        if (_registrationFormData.loadType.isEmpty) missingFields.add('Jenis Muatan');
-        
+        if (_registrationFormData.posNumber.isEmpty) {
+          missingFields.add('Nomor POS');
+        }
+        if (_registrationFormData.driverName.isEmpty) {
+          missingFields.add('Nama Supir');
+        }
+        if (_registrationFormData.vehiclePlate.isEmpty) {
+          missingFields.add('Plat Kendaraan');
+        }
+        if (_registrationFormData.vehicleType.isEmpty) {
+          missingFields.add('Jenis Kendaraan');
+        }
+        if (_registrationFormData.destination.isEmpty) {
+          missingFields.add('Tujuan');
+        }
+        if (_registrationFormData.loadType.isEmpty) {
+          missingFields.add('Jenis Muatan');
+        }
+
         // Special validation for "Kosong" load type - volume is not required
         final isEmptyLoad = _registrationFormData.loadType == 'Kosong';
         if (!isEmptyLoad && _registrationFormData.loadVolume.isEmpty) {
           missingFields.add('Volume Muatan');
         }
-        
-        if (_registrationFormData.loadOwner.isEmpty) missingFields.add('Pemilik Muatan');
-        
+
+        if (_registrationFormData.loadOwner.isEmpty) {
+          missingFields.add('Pemilik Muatan');
+        }
+
         // Monitor validation failure
-        FormSecurityMonitor.monitorValidationFailure(currentUserId, 'form_validation', 'INCOMPLETE_FORM');
-        
+        FormSecurityMonitor.monitorValidationFailure(
+          currentUserId,
+          'form_validation',
+          'INCOMPLETE_FORM',
+        );
+
         SatpamDashboardHelpers.showSnackBar(
           context,
           'Data belum lengkap: ${missingFields.join(', ')}',
@@ -532,7 +614,9 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
 
       // Cetak ulang: jika sudah ada QR data tersimpan, langsung tampilkan tanpa buat token baru
       if (_currentGuestLogId != null && _lastGeneratedQRData != null) {
-        _logger.i('Reprint mode: reusing existing QR data (no new token created)');
+        _logger.i(
+          'Reprint mode: reusing existing QR data (no new token created)',
+        );
 
         if (mounted) {
           // Record for rate limiting
@@ -560,7 +644,9 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
 
       // Ensure service state is available
       if (_serviceState == null) {
-        throw Exception('Service tidak tersedia, mohon tunggu inisialisasi selesai');
+        throw Exception(
+          'Service tidak tersedia, mohon tunggu inisialisasi selesai',
+        );
       }
 
       // Registrasi baru: buat guest log dan token QR
@@ -604,19 +690,21 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
 
         // Form tetap ditampilkan untuk cetak ulang
         // User klik "Daftar Tamu Baru" untuk reset form
-        _logger.i('New registration completed. Form kept for potential reprinting.');
+        _logger.i(
+          'New registration completed. Form kept for potential reprinting.',
+        );
 
         // Trigger history data refresh by reloading dashboard data if needed
         _scheduleHistoryRefresh();
       }
     } catch (e, stackTrace) {
       _logger.e('QR generation failed', error: e, stackTrace: stackTrace);
-      
+
       if (mounted) {
         // Sanitize error message for security
-        final sanitizedError = SecureErrorMessageUtil.sanitizeErrorMessage(e.toString());
+        SecureErrorMessageUtil.sanitizeErrorMessage(e.toString());
         final userFriendlyMessage = _getUserFriendlyErrorMessage(e);
-        
+
         SatpamDashboardHelpers.showSnackBar(
           context,
           userFriendlyMessage,
@@ -627,16 +715,17 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
       _logger.i('QR generation handler completed');
     }
   }
-  
+
   /// Convert technical errors to user-friendly messages
   String _getUserFriendlyErrorMessage(dynamic error) {
     final errorStr = error.toString().toLowerCase();
-    
+
     if (errorStr.contains('network') || errorStr.contains('connection')) {
       return SecureErrorMessageUtil.getSafeErrorMessage('NETWORK_ERROR');
     } else if (errorStr.contains('timeout')) {
       return SecureErrorMessageUtil.getSafeErrorMessage('TIMEOUT');
-    } else if (errorStr.contains('unauthorized') || errorStr.contains('permission')) {
+    } else if (errorStr.contains('unauthorized') ||
+        errorStr.contains('permission')) {
       return SecureErrorMessageUtil.getSafeErrorMessage('UNAUTHORIZED');
     } else if (errorStr.contains('server') || errorStr.contains('500')) {
       return SecureErrorMessageUtil.getSafeErrorMessage('SERVER_ERROR');
@@ -646,44 +735,46 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
   }
 
   /// Rate limiting helper methods for QR generation
-  
+
   bool _canGenerateQR() {
     final now = DateTime.now();
-    
+
     // Reset counter if more than a minute has passed
-    if (_lastQRGenerationTime == null || 
+    if (_lastQRGenerationTime == null ||
         now.difference(_lastQRGenerationTime!).inMinutes >= 1) {
       _qrGenerationCount = 0;
     }
-    
+
     // Check if under rate limit
     if (_qrGenerationCount >= _maxQRGenerationsPerMinute) {
       return false;
     }
-    
+
     // Check cooldown period
-    if (_lastQRGenerationTime != null && 
+    if (_lastQRGenerationTime != null &&
         now.difference(_lastQRGenerationTime!) < _qrGenerationCooldown) {
       return false;
     }
-    
+
     return true;
   }
-  
+
   void _recordQRGeneration() {
     final now = DateTime.now();
     _lastQRGenerationTime = now;
     _qrGenerationCount++;
-    
-    _logger.i('QR generation recorded. Count: $_qrGenerationCount/$_maxQRGenerationsPerMinute');
+
+    _logger.i(
+      'QR generation recorded. Count: $_qrGenerationCount/$_maxQRGenerationsPerMinute',
+    );
   }
-  
+
   Duration _getRemainingCooldownTime() {
     if (_lastQRGenerationTime == null) return Duration.zero;
-    
+
     final elapsed = DateTime.now().difference(_lastQRGenerationTime!);
     final remaining = _qrGenerationCooldown - elapsed;
-    
+
     return remaining.isNegative ? Duration.zero : remaining;
   }
 
@@ -727,15 +818,20 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
   }
 
   /// Show success dialog after registration with options
-  void _showRegistrationSuccessDialog(Map<String, dynamic> result, {bool isRegeneration = false}) {
-    final title = isRegeneration ? 'Cetak Ulang Berhasil!' : 'Registrasi Berhasil!';
+  void _showRegistrationSuccessDialog(
+    Map<String, dynamic> result, {
+    bool isRegeneration = false,
+  }) {
+    final title = isRegeneration
+        ? 'Cetak Ulang Berhasil!'
+        : 'Registrasi Berhasil!';
     final subtitle = isRegeneration
         ? 'QR Code siap dicetak ulang:'
         : 'Tamu berhasil didaftarkan:';
     final description = isRegeneration
         ? 'QR Code yang sama ditampilkan kembali. Tidak ada data duplikat yang dibuat.'
         : 'QR Code telah dibuat dan siap untuk dibagikan atau dicetak. '
-          'Data tamu akan muncul di riwayat gate check.';
+              'Data tamu akan muncul di riwayat gate check.';
 
     showDialog(
       context: context,
@@ -770,7 +866,11 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
               decoration: BoxDecoration(
                 color: isRegeneration ? Colors.blue[50] : Colors.green[50],
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: isRegeneration ? Colors.blue[200]! : Colors.green[200]!),
+                border: Border.all(
+                  color: isRegeneration
+                      ? Colors.blue[200]!
+                      : Colors.green[200]!,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -779,7 +879,9 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
                     subtitle,
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: isRegeneration ? Colors.blue[800] : Colors.green[800],
+                      color: isRegeneration
+                          ? Colors.blue[800]
+                          : Colors.green[800],
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -790,10 +892,7 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              description,
-              style: const TextStyle(fontSize: 14),
-            ),
+            Text(description, style: const TextStyle(fontSize: 14)),
           ],
         ),
         actions: [
@@ -804,9 +903,7 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
             },
             icon: const Icon(Icons.add, size: 18),
             label: const Text('Daftar Lagi'),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.blue,
-            ),
+            style: TextButton.styleFrom(foregroundColor: Colors.blue),
           ),
           ElevatedButton.icon(
             onPressed: () {
@@ -831,13 +928,13 @@ class _GuestRegistrationPageState extends State<GuestRegistrationPage> {
     // This sets a flag that can be checked by parent dashboard for data refresh
     // The actual refresh will happen when user navigates back to the dashboard
     _logger.i('History refresh scheduled after successful guest registration');
-    
+
     // In a real implementation, this could:
     // 1. Use a state management solution to notify the dashboard
     // 2. Use a callback passed from the parent dashboard
     // 3. Use event bus to broadcast the update
     // 4. Store a flag in shared preferences that the dashboard can check
-    
+
     // For now, we rely on the navigation result (true) to signal data update
   }
 }

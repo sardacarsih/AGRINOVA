@@ -6,17 +6,15 @@ import 'permission_service.dart';
 
 class LocationService {
   static final Logger _logger = Logger();
-  final PermissionService _permissionService;
-  
+
   StreamSubscription<Position>? _positionStreamSubscription;
-  final StreamController<Position> _positionController = StreamController<Position>.broadcast();
-  
+  final StreamController<Position> _positionController =
+      StreamController<Position>.broadcast();
+
   Position? _lastKnownPosition;
   bool _isTracking = false;
 
-  LocationService({
-    required PermissionService permissionService,
-  }) : _permissionService = permissionService;
+  LocationService({required PermissionService permissionService});
 
   // Getters
   Stream<Position> get positionStream => _positionController.stream;
@@ -56,7 +54,7 @@ class LocationService {
 
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        
+
         if (permission == LocationPermission.denied) {
           _logger.w('Location permission denied');
           return LocationPermission.denied;
@@ -84,19 +82,23 @@ class LocationService {
     try {
       // Check permissions
       final permission = await requestLocationPermission();
-      if (permission != LocationPermission.whileInUse && 
+      if (permission != LocationPermission.whileInUse &&
           permission != LocationPermission.always) {
         _logger.w('Location permission not granted for getting position');
         return null;
       }
 
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: accuracy,
-        timeLimit: timeout,
+        locationSettings: LocationSettings(
+          accuracy: accuracy,
+          timeLimit: timeout,
+        ),
       );
 
       _lastKnownPosition = position;
-      _logger.d('Got current position: ${position.latitude}, ${position.longitude}');
+      _logger.d(
+        'Got current position: ${position.latitude}, ${position.longitude}',
+      );
       return position;
     } catch (e) {
       _logger.e('Error getting current position: $e');
@@ -110,7 +112,9 @@ class LocationService {
       final position = await Geolocator.getLastKnownPosition();
       if (position != null) {
         _lastKnownPosition = position;
-        _logger.d('Got last known position: ${position.latitude}, ${position.longitude}');
+        _logger.d(
+          'Got last known position: ${position.latitude}, ${position.longitude}',
+        );
       }
       return position;
     } catch (e) {
@@ -134,7 +138,7 @@ class LocationService {
 
       // Check permissions
       final permission = await requestLocationPermission();
-      if (permission != LocationPermission.whileInUse && 
+      if (permission != LocationPermission.whileInUse &&
           permission != LocationPermission.always) {
         _logger.w('Location permission not granted for tracking');
         return false;
@@ -148,18 +152,21 @@ class LocationService {
       );
 
       // Start position stream
-      _positionStreamSubscription = Geolocator.getPositionStream(
-        locationSettings: locationSettings,
-      ).listen(
-        (Position position) {
-          _lastKnownPosition = position;
-          _positionController.add(position);
-          _logger.d('Position update: ${position.latitude}, ${position.longitude}');
-        },
-        onError: (error) {
-          _logger.e('Position stream error: $error');
-        },
-      );
+      _positionStreamSubscription =
+          Geolocator.getPositionStream(
+            locationSettings: locationSettings,
+          ).listen(
+            (Position position) {
+              _lastKnownPosition = position;
+              _positionController.add(position);
+              _logger.d(
+                'Position update: ${position.latitude}, ${position.longitude}',
+              );
+            },
+            onError: (error) {
+              _logger.e('Position stream error: $error');
+            },
+          );
 
       _isTracking = true;
       _logger.d('Location tracking started');

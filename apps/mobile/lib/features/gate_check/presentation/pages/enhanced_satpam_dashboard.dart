@@ -24,7 +24,7 @@ import '../../../../core/services/pos_settings_service.dart';
 
 // Import Gen Z Components
 import 'satpam_dashboard/genz_components.dart';
-import 'satpam_dashboard/organisms/genz_validation_tab.dart'; // For RecentScanData
+// For RecentScanData
 import 'satpam_dashboard/genz_sync_tab.dart'; // Import Sync Tab
 
 /// Enhanced Satpam Dashboard with Gen Z Modern Design
@@ -32,7 +32,7 @@ import 'satpam_dashboard/genz_sync_tab.dart'; // Import Sync Tab
 /// 100% Database-Driven with Offline-First functionality.
 /// Uses Atomic Design pattern for modular components.
 class EnhancedSatpamDashboard extends StatefulWidget {
-  const EnhancedSatpamDashboard({Key? key}) : super(key: key);
+  const EnhancedSatpamDashboard({super.key});
 
   @override
   State<EnhancedSatpamDashboard> createState() =>
@@ -169,12 +169,13 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
   /// Set up periodic refresh for real-time updates
   void _setupAutoRefresh() {
     _autoRefreshSubscription =
-        Stream.periodic(SatpamDashboardConstants.autoRefreshInterval)
-            .listen((_) {
-      if (mounted) {
-        _loadDashboardData(showLoading: false);
-      }
-    });
+        Stream.periodic(SatpamDashboardConstants.autoRefreshInterval).listen((
+          _,
+        ) {
+          if (mounted) {
+            _loadDashboardData(showLoading: false);
+          }
+        });
   }
 
   /// Load dashboard data with loading state management
@@ -187,7 +188,8 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
       // Wait for service initialization if not ready
       if (_serviceState == null) {
         _logger.w(
-            'Service state not initialized, waiting for init to complete...');
+          'Service state not initialized, waiting for init to complete...',
+        );
         await _serviceInitCompleter.future;
       }
 
@@ -262,30 +264,22 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
       final authState = context.read<AuthBloc>().state;
       final authUser = authState is AuthAuthenticated ? authState.user : null;
 
-      final resolvedName = _firstNonBlank(
-        [
-          userData?.fullName,
-          userData?.username,
-          authUser?.fullName,
-          authUser?.username,
-        ],
-        fallback: 'Pengguna',
-      );
+      final resolvedName = _firstNonBlank([
+        userData?.fullName,
+        userData?.username,
+        authUser?.fullName,
+        authUser?.username,
+      ], fallback: 'Pengguna');
 
-      final resolvedRole = _firstNonBlank(
-        [
-          userData?.role,
-          authUser?.role,
-        ],
-        fallback: _userRole,
-      );
+      final resolvedRole = _firstNonBlank([
+        userData?.role,
+        authUser?.role,
+      ], fallback: _userRole);
 
-      final resolvedCompany = _firstNonBlankOrNull(
-        [
-          userData?.companyName,
-          authUser?.companyName,
-        ],
-      );
+      final resolvedCompany = _firstNonBlankOrNull([
+        userData?.companyName,
+        authUser?.companyName,
+      ]);
 
       setState(() {
         _userName = resolvedName;
@@ -294,7 +288,8 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
       });
 
       _logger.i(
-          'User data loaded: $_userName ($_userRole) - Company: $_companyName');
+        'User data loaded: $_userName ($_userRole) - Company: $_companyName',
+      );
     } catch (e) {
       _logger.e('Error loading user data', error: e);
 
@@ -420,11 +415,16 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
               value: 'pos_settings',
               child: Row(
                 children: [
-                  Icon(Icons.door_front_door,
-                      color: Colors.white.withOpacity(0.7), size: 20),
+                  Icon(
+                    Icons.door_front_door,
+                    color: Colors.white.withValues(alpha: 0.7),
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
-                  const Text('Pengaturan POS',
-                      style: TextStyle(color: Colors.white)),
+                  const Text(
+                    'Pengaturan POS',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ],
               ),
             ),
@@ -432,11 +432,16 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
               value: 'biometric',
               child: Row(
                 children: [
-                  Icon(Icons.fingerprint_rounded,
-                      color: Colors.white.withOpacity(0.7), size: 20),
+                  Icon(
+                    Icons.fingerprint_rounded,
+                    color: Colors.white.withValues(alpha: 0.7),
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
-                  const Text('Keamanan Biometrik',
-                      style: TextStyle(color: Colors.white)),
+                  const Text(
+                    'Keamanan Biometrik',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ],
               ),
             ),
@@ -444,11 +449,16 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
               value: 'web_qr_login',
               child: Row(
                 children: [
-                  Icon(Icons.qr_code_scanner_rounded,
-                      color: Colors.white.withOpacity(0.7), size: 20),
+                  Icon(
+                    Icons.qr_code_scanner_rounded,
+                    color: Colors.white.withValues(alpha: 0.7),
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
-                  const Text('QR Login Web',
-                      style: TextStyle(color: Colors.white)),
+                  const Text(
+                    'QR Login Web',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ],
               ),
             ),
@@ -456,8 +466,11 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
               value: 'sync',
               child: Row(
                 children: [
-                  Icon(Icons.sync_rounded,
-                      color: Colors.white.withOpacity(0.7), size: 20),
+                  Icon(
+                    Icons.sync_rounded,
+                    color: Colors.white.withValues(alpha: 0.7),
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   const Text('Sync', style: TextStyle(color: Colors.white)),
                 ],
@@ -467,8 +480,11 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
               value: 'validate',
               child: Row(
                 children: [
-                  Icon(Icons.person_rounded,
-                      color: Colors.white.withOpacity(0.7), size: 20),
+                  Icon(
+                    Icons.person_rounded,
+                    color: Colors.white.withValues(alpha: 0.7),
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
                   const Text('Profil', style: TextStyle(color: Colors.white)),
                 ],
@@ -479,11 +495,16 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
               value: 'logout',
               child: Row(
                 children: [
-                  Icon(Icons.logout_rounded,
-                      color: Colors.red.withOpacity(0.8), size: 20),
+                  Icon(
+                    Icons.logout_rounded,
+                    color: Colors.red.withValues(alpha: 0.8),
+                    size: 20,
+                  ),
                   const SizedBox(width: 12),
-                  Text('Keluar',
-                      style: TextStyle(color: Colors.red.withOpacity(0.8))),
+                  Text(
+                    'Keluar',
+                    style: TextStyle(color: Colors.red.withValues(alpha: 0.8)),
+                  ),
                 ],
               ),
             ),
@@ -526,13 +547,15 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
     }
 
     // Convert logs to activity data
-    final activities =
-        _convertLogsToActivityData(_recentLogs, _recentAccessLogs);
+    final activities = _convertLogsToActivityData(
+      _recentLogs,
+      _recentAccessLogs,
+    );
 
     // Calculate sync stats from repository stats
     final totalRecords =
         ((_repositoryStats['total_gate_guest_logs'] as int?) ?? 0) +
-            ((_repositoryStats['total_employee_logs'] as int?) ?? 0);
+        ((_repositoryStats['total_employee_logs'] as int?) ?? 0);
     final pendingRecords = (_repositoryStats['pending_sync'] as int?) ?? 0;
     final syncedRecords = totalRecords - pendingRecords;
 
@@ -743,7 +766,8 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
           _lastGeneratedQRData != null &&
           _lastGeneratedQRData!.isNotEmpty) {
         _logger.i(
-            'Reprint mode: reusing existing QR data (no new token/DB record created)');
+          'Reprint mode: reusing existing QR data (no new token/DB record created)',
+        );
 
         final driverName = _currentFormData?['driverName'] as String? ?? '';
         final vehiclePlate = _currentFormData?['vehiclePlate'] as String? ?? '';
@@ -763,10 +787,12 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
           metadata: {
             'guest_id': _currentGuestLogId,
             'is_reprint': true,
-            'expires_at':
-                DateTime.now().add(const Duration(hours: 24)).toIso8601String(),
+            'expires_at': DateTime.now()
+                .add(const Duration(hours: 24))
+                .toIso8601String(),
           },
         );
+        if (!mounted) return;
 
         SatpamDashboardHelpers.showSnackBar(
           context,
@@ -791,7 +817,8 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
         await Future.delayed(const Duration(milliseconds: 500));
         if (_serviceState == null) {
           throw Exception(
-              'Service tidak tersedia, mohon tunggu inisialisasi selesai');
+            'Service tidak tersedia, mohon tunggu inisialisasi selesai',
+          );
         }
       }
 
@@ -816,6 +843,7 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
       formData.photos = _registrationFormData.photos;
 
       // Use the service layer which saves to database AND generates QR
+      if (!mounted) return;
       final result = await SatpamDashboardServices.handleQRGeneration(
         context: context,
         formData: formData,
@@ -837,17 +865,20 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
           purpose: formData.destination.isNotEmpty
               ? formData.destination
               : 'Tujuan umum',
-          cargoType:
-              formData.loadType.isNotEmpty ? formData.loadType : 'Muatan umum',
+          cargoType: formData.loadType.isNotEmpty
+              ? formData.loadType
+              : 'Muatan umum',
           generationIntent: _generationIntent,
           metadata: {
             'guest_id': result['guestId'],
             'vehicle_type': formData.vehicleType,
             'estimated_weight': formData.estimatedWeight,
-            'expires_at':
-                DateTime.now().add(const Duration(hours: 24)).toIso8601String(),
+            'expires_at': DateTime.now()
+                .add(const Duration(hours: 24))
+                .toIso8601String(),
           },
         );
+        if (!mounted) return;
 
         // Store data for reprint (cetak ulang tanpa duplikasi)
         setState(() {
@@ -963,6 +994,7 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
         final gateId = _registrationFormData.posNumber.isNotEmpty
             ? _registrationFormData.posNumber
             : 'MAIN_GATE';
+        if (!mounted) return;
 
         // Process employee access
         final success = await SatpamDashboardServices.handleEmployeeQR(
@@ -994,7 +1026,8 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
 
       if (allowedScan == null) {
         _showValidationError(
-            'QR Code tidak memiliki informasi scan yang valid');
+          'QR Code tidak memiliki informasi scan yang valid',
+        );
         return;
       }
 
@@ -1006,7 +1039,9 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
 
       // Validate
       final validation = await qrService.validateScanDirection(
-          parseResult.token!, scanDirection);
+        parseResult.token!,
+        scanDirection,
+      );
 
       if (!validation.isValid) {
         _showValidationError(validation.error ?? 'Validasi QR Code gagal');
@@ -1021,6 +1056,7 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
 
       // Success - navigate to result page
       // Requires QRScanResultPage to handle confirmation
+      if (!mounted) return;
       final result = await Navigator.of(context).push<Map<String, dynamic>>(
         MaterialPageRoute(
           builder: (context) => QRScanResultPage(
@@ -1103,8 +1139,6 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
       }
       final detectedDirection = directionRaw;
 
-      final notes = result['notes'] as String? ?? '';
-
       // Use POS number from POS settings
       final validPosNumber = _registrationFormData.posNumber.isNotEmpty
           ? _registrationFormData.posNumber
@@ -1112,19 +1146,30 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
 
       if (detectedDirection == GateCheckDirection.exit) {
         await _processExitGateCheckInline(
-            validPosNumber, scannedToken, guestData, result);
+          validPosNumber,
+          scannedToken,
+          guestData,
+          result,
+        );
       } else {
         await _processEntryGateCheckInline(
-            validPosNumber, scannedToken, guestData, result);
+          validPosNumber,
+          scannedToken,
+          guestData,
+          result,
+        );
       }
 
       // Refresh dashboard
       await _loadDashboardData(showLoading: false);
     } catch (e) {
       _logger.e('Error processing check confirmation', error: e);
+      if (!mounted) return;
       SatpamDashboardHelpers.showSnackBar(
-          context, 'Error processing check: ${e.toString()}',
-          isError: true);
+        context,
+        'Error processing check: ${e.toString()}',
+        isError: true,
+      );
     }
   }
 
@@ -1139,7 +1184,9 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
 
     // Mark QR phase as used
     await qrService.markPhaseAsUsed(
-        scannedToken, GateCheckDirection.entry.value);
+      scannedToken,
+      GateCheckDirection.entry.value,
+    );
 
     final currentUserId = await _jwtStorage.getCurrentUserId();
     final now = DateTime.now();
@@ -1152,8 +1199,9 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
       'gate_position': posNumber,
       'created_by': currentUserId ?? 'unknown_user',
       'notes': resultData['notes'] as String?,
-      'second_cargo':
-          _normalizeOptionalText(resultData['secondCargo'] as String?),
+      'second_cargo': _normalizeOptionalText(
+        resultData['secondCargo'] as String?,
+      ),
       'entry_time': now.millisecondsSinceEpoch,
       'generation_intent': 'ENTRY',
       'registration_source': 'QR_SCAN',
@@ -1161,6 +1209,7 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
 
     // Save to database
     await dbService.createGuestLog(guestLogData);
+    if (!mounted) return;
 
     SatpamDashboardHelpers.showSnackBar(
       context,
@@ -1175,13 +1224,13 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
     Map<String, dynamic> resultData,
   ) async {
     final qrService = _serviceState!.qrService!;
-    final dbService = _serviceState!.databaseService!;
     final vehiclePlate = guestData['vehicle_plate'] ?? '';
 
     // Validate token again
     final qrValidation = await qrService.validateToken(scannedToken);
-    if (!qrValidation.isValid)
+    if (!qrValidation.isValid) {
       throw Exception('QR Token invalid: ${qrValidation.error}');
+    }
 
     // Cross device validation
     final validationResult = await _crossDeviceService.validateExitProcessing(
@@ -1193,13 +1242,15 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
       throw Exception(validationResult['error']);
     }
 
-    if (validationResult['warning'] != null) {
+    if (validationResult['warning'] != null && mounted) {
       SatpamDashboardHelpers.showSnackBar(context, validationResult['warning']);
     }
 
     // Mark used
     await qrService.markPhaseAsUsed(
-        scannedToken, GateCheckDirection.exit.value);
+      scannedToken,
+      GateCheckDirection.exit.value,
+    );
 
     final currentUserId = await _jwtStorage.getCurrentUserId();
 
@@ -1215,6 +1266,7 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
       notes: resultData['notes'] as String?,
       createdBy: currentUserId ?? 'unknown_user',
     );
+    if (!mounted) return;
 
     SatpamDashboardHelpers.showSnackBar(
       context,
@@ -1276,8 +1328,10 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
           children: [
             Icon(Icons.door_front_door, color: Color(0xFF8B5CF6)),
             SizedBox(width: 8),
-            Text('Pengaturan POS',
-                style: TextStyle(color: Colors.black, fontSize: 18)),
+            Text(
+              'Pengaturan POS',
+              style: TextStyle(color: Colors.black, fontSize: 18),
+            ),
           ],
         ),
         content: Column(
@@ -1311,8 +1365,10 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
                 labelStyle: const TextStyle(color: Colors.black54),
                 hintText: 'cth: Gerbang Utama',
                 hintStyle: const TextStyle(color: Colors.black38),
-                prefixIcon:
-                    const Icon(Icons.label_outline, color: Color(0xFF8B5CF6)),
+                prefixIcon: const Icon(
+                  Icons.label_outline,
+                  color: Color(0xFF8B5CF6),
+                ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide(color: Colors.grey[400]!),
@@ -1342,7 +1398,8 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF8B5CF6),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             onPressed: () async {
               final posNumber = posNumberController.text.trim();
@@ -1407,15 +1464,17 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
 
     for (final log in guestLogs.take(5)) {
       final logTime = log.timestamp;
-      activities.add(ActivityData(
-        plate: log.vehiclePlate,
-        driver: log.name.isNotEmpty ? log.name : 'Guest',
-        time:
-            '${logTime.hour.toString().padLeft(2, '0')}:${logTime.minute.toString().padLeft(2, '0')}',
-        destination: log.destination ?? '',
-        isEntry: log.action.toUpperCase() == 'ENTRY',
-        registrationSource: log.registrationSource,
-      ));
+      activities.add(
+        ActivityData(
+          plate: log.vehiclePlate,
+          driver: log.name.isNotEmpty ? log.name : 'Guest',
+          time:
+              '${logTime.hour.toString().padLeft(2, '0')}:${logTime.minute.toString().padLeft(2, '0')}',
+          destination: log.destination ?? '',
+          isEntry: log.action.toUpperCase() == 'ENTRY',
+          registrationSource: log.registrationSource,
+        ),
+      );
     }
 
     return activities;

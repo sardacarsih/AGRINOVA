@@ -19,11 +19,11 @@ class QRDisplayScreen extends StatefulWidget {
   final VoidCallback? onDone;
 
   const QRDisplayScreen({
-    Key? key,
+    super.key,
     required this.ticketData,
     this.onRetryPrint,
     this.onDone,
-  }) : super(key: key);
+  });
 
   @override
   State<QRDisplayScreen> createState() => _QRDisplayScreenState();
@@ -53,8 +53,8 @@ class _QRDisplayScreenState extends State<QRDisplayScreen> {
 
   Future<void> _boostBrightness() async {
     try {
-      _originalBrightness = await ScreenBrightness().current;
-      await ScreenBrightness().setScreenBrightness(1.0);
+      _originalBrightness = await ScreenBrightness().application;
+      await ScreenBrightness().setApplicationScreenBrightness(1.0);
       _logger.i('Screen brightness boosted to max');
     } catch (e) {
       _logger.w('Could not boost brightness: $e');
@@ -64,7 +64,9 @@ class _QRDisplayScreenState extends State<QRDisplayScreen> {
   Future<void> _restoreBrightness() async {
     try {
       if (_originalBrightness != null) {
-        await ScreenBrightness().setScreenBrightness(_originalBrightness!);
+        await ScreenBrightness().setApplicationScreenBrightness(
+          _originalBrightness!,
+        );
         _logger.i('Screen brightness restored');
       }
     } catch (e) {
@@ -104,10 +106,7 @@ class _QRDisplayScreenState extends State<QRDisplayScreen> {
       _logger.e('Error retrying print: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -169,7 +168,7 @@ class _QRDisplayScreenState extends State<QRDisplayScreen> {
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
@@ -210,7 +209,11 @@ class _QRDisplayScreenState extends State<QRDisplayScreen> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.timer_outlined, size: 16, color: Colors.grey[600]),
+                          Icon(
+                            Icons.timer_outlined,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
                           const SizedBox(width: 6),
                           Text(
                             'Berlaku sampai: ${_formatDateTime(widget.ticketData.expiryTime)}',
@@ -240,9 +243,9 @@ class _QRDisplayScreenState extends State<QRDisplayScreen> {
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.green.withOpacity(0.1),
+        color: Colors.green.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.green.withOpacity(0.2)),
+        border: Border.all(color: Colors.green.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -256,10 +259,7 @@ class _QRDisplayScreenState extends State<QRDisplayScreen> {
                   children: [
                     const Text(
                       'Tamu',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey,
-                      ),
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                     Text(
                       widget.ticketData.guestName,
@@ -277,7 +277,11 @@ class _QRDisplayScreenState extends State<QRDisplayScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(Icons.business_outlined, color: Colors.green, size: 20),
+                const Icon(
+                  Icons.business_outlined,
+                  color: Colors.green,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Column(
@@ -285,10 +289,7 @@ class _QRDisplayScreenState extends State<QRDisplayScreen> {
                     children: [
                       const Text(
                         'Perusahaan',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey,
-                        ),
+                        style: TextStyle(fontSize: 11, color: Colors.grey),
                       ),
                       Text(
                         widget.ticketData.guestCompany!,
@@ -309,7 +310,11 @@ class _QRDisplayScreenState extends State<QRDisplayScreen> {
               Expanded(
                 child: Row(
                   children: [
-                    const Icon(Icons.location_on_outlined, color: Colors.green, size: 20),
+                    const Icon(
+                      Icons.location_on_outlined,
+                      color: Colors.green,
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
@@ -317,10 +322,7 @@ class _QRDisplayScreenState extends State<QRDisplayScreen> {
                         children: [
                           const Text(
                             'Tujuan',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey,
-                            ),
+                            style: TextStyle(fontSize: 11, color: Colors.grey),
                           ),
                           Text(
                             widget.ticketData.destination,

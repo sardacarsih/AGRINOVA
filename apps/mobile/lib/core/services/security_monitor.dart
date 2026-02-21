@@ -1,11 +1,13 @@
-import 'dart:convert';
-import 'dart:io';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:device_info_plus/device_info_plus.dart';
+import 'dart:developer' as developer;
 
-import '../constants/api_constants.dart';
-import '../models/jwt_models.dart';
+import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import 'device_service.dart';
+
+void _debugLog(Object? message) {
+  developer.log(message?.toString() ?? 'null');
+}
 
 /// Security event types for comprehensive logging
 enum SecurityEventType {
@@ -51,45 +53,43 @@ class SecurityEvent {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'type': type.name,
-        'message': message,
-        'userId': userId,
-        'username': username,
-        'deviceId': deviceId,
-        'sessionId': sessionId,
-        'metadata': metadata,
-        'timestamp': timestamp.toIso8601String(),
-        'severity': severity,
-        'platform': 'flutter',
-        'appVersion': '1.0.0',
-      };
+    'id': id,
+    'type': type.name,
+    'message': message,
+    'userId': userId,
+    'username': username,
+    'deviceId': deviceId,
+    'sessionId': sessionId,
+    'metadata': metadata,
+    'timestamp': timestamp.toIso8601String(),
+    'severity': severity,
+    'platform': 'flutter',
+    'appVersion': '1.0.0',
+  };
 
   factory SecurityEvent.fromJson(Map<String, dynamic> json) => SecurityEvent(
-        id: json['id'],
-        type: SecurityEventType.values
-            .firstWhere((e) => e.name == json['type']),
-        message: json['message'],
-        userId: json['userId'],
-        username: json['username'],
-        deviceId: json['deviceId'],
-        sessionId: json['sessionId'],
-        metadata: json['metadata'],
-        timestamp: DateTime.parse(json['timestamp']),
-        severity: json['severity'],
-      );
+    id: json['id'],
+    type: SecurityEventType.values.firstWhere((e) => e.name == json['type']),
+    message: json['message'],
+    userId: json['userId'],
+    username: json['username'],
+    deviceId: json['deviceId'],
+    sessionId: json['sessionId'],
+    metadata: json['metadata'],
+    timestamp: DateTime.parse(json['timestamp']),
+    severity: json['severity'],
+  );
 }
 
 /// Comprehensive security monitoring service
 class SecurityMonitor {
   static SecurityMonitor? _instance;
   static SecurityMonitor get instance => _instance ??= SecurityMonitor._();
-  
+
   SecurityMonitor._();
 
   static const _storage = FlutterSecureStorage(
     aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
       sharedPreferencesName: 'agrinova_security_logs',
       preferencesKeyPrefix: 'security_',
     ),
@@ -116,7 +116,7 @@ class SecurityMonitor {
   }) async {
     try {
       final deviceInfo = await DeviceService.getDeviceInfo();
-      
+
       final event = SecurityEvent(
         id: _generateEventId(),
         type: type,
@@ -138,17 +138,19 @@ class SecurityMonitor {
 
       await _storeSecurityEvent(event);
       await _printSecurityLog(event);
-      
+
       // Check for suspicious activity patterns
       await _checkSuspiciousActivity(event);
-      
     } catch (e) {
-      print('❌ Failed to log security event: $e');
+      _debugLog('❌ Failed to log security event: $e');
     }
   }
 
   /// Log successful login
-  Future<void> logLogin(String username, String userId, String sessionId, {
+  Future<void> logLogin(
+    String username,
+    String userId,
+    String sessionId, {
     bool isOffline = false,
     bool isBiometric = false,
   }) async {
@@ -169,7 +171,9 @@ class SecurityMonitor {
   }
 
   /// Log logout
-  Future<void> logLogout(String? username, String? userId, {
+  Future<void> logLogout(
+    String? username,
+    String? userId, {
     bool isForced = false,
   }) async {
     await logAuthEvent(
@@ -186,7 +190,9 @@ class SecurityMonitor {
   }
 
   /// Log token refresh
-  Future<void> logTokenRefresh(String? userId, String? sessionId, {
+  Future<void> logTokenRefresh(
+    String? userId,
+    String? sessionId, {
     bool successful = true,
     String? errorMessage,
   }) async {
@@ -210,16 +216,14 @@ class SecurityMonitor {
       SecurityEventType.tokenExpired,
       '$tokenType token expired',
       userId: userId,
-      metadata: {
-        'tokenType': tokenType,
-        'action': 'force_refresh',
-      },
+      metadata: {'tokenType': tokenType, 'action': 'force_refresh'},
       severity: 'medium',
     );
   }
 
   /// Log biometric authentication
-  Future<void> logBiometricAuth(String? username, {
+  Future<void> logBiometricAuth(
+    String? username, {
     bool successful = true,
     String? errorMessage,
   }) async {
@@ -237,7 +241,9 @@ class SecurityMonitor {
   }
 
   /// Log device binding event
-  Future<void> logDeviceBinding(String? userId, String deviceId, {
+  Future<void> logDeviceBinding(
+    String? userId,
+    String deviceId, {
     bool successful = true,
     bool isNewDevice = false,
   }) async {
@@ -256,7 +262,8 @@ class SecurityMonitor {
   }
 
   /// Log suspicious activity
-  Future<void> logSuspiciousActivity(String description, {
+  Future<void> logSuspiciousActivity(
+    String description, {
     String? userId,
     String? username,
     Map<String, dynamic>? details,
@@ -277,7 +284,10 @@ class SecurityMonitor {
   }
 
   /// Log API errors
-  Future<void> logApiError(String endpoint, int statusCode, String error, {
+  Future<void> logApiError(
+    String endpoint,
+    int statusCode,
+    String error, {
     String? userId,
   }) async {
     await logAuthEvent(
@@ -295,7 +305,8 @@ class SecurityMonitor {
   }
 
   /// Log network errors
-  Future<void> logNetworkError(String error, {
+  Future<void> logNetworkError(
+    String error, {
     String? endpoint,
     String? userId,
   }) async {
@@ -323,23 +334,21 @@ class SecurityMonitor {
       if (eventsJson == null) return [];
 
       final eventsList = jsonDecode(eventsJson) as List;
-      var events = eventsList
-          .map((e) => SecurityEvent.fromJson(e))
-          .toList()
+      var events = eventsList.map((e) => SecurityEvent.fromJson(e)).toList()
         ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
       // Apply filters
       if (filterType != null) {
         events = events.where((e) => e.type == filterType).toList();
       }
-      
+
       if (filterSeverity != null) {
         events = events.where((e) => e.severity == filterSeverity).toList();
       }
 
       return events.take(limit).toList();
     } catch (e) {
-      print('❌ Failed to get security events: $e');
+      _debugLog('❌ Failed to get security events: $e');
       return [];
     }
   }
@@ -349,9 +358,9 @@ class SecurityMonitor {
     try {
       await _storage.delete(key: _eventsKey);
       await _storage.delete(key: _suspiciousActivityKey);
-      print('✅ Security events cleared');
+      _debugLog('✅ Security events cleared');
     } catch (e) {
-      print('❌ Failed to clear security events: $e');
+      _debugLog('❌ Failed to clear security events: $e');
     }
   }
 
@@ -359,7 +368,7 @@ class SecurityMonitor {
   Future<Map<String, dynamic>> getSecuritySummary() async {
     try {
       final events = await getSecurityEvents(limit: 500);
-      
+
       final summary = {
         'totalEvents': events.length,
         'eventsByType': <String, int>{},
@@ -374,18 +383,24 @@ class SecurityMonitor {
       for (final event in events) {
         // Count by type
         final eventsByType = summary['eventsByType'] as Map<String, dynamic>;
-        eventsByType[event.type.name] = (eventsByType[event.type.name] ?? 0) + 1;
-        
+        eventsByType[event.type.name] =
+            (eventsByType[event.type.name] ?? 0) + 1;
+
         // Count by severity
-        final eventsBySeverity = summary['eventsBySeverity'] as Map<String, dynamic>;
-        eventsBySeverity[event.severity] = (eventsBySeverity[event.severity] ?? 0) + 1;
-        
+        final eventsBySeverity =
+            summary['eventsBySeverity'] as Map<String, dynamic>;
+        eventsBySeverity[event.severity] =
+            (eventsBySeverity[event.severity] ?? 0) + 1;
+
         // Count recent high severity events (last 24 hours)
-        if (event.severity == 'high' && 
-            event.timestamp.isAfter(DateTime.now().subtract(const Duration(hours: 24)))) {
-          summary['recentHighSeverityEvents'] = (summary['recentHighSeverityEvents'] as int) + 1;
+        if (event.severity == 'high' &&
+            event.timestamp.isAfter(
+              DateTime.now().subtract(const Duration(hours: 24)),
+            )) {
+          summary['recentHighSeverityEvents'] =
+              (summary['recentHighSeverityEvents'] as int) + 1;
         }
-        
+
         // Track login/logout counts
         if (event.type == SecurityEventType.login) {
           summary['totalLogins'] = (summary['totalLogins'] as int) + 1;
@@ -393,83 +408,88 @@ class SecurityMonitor {
             summary['lastLoginTime'] = event.timestamp.toIso8601String();
           }
         }
-        
+
         if (event.type == SecurityEventType.logout) {
           summary['totalLogouts'] = (summary['totalLogouts'] as int) + 1;
         }
-        
+
         if (event.type == SecurityEventType.suspiciousActivity) {
-          summary['suspiciousActivityCount'] = (summary['suspiciousActivityCount'] as int) + 1;
+          summary['suspiciousActivityCount'] =
+              (summary['suspiciousActivityCount'] as int) + 1;
         }
       }
 
       return summary;
     } catch (e) {
-      print('❌ Failed to get security summary: $e');
+      _debugLog('❌ Failed to get security summary: $e');
       return {'error': e.toString()};
     }
   }
 
   // PRIVATE HELPER METHODS
-  
+
   Future<void> _storeSecurityEvent(SecurityEvent event) async {
     try {
       final eventsJson = await _storage.read(key: _eventsKey);
       List<Map<String, dynamic>> events = [];
-      
+
       if (eventsJson != null) {
         final eventsList = jsonDecode(eventsJson) as List;
         events = eventsList.cast<Map<String, dynamic>>();
       }
-      
+
       // Add new event
       events.add(event.toJson());
-      
+
       // Keep only the most recent events
       if (events.length > _maxStoredEvents) {
         events = events.sublist(events.length - _maxStoredEvents);
       }
-      
+
       await _storage.write(key: _eventsKey, value: jsonEncode(events));
     } catch (e) {
-      print('❌ Failed to store security event: $e');
+      _debugLog('❌ Failed to store security event: $e');
     }
   }
 
   Future<void> _printSecurityLog(SecurityEvent event) async {
-    final severityIcon = {
-      'low': '🟢',
-      'medium': '🟡', 
-      'high': '🔴',
-      'critical': '🚨',
-    }[event.severity] ?? '⚪';
-    
-    print('$severityIcon SECURITY LOG [${event.type.name.toUpperCase()}] ${event.message}');
-    print('   📅 ${event.timestamp.toLocal()}');
-    if (event.username != null) print('   👤 User: ${event.username}');
-    if (event.deviceId != null) print('   📱 Device: ${event.deviceId}');
-    if (event.sessionId != null) print('   🔑 Session: ${event.sessionId}');
+    final severityIcon =
+        {
+          'low': '🟢',
+          'medium': '🟡',
+          'high': '🔴',
+          'critical': '🚨',
+        }[event.severity] ??
+        '⚪';
+
+    _debugLog(
+      '$severityIcon SECURITY LOG [${event.type.name.toUpperCase()}] ${event.message}',
+    );
+    _debugLog('   📅 ${event.timestamp.toLocal()}');
+    if (event.username != null) _debugLog('   👤 User: ${event.username}');
+    if (event.deviceId != null) _debugLog('   📱 Device: ${event.deviceId}');
+    if (event.sessionId != null) _debugLog('   🔑 Session: ${event.sessionId}');
     if (event.metadata != null && event.metadata!.isNotEmpty) {
-      print('   📋 Metadata: ${event.metadata}');
+      _debugLog('   📋 Metadata: ${event.metadata}');
     }
-    print('   ═══════════════════════════════════════');
+    _debugLog('   ═══════════════════════════════════════');
   }
 
   Future<void> _checkSuspiciousActivity(SecurityEvent event) async {
     // Check for multiple failed login attempts
-    if (event.type == SecurityEventType.login && 
+    if (event.type == SecurityEventType.login &&
         event.metadata?['successful'] == false) {
       await _trackFailedLogin(event);
     }
-    
+
     // Check for unusual device binding attempts
-    if (event.type == SecurityEventType.deviceBinding && 
+    if (event.type == SecurityEventType.deviceBinding &&
         event.metadata?['isNewDevice'] == true) {
       await _trackDeviceBinding(event);
     }
-    
+
     // Check for token refresh failures
-    if (event.type == SecurityEventType.tokenRefresh && 
+    if (event.type == SecurityEventType.tokenRefresh &&
         event.metadata?['successful'] == false) {
       await _trackTokenFailures(event);
     }
@@ -486,7 +506,7 @@ class SecurityMonitor {
   }
 
   Future<void> _trackTokenFailures(SecurityEvent event) async {
-    // Implementation for tracking token refresh failures  
+    // Implementation for tracking token refresh failures
     // Could indicate compromised refresh tokens
   }
 

@@ -9,13 +9,13 @@ class HarvestForm extends StatelessWidget {
   final ValueChanged<String> onQualityGradeChanged;
 
   const HarvestForm({
-    Key? key,
+    super.key,
     required this.tbsQuantityController,
     required this.tbsQualityController,
     required this.notesController,
     required this.selectedQualityGrade,
     required this.onQualityGradeChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -43,26 +43,26 @@ class HarvestForm extends StatelessWidget {
             if (value == null || value.trim().isEmpty) {
               return 'Jumlah TBS wajib diisi';
             }
-            
+
             final quantity = double.tryParse(value);
             if (quantity == null) {
               return 'Format angka tidak valid';
             }
-            
+
             if (quantity <= 0) {
               return 'Jumlah TBS harus lebih dari 0';
             }
-            
+
             if (quantity > 10000) {
               return 'Jumlah TBS terlalu besar (maksimal 10,000 kg)';
             }
-            
+
             return null;
           },
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         // TBS Quality Input
         TextFormField(
           controller: tbsQualityController,
@@ -84,22 +84,22 @@ class HarvestForm extends StatelessWidget {
             if (value == null || value.trim().isEmpty) {
               return 'Kualitas TBS wajib diisi';
             }
-            
+
             final quality = double.tryParse(value);
             if (quality == null) {
               return 'Format angka tidak valid';
             }
-            
+
             if (quality < 0 || quality > 100) {
               return 'Kualitas harus antara 0-100%';
             }
-            
+
             return null;
           },
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         // Quality Grade Selection
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,9 +112,9 @@ class HarvestForm extends StatelessWidget {
             _buildQualityGradeSelector(context),
           ],
         ),
-        
+
         const SizedBox(height: 16),
-        
+
         // Notes Input
         TextFormField(
           controller: notesController,
@@ -140,9 +140,24 @@ class HarvestForm extends StatelessWidget {
 
   Widget _buildQualityGradeSelector(BuildContext context) {
     final grades = [
-      {'value': 'A', 'label': 'Grade A', 'description': 'Kualitas Sangat Baik', 'color': Colors.green},
-      {'value': 'B', 'label': 'Grade B', 'description': 'Kualitas Baik', 'color': Colors.orange},
-      {'value': 'C', 'label': 'Grade C', 'description': 'Kualitas Cukup', 'color': Colors.red},
+      {
+        'value': 'A',
+        'label': 'Grade A',
+        'description': 'Kualitas Sangat Baik',
+        'color': Colors.green,
+      },
+      {
+        'value': 'B',
+        'label': 'Grade B',
+        'description': 'Kualitas Baik',
+        'color': Colors.orange,
+      },
+      {
+        'value': 'C',
+        'label': 'Grade C',
+        'description': 'Kualitas Cukup',
+        'color': Colors.red,
+      },
     ];
 
     return Container(
@@ -150,66 +165,72 @@ class HarvestForm extends StatelessWidget {
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Column(
-        children: grades.map((grade) {
-          final isSelected = selectedQualityGrade == grade['value'];
-          
-          return InkWell(
-            onTap: () => onQualityGradeChanged(grade['value'] as String),
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isSelected 
-                    ? (grade['color'] as Color).withOpacity(0.1)
-                    : null,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Radio<String>(
-                    value: grade['value'] as String,
-                    groupValue: selectedQualityGrade,
-                    onChanged: (value) {
-                      if (value != null) {
-                        onQualityGradeChanged(value);
-                      }
-                    },
-                    activeColor: grade['color'] as Color,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          grade['label'] as String,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            color: isSelected ? grade['color'] as Color : null,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          grade['description'] as String,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
+      child: RadioGroup<String>(
+        groupValue: selectedQualityGrade,
+        onChanged: (value) {
+          if (value != null) {
+            onQualityGradeChanged(value);
+          }
+        },
+        child: Column(
+          children: grades.map((grade) {
+            final isSelected = selectedQualityGrade == grade['value'];
+
+            return InkWell(
+              onTap: () => onQualityGradeChanged(grade['value'] as String),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? (grade['color'] as Color).withValues(alpha: 0.1)
+                      : null,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Radio<String>(
+                      value: grade['value'] as String,
+                      activeColor: grade['color'] as Color,
                     ),
-                  ),
-                  if (isSelected)
-                    Icon(
-                      Icons.check_circle,
-                      color: grade['color'] as Color,
-                      size: 20,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            grade['label'] as String,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: isSelected
+                                      ? grade['color'] as Color
+                                      : null,
+                                ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            grade['description'] as String,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
                     ),
-                ],
+                    if (isSelected)
+                      Icon(
+                        Icons.check_circle,
+                        color: grade['color'] as Color,
+                        size: 20,
+                      ),
+                  ],
+                ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }

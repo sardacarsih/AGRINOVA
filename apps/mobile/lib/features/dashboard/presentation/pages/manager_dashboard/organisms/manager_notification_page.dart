@@ -8,14 +8,16 @@ import '../manager_theme.dart';
 class ManagerNotificationPage extends StatefulWidget {
   final VoidCallback? onClose;
 
-  const ManagerNotificationPage({Key? key, this.onClose}) : super(key: key);
+  const ManagerNotificationPage({super.key, this.onClose});
 
   @override
-  State<ManagerNotificationPage> createState() => _ManagerNotificationPageState();
+  State<ManagerNotificationPage> createState() =>
+      _ManagerNotificationPageState();
 }
 
 class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
-  final NotificationStorageService _storageService = sl<NotificationStorageService>();
+  final NotificationStorageService _storageService =
+      sl<NotificationStorageService>();
   List<AppNotification> _notifications = [];
   bool _isLoading = true;
 
@@ -59,9 +61,7 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
         ),
       ),
       flexibleSpace: Container(
-        decoration: const BoxDecoration(
-          gradient: ManagerTheme.headerGradient,
-        ),
+        decoration: const BoxDecoration(gradient: ManagerTheme.headerGradient),
       ),
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -115,13 +115,24 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
     }
 
     // Separate notifications by type
-    final dailySummaries = _notifications.where((n) => n.type == 'MANAGER_DAILY_SUMMARY').toList();
-    final alerts = _notifications.where((n) => 
-      n.type == 'MANAGER_PERFORMANCE_ALERT' || 
-      n.type == 'MANAGER_LOW_PERFORMANCE' ||
-      n.type == 'MANAGER_MANDOR_ABSENCE').toList();
-    final others = _notifications.where((n) => 
-      !n.type.startsWith('MANAGER_') || n.type == 'MANAGER_TARGET_ACHIEVED').toList();
+    final dailySummaries = _notifications
+        .where((n) => n.type == 'MANAGER_DAILY_SUMMARY')
+        .toList();
+    final alerts = _notifications
+        .where(
+          (n) =>
+              n.type == 'MANAGER_PERFORMANCE_ALERT' ||
+              n.type == 'MANAGER_LOW_PERFORMANCE' ||
+              n.type == 'MANAGER_MANDOR_ABSENCE',
+        )
+        .toList();
+    final others = _notifications
+        .where(
+          (n) =>
+              !n.type.startsWith('MANAGER_') ||
+              n.type == 'MANAGER_TARGET_ACHIEVED',
+        )
+        .toList();
 
     return RefreshIndicator(
       onRefresh: _loadNotifications,
@@ -131,20 +142,26 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
         children: [
           // Daily Summary section
           if (dailySummaries.isNotEmpty) ...[
-            _buildSectionHeader('📊 Ringkasan Harian', dailySummaries.where((n) => !n.isRead).length),
+            _buildSectionHeader(
+              '📊 Ringkasan Harian',
+              dailySummaries.where((n) => !n.isRead).length,
+            ),
             const SizedBox(height: 8),
             ...dailySummaries.map((notif) => _buildSummaryCard(notif)),
             const SizedBox(height: 24),
           ],
-          
+
           // Alerts section
           if (alerts.isNotEmpty) ...[
-            _buildSectionHeader('⚠️ Alert', alerts.where((n) => !n.isRead).length),
+            _buildSectionHeader(
+              '⚠️ Alert',
+              alerts.where((n) => !n.isRead).length,
+            ),
             const SizedBox(height: 8),
             ...alerts.map((notif) => _buildNotificationCard(notif)),
             const SizedBox(height: 24),
           ],
-          
+
           // Other notifications section
           if (others.isNotEmpty) ...[
             _buildSectionHeader('🔔 Notifikasi Lain', null),
@@ -159,10 +176,7 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
   Widget _buildSectionHeader(String title, int? unreadCount) {
     return Row(
       children: [
-        Text(
-          title,
-          style: ManagerTheme.headingMedium.copyWith(fontSize: 16),
-        ),
+        Text(title, style: ManagerTheme.headingMedium.copyWith(fontSize: 16)),
         if (unreadCount != null && unreadCount > 0) ...[
           const SizedBox(width: 8),
           Container(
@@ -190,8 +204,8 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        gradient: notif.isRead 
-            ? null 
+        gradient: notif.isRead
+            ? null
             : const LinearGradient(
                 colors: [Color(0xFFF3E8FF), Color(0xFFEDE9FE)],
                 begin: Alignment.topLeft,
@@ -199,12 +213,14 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
               ),
         color: notif.isRead ? Colors.white : null,
         borderRadius: BorderRadius.circular(16),
-        border: notif.isRead 
+        border: notif.isRead
             ? Border.all(color: Colors.grey.shade200)
-            : Border.all(color: ManagerTheme.primaryPurple.withOpacity(0.3)),
+            : Border.all(
+                color: ManagerTheme.primaryPurple.withValues(alpha: 0.3),
+              ),
         boxShadow: [
           BoxShadow(
-            color: ManagerTheme.primaryPurple.withOpacity(0.08),
+            color: ManagerTheme.primaryPurple.withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -247,7 +263,9 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
                                 child: Text(
                                   notif.title,
                                   style: TextStyle(
-                                    fontWeight: notif.isRead ? FontWeight.w500 : FontWeight.w600,
+                                    fontWeight: notif.isRead
+                                        ? FontWeight.w500
+                                        : FontWeight.w600,
                                     fontSize: 15,
                                     color: ManagerTheme.textPrimary,
                                   ),
@@ -278,7 +296,7 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Summary message
                 Text(
                   notif.message,
@@ -287,13 +305,13 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
                     color: ManagerTheme.textSecondary,
                   ),
                 ),
-                
+
                 // Stats row (parsed from metadata if available)
                 if (notif.metadata != null) ...[
                   const SizedBox(height: 12),
                   _buildSummaryStats(notif.metadata!),
                 ],
-                
+
                 // View detail button
                 const SizedBox(height: 12),
                 Row(
@@ -328,7 +346,7 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: ManagerTheme.primaryPurple.withOpacity(0.05),
+        color: ManagerTheme.primaryPurple.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -340,14 +358,22 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
             'ton',
             Icons.agriculture,
           ),
-          Container(width: 1, height: 30, color: ManagerTheme.textMuted.withOpacity(0.3)),
+          Container(
+            width: 1,
+            height: 30,
+            color: ManagerTheme.textMuted.withValues(alpha: 0.3),
+          ),
           _buildStatItem(
             'Target',
             metadata['target_achievement']?.toString() ?? '-',
             '%',
             Icons.trending_up,
           ),
-          Container(width: 1, height: 30, color: ManagerTheme.textMuted.withOpacity(0.3)),
+          Container(
+            width: 1,
+            height: 30,
+            color: ManagerTheme.textMuted.withValues(alpha: 0.3),
+          ),
           _buildStatItem(
             'Mandor Aktif',
             '${metadata['active_mandors'] ?? '-'}/${metadata['total_mandors'] ?? '-'}',
@@ -359,7 +385,12 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, String unit, IconData icon) {
+  Widget _buildStatItem(
+    String label,
+    String value,
+    String unit,
+    IconData icon,
+  ) {
     return Column(
       children: [
         Icon(icon, size: 18, color: ManagerTheme.primaryPurple),
@@ -379,20 +410,14 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
               const SizedBox(width: 2),
               Text(
                 unit,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: ManagerTheme.textMuted,
-                ),
+                style: TextStyle(fontSize: 11, color: ManagerTheme.textMuted),
               ),
             ],
           ],
         ),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 10,
-            color: ManagerTheme.textMuted,
-          ),
+          style: TextStyle(fontSize: 10, color: ManagerTheme.textMuted),
         ),
       ],
     );
@@ -402,14 +427,18 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: notif.isRead ? Colors.white : ManagerTheme.primaryPurple.withOpacity(0.05),
+        color: notif.isRead
+            ? Colors.white
+            : ManagerTheme.primaryPurple.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: notif.isRead 
+        border: notif.isRead
             ? Border.all(color: Colors.grey.shade200)
-            : Border.all(color: ManagerTheme.primaryPurple.withOpacity(0.3)),
+            : Border.all(
+                color: ManagerTheme.primaryPurple.withValues(alpha: 0.3),
+              ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -430,7 +459,7 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: _getTypeColor(notif.type).withOpacity(0.1),
+                    color: _getTypeColor(notif.type).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -440,7 +469,7 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                
+
                 // Content
                 Expanded(
                   child: Column(
@@ -452,7 +481,9 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
                             child: Text(
                               notif.title,
                               style: TextStyle(
-                                fontWeight: notif.isRead ? FontWeight.w500 : FontWeight.w600,
+                                fontWeight: notif.isRead
+                                    ? FontWeight.w500
+                                    : FontWeight.w600,
                                 fontSize: 14,
                                 color: ManagerTheme.textPrimary,
                               ),
@@ -506,7 +537,7 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
           Icon(
             Icons.notifications_none_rounded,
             size: 80,
-            color: ManagerTheme.textMuted.withOpacity(0.3),
+            color: ManagerTheme.textMuted.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 16),
           Text(
@@ -593,13 +624,15 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
         default:
           message = 'Notifikasi sudah dibaca';
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
           backgroundColor: ManagerTheme.primaryPurple,
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     }
@@ -616,7 +649,9 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
               content: const Text('Semua notifikasi ditandai telah dibaca'),
               backgroundColor: ManagerTheme.approvedGreen,
               behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
@@ -642,17 +677,18 @@ class _ManagerNotificationPageState extends State<ManagerNotificationPage> {
             onPressed: () async {
               await _storageService.clearAll();
               await _loadNotifications();
-              if (mounted) {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Semua notifikasi telah dihapus'),
-                    backgroundColor: ManagerTheme.rejectedRed,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              if (!context.mounted || !mounted) return;
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                SnackBar(
+                  content: const Text('Semua notifikasi telah dihapus'),
+                  backgroundColor: ManagerTheme.rejectedRed,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                );
-              }
+                ),
+              );
             },
             child: Text(
               'Hapus',

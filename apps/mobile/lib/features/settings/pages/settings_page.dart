@@ -10,7 +10,7 @@ import 'network_settings_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({Key? key}) : super(key: key);
+  const SettingsPage({super.key});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -18,8 +18,10 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final Logger _logger = Logger();
-  final AppUpdateService _updateService = AppUpdateService(dioClient: locate<DioClient>());
-  
+  final AppUpdateService _updateService = AppUpdateService(
+    dioClient: locate<DioClient>(),
+  );
+
   AppUpdatePolicy _updatePolicy = AppUpdatePolicy.defaults();
   bool _isLoading = true;
   bool _isCheckingForUpdates = false;
@@ -35,10 +37,10 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       // Initialize services if needed
       await _updateService.initialize();
-      
+
       final policy = _updateService.getUpdatePolicy();
       final pendingUpdate = _updateService.pendingUpdate;
-      
+
       if (mounted) {
         setState(() {
           _updatePolicy = policy;
@@ -56,18 +58,18 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _checkForUpdates() async {
     if (_isCheckingForUpdates) return;
-    
+
     try {
       setState(() => _isCheckingForUpdates = true);
-      
+
       final updateInfo = await _updateService.checkForUpdates(forceCheck: true);
-      
+
       if (mounted) {
         setState(() {
           _pendingUpdate = updateInfo;
           _isCheckingForUpdates = false;
         });
-        
+
         if (updateInfo != null) {
           // Show update dialog
           await showDialog(
@@ -78,13 +80,17 @@ class _SettingsPageState extends State<SettingsPage> {
                 Navigator.of(context).pop();
                 _startUpdate(updateInfo);
               },
-              onLaterTap: updateInfo.isCritical ? null : () {
-                Navigator.of(context).pop();
-              },
-              onSkipTap: updateInfo.isCritical ? null : () {
-                Navigator.of(context).pop();
-                _skipVersion(updateInfo.latestVersion);
-              },
+              onLaterTap: updateInfo.isCritical
+                  ? null
+                  : () {
+                      Navigator.of(context).pop();
+                    },
+              onSkipTap: updateInfo.isCritical
+                  ? null
+                  : () {
+                      Navigator.of(context).pop();
+                      _skipVersion(updateInfo.latestVersion);
+                    },
             ),
           );
         } else {
@@ -99,9 +105,8 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     } catch (e) {
       _logger.e('Failed to check for updates: $e');
-      if (mounted) {
-        setState(() => _isCheckingForUpdates = false);
-      }
+      if (!mounted) return;
+      setState(() => _isCheckingForUpdates = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to check for updates: $e'),
@@ -116,6 +121,7 @@ class _SettingsPageState extends State<SettingsPage> {
       await _updateService.startUpdate(updateInfo);
     } catch (e) {
       _logger.e('Failed to start update: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to start update: $e'),
@@ -127,26 +133,23 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _skipVersion(String version) async {
     await _updateService.skipVersion(version);
-    if (mounted) {
-      setState(() {
-        _pendingUpdate = null;
-      });
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Version $version will be skipped'),
-      ),
-    );
+    if (!mounted) return;
+    setState(() {
+      _pendingUpdate = null;
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Version $version will be skipped')));
   }
 
   void _onPolicyChanged(AppUpdatePolicy newPolicy) {
     setState(() {
       _updatePolicy = newPolicy;
     });
-    
+
     // Save the new policy
     _updateService.setUpdatePolicy(newPolicy);
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Update settings saved'),
@@ -164,12 +167,10 @@ class _SettingsPageState extends State<SettingsPage> {
           backgroundColor: Colors.green[600],
           foregroundColor: Colors.white,
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
@@ -181,22 +182,20 @@ class _SettingsPageState extends State<SettingsPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 16),
-            
+
             // Update Settings Section
             _buildUpdateSection(),
-            
+
             const Divider(),
-            
+
             // Network Settings
             _buildNetworkSettingsSection(),
-            
 
-            
             const Divider(),
 
             // About Section
             _buildAboutSection(),
-            
+
             const SizedBox(height: 16),
           ],
         ),
@@ -212,12 +211,12 @@ class _SettingsPageState extends State<SettingsPage> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Text(
             'App Updates',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
-        
+
         // Current Version Info
         Card(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -236,19 +235,26 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                     ElevatedButton.icon(
-                      onPressed: _isCheckingForUpdates ? null : _checkForUpdates,
-                      icon: _isCheckingForUpdates 
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.refresh, size: 18),
-                      label: Text(_isCheckingForUpdates ? 'Checking...' : 'Check Now'),
+                      onPressed: _isCheckingForUpdates
+                          ? null
+                          : _checkForUpdates,
+                      icon: _isCheckingForUpdates
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh, size: 18),
+                      label: Text(
+                        _isCheckingForUpdates ? 'Checking...' : 'Check Now',
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                     ),
                   ],
@@ -268,9 +274,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     } else if (snapshot.hasError) {
                       return Text(
                         'Error: ${snapshot.error}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.red,
-                        ),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(color: Colors.red),
                       );
                     } else {
                       return const Text(
@@ -286,9 +292,13 @@ class _SettingsPageState extends State<SettingsPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: _pendingUpdate!.isCritical ? Colors.red.shade50 : Colors.blue.shade50,
+                      color: _pendingUpdate!.isCritical
+                          ? Colors.red.shade50
+                          : Colors.blue.shade50,
                       border: Border.all(
-                        color: _pendingUpdate!.isCritical ? Colors.red.shade300 : Colors.blue.shade300,
+                        color: _pendingUpdate!.isCritical
+                            ? Colors.red.shade300
+                            : Colors.blue.shade300,
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -296,13 +306,16 @@ class _SettingsPageState extends State<SettingsPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          _pendingUpdate!.isCritical 
-                            ? 'Critical Update Available' 
-                            : 'Update Available',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: _pendingUpdate!.isCritical ? Colors.red : Colors.blue,
-                          ),
+                          _pendingUpdate!.isCritical
+                              ? 'Critical Update Available'
+                              : 'Update Available',
+                          style: Theme.of(context).textTheme.titleSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: _pendingUpdate!.isCritical
+                                    ? Colors.red
+                                    : Colors.blue,
+                              ),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -314,21 +327,29 @@ class _SettingsPageState extends State<SettingsPage> {
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             TextButton(
-                              onPressed: _pendingUpdate!.isCritical ? null : () {
-                                setState(() {
-                                  _pendingUpdate = null;
-                                });
-                              },
+                              onPressed: _pendingUpdate!.isCritical
+                                  ? null
+                                  : () {
+                                      setState(() {
+                                        _pendingUpdate = null;
+                                      });
+                                    },
                               child: const Text('Dismiss'),
                             ),
                             const SizedBox(width: 8),
                             ElevatedButton(
                               onPressed: () => _startUpdate(_pendingUpdate!),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: _pendingUpdate!.isCritical ? Colors.red : Colors.blue,
+                                backgroundColor: _pendingUpdate!.isCritical
+                                    ? Colors.red
+                                    : Colors.blue,
                                 foregroundColor: Colors.white,
                               ),
-                              child: Text(_pendingUpdate!.isCritical ? 'Update Now' : 'Update'),
+                              child: Text(
+                                _pendingUpdate!.isCritical
+                                    ? 'Update Now'
+                                    : 'Update',
+                              ),
                             ),
                           ],
                         ),
@@ -340,7 +361,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
         ),
-        
+
         // Update Settings
         Card(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -364,18 +385,20 @@ class _SettingsPageState extends State<SettingsPage> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Text(
             'Network',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
-        
+
         Card(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: ListTile(
             leading: const Icon(Icons.wifi, color: Colors.blue),
             title: const Text('Network Settings'),
-            subtitle: const Text('Configure server connection and API settings'),
+            subtitle: const Text(
+              'Configure server connection and API settings',
+            ),
             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             onTap: () {
               Navigator.push(
@@ -399,12 +422,12 @@ class _SettingsPageState extends State<SettingsPage> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Text(
             'About',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
-        
+
         Card(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Column(
@@ -443,10 +466,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _logger.e('Error launching privacy policy: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
         );
       }
     }

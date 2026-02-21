@@ -8,7 +8,7 @@ import '../asisten_theme.dart';
 class AsistenNotificationPage extends StatefulWidget {
   final VoidCallback? onClose;
 
-  const AsistenNotificationPage({Key? key, this.onClose}) : super(key: key);
+  const AsistenNotificationPage({super.key, this.onClose});
 
   @override
   State<AsistenNotificationPage> createState() =>
@@ -61,9 +61,7 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
         ),
       ),
       flexibleSpace: Container(
-        decoration: const BoxDecoration(
-          gradient: AsistenTheme.headerGradient,
-        ),
+        decoration: const BoxDecoration(gradient: AsistenTheme.headerGradient),
       ),
       backgroundColor: Colors.transparent,
       elevation: 0,
@@ -104,9 +102,7 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
   }
 
   Widget _buildLoadingState() {
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
+    return const Center(child: CircularProgressIndicator());
   }
 
   Widget _buildBody() {
@@ -127,8 +123,9 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
           if (unreadNotifications.isNotEmpty) ...[
             _buildSectionHeader('Belum Dibaca', unreadNotifications.length),
             const SizedBox(height: 8),
-            ...unreadNotifications
-                .map((notif) => _buildNotificationCard(notif)),
+            ...unreadNotifications.map(
+              (notif) => _buildNotificationCard(notif),
+            ),
             const SizedBox(height: 24),
           ],
 
@@ -180,14 +177,16 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
       decoration: BoxDecoration(
         color: notif.isRead
             ? Colors.white
-            : AsistenTheme.primaryBlue.withOpacity(0.05),
+            : AsistenTheme.primaryBlue.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
         border: notif.isRead
             ? Border.all(color: Colors.grey.shade200)
-            : Border.all(color: AsistenTheme.primaryBlue.withOpacity(0.3)),
+            : Border.all(
+                color: AsistenTheme.primaryBlue.withValues(alpha: 0.3),
+              ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -208,7 +207,7 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: _getTypeColor(notif.type).withOpacity(0.1),
+                    color: _getTypeColor(notif.type).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -264,7 +263,9 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
                         notif.relativeTime,
                         style: TextStyle(
                           fontSize: 12,
-                          color: AsistenTheme.textSecondary.withOpacity(0.7),
+                          color: AsistenTheme.textSecondary.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
                     ],
@@ -286,7 +287,7 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
           Icon(
             Icons.notifications_none_rounded,
             size: 80,
-            color: AsistenTheme.textSecondary.withOpacity(0.3),
+            color: AsistenTheme.textSecondary.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 16),
           Text(
@@ -299,7 +300,7 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
           Text(
             'Notifikasi panen akan muncul di sini',
             style: AsistenTheme.bodyMedium.copyWith(
-              color: AsistenTheme.textSecondary.withOpacity(0.7),
+              color: AsistenTheme.textSecondary.withValues(alpha: 0.7),
             ),
           ),
           const SizedBox(height: 24),
@@ -361,11 +362,9 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
         status = 'REJECTED';
       }
 
-      Navigator.of(context).pop({
-        'tab': 1,
-        'panenId': panenId,
-        'status': status,
-      });
+      Navigator.of(
+        context,
+      ).pop({'tab': 1, 'panenId': panenId, 'status': status});
     }
   }
 
@@ -381,7 +380,8 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
               backgroundColor: AsistenTheme.approvedGreen,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
@@ -407,18 +407,18 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
             onPressed: () async {
               await _storageService.clearAll();
               await _loadNotifications();
-              if (mounted) {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Semua notifikasi telah dihapus'),
-                    backgroundColor: AsistenTheme.rejectedRed,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+              if (!context.mounted || !mounted) return;
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                SnackBar(
+                  content: const Text('Semua notifikasi telah dihapus'),
+                  backgroundColor: AsistenTheme.rejectedRed,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                );
-              }
+                ),
+              );
             },
             child: Text(
               'Hapus',

@@ -7,7 +7,7 @@ import '../../../../core/constants/api_constants.dart';
 /// Debug authentication page for comprehensive auth testing
 /// Accessible only in debug mode for troubleshooting auth issues
 class DebugAuthPage extends StatefulWidget {
-  const DebugAuthPage({Key? key}) : super(key: key);
+  const DebugAuthPage({super.key});
 
   @override
   State<DebugAuthPage> createState() => _DebugAuthPageState();
@@ -16,7 +16,7 @@ class DebugAuthPage extends StatefulWidget {
 class _DebugAuthPageState extends State<DebugAuthPage> {
   final _usernameController = TextEditingController(text: 'satpam');
   final _passwordController = TextEditingController(text: 'demo123');
-  
+
   List<DebugTestResult> _testResults = [];
   bool _isRunning = false;
   String? _currentTest;
@@ -52,7 +52,7 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
       // Run tests one by one with UI updates
       final tests = [
         'System Information',
-        'Network Connectivity', 
+        'Network Connectivity',
         'GraphQL Server Health',
         'Device Information',
         'Database Functionality',
@@ -75,6 +75,7 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
         username: username,
         password: password,
       );
+      if (!mounted) return;
 
       setState(() {
         _testResults = results;
@@ -85,15 +86,20 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
       // Show completion message
       final passCount = results.where((r) => r.success).length;
       final totalCount = results.length;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Diagnostics completed: $passCount/$totalCount tests passed'),
-          backgroundColor: passCount == totalCount ? Colors.green : Colors.orange,
+          content: Text(
+            'Diagnostics completed: $passCount/$totalCount tests passed',
+          ),
+          backgroundColor: passCount == totalCount
+              ? Colors.green
+              : Colors.orange,
           behavior: SnackBarBehavior.floating,
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isRunning = false;
         _currentTest = null;
@@ -123,6 +129,7 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
 
     final report = _debugService.generateDiagnosticReport(_testResults);
     await Clipboard.setData(ClipboardData(text: report));
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -143,7 +150,7 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Authentication Diagnostics'),
@@ -171,27 +178,27 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
           children: [
             // Warning Banner
             _buildWarningBanner(theme),
-            
+
             const SizedBox(height: 16),
-            
+
             // System Information Card
             _buildSystemInfoCard(theme),
-            
+
             const SizedBox(height: 16),
-            
+
             // Credentials Input Card
             _buildCredentialsCard(theme),
-            
+
             const SizedBox(height: 16),
-            
+
             // Run Diagnostics Button
             _buildRunDiagnosticsButton(theme),
-            
+
             const SizedBox(height: 16),
-            
+
             // Current Test Indicator
             if (_isRunning) _buildCurrentTestIndicator(theme),
-            
+
             // Test Results
             if (_testResults.isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -264,7 +271,10 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
             ),
             const SizedBox(height: 12),
             _buildInfoRow('Base URL', ApiConstants.baseUrl),
-            _buildInfoRow('GraphQL Endpoint', '${ApiConstants.baseUrl}/graphql'),
+            _buildInfoRow(
+              'GraphQL Endpoint',
+              '${ApiConstants.baseUrl}/graphql',
+            ),
             _buildInfoRow('App Version', ApiConstants.appVersion),
             _buildInfoRow('Debug Mode', ApiConstants.isDebugMode.toString()),
             _buildInfoRow('Platform', Theme.of(context).platform.name),
@@ -289,10 +299,7 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
             ),
           ),
           Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontFamily: 'monospace'),
-            ),
+            child: Text(value, style: const TextStyle(fontFamily: 'monospace')),
           ),
         ],
       ),
@@ -320,7 +327,7 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             // Username field
             TextFormField(
               controller: _usernameController,
@@ -332,9 +339,9 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
               ),
               enabled: !_isRunning,
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Password field
             TextFormField(
               controller: _passwordController,
@@ -347,9 +354,9 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
               ),
               enabled: !_isRunning,
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
@@ -385,9 +392,7 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       icon: _isRunning
           ? const SizedBox(
@@ -448,13 +453,15 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
   Widget _buildTestResults(ThemeData theme) {
     final passCount = _testResults.where((r) => r.success).length;
     final totalCount = _testResults.length;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Results header
         Card(
-          color: passCount == totalCount ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
+          color: passCount == totalCount
+              ? Colors.green.withValues(alpha: 0.1)
+              : Colors.orange.withValues(alpha: 0.1),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
@@ -491,9 +498,9 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
             ),
           ),
         ),
-        
+
         const SizedBox(height: 8),
-        
+
         // Individual test results
         ...(_testResults.map((result) => _buildTestResultCard(result, theme))),
       ],
@@ -515,20 +522,21 @@ class _DebugAuthPageState extends State<DebugAuthPage> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        subtitle: Text(
-          result.message,
-          style: theme.textTheme.bodySmall,
-        ),
+        subtitle: Text(result.message, style: theme.textTheme.bodySmall),
         trailing: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: result.success ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1),
+            color: result.success
+                ? Colors.green.withValues(alpha: 0.1)
+                : Colors.red.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
             result.statusText,
             style: TextStyle(
-              color: result.success ? Colors.green.shade700 : Colors.red.shade700,
+              color: result.success
+                  ? Colors.green.shade700
+                  : Colors.red.shade700,
               fontWeight: FontWeight.bold,
               fontSize: 12,
             ),

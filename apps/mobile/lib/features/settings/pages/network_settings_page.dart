@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 import 'dart:async';
-import 'dart:io';
 
 import '../../../core/services/config_service.dart';
 import '../../../core/constants/api_constants.dart';
 
 class NetworkSettingsPage extends StatefulWidget {
-  const NetworkSettingsPage({Key? key}) : super(key: key);
+  const NetworkSettingsPage({super.key});
 
   @override
   State<NetworkSettingsPage> createState() => _NetworkSettingsPageState();
@@ -136,9 +135,7 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
           backgroundColor: Colors.green[600],
           foregroundColor: Colors.white,
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -183,27 +180,33 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
           children: [
             Text(
               'Current Configuration',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            _buildStatusRow('Environment', _currentConfig?.environment.name ?? 'Unknown'),
+            _buildStatusRow(
+              'Environment',
+              _currentConfig?.environment.name ?? 'Unknown',
+            ),
             _buildStatusRow('Base URL', _currentConfig?.baseUrl ?? 'Unknown'),
-            if (kDebugMode) _buildStatusRow('API Constants URL', ApiConstants.baseUrl),
+            if (kDebugMode)
+              _buildStatusRow('API Constants URL', ApiConstants.baseUrl),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: _isTestingConnection ? null : _testConnection,
                 icon: _isTestingConnection
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.wifi_find),
-                label: Text(_isTestingConnection ? 'Testing...' : 'Test Connection'),
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.wifi_find),
+                label: Text(
+                  _isTestingConnection ? 'Testing...' : 'Test Connection',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   foregroundColor: Colors.white,
@@ -225,9 +228,9 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
           children: [
             Text(
               'Environment',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
@@ -236,9 +239,7 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
               style: TextStyle(color: Colors.grey[600], fontSize: 14),
             ),
             const SizedBox(height: 16),
-            ...Environment.values.map((env) => RadioListTile<Environment>(
-              title: Text(env.name.toUpperCase()),
-              value: env,
+            RadioGroup<Environment>(
               groupValue: _selectedEnvironment,
               onChanged: (value) {
                 if (value != null) {
@@ -246,7 +247,17 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
                   _setEnvironment(value);
                 }
               },
-            )),
+              child: Column(
+                children: Environment.values
+                    .map(
+                      (env) => RadioListTile<Environment>(
+                        title: Text(env.name.toUpperCase()),
+                        value: env,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
           ],
         ),
       ),
@@ -262,9 +273,9 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
           children: [
             Text(
               'Actions',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -294,9 +305,9 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
           children: [
             Text(
               'Debug Information',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Container(
@@ -308,10 +319,7 @@ class _NetworkSettingsPageState extends State<NetworkSettingsPage> {
               ),
               child: Text(
                 _formatDebugInfo(_networkStatus!),
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 12,
-                ),
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
               ),
             ),
           ],

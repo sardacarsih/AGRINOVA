@@ -8,10 +8,10 @@ class HarvestPhotoWidget extends StatefulWidget {
   final ValueChanged<String?> onPhotoTaken;
 
   const HarvestPhotoWidget({
-    Key? key,
+    super.key,
     this.imagePath,
     required this.onPhotoTaken,
-  }) : super(key: key);
+  });
 
   @override
   State<HarvestPhotoWidget> createState() => _HarvestPhotoWidgetState();
@@ -78,15 +78,11 @@ class _HarvestPhotoWidgetState extends State<HarvestPhotoWidget> {
               right: 8,
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
+                  color: Colors.black.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: IconButton(
-                  icon: const Icon(
-                    Icons.close,
-                    color: Colors.white,
-                    size: 20,
-                  ),
+                  icon: const Icon(Icons.close, color: Colors.white, size: 20),
                   onPressed: () => widget.onPhotoTaken(null),
                   padding: const EdgeInsets.all(4),
                   constraints: const BoxConstraints(
@@ -109,7 +105,9 @@ class _HarvestPhotoWidgetState extends State<HarvestPhotoWidget> {
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: _isLoading ? null : () => _takePicture(ImageSource.camera),
+                onPressed: _isLoading
+                    ? null
+                    : () => _takePicture(ImageSource.camera),
                 icon: _isLoading
                     ? const SizedBox(
                         width: 16,
@@ -126,7 +124,9 @@ class _HarvestPhotoWidgetState extends State<HarvestPhotoWidget> {
             const SizedBox(width: 12),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: _isLoading ? null : () => _takePicture(ImageSource.gallery),
+                onPressed: _isLoading
+                    ? null
+                    : () => _takePicture(ImageSource.gallery),
                 icon: const Icon(Icons.photo_library),
                 label: const Text('Galeri'),
                 style: OutlinedButton.styleFrom(
@@ -139,9 +139,9 @@ class _HarvestPhotoWidgetState extends State<HarvestPhotoWidget> {
         const SizedBox(height: 8),
         Text(
           'Foto dapat membantu verifikasi kualitas panen',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Colors.grey.shade600,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
           textAlign: TextAlign.center,
         ),
       ],
@@ -192,10 +192,11 @@ class _HarvestPhotoWidgetState extends State<HarvestPhotoWidget> {
         maxHeight: 1080,
         preferredCameraDevice: CameraDevice.rear,
       );
+      if (!mounted) return;
 
       if (image != null) {
         widget.onPhotoTaken(image.path);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Foto berhasil diambil'),
@@ -205,12 +206,14 @@ class _HarvestPhotoWidgetState extends State<HarvestPhotoWidget> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal mengambil foto: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal mengambil foto: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -224,11 +227,7 @@ class _HarvestPhotoWidgetState extends State<HarvestPhotoWidget> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        icon: const Icon(
-          Icons.warning,
-          color: Colors.orange,
-          size: 48,
-        ),
+        icon: const Icon(Icons.warning, color: Colors.orange, size: 48),
         title: Text('Izin $permissionType Diperlukan'),
         content: Text(
           'Aplikasi memerlukan akses $permissionType untuk $purpose. '
@@ -248,11 +247,7 @@ class _HarvestPhotoWidgetState extends State<HarvestPhotoWidget> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        icon: const Icon(
-          Icons.settings,
-          color: Colors.blue,
-          size: 48,
-        ),
+        icon: const Icon(Icons.settings, color: Colors.blue, size: 48),
         title: Text('Izin $permissionType Ditolak'),
         content: Text(
           'Izin $permissionType telah ditolak secara permanen. '

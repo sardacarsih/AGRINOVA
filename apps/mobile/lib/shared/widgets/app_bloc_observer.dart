@@ -10,7 +10,7 @@ class AppBlocObserver extends BlocObserver {
       lineLength: 120,
       colors: true,
       printEmojis: true,
-      printTime: true,
+      dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
     ),
   );
 
@@ -34,10 +34,12 @@ class AppBlocObserver extends BlocObserver {
   void onTransition(Bloc bloc, Transition transition) {
     super.onTransition(bloc, transition);
     if (kDebugMode) {
-      _logger.v('🔄 Transition: ${bloc.runtimeType}\n'
-          'Event: ${transition.event}\n'
-          'Current: ${transition.currentState}\n'
-          'Next: ${transition.nextState}');
+      _logger.t(
+        '🔄 Transition: ${bloc.runtimeType}\n'
+        'Event: ${transition.event}\n'
+        'Current: ${transition.currentState}\n'
+        'Next: ${transition.nextState}',
+      );
     }
   }
 
@@ -45,18 +47,21 @@ class AppBlocObserver extends BlocObserver {
   void onChange(BlocBase bloc, Change change) {
     super.onChange(bloc, change);
     if (kDebugMode) {
-      _logger.v('📝 Change: ${bloc.runtimeType}\n'
-          'Current: ${change.currentState}\n'
-          'Next: ${change.nextState}');
+      _logger.t(
+        '📝 Change: ${bloc.runtimeType}\n'
+        'Current: ${change.currentState}\n'
+        'Next: ${change.nextState}',
+      );
     }
   }
 
   @override
   void onError(BlocBase bloc, Object error, StackTrace stackTrace) {
     if (kDebugMode) {
-      _logger.e('❌ Error in ${bloc.runtimeType}', 
-        error: error, 
-        stackTrace: stackTrace
+      _logger.e(
+        '❌ Error in ${bloc.runtimeType}',
+        error: error,
+        stackTrace: stackTrace,
       );
     }
     super.onError(bloc, error, stackTrace);

@@ -7,7 +7,7 @@ class Estate {
   final String name;
   final String companyId;
   final String companyName;
-  
+
   const Estate({
     required this.id,
     required this.name,
@@ -23,7 +23,7 @@ class Block {
   final String estateName;
   final String divisionId;
   final String divisionName;
-  
+
   const Block({
     required this.id,
     required this.name,
@@ -37,7 +37,7 @@ class Block {
 enum GateCheckDirection {
   entry('ENTRY', 'MASUK'),
   exit('EXIT', 'KELUAR');
-  
+
   const GateCheckDirection(this.value, this.label);
   final String value;
   final String label;
@@ -60,7 +60,7 @@ class GateCheckFormWidget extends StatefulWidget {
   final Function(GateCheckDirection) onDirectionChanged;
 
   const GateCheckFormWidget({
-    Key? key,
+    super.key,
     required this.licensePlateController,
     required this.driverNameController,
     required this.doNumberController,
@@ -75,7 +75,7 @@ class GateCheckFormWidget extends StatefulWidget {
     required this.onEstateChanged,
     required this.onWeightChanged,
     required this.onDirectionChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<GateCheckFormWidget> createState() => _GateCheckFormWidgetState();
@@ -137,77 +137,85 @@ class _GateCheckFormWidgetState extends State<GateCheckFormWidget> {
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Column(
-        children: GateCheckDirection.values.map((direction) {
-          final isSelected = widget.direction == direction;
-          
-          return InkWell(
-            onTap: () => widget.onDirectionChanged(direction),
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isSelected 
-                    ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
-                    : null,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  Radio<GateCheckDirection>(
-                    value: direction,
-                    groupValue: widget.direction,
-                    onChanged: (value) {
-                      if (value != null) {
-                        widget.onDirectionChanged(value);
-                      }
-                    },
-                    activeColor: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    direction == GateCheckDirection.entry 
-                        ? Icons.login 
-                        : Icons.logout,
-                    color: isSelected 
-                        ? Theme.of(context).colorScheme.primary 
-                        : Colors.grey[600],
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          direction.label,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            color: isSelected ? Theme.of(context).colorScheme.primary : null,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          direction == GateCheckDirection.entry
-                              ? 'Truck memasuki area kebun'
-                              : 'Truck meninggalkan area kebun',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
+      child: RadioGroup<GateCheckDirection>(
+        groupValue: widget.direction,
+        onChanged: (value) {
+          if (value != null) {
+            widget.onDirectionChanged(value);
+          }
+        },
+        child: Column(
+          children: GateCheckDirection.values.map((direction) {
+            final isSelected = widget.direction == direction;
+
+            return InkWell(
+              onTap: () => widget.onDirectionChanged(direction),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? Theme.of(
+                          context,
+                        ).colorScheme.primary.withValues(alpha: 0.1)
+                      : null,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Radio<GateCheckDirection>(
+                      value: direction,
+                      activeColor: Theme.of(context).colorScheme.primary,
                     ),
-                  ),
-                  if (isSelected)
+                    const SizedBox(width: 8),
                     Icon(
-                      Icons.check_circle,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 20,
+                      direction == GateCheckDirection.entry
+                          ? Icons.login
+                          : Icons.logout,
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.grey[600],
                     ),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            direction.label,
+                            style: Theme.of(context).textTheme.titleSmall
+                                ?.copyWith(
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  color: isSelected
+                                      ? Theme.of(context).colorScheme.primary
+                                      : null,
+                                ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            direction == GateCheckDirection.entry
+                                ? 'Truck memasuki area kebun'
+                                : 'Truck meninggalkan area kebun',
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (isSelected)
+                      Icon(
+                        Icons.check_circle,
+                        color: Theme.of(context).colorScheme.primary,
+                        size: 20,
+                      ),
+                  ],
+                ),
               ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -224,9 +232,7 @@ class _GateCheckFormWidgetState extends State<GateCheckFormWidget> {
         labelText: 'Nomor Polisi',
         hintText: 'Contoh: B 1234 ABC',
         prefixIcon: Icon(Icons.local_shipping, color: Colors.blue[600]),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
@@ -252,9 +258,7 @@ class _GateCheckFormWidgetState extends State<GateCheckFormWidget> {
         labelText: 'Nama Supir',
         hintText: 'Masukkan nama lengkap supir',
         prefixIcon: Icon(Icons.person, color: Colors.green[600]),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
@@ -284,9 +288,7 @@ class _GateCheckFormWidgetState extends State<GateCheckFormWidget> {
         labelText: 'Nomor DO (Opsional)',
         hintText: 'Contoh: DO123456',
         prefixIcon: Icon(Icons.receipt_long, color: Colors.orange[600]),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
@@ -297,13 +299,11 @@ class _GateCheckFormWidgetState extends State<GateCheckFormWidget> {
 
   Widget _buildEstateSelector() {
     return DropdownButtonFormField<String>(
-      value: widget.selectedEstateId,
+      initialValue: widget.selectedEstateId,
       decoration: InputDecoration(
         labelText: 'Pilih Estate',
         prefixIcon: Icon(Icons.business, color: Colors.purple[600]),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
@@ -319,10 +319,7 @@ class _GateCheckFormWidgetState extends State<GateCheckFormWidget> {
               Text(estate.name),
               Text(
                 estate.companyName,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           ),
@@ -333,7 +330,8 @@ class _GateCheckFormWidgetState extends State<GateCheckFormWidget> {
         // Reset block selection when estate changes
         if (widget.selectedBlockId != null) {
           final hasValidBlock = widget.blocks.any(
-            (block) => block.id == widget.selectedBlockId && block.estateId == value,
+            (block) =>
+                block.id == widget.selectedBlockId && block.estateId == value,
           );
           if (!hasValidBlock) {
             widget.onBlockChanged(null);
@@ -350,18 +348,16 @@ class _GateCheckFormWidgetState extends State<GateCheckFormWidget> {
   }
 
   Widget _buildBlockSelector() {
-    final availableBlocks = widget.blocks.where((block) => 
-        block.estateId == widget.selectedEstateId
-    ).toList();
+    final availableBlocks = widget.blocks
+        .where((block) => block.estateId == widget.selectedEstateId)
+        .toList();
 
     return DropdownButtonFormField<String>(
-      value: widget.selectedBlockId,
+      initialValue: widget.selectedBlockId,
       decoration: InputDecoration(
         labelText: 'Pilih Blok',
         prefixIcon: Icon(Icons.map, color: Colors.teal[600]),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
@@ -379,18 +375,17 @@ class _GateCheckFormWidgetState extends State<GateCheckFormWidget> {
                     Text(block.name),
                     Text(
                       'Divisi: ${block.divisionName}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
                 ),
               );
             }).toList(),
-      onChanged: widget.selectedEstateId == null ? null : (value) {
-        widget.onBlockChanged(value);
-      },
+      onChanged: widget.selectedEstateId == null
+          ? null
+          : (value) {
+              widget.onBlockChanged(value);
+            },
       validator: (value) {
         if (value == null || value.isEmpty) {
           return 'Blok harus dipilih';
@@ -402,7 +397,7 @@ class _GateCheckFormWidgetState extends State<GateCheckFormWidget> {
 
   Widget _buildWeightField() {
     return TextFormField(
-      initialValue: widget.estimatedWeight > 0 
+      initialValue: widget.estimatedWeight > 0
           ? widget.estimatedWeight.toString()
           : '',
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -410,7 +405,7 @@ class _GateCheckFormWidgetState extends State<GateCheckFormWidget> {
         FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
       ],
       decoration: InputDecoration(
-        labelText: widget.direction == GateCheckDirection.entry 
+        labelText: widget.direction == GateCheckDirection.entry
             ? 'Estimasi Berat Masuk (kg)'
             : 'Berat Keluar (kg)',
         hintText: widget.direction == GateCheckDirection.entry
@@ -421,9 +416,7 @@ class _GateCheckFormWidgetState extends State<GateCheckFormWidget> {
         helperText: widget.direction == GateCheckDirection.entry
             ? 'Perkiraan berat truck saat masuk'
             : 'Berat sebenarnya setelah ditimbang',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
@@ -472,9 +465,7 @@ class _GateCheckFormWidgetState extends State<GateCheckFormWidget> {
             ? 'Contoh: Muatan terlihat segar, tidak ada kerusakan...'
             : 'Contoh: Truck sudah kosong, siap keluar...',
         prefixIcon: Icon(Icons.note_add, color: Colors.brown[600]),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),

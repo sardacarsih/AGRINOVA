@@ -37,6 +37,7 @@ dependencies:
 
   # Biometrics
   local_auth: ^3.0.0
+  local_auth_android: ^2.0.4
 
   # Utilities
   package_info_plus: ^9.0.0
@@ -123,6 +124,8 @@ dependencies:
   
   # Date & Time
   table_calendar: ^3.0.9
+  timezone: ^0.10.1
+  dio: ^5.9.0
   
   # Form & Validation
   reactive_forms: ^18.1.1

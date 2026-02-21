@@ -8,7 +8,7 @@ import '../mandor_theme.dart';
 class MandorNotificationPage extends StatefulWidget {
   final VoidCallback? onClose;
 
-  const MandorNotificationPage({Key? key, this.onClose}) : super(key: key);
+  const MandorNotificationPage({super.key, this.onClose});
 
   @override
   State<MandorNotificationPage> createState() => _MandorNotificationPageState();
@@ -53,10 +53,7 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
     return AppBar(
       title: const Text(
         'Notifikasi',
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 18,
-        ),
+        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
       ),
       backgroundColor: MandorTheme.darkGreen,
       foregroundColor: Colors.white,
@@ -98,9 +95,7 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
 
   Widget _buildLoadingState() {
     return Center(
-      child: CircularProgressIndicator(
-        color: MandorTheme.forestGreen,
-      ),
+      child: CircularProgressIndicator(color: MandorTheme.forestGreen),
     );
   }
 
@@ -122,8 +117,9 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
           if (unreadNotifications.isNotEmpty) ...[
             _buildSectionHeader('Belum Dibaca', unreadNotifications.length),
             const SizedBox(height: 8),
-            ...unreadNotifications
-                .map((notif) => _buildNotificationCard(notif)),
+            ...unreadNotifications.map(
+              (notif) => _buildNotificationCard(notif),
+            ),
             const SizedBox(height: 24),
           ],
 
@@ -143,9 +139,7 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
       children: [
         Text(
           title,
-          style: MandorTheme.labelMedium.copyWith(
-            color: MandorTheme.gray400,
-          ),
+          style: MandorTheme.labelMedium.copyWith(color: MandorTheme.gray400),
         ),
         if (count != null) ...[
           const SizedBox(width: 8),
@@ -175,11 +169,11 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
       decoration: BoxDecoration(
         color: notif.isRead
             ? MandorTheme.gray800
-            : MandorTheme.forestGreen.withOpacity(0.1),
+            : MandorTheme.forestGreen.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: notif.isRead
             ? Border.all(color: MandorTheme.gray700)
-            : Border.all(color: MandorTheme.forestGreen.withOpacity(0.3)),
+            : Border.all(color: MandorTheme.forestGreen.withValues(alpha: 0.3)),
       ),
       child: Material(
         color: Colors.transparent,
@@ -196,7 +190,7 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: _getTypeColor(notif.type).withOpacity(0.2),
+                    color: _getTypeColor(notif.type).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -286,16 +280,16 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
           const SizedBox(height: 8),
           Text(
             'Notifikasi dari Asisten akan muncul di sini',
-            style: MandorTheme.bodySmall.copyWith(
-              color: MandorTheme.gray500,
-            ),
+            style: MandorTheme.bodySmall.copyWith(color: MandorTheme.gray500),
           ),
           const SizedBox(height: 24),
           TextButton.icon(
             onPressed: _loadNotifications,
             icon: Icon(Icons.refresh, color: MandorTheme.forestGreen),
-            label: Text('Refresh',
-                style: TextStyle(color: MandorTheme.forestGreen)),
+            label: Text(
+              'Refresh',
+              style: TextStyle(color: MandorTheme.forestGreen),
+            ),
           ),
         ],
       ),
@@ -348,11 +342,9 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
     }
 
     if (panenId != null && panenId.isNotEmpty) {
-      Navigator.of(context).pop({
-        'tab': 2,
-        'panenId': panenId,
-        'action': action,
-      });
+      Navigator.of(
+        context,
+      ).pop({'tab': 2, 'panenId': panenId, 'action': action});
     }
   }
 
@@ -368,7 +360,8 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
               backgroundColor: MandorTheme.forestGreen,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
           );
         }
@@ -384,10 +377,14 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: MandorTheme.gray800,
-        title: const Text('Hapus Semua Notifikasi?',
-            style: TextStyle(color: Colors.white)),
-        content: const Text('Semua notifikasi akan dihapus secara permanen.',
-            style: TextStyle(color: Colors.white70)),
+        title: const Text(
+          'Hapus Semua Notifikasi?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Semua notifikasi akan dihapus secara permanen.',
+          style: TextStyle(color: Colors.white70),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
@@ -397,23 +394,20 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
             onPressed: () async {
               await _storageService.clearAll();
               await _loadNotifications();
-              if (mounted) {
-                Navigator.of(context).pop();
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Semua notifikasi telah dihapus'),
-                    backgroundColor: MandorTheme.coralRed,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+              if (!context.mounted || !mounted) return;
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(this.context).showSnackBar(
+                SnackBar(
+                  content: const Text('Semua notifikasi telah dihapus'),
+                  backgroundColor: MandorTheme.coralRed,
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                );
-              }
+                ),
+              );
             },
-            child: Text(
-              'Hapus',
-              style: TextStyle(color: MandorTheme.coralRed),
-            ),
+            child: Text('Hapus', style: TextStyle(color: MandorTheme.coralRed)),
           ),
         ],
       ),

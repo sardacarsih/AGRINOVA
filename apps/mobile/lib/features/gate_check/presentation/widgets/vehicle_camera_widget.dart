@@ -26,14 +26,14 @@ class VehicleCameraWidget extends StatefulWidget {
   final VoidCallback? onCancel;
 
   const VehicleCameraWidget({
-    Key? key,
+    super.key,
     required this.gateCheckId,
     required this.vehiclePlate,
     this.category,
     this.notes,
     required this.onPhotoTaken,
     this.onCancel,
-  }) : super(key: key);
+  });
 
   @override
   State<VehicleCameraWidget> createState() => _VehicleCameraWidgetState();
@@ -179,9 +179,7 @@ class _VehicleCameraWidgetState extends State<VehicleCameraWidget>
               children: [
                 Icon(Icons.error, color: Colors.white),
                 SizedBox(width: 8),
-                Expanded(
-                  child: Text(errorMessage),
-                ),
+                Expanded(child: Text(errorMessage)),
               ],
             ),
             backgroundColor: Colors.red,
@@ -217,6 +215,7 @@ class _VehicleCameraWidgetState extends State<VehicleCameraWidget>
 
     try {
       final success = await _cameraService!.switchCamera();
+      if (!mounted) return;
       if (!success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -284,11 +283,7 @@ class _VehicleCameraWidgetState extends State<VehicleCameraWidget>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.camera_alt_outlined,
-              size: 64,
-              color: Colors.red[400],
-            ),
+            Icon(Icons.camera_alt_outlined, size: 64, color: Colors.red[400]),
             SizedBox(height: 16),
             Text(
               'Kamera Tidak Tersedia',
@@ -302,9 +297,7 @@ class _VehicleCameraWidgetState extends State<VehicleCameraWidget>
             Text(
               _errorMessage,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.red[600],
-              ),
+              style: TextStyle(color: Colors.red[600]),
             ),
             SizedBox(height: 20),
             Row(
@@ -342,7 +335,7 @@ class _VehicleCameraWidgetState extends State<VehicleCameraWidget>
       child: Container(
         padding: EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.grey[900]!.withOpacity(0.8),
+          color: Colors.grey[900]!.withValues(alpha: 0.8),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -354,10 +347,7 @@ class _VehicleCameraWidgetState extends State<VehicleCameraWidget>
             SizedBox(height: 16),
             Text(
               'Memuat Kamera...',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 16,
-              ),
+              style: TextStyle(color: Colors.white, fontSize: 16),
             ),
           ],
         ),
@@ -475,10 +465,7 @@ class _VehicleCameraWidgetState extends State<VehicleCameraWidget>
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.grey[300]!,
-                width: 4,
-              ),
+              border: Border.all(color: Colors.grey[300]!, width: 4),
             ),
             child: Material(
               color: Colors.transparent,
@@ -492,8 +479,9 @@ class _VehicleCameraWidgetState extends State<VehicleCameraWidget>
                           height: 24,
                           child: CircularProgressIndicator(
                             strokeWidth: 3,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.blue),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.blue,
+                            ),
                           ),
                         )
                       : Icon(
@@ -519,8 +507,9 @@ class _VehicleCameraWidgetState extends State<VehicleCameraWidget>
                 // TODO: Implement photo gallery/preview
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content:
-                        Text('Gallery akan tersedia dalam update mendatang'),
+                    content: Text(
+                      'Gallery akan tersedia dalam update mendatang',
+                    ),
                     backgroundColor: Colors.orange,
                   ),
                 );
@@ -560,12 +549,14 @@ class _VehicleCameraWidgetState extends State<VehicleCameraWidget>
                     width: double.infinity,
                     decoration: BoxDecoration(
                       color: Colors.black,
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(12)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(12),
+                      ),
                     ),
                     child: ClipRRect(
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(12)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(12),
+                      ),
                       child: Image.file(
                         File(photo.filePath),
                         fit: BoxFit.contain,
@@ -616,23 +607,23 @@ class _VehicleCameraWidgetState extends State<VehicleCameraWidget>
                           Expanded(
                             child: TextButton(
                               onPressed: () => Navigator.of(context).pop(false),
-                              child: Text('AMBIL ULANG'),
                               style: TextButton.styleFrom(
                                 foregroundColor: Colors.orange,
                                 padding: EdgeInsets.symmetric(vertical: 12),
                               ),
+                              child: Text('AMBIL ULANG'),
                             ),
                           ),
                           SizedBox(width: 8),
                           Expanded(
                             child: ElevatedButton(
                               onPressed: () => Navigator.of(context).pop(true),
-                              child: Text('GUNAKAN FOTO'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.green,
                                 foregroundColor: Colors.white,
                                 padding: EdgeInsets.symmetric(vertical: 12),
                               ),
+                              child: Text('GUNAKAN FOTO'),
                             ),
                           ),
                         ],
@@ -658,9 +649,7 @@ class _VehicleCameraWidgetState extends State<VehicleCameraWidget>
                 children: [
                   Icon(Icons.check_circle, color: Colors.white),
                   SizedBox(width: 8),
-                  Expanded(
-                    child: Text('Foto kendaraan berhasil disimpan'),
-                  ),
+                  Expanded(child: Text('Foto kendaraan berhasil disimpan')),
                 ],
               ),
               backgroundColor: Colors.green,
@@ -717,8 +706,6 @@ class _VehicleCameraWidgetState extends State<VehicleCameraWidget>
         return Icons.flash_on;
       case FlashMode.torch:
         return Icons.flashlight_on;
-      default:
-        return Icons.flash_auto;
     }
   }
 }
