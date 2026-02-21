@@ -3,7 +3,7 @@ name: Build Production Artifact
 on:
   workflow_run:
     workflows:
-      - CI
+      - Go and Next CI
     types:
       - completed
     branches:
@@ -111,6 +111,7 @@ jobs:
         shell: pwsh
         run: |
           $dist = "dist"
+          $releaseNotesFile = "RELEASE_NOTES.md"
           $sha = "${{ env.SOURCE_SHA }}"
           $branch = "${{ env.SOURCE_BRANCH }}"
           $repo = "${{ github.repository }}"
@@ -195,7 +196,8 @@ jobs:
           }
           $notes += ""
 
-          Set-Content -Path "$dist\RELEASE_NOTES.md" -Value $notes -Encoding UTF8
+          Set-Content -Path $releaseNotesFile -Value $notes -Encoding UTF8
+          Copy-Item -Path $releaseNotesFile -Destination "$dist\RELEASE_NOTES.md" -Force
 
       - name: Upload production artifact
         uses: actions/upload-artifact@v4
