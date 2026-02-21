@@ -1,0 +1,91 @@
+# =============================================================================
+# BKM Company Bridge
+# Mapping rule dari data source BKM ke company internal
+# =============================================================================
+
+"""
+BkmCompanyBridgeRule merepresentasikan satu rule mapping.
+"""
+type BkmCompanyBridgeRule {
+  id: ID!
+  sourceSystem: String!
+  iddataPrefix: String!
+  estateKey: String
+  divisiKey: String
+  companyId: ID!
+  companyCode: String
+  companyName: String
+  priority: Int!
+  isActive: Boolean!
+  notes: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"""
+Filter untuk listing BKM bridge.
+"""
+input BkmCompanyBridgeFilterInput {
+  search: String
+  companyId: ID
+  sourceSystem: String
+  isActive: Boolean
+}
+
+"""
+Input create BKM bridge.
+"""
+input CreateBkmCompanyBridgeInput {
+  sourceSystem: String = "BKM"
+  iddataPrefix: String!
+  estateKey: String
+  divisiKey: String
+  companyId: ID!
+  priority: Int = 100
+  isActive: Boolean = true
+  notes: String
+}
+
+"""
+Input update BKM bridge.
+"""
+input UpdateBkmCompanyBridgeInput {
+  id: ID!
+  sourceSystem: String
+  iddataPrefix: String
+  estateKey: String
+  divisiKey: String
+  companyId: ID
+  priority: Int
+  isActive: Boolean
+  notes: String
+}
+
+"""
+Response list BKM bridge.
+"""
+type BkmCompanyBridgeListResponse {
+  data: [BkmCompanyBridgeRule!]!
+  totalCount: Int!
+  hasMore: Boolean!
+}
+
+extend type Query {
+  "List bridge mapping BKM -> company"
+  bkmCompanyBridges(
+    filter: BkmCompanyBridgeFilterInput
+    page: Int = 1
+    pageSize: Int = 25
+  ): BkmCompanyBridgeListResponse! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+}
+
+extend type Mutation {
+  "Create bridge mapping BKM -> company"
+  createBkmCompanyBridge(input: CreateBkmCompanyBridgeInput!): BkmCompanyBridgeRule! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+
+  "Update bridge mapping BKM -> company"
+  updateBkmCompanyBridge(input: UpdateBkmCompanyBridgeInput!): BkmCompanyBridgeRule! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+
+  "Delete bridge mapping BKM -> company"
+  deleteBkmCompanyBridge(id: ID!): Boolean! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+}

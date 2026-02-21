@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Login Cookies - Agrinova</title>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container { 
+            background: white; 
+            padding: 30px; 
+            border-radius: 10px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button { 
+            background: #22c55e; 
+            color: white; 
+            border: none; 
+            padding: 12px 24px; 
+            border-radius: 6px; 
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover { background: #16a34a; }
+        .log { 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 6px; 
+            margin: 10px 0;
+            border-left: 4px solid #22c55e;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .error { border-left-color: #ef4444; color: #dc2626; }
+        .success { border-left-color: #22c55e; color: #16a34a; }
+        .info { border-left-color: #3b82f6; color: #2563eb; }
+        h1 { color: #1f2937; margin-bottom: 30px; }
+        h2 { color: #374151; margin-top: 30px; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍪 Debug Login Cookies - Agrinova</h1>
+        
+        <h2>🧪 Cookie Reception Test</h2>
+        <button onclick="testLogin()">Test Login (superadmin)</button>
+        <button onclick="checkCurrentCookies()">Check Current Cookies</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+        
+        <div id="logs" class="log">Ready to test cookie reception...\nClick "Test Login" to debug the cookie setting issue.\n</div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : '🔍';
+            logs.innerHTML += `[${timestamp}] ${prefix} ${message}\n`;
+            logs.scrollTop = logs.scrollHeight;
+            
+            // Also log to browser console
+            if (type === 'error') {
+                console.error(message);
+            } else if (type === 'success') {
+                console.log('✅', message);
+            } else {
+                console.log('🔍', message);
+            }
+        }
+        
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = 'Logs cleared.\n';
+        }
+        
+        function checkCurrentCookies() {
+            log('=== CURRENT BROWSER COOKIES ===');
+            log(`All cookies: "${document.cookie}"`);
+            
+            const cookies = document.cookie.split(';');
+            if (cookies.length === 1 && cookies[0] === '') {
+                log('❌ NO COOKIES FOUND', 'error');
+            } else {
+                cookies.forEach(cookie => {
+                    const [name, value] = cookie.trim().split('=');
+                    log(`  ${name} = ${value ? value.substring(0, 50) + (value.length > 50 ? '...' : '') : 'undefined'}`);
+                });
+            }
+            
+            // Check for specific cookies
+            const hasSessionToken = document.cookie.includes('session_token=');
+            const hasUserInfo = document.cookie.includes('user_info=');
+            const hasXSRFToken = document.cookie.includes('XSRF-TOKEN=');
+            
+            log(`Session Token: ${hasSessionToken ? '✅ FOUND' : '❌ MISSING'}`, hasSessionToken ? 'success' : 'error');
+            log(`User Info: ${hasUserInfo ? '✅ FOUND' : '❌ MISSING'}`, hasUserInfo ? 'success' : 'error');
+            log(`XSRF Token: ${hasXSRFToken ? '✅ FOUND' : '❌ MISSING'}`, hasXSRFToken ? 'success' : 'error');
+        }
+        
+        async function testLogin() {
+            log('=== STARTING LOGIN TEST ===');
+            log('Frontend URL: ' + window.location.origin);
+            log('API URL: http://localhost:3001/api/v1');
+            log('Cross-origin: ' + (window.location.origin !== 'http://localhost:3001'));
+            
+            // Check cookies before login
+            log('--- COOKIES BEFORE LOGIN ---');
+            checkCurrentCookies();
+            
+            try {
+                log('Attempting login with superadmin credentials...');
+                log('Using credentials: include (required for cookie reception)');
+                log('Using x-platform: WEB header');
+                
+                const response = await fetch('http://localhost:3001/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-platform': 'WEB',
+                        'User-Agent': navigator.userAgent,
+                        'Accept': 'application/json',
+                    },
+                    credentials: 'include', // CRITICAL: This enables cookie reception
+                    body: JSON.stringify({
+                        username: 'superadmin',
+                        password: 'demo123',
+                        platform: 'WEB'
+                    })
+                });
+                
+                log(`Response status: ${response.status} ${response.statusText}`);
+                
+                // Check response headers
+                log('--- RESPONSE HEADERS ---');
+                for (let [key, value] of response.headers.entries()) {
+                    log(`${key}: ${value}`);
+                }
+                
+                const responseData = await response.json();
+                log('--- RESPONSE DATA ---');
+                log(JSON.stringify(responseData, null, 2));
+                
+                if (response.ok && responseData.success) {
+                    log('✅ Login API call successful!', 'success');
+                    
+                    // Check cookies immediately after login
+                    log('--- COOKIES IMMEDIATELY AFTER LOGIN ---');
+                    setTimeout(() => {
+                        checkCurrentCookies();
+                    }, 100);
+                    
+                    // Check cookies after delay
+                    setTimeout(() => {
+                        log('--- COOKIES 1 SECOND AFTER LOGIN ---');
+                        checkCurrentCookies();
+                        
+                        // Test API call with cookies
+                        testApiCallWithCookies();
+                    }, 1000);
+                    
+                } else {
+                    log(`❌ Login failed: ${responseData.message || 'Unknown error'}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Login error: ${error.message}`, 'error');
+                log(`Error details: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`, 'error');
+            }
+        }
+        
+        async function testApiCallWithCookies() {
+            log('=== TESTING API CALL WITH COOKIES ===');
+            try {
+                const response = await fetch('http://localhost:3001/api/v1/companies', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include' // Send cookies
+                });
+                
+                log(`Companies API response: ${response.status} ${response.statusText}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log('✅ API call with cookies successful!', 'success');
+                    log(`Companies found: ${data.data?.length || 0}`);
+                } else {
+                    log('❌ API call failed - cookies not working', 'error');
+                    const errorData = await response.text();
+                    log(`Error response: ${errorData}`, 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ API call error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Initial cookie check on page load
+        window.onload = function() {
+            log('🚀 Debug page loaded');
+            log('Frontend: ' + window.location.origin);
+            log('API: http://localhost:3001/api/v1');
+            log('Same origin: ' + (window.location.origin === 'http://localhost:3001' ? 'YES' : 'NO - This might cause cookie issues!'));
+            checkCurrentCookies();
+        };
+    </script>
+</body>
+</html>

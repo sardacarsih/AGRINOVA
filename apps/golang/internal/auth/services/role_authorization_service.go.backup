@@ -1,0 +1,352 @@
+package services
+
+import (
+	"fmt"
+
+	"agrinovagraphql/server/internal/graphql/generated"
+)
+
+// RoleAuthorizationService handles role-based authorization for user management
+type RoleAuthorizationService struct{}
+
+// NewRoleAuthorizationService creates a new role authorization service
+func NewRoleAuthorizationService() *RoleAuthorizationService {
+	return &RoleAuthorizationService{}
+}
+
+// RoleHierarchy defines the hierarchy levels for roles (lower number = higher authority)
+var RoleHierarchy = map[generated.UserRole]int{
+	generated.UserRoleSuperAdmin:   1,
+	generated.UserRoleCompanyAdmin: 2,
+	generated.UserRoleAreaManager:  3,
+	generated.UserRoleManager:      4,
+	generated.UserRoleAsisten:      5,
+	generated.UserRoleMandor:       6,
+	generated.UserRoleSatpam:       7,
+	// TODO: Add back if needed
+	// generated.UserRoleTimbangan:    8,
+	// generated.UserRoleGrading:      9
+}
+
+// RolePermissions defines what operations each role can perform
+var RolePermissions = map[generated.UserRole][]string{
+	generated.UserRoleSuperAdmin: {
+		"user:create", "user:read", "user:update", "user:delete",
+		"user:manage_all", "user:reset_password", "user:toggle_status",
+	},
+	generated.UserRoleCompanyAdmin: {
+		"user:create", "user:read", "user:update", "user:delete",
+		"user:manage_company", "user:reset_password", "user:toggle_status",
+		"create:estate", "read:estate", "update:estate", "delete:estate",
+		"create:division", "read:division", "update:division", "delete:division",
+		"create:block", "read:block", "update:block", "delete:block",
+		"create:employee", "read:employee", "update:employee", "delete:employee",
+		"read:harvest", "view:reports", "export:reports",
+	},
+	generated.UserRoleAreaManager: {
+		"user:read", "user:update_own",
+		"read:harvest", "read:division", "view:reports", "export:reports",
+	},
+	generated.UserRoleManager: {
+		"user:read", "user:update_own",
+		"read:harvest", "read:division", "view:reports",
+	},
+	generated.UserRoleAsisten: {
+		"user:read", "user:update_own",
+		"read:division", "write:division", "read:harvest", "approve:harvest",
+	},
+	generated.UserRoleMandor: {
+		"user:read", "user:update_own",
+		"read:division", "write:division", "read:harvest", "create:harvest",
+	},
+	generated.UserRoleSatpam: {
+		"user:read", "user:update_own",
+		"create:gate_check", "read:gate_check", "update:gate_check",
+	},
+	// generated.UserRoleTimbangan: {
+		"user:read", "user:update_own",
+		"create:weighing", "read:weighing", "update:weighing", "view:reports",
+	},
+	// generated.UserRoleGrading: {
+		"user:read", "user:update_own",
+		"create:grading", "read:grading", "update:grading",
+		"approve:grading", "reject:grading",
+		"read:weighing", // TBS only
+		"view:reports",
+	},
+}
+
+// CanCreateUser checks if a role can create users of a specific target role
+func (s *RoleAuthorizationService) CanCreateUser(requesterRole, targetRole generated.UserRole) bool {
+	// Super admin can create any user
+	if requesterRole == generated.UserRoleSuperAdmin {
+		return true
+	}
+
+	// Company admin can create users except super admin
+	if requesterRole == generated.UserRoleCompanyAdmin {
+		return targetRole != generated.UserRoleSuperAdmin
+	}
+
+	// Other roles cannot create users
+	return false
+}
+
+// CanUpdateUser checks if a role can update a specific user
+func (s *RoleAuthorizationService) CanUpdateUser(requesterRole generated.UserRole, requesterUserID string, targetRole generated.UserRole, targetUserID string) bool {
+	// Super admin can update any user
+	if requesterRole == generated.UserRoleSuperAdmin {
+		return true
+	}
+
+	// Company admin can update users except super admin
+	if requesterRole == generated.UserRoleCompanyAdmin {
+		return targetRole != generated.UserRoleSuperAdmin
+	}
+
+	// Users can update their own profile
+	if requesterUserID == targetUserID {
+		return true
+	}
+
+	return false
+}
+
+// CanDeleteUser checks if a role can delete a specific user
+func (s *RoleAuthorizationService) CanDeleteUser(requesterRole, targetRole generated.UserRole) bool {
+	// Super admin can delete any user except themselves (should be checked separately)
+	if requesterRole == generated.UserRoleSuperAdmin {
+		return true
+	}
+
+	// Company admin can delete users except super admin
+	if requesterRole == generated.UserRoleCompanyAdmin {
+		return targetRole != generated.UserRoleSuperAdmin
+	}
+
+	// Other roles cannot delete users
+	return false
+}
+
+// CanViewUsers checks if a role can view users
+func (s *RoleAuthorizationService) CanViewUsers(requesterRole generated.UserRole) bool {
+	permissions := RolePermissions[requesterRole]
+	for _, permission := range permissions {
+		if permission == "user:read" || permission == "user:manage_all" || permission == "user:manage_company" {
+			return true
+		}
+	}
+	return false
+}
+
+// CanResetPassword checks if a role can reset passwords
+func (s *RoleAuthorizationService) CanResetPassword(requesterRole, targetRole generated.UserRole) bool {
+	// Super admin can reset any password
+	if requesterRole == generated.UserRoleSuperAdmin {
+		return true
+	}
+
+	// Company admin can reset passwords except super admin
+	if requesterRole == generated.UserRoleCompanyAdmin {
+		return targetRole != generated.UserRoleSuperAdmin
+	}
+
+	return false
+}
+
+// CanToggleUserStatus checks if a role can toggle user status
+func (s *RoleAuthorizationService) CanToggleUserStatus(requesterRole, targetRole generated.UserRole) bool {
+	// Super admin can toggle any status
+	if requesterRole == generated.UserRoleSuperAdmin {
+		return true
+	}
+
+	// Company admin can toggle status except super admin
+	if requesterRole == generated.UserRoleCompanyAdmin {
+		return targetRole != generated.UserRoleSuperAdmin
+	}
+
+	return false
+}
+
+// GetAccessibleRoles returns roles that the requester can manage
+func (s *RoleAuthorizationService) GetAccessibleRoles(requesterRole generated.UserRole) []generated.UserRole {
+	switch requesterRole {
+	case generated.UserRoleSuperAdmin:
+		return []generated.UserRole{
+			generated.UserRoleSuperAdmin,
+			generated.UserRoleCompanyAdmin,
+			generated.UserRoleAreaManager,
+			generated.UserRoleManager,
+			generated.UserRoleAsisten,
+			generated.UserRoleMandor,
+			generated.UserRoleSatpam,
+			// generated.UserRoleTimbangan,
+			// generated.UserRoleGrading,
+		}
+	case generated.UserRoleCompanyAdmin:
+		return []generated.UserRole{
+			generated.UserRoleCompanyAdmin,
+			generated.UserRoleAreaManager,
+			generated.UserRoleManager,
+			generated.UserRoleAsisten,
+			generated.UserRoleMandor,
+			generated.UserRoleSatpam,
+			// generated.UserRoleTimbangan,
+			// generated.UserRoleGrading,
+		}
+	default:
+		return []generated.UserRole{requesterRole} // Can only manage themselves
+	}
+}
+
+// GetManageableRoles returns roles that the requester can create/delete
+func (s *RoleAuthorizationService) GetManageableRoles(requesterRole generated.UserRole) []generated.UserRole {
+	switch requesterRole {
+	case generated.UserRoleSuperAdmin:
+		return []generated.UserRole{
+			generated.UserRoleCompanyAdmin,
+			generated.UserRoleAreaManager,
+			generated.UserRoleManager,
+			generated.UserRoleAsisten,
+			generated.UserRoleMandor,
+			generated.UserRoleSatpam,
+		}
+	case generated.UserRoleCompanyAdmin:
+		return []generated.UserRole{
+			generated.UserRoleAreaManager,
+			generated.UserRoleManager,
+			generated.UserRoleAsisten,
+			generated.UserRoleMandor,
+			generated.UserRoleSatpam,
+			// generated.UserRoleTimbangan,
+			// generated.UserRoleGrading,
+		}
+	default:
+		return []generated.UserRole{} // Cannot manage others
+	}
+}
+
+// GetAssignableRoles returns roles that can be assigned by the requester
+func (s *RoleAuthorizationService) GetAssignableRoles(requesterRole generated.UserRole) []generated.UserRole {
+	return s.GetManageableRoles(requesterRole)
+}
+
+// CheckRoleAccess performs comprehensive role access check
+func (s *RoleAuthorizationService) CheckRoleAccess(requesterRole, targetRole generated.UserRole) *generated.RoleAccessCheck {
+	canAccess := s.canAccessRole(requesterRole, targetRole)
+	canManage := s.CanUpdateUser(requesterRole, "", targetRole, "")
+	canAssignRole := s.CanCreateUser(requesterRole, targetRole)
+
+	explanation := s.generateAccessExplanation(requesterRole, targetRole, canAccess, canManage, canAssignRole)
+
+	return &generated.RoleAccessCheck{
+		CanAccess:     canAccess,
+		CanManage:     canManage,
+		CanAssignRole: canAssignRole,
+		RequesterRole: requesterRole,
+		TargetRole:    targetRole,
+		Explanation:   &explanation,
+	}
+}
+
+// canAccessRole checks if requester can access target role
+func (s *RoleAuthorizationService) canAccessRole(requesterRole, targetRole generated.UserRole) bool {
+	requesterLevel := RoleHierarchy[requesterRole]
+	targetLevel := RoleHierarchy[targetRole]
+
+	// Can access roles at same level or lower (higher number)
+	return requesterLevel <= targetLevel
+}
+
+// generateAccessExplanation provides human-readable explanation
+func (s *RoleAuthorizationService) generateAccessExplanation(requesterRole, targetRole generated.UserRole, canAccess, canManage, canAssignRole bool) string {
+	if requesterRole == generated.UserRoleSuperAdmin {
+		return "Super Admin has full access to all roles and operations"
+	}
+
+	if requesterRole == generated.UserRoleCompanyAdmin {
+		if targetRole == generated.UserRoleSuperAdmin {
+			return "Company Admin cannot access Super Admin role"
+		}
+		return "Company Admin can manage all roles except Super Admin"
+	}
+
+	if canAccess {
+		return fmt.Sprintf("%s can view %s but has limited management permissions", requesterRole, targetRole)
+	}
+
+	return fmt.Sprintf("%s does not have permission to access %s", requesterRole, targetRole)
+}
+
+// GetRoleInfo returns detailed information about a role
+func (s *RoleAuthorizationService) GetRoleInfo(role generated.UserRole) *generated.RoleInfo {
+	level := RoleHierarchy[role]
+	permissions := RolePermissions[role]
+
+	// Determine access permissions
+	webAccess := true // All roles have web access in this system
+	mobileAccess := role != generated.UserRoleSuperAdmin && role != generated.UserRoleCompanyAdmin
+
+	return &generated.RoleInfo{
+		Role:         role,
+		Level:        int32(level),
+		Name:         s.getRoleName(role),
+		Description:  s.getRoleDescription(role),
+		Permissions:  permissions,
+		WebAccess:    webAccess,
+		MobileAccess: mobileAccess,
+	}
+}
+
+// getRoleName returns human-readable role name
+func (s *RoleAuthorizationService) getRoleName(role generated.UserRole) string {
+	switch role {
+	case generated.UserRoleSuperAdmin:
+		return "Super Administrator"
+	case generated.UserRoleCompanyAdmin:
+		return "Company Administrator"
+	case generated.UserRoleAreaManager:
+		return "Area Manager"
+	case generated.UserRoleManager:
+		return "Manager"
+	case generated.UserRoleAsisten:
+		return "Assistant"
+	case generated.UserRoleMandor:
+		return "Supervisor"
+	case generated.UserRoleSatpam:
+		return "Security Guard"
+	case // generated.UserRoleTimbangan:
+		return "Weighing Officer"
+	case // generated.UserRoleGrading:
+		return "Grading Officer"
+	default:
+		return string(role)
+	}
+}
+
+// getRoleDescription returns role description
+func (s *RoleAuthorizationService) getRoleDescription(role generated.UserRole) string {
+	switch role {
+	case generated.UserRoleSuperAdmin:
+		return "System-wide administrative access with full control over all operations"
+	case generated.UserRoleCompanyAdmin:
+		return "Company-level administrative access with control over company operations"
+	case generated.UserRoleAreaManager:
+		return "Multi-company monitoring access for area oversight"
+	case generated.UserRoleManager:
+		return "Estate-level management with access to multiple estates"
+	case generated.UserRoleAsisten:
+		return "Division-level assistant with approval and rejection capabilities"
+	case generated.UserRoleMandor:
+		return "Field-level supervisor responsible for harvest data input"
+	case generated.UserRoleSatpam:
+		return "Security personnel with gate check and vehicle monitoring access"
+	case // generated.UserRoleTimbangan:
+		return "Weighing officer responsible for TBS weighing and vehicle weight recording"
+	case // generated.UserRoleGrading:
+		return "Grading officer responsible for TBS quality inspection and grading"
+	default:
+		return "System user role"
+	}
+}

@@ -1,0 +1,182 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Production builds
+/dist
+/build
+/.next/
+/out/
+
+# Environment variables
+.env*
+**/.env*
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs
+*.log
+*.log.*
+*.out
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Next.js build output
+.next
+
+# Nuxt.js build / generate output
+.nuxt
+dist
+
+# Storybook build outputs
+.out
+.storybook-out
+
+# Temporary folders
+tmp/
+temp/
+.tmp/
+
+# Flutter/Dart specific
+apps/mobile/.dart_tool/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/.packages
+apps/mobile/.pub-cache/
+apps/mobile/.pub/
+apps/mobile/build/
+apps/mobile/ios/Pods/
+apps/mobile/ios/.symlinks/
+apps/mobile/ios/Flutter/Flutter.framework
+apps/mobile/ios/Flutter/Flutter.podspec
+apps/mobile/android/.gradle
+apps/mobile/android/captures/
+apps/mobile/android/gradlew
+apps/mobile/android/gradlew.bat
+apps/mobile/android/local.properties
+apps/mobile/android/.project
+apps/mobile/android/.settings/
+apps/mobile/android/app/google-services.json
+apps/mobile/analysis_output*.txt
+apps/mobile/**/*.apk
+apps/mobile/**/*.aab
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Redis dump files
+dump.rdb
+
+# Firebase config (keep template files, ignore actual config)
+**/firebase-config.json
+!**/firebase-config.template.json
+**/firebase.json
+!**/firebase.json.example
+**/firebase-service-account.json
+**/google-services.json
+**/GoogleService-Info.plist
+
+# Prisma
+infra/prisma/migrations/dev.db*
+
+# Release artifacts (do not commit build outputs)
+apps/golang/release/
+apps/mobile/release/
+apps/web/release/
+
+# Go build/test binaries and coverage artifacts
+apps/golang/server
+apps/golang/main
+apps/golang/test-build*
+apps/golang/test-build-server
+apps/golang/test-auth-server
+apps/golang/test-harvest-server
+apps/golang/test-server
+apps/golang/test-server-new
+apps/golang/server-phase0
+apps/golang/pkg/database/test-seeding
+apps/golang/*.exe
+apps/golang/*.test
+apps/golang/coverage.out
+apps/golang/build_errors*.txt
+
+# Web build/cache artifacts
+apps/web/.next/
+apps/web/out/
+apps/web/coverage/
+apps/web/tsconfig.tsbuildinfo
+apps/web/build_*.txt
+apps/web/build_log*.txt
+apps/web/build_error*.txt
+apps/web/build_output*.txt
+apps/web/eslint_warnings*.txt
+apps/web/bundle-analyzer*.html
+apps/web/public/*.apk
+apps/web/public/*.aab
+
+# Common secrets/certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore

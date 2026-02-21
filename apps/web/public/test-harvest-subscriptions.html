@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Harvest Subscriptions Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .auth-section {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .auth-box {
+            flex: 1;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .subscription-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .subscription-box {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.connected { background-color: #d4edda; color: #155724; }
+        .status.disconnected { background-color: #f8d7da; color: #721c24; }
+        .status.connecting { background-color: #fff3cd; color: #856404; }
+        .event-log {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: #f8f9fa;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .event-item {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-left: 3px solid #007bff;
+            background: white;
+        }
+        .event-created { border-left-color: #28a745; }
+        .event-approved { border-left-color: #007bff; }
+        .event-rejected { border-left-color: #dc3545; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { 
+            background: #6c757d; 
+            cursor: not-allowed; 
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .actions-section {
+            display: flex;
+            gap: 20px;
+        }
+        .action-box {
+            flex: 1;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .harvest-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: #f8f9fa;
+        }
+        .harvest-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .harvest-item:hover {
+            background: #e9ecef;
+        }
+        .harvest-item.selected {
+            background: #007bff;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Real-time Harvest Subscriptions Test</h1>
+    <p>This page tests the GraphQL subscription integration for real-time harvest notifications.</p>
+
+    <!-- Authentication Section -->
+    <div class="container">
+        <h2>🔐 Authentication</h2>
+        <div class="auth-section">
+            <div class="auth-box">
+                <h3>MANDOR Login</h3>
+                <input type="text" id="mandorUsername" placeholder="Username" value="mandor1">
+                <input type="password" id="mandorPassword" placeholder="Password" value="password123">
+                <button onclick="authenticateUser('mandor')">Login as MANDOR</button>
+                <div>Status: <span id="mandorStatus" class="status disconnected">Not Authenticated</span></div>
+            </div>
+            <div class="auth-box">
+                <h3>ASISTEN Login</h3>
+                <input type="text" id="asistenUsername" placeholder="Username" value="asisten1">
+                <input type="password" id="asistenPassword" placeholder="Password" value="password123">
+                <button onclick="authenticateUser('asisten')">Login as ASISTEN</button>
+                <div>Status: <span id="asistenStatus" class="status disconnected">Not Authenticated</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subscription Section -->
+    <div class="container">
+        <h2>📡 Real-time Subscriptions</h2>
+        <div class="subscription-section">
+            <div class="subscription-box">
+                <h3>Harvest Created</h3>
+                <button onclick="toggleSubscription('harvestCreated')">Start Subscription</button>
+                <div>Status: <span id="harvestCreatedStatus" class="status disconnected">Disconnected</span></div>
+                <div>Events: <span id="harvestCreatedCount">0</span></div>
+            </div>
+            <div class="subscription-box">
+                <h3>Harvest Approved</h3>
+                <button onclick="toggleSubscription('harvestApproved')">Start Subscription</button>
+                <div>Status: <span id="harvestApprovedStatus" class="status disconnected">Disconnected</span></div>
+                <div>Events: <span id="harvestApprovedCount">0</span></div>
+            </div>
+            <div class="subscription-box">
+                <h3>Harvest Rejected</h3>
+                <button onclick="toggleSubscription('harvestRejected')">Start Subscription</button>
+                <div>Status: <span id="harvestRejectedStatus" class="status disconnected">Disconnected</span></div>
+                <div>Events: <span id="harvestRejectedCount">0</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions Section -->
+    <div class="container">
+        <h2>🎯 Actions</h2>
+        <div class="actions-section">
+            <div class="action-box">
+                <h3>Create Harvest Record</h3>
+                <input type="text" id="blockId" placeholder="Block ID" value="blk-001">
+                <input type="text" id="karyawan" placeholder="Worker Name" value="Test Worker">
+                <input type="number" id="beratTbs" placeholder="Weight (kg)" value="150.5">
+                <input type="number" id="jumlahJanjang" placeholder="Bunch Count" value="25">
+                <button onclick="createHarvestRecord()" id="createBtn">Create Harvest Record</button>
+            </div>
+            <div class="action-box">
+                <h3>Approve/Reject Harvest</h3>
+                <div class="harvest-list" id="harvestList">
+                    <div style="text-align: center; color: #666;">No harvest records created yet</div>
+                </div>
+                <input type="text" id="rejectionReason" placeholder="Rejection reason" value="Test rejection">
+                <button onclick="approveSelectedHarvest()" id="approveBtn" disabled>Approve Selected</button>
+                <button onclick="rejectSelectedHarvest()" id="rejectBtn" disabled>Reject Selected</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Event Log Section -->
+    <div class="container">
+        <h2>📋 Real-time Event Log</h2>
+        <button onclick="clearEventLog()">Clear Log</button>
+        <div class="event-log" id="eventLog">
+            <div style="text-align: center; color: #666;">No events received yet</div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        const state = {
+            tokens: {},
+            users: {},
+            subscriptions: {},
+            events: [],
+            harvestRecords: [],
+            selectedHarvestId: null
+        };
+
+        // GraphQL endpoint
+        const GRAPHQL_URL = 'http://localhost:8080/graphql';
+        const WEBSOCKET_URL = 'ws://localhost:8080/graphql';
+
+        // GraphQL queries and mutations
+        const LOGIN_MUTATION = `
+            mutation MobileLogin($input: MobileLoginInput!) {
+                mobileLogin(input: $input) {
+                    accessToken
+                    user {
+                        id
+                        username
+                        role
+                    }
+                }
+            }
+        `;
+
+        const CREATE_HARVEST_MUTATION = `
+            mutation CreateHarvest($input: CreateHarvestRecordInput!) {
+                createHarvestRecord(input: $input) {
+                    id
+                    status
+                    mandor {
+                        id
+                        nama
+                    }
+                    block {
+                        id
+                        nama
+                    }
+                    beratTbs
+                    jumlahJanjang
+                    createdAt
+                }
+            }
+        `;
+
+        const APPROVE_HARVEST_MUTATION = `
+            mutation ApproveHarvest($input: ApproveHarvestInput!) {
+                approveHarvestRecord(input: $input) {
+                    id
+                    status
+                    approvedBy
+                    approvedAt
+                }
+            }
+        `;
+
+        const REJECT_HARVEST_MUTATION = `
+            mutation RejectHarvest($input: RejectHarvestInput!) {
+                rejectHarvestRecord(input: $input) {
+                    id
+                    status
+                    rejectedReason
+                }
+            }
+        `;
+
+        const SUBSCRIPTIONS = {
+            harvestCreated: `
+                subscription HarvestCreated {
+                    harvestRecordCreated {
+                        id
+                        status
+                        mandor { id nama }
+                        block { id nama }
+                        beratTbs
+                        jumlahJanjang
+                        createdAt
+                    }
+                }
+            `,
+            harvestApproved: `
+                subscription HarvestApproved {
+                    harvestRecordApproved {
+                        id
+                        status
+                        mandor { id nama }
+                        block { id nama }
+                        approvedBy
+                        approvedAt
+                    }
+                }
+            `,
+            harvestRejected: `
+                subscription HarvestRejected {
+                    harvestRecordRejected {
+                        id
+                        status
+                        mandor { id nama }
+                        block { id nama }
+                        rejectedReason
+                    }
+                }
+            `
+        };
+
+        // Utility functions
+        function updateStatus(elementId, text, className) {
+            const element = document.getElementById(elementId);
+            element.textContent = text;
+            element.className = `status ${className}`;
+        }
+
+        function logEvent(type, data) {
+            const timestamp = new Date().toLocaleTimeString();
+            const event = { type, data, timestamp };
+            state.events.push(event);
+
+            const eventLog = document.getElementById('eventLog');
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `event-item event-${type.toLowerCase()}`;
+            eventDiv.innerHTML = `
+                <strong>[${timestamp}] ${type.toUpperCase()}</strong><br>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            
+            if (eventLog.children.length === 1 && eventLog.children[0].style.textAlign === 'center') {
+                eventLog.innerHTML = '';
+            }
+            
+            eventLog.appendChild(eventDiv);
+            eventLog.scrollTop = eventLog.scrollHeight;
+
+            // Update counters
+            const countElement = document.getElementById(`${type}Count`);
+            if (countElement) {
+                const currentCount = parseInt(countElement.textContent) || 0;
+                countElement.textContent = currentCount + 1;
+            }
+        }
+
+        function clearEventLog() {
+            document.getElementById('eventLog').innerHTML = '<div style="text-align: center; color: #666;">No events received yet</div>';
+            state.events = [];
+            // Reset counters
+            ['harvestCreated', 'harvestApproved', 'harvestRejected'].forEach(type => {
+                const countElement = document.getElementById(`${type}Count`);
+                if (countElement) countElement.textContent = '0';
+            });
+        }
+
+        // Authentication
+        async function authenticateUser(userType) {
+            const usernameField = document.getElementById(`${userType}Username`);
+            const passwordField = document.getElementById(`${userType}Password`);
+            const statusElement = `${userType}Status`;
+
+            updateStatus(statusElement, 'Authenticating...', 'connecting');
+
+            try {
+                const response = await fetch(GRAPHQL_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: LOGIN_MUTATION,
+                        variables: {
+                            input: {
+                                identifier: usernameField.value,
+                                password: passwordField.value,
+                                platform: 'ANDROID'
+                            }
+                        }
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.errors) {
+                    throw new Error(result.errors[0].message);
+                }
+
+                if (!result.data.mobileLogin || !result.data.mobileLogin.accessToken) {
+                    throw new Error('Authentication failed');
+                }
+
+                state.tokens[userType] = result.data.mobileLogin.accessToken;
+                state.users[userType] = result.data.mobileLogin.user;
+
+                updateStatus(statusElement, `Authenticated (${state.users[userType].role})`, 'connected');
+                logEvent('Authentication', { userType, user: state.users[userType] });
+
+            } catch (error) {
+                updateStatus(statusElement, `Failed: ${error.message}`, 'disconnected');
+                console.error(`Authentication failed for ${userType}:`, error);
+            }
+        }
+
+        // WebSocket Subscriptions
+        function toggleSubscription(subscriptionType) {
+            if (state.subscriptions[subscriptionType]) {
+                // Stop subscription
+                state.subscriptions[subscriptionType].close();
+                delete state.subscriptions[subscriptionType];
+                updateStatus(`${subscriptionType}Status`, 'Disconnected', 'disconnected');
+                document.querySelector(`#${subscriptionType}Status`).parentElement.previousElementSibling.querySelector('button').textContent = 'Start Subscription';
+            } else {
+                // Start subscription
+                startSubscription(subscriptionType);
+            }
+        }
+
+        function startSubscription(subscriptionType) {
+            if (!state.tokens.mandor) {
+                alert('Please authenticate as MANDOR first');
+                return;
+            }
+
+            updateStatus(`${subscriptionType}Status`, 'Connecting...', 'connecting');
+
+            const ws = new WebSocket(WEBSOCKET_URL, 'graphql-ws');
+            state.subscriptions[subscriptionType] = ws;
+
+            ws.onopen = () => {
+                console.log(`WebSocket connected for ${subscriptionType}`);
+                
+                // Send connection init with authentication
+                ws.send(JSON.stringify({
+                    type: 'connection_init',
+                    payload: {
+                        authorization: `Bearer ${state.tokens.mandor}`
+                    }
+                }));
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    console.log(`${subscriptionType} received:`, message);
+
+                    switch (message.type) {
+                        case 'connection_ack':
+                            console.log(`${subscriptionType} connection acknowledged`);
+                            
+                            // Start subscription
+                            ws.send(JSON.stringify({
+                                id: '1',
+                                type: 'start',
+                                payload: {
+                                    query: SUBSCRIPTIONS[subscriptionType]
+                                }
+                            }));
+                            
+                            updateStatus(`${subscriptionType}Status`, 'Connected', 'connected');
+                            document.querySelector(`#${subscriptionType}Status`).parentElement.previousElementSibling.querySelector('button').textContent = 'Stop Subscription';
+                            break;
+
+                        case 'data':
+                            console.log(`${subscriptionType} received event:`, message.payload.data);
+                            const eventData = Object.values(message.payload.data)[0]; // Extract the actual data
+                            logEvent(subscriptionType, eventData);
+                            break;
+
+                        case 'error':
+                            console.error(`${subscriptionType} error:`, message.payload);
+                            updateStatus(`${subscriptionType}Status`, 'Error', 'disconnected');
+                            break;
+
+                        case 'complete':
+                            console.log(`${subscriptionType} completed`);
+                            break;
+                    }
+                } catch (error) {
+                    console.error(`Failed to parse WebSocket message for ${subscriptionType}:`, error);
+                }
+            };
+
+            ws.onerror = (error) => {
+                console.error(`WebSocket error for ${subscriptionType}:`, error);
+                updateStatus(`${subscriptionType}Status`, 'Error', 'disconnected');
+            };
+
+            ws.onclose = () => {
+                console.log(`WebSocket closed for ${subscriptionType}`);
+                updateStatus(`${subscriptionType}Status`, 'Disconnected', 'disconnected');
+                document.querySelector(`#${subscriptionType}Status`).parentElement.previousElementSibling.querySelector('button').textContent = 'Start Subscription';
+                delete state.subscriptions[subscriptionType];
+            };
+        }
+
+        // Harvest operations
+        async function createHarvestRecord() {
+            if (!state.tokens.mandor) {
+                alert('Please authenticate as MANDOR first');
+                return;
+            }
+
+            const blockId = document.getElementById('blockId').value;
+            const karyawan = document.getElementById('karyawan').value;
+            const beratTbs = parseFloat(document.getElementById('beratTbs').value);
+            const jumlahJanjang = parseInt(document.getElementById('jumlahJanjang').value);
+
+            if (!blockId || !karyawan || !beratTbs || !jumlahJanjang) {
+                alert('Please fill all fields');
+                return;
+            }
+
+            document.getElementById('createBtn').disabled = true;
+
+            try {
+                const response = await fetch(GRAPHQL_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${state.tokens.mandor}`
+                    },
+                    body: JSON.stringify({
+                        query: CREATE_HARVEST_MUTATION,
+                        variables: {
+                            input: {
+                                tanggal: new Date().toISOString(),
+                                mandorId: state.users.mandor.id,
+                                blockId,
+                                karyawan,
+                                beratTbs,
+                                jumlahJanjang
+                            }
+                        }
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.errors) {
+                    throw new Error(result.errors[0].message);
+                }
+
+                const harvestRecord = result.data.createHarvestRecord;
+                state.harvestRecords.push(harvestRecord);
+                updateHarvestList();
+
+                logEvent('Created', harvestRecord);
+                alert(`Harvest record created: ${harvestRecord.id}`);
+
+            } catch (error) {
+                alert(`Failed to create harvest record: ${error.message}`);
+                console.error('Create harvest error:', error);
+            } finally {
+                document.getElementById('createBtn').disabled = false;
+            }
+        }
+
+        function updateHarvestList() {
+            const harvestList = document.getElementById('harvestList');
+            
+            if (state.harvestRecords.length === 0) {
+                harvestList.innerHTML = '<div style="text-align: center; color: #666;">No harvest records created yet</div>';
+                return;
+            }
+
+            harvestList.innerHTML = state.harvestRecords.map(record => `
+                <div class="harvest-item ${record.id === state.selectedHarvestId ? 'selected' : ''}" 
+                     onclick="selectHarvest('${record.id}')">
+                    <strong>ID:</strong> ${record.id}<br>
+                    <strong>Status:</strong> ${record.status}<br>
+                    <strong>Block:</strong> ${record.block.nama}<br>
+                    <strong>Weight:</strong> ${record.beratTbs} kg
+                </div>
+            `).join('');
+        }
+
+        function selectHarvest(harvestId) {
+            state.selectedHarvestId = harvestId;
+            updateHarvestList();
+            
+            const approveBtn = document.getElementById('approveBtn');
+            const rejectBtn = document.getElementById('rejectBtn');
+            
+            if (state.tokens.asisten) {
+                approveBtn.disabled = false;
+                rejectBtn.disabled = false;
+            }
+        }
+
+        async function approveSelectedHarvest() {
+            if (!state.selectedHarvestId) {
+                alert('Please select a harvest record first');
+                return;
+            }
+
+            if (!state.tokens.asisten) {
+                alert('Please authenticate as ASISTEN first');
+                return;
+            }
+
+            document.getElementById('approveBtn').disabled = true;
+
+            try {
+                const response = await fetch(GRAPHQL_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${state.tokens.asisten}`
+                    },
+                    body: JSON.stringify({
+                        query: APPROVE_HARVEST_MUTATION,
+                        variables: {
+                            input: {
+                                id: state.selectedHarvestId,
+                                approvedBy: state.users.asisten.id
+                            }
+                        }
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.errors) {
+                    throw new Error(result.errors[0].message);
+                }
+
+                const approvedRecord = result.data.approveHarvestRecord;
+                logEvent('Approved', approvedRecord);
+                alert(`Harvest record approved: ${approvedRecord.id}`);
+
+                // Update local record status
+                const record = state.harvestRecords.find(r => r.id === state.selectedHarvestId);
+                if (record) {
+                    record.status = 'APPROVED';
+                    updateHarvestList();
+                }
+
+            } catch (error) {
+                alert(`Failed to approve harvest record: ${error.message}`);
+                console.error('Approve harvest error:', error);
+            } finally {
+                document.getElementById('approveBtn').disabled = false;
+            }
+        }
+
+        async function rejectSelectedHarvest() {
+            if (!state.selectedHarvestId) {
+                alert('Please select a harvest record first');
+                return;
+            }
+
+            if (!state.tokens.asisten) {
+                alert('Please authenticate as ASISTEN first');
+                return;
+            }
+
+            const rejectionReason = document.getElementById('rejectionReason').value;
+            if (!rejectionReason) {
+                alert('Please enter a rejection reason');
+                return;
+            }
+
+            document.getElementById('rejectBtn').disabled = true;
+
+            try {
+                const response = await fetch(GRAPHQL_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${state.tokens.asisten}`
+                    },
+                    body: JSON.stringify({
+                        query: REJECT_HARVEST_MUTATION,
+                        variables: {
+                            input: {
+                                id: state.selectedHarvestId,
+                                rejectedReason
+                            }
+                        }
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.errors) {
+                    throw new Error(result.errors[0].message);
+                }
+
+                const rejectedRecord = result.data.rejectHarvestRecord;
+                logEvent('Rejected', rejectedRecord);
+                alert(`Harvest record rejected: ${rejectedRecord.id}`);
+
+                // Update local record status
+                const record = state.harvestRecords.find(r => r.id === state.selectedHarvestId);
+                if (record) {
+                    record.status = 'REJECTED';
+                    updateHarvestList();
+                }
+
+            } catch (error) {
+                alert(`Failed to reject harvest record: ${error.message}`);
+                console.error('Reject harvest error:', error);
+            } finally {
+                document.getElementById('rejectBtn').disabled = false;
+            }
+        }
+
+        // Auto-start test
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Real-time Harvest Subscriptions Test loaded');
+        });
+    </script>
+</body>
+</html>

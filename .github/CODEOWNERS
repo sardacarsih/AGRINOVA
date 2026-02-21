@@ -1,0 +1,14 @@
+# Default owner for all files
+* @sardacarsih
+
+# Backend
+/apps/golang/ @sardacarsih
+
+# Web
+/apps/web/ @sardacarsih
+
+# Mobile
+/apps/mobile/ @sardacarsih
+
+# CI/CD workflows
+/.github/workflows/ @sardacarsih

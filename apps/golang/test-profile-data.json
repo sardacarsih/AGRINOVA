@@ -1,0 +1,3 @@
+{
+    "query": "mutation { mobileLogin(input: {identifier: \"mandor\", password: \"demo123\", platform: ANDROID}) { user { id username name managerId manager { id name } } assignments { companies { id name } estates { id name } divisions { id name code } } } }"
+}

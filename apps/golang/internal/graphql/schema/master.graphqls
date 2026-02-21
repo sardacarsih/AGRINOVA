@@ -1,0 +1,630 @@
+# =============================================================================
+# Master Data Schema (Company, Estate, Blocks, Assignments)
+# =============================================================================
+
+"""
+Company represents a palm oil company entity.
+"""
+type Company {
+  id: ID!
+  name: String!
+  companyCode: String!
+  code: String! @goField(name: "CompanyCode")
+  description: String
+  logoUrl: String
+  address: String
+  phone: String
+  status: CompanyStatus!
+  isActive: Boolean!
+  estates: [Estate!]!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+enum CompanyStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+"""
+Estate represents a plantation estate.
+"""
+type Estate {
+  id: ID!
+  name: String!
+  code: String!
+  location: String
+  luasHa: Float
+  companyId: String!
+  company: Company!
+  divisions: [Division!]!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"""
+Block represents a plantation block within a division.
+"""
+type Block {
+  id: ID!
+  blockCode: String!
+  name: String!
+  luasHa: Float
+  cropType: String
+  plantingYear: Int
+  status: String!
+  istm: String!
+  perlakuan: String
+  tarifBlokId: ID
+  tarifBlok: TarifBlok
+  divisionId: String!
+  division: Division!
+  harvestRecords: [HarvestRecord!]!
+  isActive: Boolean!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"""
+TarifBlok is master treatment data mapped one-to-many to blocks.
+"""
+type TarifBlok {
+  id: ID!
+  companyId: String!
+  company: Company
+  perlakuan: String!
+  basis: Float
+  tarifUpah: Float
+  premi: Float
+  tarifPremi1: Float
+  tarifPremi2: Float
+  tarifLibur: Float
+  tarifLebaran: Float
+  isActive: Boolean!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"""
+Division represents a division within an estate for organizational structure.
+"""
+type Division {
+  id: ID!
+  name: String!
+  code: String!
+  estateId: ID!
+  estate: Estate!
+  blocks: [Block!]!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+# =============================================================================
+# Assignment Types for Role-Based Access Control
+# =============================================================================
+
+"""
+UserAssignments represents all assignment data for a user.
+Used in login response to provide client with access scope information.
+"""
+type UserAssignments {
+  "Estates assigned to Manager role (multiple estates per company)"
+  estates: [Estate!]!
+  "Divisions assigned to Asisten and Mandor roles (multiple divisions across estates)"
+  divisions: [Division!]!
+  "Companies assigned to Area Manager role (multiple companies)"
+  companies: [Company!]!
+}
+
+"""
+UserEstateAssignment represents Manager assignments to multiple estates.
+"""
+type UserEstateAssignment {
+  id: ID!
+  assignmentId: ID!
+  userId: ID!
+  estateId: ID!
+  estate: Estate!
+  divisionAssignments: [UserDivisionAssignment!]
+  isActive: Boolean!
+  assignedBy: ID
+  assignedAt: Time!
+  createdAt: Time!
+  updatedAt: Time!
+  user: User
+}
+
+"""
+UserDivisionAssignment represents Asisten assignments to multiple divisions.
+"""
+type UserDivisionAssignment {
+  id: ID!
+  estateAssignmentId: ID!
+  userId: ID!
+  divisionId: ID!
+  division: Division!
+  isActive: Boolean!
+  assignedBy: ID
+  assignedAt: Time!
+  createdAt: Time!
+  updatedAt: Time!
+  user: User
+}
+
+"""
+UserCompanyAssignment represents Area Manager assignments to multiple companies.
+"""
+type UserCompanyAssignment {
+  id: ID!
+  userId: ID!
+  companyId: ID!
+  company: Company!
+  estateAssignments: [UserEstateAssignment!]
+  isActive: Boolean!
+  assignedBy: ID
+  assignedAt: Time!
+  createdAt: Time!
+  updatedAt: Time!
+  user: User
+}
+
+input CreateCompanyInput {
+  name: String!
+  companyCode: String!
+  description: String
+  logoUrl: String
+  address: String
+  phone: String
+  status: CompanyStatus
+  isActive: Boolean
+}
+
+input UpdateCompanyInput {
+  id: ID!
+  name: String
+  companyCode: String
+  description: String
+  logoUrl: String
+  address: String
+  phone: String
+  status: CompanyStatus
+}
+
+input CreateEstateInput {
+  name: String!
+  code: String!
+  location: String
+  luasHa: Float
+  companyId: String!
+}
+
+input UpdateEstateInput {
+  id: ID!
+  name: String
+  code: String
+  location: String
+  luasHa: Float
+}
+
+input CreateBlockInput {
+  blockCode: String!
+  name: String!
+  luasHa: Float
+  cropType: String
+  plantingYear: Int
+  status: String
+  istm: String
+  tarifBlokId: ID
+  divisionId: String!
+}
+
+input UpdateBlockInput {
+  id: ID!
+  blockCode: String
+  name: String
+  luasHa: Float
+  cropType: String
+  plantingYear: Int
+  status: String
+  istm: String
+  tarifBlokId: ID
+}
+
+input CreateTarifBlokInput {
+  companyId: ID!
+  perlakuan: String!
+  basis: Float
+  tarifUpah: Float
+  premi: Float
+  tarifPremi1: Float
+  tarifPremi2: Float
+  tarifLibur: Float
+  tarifLebaran: Float
+  isActive: Boolean
+}
+
+input UpdateTarifBlokInput {
+  id: ID!
+  companyId: ID
+  perlakuan: String
+  basis: Float
+  tarifUpah: Float
+  premi: Float
+  tarifPremi1: Float
+  tarifPremi2: Float
+  tarifLibur: Float
+  tarifLebaran: Float
+  isActive: Boolean
+}
+
+input CreateDivisionInput {
+  name: String!
+  code: String!
+  estateId: String!
+}
+
+input UpdateDivisionInput {
+  id: ID!
+  name: String
+  code: String
+}
+
+"""
+CompanyPaginationResponse represents a paginated list of companies.
+"""
+type CompanyPaginationResponse {
+  "List of companies"
+  data: [Company!]!
+  "Pagination metadata"
+  pagination: Pagination!
+}
+
+"""
+BlockPaginationResponse represents a paginated list of blocks.
+"""
+type BlockPaginationResponse {
+  "List of blocks"
+  data: [Block!]!
+  "Pagination metadata"
+  pagination: Pagination!
+}
+
+"""
+Pagination metadata for list responses.
+"""
+type Pagination {
+  "Current page number"
+  page: Int!
+  "Number of items per page"
+  limit: Int!
+  "Total number of items"
+  total: Int!
+  "Total number of pages"
+  pages: Int!
+}
+
+# Master data queries
+extend type Query {
+  # Company Management Queries
+  "Get all companies with optional filtering and pagination"
+  companies(search: String, isActive: Boolean, page: Int, limit: Int): CompanyPaginationResponse! @requireAuth
+  
+  "Get specific company by ID"
+  company(id: ID!): Company @requireAuth
+  
+  # Estate Management Queries
+  "Retrieve all estates across companies"
+  estates: [Estate!]!
+  "Get a specific estate by ID"
+  estate(id: ID!): Estate
+  
+  # Block Management Queries
+  "Retrieve all plantation blocks"
+  blocks: [Block!]!
+  "Retrieve plantation blocks with pagination and optional filters"
+  blocksPaginated(
+    companyId: ID
+    search: String
+    page: Int = 1
+    limit: Int = 20
+  ): BlockPaginationResponse!
+  "Get a specific block by ID"
+  block(id: ID!): Block
+  "Retrieve master tariff/treatment data for blocks"
+  tarifBloks: [TarifBlok!]!
+  
+  # Division Management Queries
+  "Retrieve all divisions"
+  divisions: [Division!]!
+  "Get a specific division by ID"
+  division(id: ID!): Division
+  
+  # Assignment Management Queries
+  "Get current user's assignment scope for role-based access"
+  myAssignments: UserAssignments!
+  "Get all estate assignments for Manager role"
+  estateAssignments: [UserEstateAssignment!]!
+  "Get all division assignments for Asisten role"
+  divisionAssignments: [UserDivisionAssignment!]!
+  "Get all company assignments for Area Manager role"
+  companyAssignments: [UserCompanyAssignment!]!
+}
+
+# Master data mutations
+extend type Mutation {
+  # Company mutations
+  createCompany(input: CreateCompanyInput!): Company!
+  updateCompany(input: UpdateCompanyInput!): Company!
+  deleteCompany(id: ID!): Boolean!
+  
+  # Estate mutations
+  createEstate(input: CreateEstateInput!): Estate!
+  updateEstate(input: UpdateEstateInput!): Estate!
+  deleteEstate(id: ID!): Boolean!
+  
+  # Block mutations
+  createBlock(input: CreateBlockInput!): Block!
+  updateBlock(input: UpdateBlockInput!): Block!
+  deleteBlock(id: ID!): Boolean!
+  createTarifBlok(input: CreateTarifBlokInput!): TarifBlok!
+  updateTarifBlok(input: UpdateTarifBlokInput!): TarifBlok!
+  deleteTarifBlok(id: ID!): Boolean!
+  
+  # Division mutations
+  createDivision(input: CreateDivisionInput!): Division!
+  updateDivision(input: UpdateDivisionInput!): Division!
+  deleteDivision(id: ID!): Boolean!
+  
+  # Assignment Management Mutations
+  "Assign Manager to multiple estates"
+  assignUserToEstate(userId: ID!, estateId: ID!): UserEstateAssignment!
+  "Assign Asisten to multiple divisions"
+  assignUserToDivision(userId: ID!, divisionId: ID!): UserDivisionAssignment!
+  "Assign Area Manager to multiple companies (Super Admin only)"
+  assignUserToCompany(userId: ID!, companyId: ID!): UserCompanyAssignment!
+  "Remove estate assignment"
+  removeEstateAssignment(id: ID!): Boolean!
+  "Remove division assignment"
+  removeDivisionAssignment(id: ID!): Boolean!
+  "Remove company assignment"
+  removeCompanyAssignment(id: ID!): Boolean!
+}# Employee Schema for HRIS Integration
+
+type Employee {
+  id: ID!
+  nik: String!
+  name: String!
+  role: String! # e.g., "HARVESTER", "DRIVER", "SECURITY"
+  companyId: ID!
+  divisionId: ID
+  photoUrl: String
+  isActive: Boolean!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type EmployeePaginationResponse {
+  data: [Employee!]!
+  pagination: Pagination!
+}
+
+type Vehicle {
+  id: ID!
+  companyId: ID!
+  registrationPlate: String!
+  chassisNumber: String!
+  engineNumber: String!
+  manufactureYear: Int!
+  vehicleCategory: String!
+  brand: String!
+  model: String!
+  registrationRegion: String
+  vehicleType: String!
+  assignedDriverName: String
+  notes: String
+  isActive: Boolean!
+  status: String!
+  deactivatedAt: Time
+  stnkExpiryDate: Time
+  kirExpiryDate: Time
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type VehiclePaginationResponse {
+  data: [Vehicle!]!
+  pagination: Pagination!
+}
+
+type VehicleTax {
+  id: ID!
+  vehicleId: ID!
+  taxYear: Int!
+  dueDate: Time!
+  pkbAmount: Float!
+  swdklljAmount: Float!
+  adminAmount: Float!
+  penaltyAmount: Float!
+  totalAmount: Float!
+  paymentDate: Time
+  paymentMethod: String
+  paymentReference: String
+  taxStatus: String!
+  notes: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+type VehicleTaxDocument {
+  id: ID!
+  vehicleTaxId: ID!
+  documentType: String!
+  filePath: String!
+  uploadedBy: Int
+  uploadedAt: Time!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+input CreateVehicleInput {
+  companyId: ID
+  registrationPlate: String!
+  chassisNumber: String!
+  engineNumber: String!
+  manufactureYear: Int!
+  vehicleCategory: String!
+  brand: String!
+  model: String!
+  registrationRegion: String
+  vehicleType: String!
+  assignedDriverName: String
+  notes: String
+  isActive: Boolean
+  status: String
+  stnkExpiryDate: Time
+  kirExpiryDate: Time
+}
+
+input CreateVehicleTaxInput {
+  vehicleId: ID!
+  taxYear: Int!
+  dueDate: Time!
+  pkbAmount: Float!
+  swdklljAmount: Float!
+  adminAmount: Float!
+  penaltyAmount: Float!
+  totalAmount: Float
+  paymentDate: Time
+  paymentMethod: String
+  paymentReference: String
+  taxStatus: String
+  notes: String
+}
+
+input CreateVehicleTaxDocumentInput {
+  vehicleTaxId: ID!
+  documentType: String!
+  filePath: String!
+}
+
+input UpdateVehicleInput {
+  id: ID!
+  registrationPlate: String
+  chassisNumber: String
+  engineNumber: String
+  manufactureYear: Int
+  vehicleCategory: String
+  brand: String
+  model: String
+  registrationRegion: String
+  vehicleType: String
+  assignedDriverName: String
+  notes: String
+  isActive: Boolean
+  status: String
+  deactivatedAt: Time
+  stnkExpiryDate: Time
+  kirExpiryDate: Time
+}
+
+input UpdateVehicleTaxInput {
+  id: ID!
+  taxYear: Int
+  dueDate: Time
+  pkbAmount: Float
+  swdklljAmount: Float
+  adminAmount: Float
+  penaltyAmount: Float
+  totalAmount: Float
+  paymentDate: Time
+  paymentMethod: String
+  paymentReference: String
+  taxStatus: String
+  notes: String
+}
+
+input CreateEmployeeInput {
+  nik: String!
+  name: String!
+  role: String!
+  companyId: ID!
+  divisionId: ID
+  photoUrl: String
+}
+
+input UpdateEmployeeInput {
+  id: ID!
+  name: String
+  role: String
+  companyId: ID
+  divisionId: ID
+  photoUrl: String
+  isActive: Boolean
+}
+
+input SyncEmployeeInput {
+  nik: String!
+  name: String!
+  role: String!
+  companyId: ID!
+  photoUrl: String
+  isActive: Boolean!
+}
+
+extend type Query {
+  employees: [Employee!]!
+  employeesPaginated(
+    companyId: ID
+    search: String
+    employeeType: String
+    isActive: Boolean
+    divisionId: ID
+    sortBy: String = "name"
+    sortOrder: String = "asc"
+    page: Int = 1
+    limit: Int = 20
+  ): EmployeePaginationResponse!
+  employee(id: ID!): Employee
+  employeeByNIK(nik: String!, companyId: ID!): Employee
+  employeesByCompany(companyId: ID!): [Employee!]!
+  vehicles(companyId: ID, search: String, isActive: Boolean): [Vehicle!]!
+  vehiclesPaginated(
+    companyId: ID
+    search: String
+    isActive: Boolean
+    page: Int = 1
+    limit: Int = 20
+  ): VehiclePaginationResponse!
+  vehicle(id: ID!): Vehicle
+  vehicleTaxes(vehicleId: ID!, taxYear: Int, taxStatus: String): [VehicleTax!]!
+  vehicleTax(id: ID!): VehicleTax
+  vehicleTaxDocuments(vehicleTaxId: ID!): [VehicleTaxDocument!]!
+}
+
+extend type Mutation {
+  createEmployee(input: CreateEmployeeInput!): Employee!
+  updateEmployee(input: UpdateEmployeeInput!): Employee!
+  syncEmployees(input: [SyncEmployeeInput!]!): [Employee!]!
+  createVehicle(input: CreateVehicleInput!): Vehicle!
+  updateVehicle(input: UpdateVehicleInput!): Vehicle!
+  deleteVehicle(id: ID!): Boolean!
+  createVehicleTax(input: CreateVehicleTaxInput!): VehicleTax!
+  updateVehicleTax(input: UpdateVehicleTaxInput!): VehicleTax!
+  deleteVehicleTax(id: ID!): Boolean!
+  createVehicleTaxDocument(input: CreateVehicleTaxDocumentInput!): VehicleTaxDocument!
+  deleteVehicleTaxDocument(id: ID!): Boolean!
+}
+extend type Subscription {
+  "Company created"
+  companyCreated: Company! @requireAuth @hasRole(roles: [SUPER_ADMIN, AREA_MANAGER, COMPANY_ADMIN])
+  
+  "Company updated"
+  companyUpdated: Company! @requireAuth @hasRole(roles: [SUPER_ADMIN, AREA_MANAGER, COMPANY_ADMIN])
+  
+  "Company deleted"
+  companyDeleted: ID! @requireAuth @hasRole(roles: [SUPER_ADMIN])
+  
+  "Company status changed"
+  companyStatusChanged: Company! @requireAuth @hasRole(roles: [SUPER_ADMIN, AREA_MANAGER, COMPANY_ADMIN])
+}

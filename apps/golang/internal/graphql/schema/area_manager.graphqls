@@ -1,0 +1,446 @@
+# =============================================================================
+# Area Manager Role Schema
+# Features: Multi-Company Dashboard, Cross-Company Analytics, Regional Reports
+# =============================================================================
+
+# =============================================================================
+# AREA MANAGER DASHBOARD TYPES
+# =============================================================================
+
+"""
+AreaManagerDashboardData represents dashboard for Area Manager.
+"""
+type AreaManagerDashboardData {
+  "User information"
+  user: User!
+  "Companies assigned"
+  companies: [Company!]!
+  "Overall statistics"
+  stats: AreaManagerStats!
+  "Company performance overview"
+  companyPerformance: [CompanyPerformanceData!]!
+  "Regional alerts"
+  alerts: [RegionalAlert!]!
+  "Action items"
+  actionItems: [AreaManagerActionItem!]!
+}
+
+"""
+AreaManagerStats for overall statistics.
+"""
+type AreaManagerStats {
+  "Total companies managed"
+  totalCompanies: Int!
+  "Total estates across companies"
+  totalEstates: Int!
+  "Total divisions"
+  totalDivisions: Int!
+  "Total employees"
+  totalEmployees: Int!
+  "Today's production (tons)"
+  todayProduction: Float!
+  "Monthly production (tons)"
+  monthlyProduction: Float!
+  "Monthly target (tons)"
+  monthlyTarget: Float!
+  "Target achievement percentage"
+  targetAchievement: Float!
+  "Average efficiency"
+  avgEfficiency: Float!
+  "Top performing company"
+  topPerformingCompany: String
+}
+
+"""
+CompanyPerformanceData for company performance.
+"""
+type CompanyPerformanceData {
+  "Company ID"
+  companyId: ID!
+  "Company name"
+  companyName: String!
+  "Estates count"
+  estatesCount: Int!
+  "Today's production"
+  todayProduction: Float!
+  "Monthly production"
+  monthlyProduction: Float!
+  "Target achievement"
+  targetAchievement: Float!
+  "Efficiency score"
+  efficiencyScore: Float!
+  "Quality score"
+  qualityScore: Float!
+  "Trend"
+  trend: TrendDirection!
+  "Status"
+  status: CompanyHealthStatus!
+  "Pending issues"
+  pendingIssues: Int!
+}
+
+"""
+CompanyHealthStatus enum.
+"""
+enum CompanyHealthStatus {
+  EXCELLENT
+  GOOD
+  WARNING
+  CRITICAL
+}
+
+"""
+RegionalAlert for alerts.
+"""
+type RegionalAlert {
+  "Alert ID"
+  id: ID!
+  "Alert type"
+  type: RegionalAlertType!
+  "Severity"
+  severity: AlertSeverity!
+  "Title"
+  title: String!
+  "Message"
+  message: String!
+  "Related company"
+  companyId: String
+  "Related company name"
+  companyName: String
+  "Created at"
+  createdAt: Time!
+  "Is read"
+  isRead: Boolean!
+}
+
+"""
+RegionalAlertType enum.
+"""
+enum RegionalAlertType {
+  "Production below target"
+  PRODUCTION_BELOW_TARGET
+  "Quality issue"
+  QUALITY_ISSUE
+  "Staff shortage"
+  STAFF_SHORTAGE
+  "Equipment issue"
+  EQUIPMENT_ISSUE
+  "Compliance issue"
+  COMPLIANCE_ISSUE
+  "Security alert"
+  SECURITY_ALERT
+}
+
+"""
+AlertSeverity enum.
+"""
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+"""
+AreaManagerActionItem for action items.
+"""
+type AreaManagerActionItem {
+  "Item ID"
+  id: ID!
+  "Type"
+  type: AreaManagerActionType!
+  "Title"
+  title: String!
+  "Description"
+  description: String
+  "Company ID"
+  companyId: String
+  "Priority"
+  priority: ActionPriority!
+  "Due date"
+  dueDate: Time
+  "Status"
+  status: ActionItemStatus!
+}
+
+"""
+AreaManagerActionType enum.
+"""
+enum AreaManagerActionType {
+  "Review company report"
+  REVIEW_REPORT
+  "Approve manager request"
+  APPROVE_REQUEST
+  "Address compliance issue"
+  ADDRESS_COMPLIANCE
+  "Visit site"
+  SITE_VISIT
+  "Review budget"
+  REVIEW_BUDGET
+}
+
+"""
+ActionItemStatus enum.
+"""
+enum ActionItemStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DEFERRED
+}
+
+# =============================================================================
+# AREA MANAGER ANALYTICS TYPES
+# =============================================================================
+
+"""
+AreaManagerAnalyticsData for analytics.
+"""
+type AreaManagerAnalyticsData {
+  "Period"
+  period: AnalyticsPeriod!
+  "Production comparison"
+  productionComparison: CompanyProductionComparison!
+  "Efficiency comparison"
+  efficiencyComparison: CompanyEfficiencyComparison!
+  "Quality comparison"
+  qualityComparison: CompanyQualityComparison!
+  "Regional trends"
+  regionalTrends: RegionalTrends!
+}
+
+"""
+CompanyProductionComparison for production comparison.
+"""
+type CompanyProductionComparison {
+  "Company data"
+  companies: [CompanyProductionData!]!
+  "Total production"
+  totalProduction: Float!
+  "vs Previous period"
+  vsPreviousPeriod: Float!
+}
+
+"""
+CompanyProductionData for company production.
+"""
+type CompanyProductionData {
+  "Company ID"
+  companyId: ID!
+  "Company name"
+  companyName: String!
+  "Production"
+  production: Float!
+  "Target"
+  target: Float!
+  "Achievement"
+  achievement: Float!
+  "Rank"
+  rank: Int!
+}
+
+"""
+CompanyEfficiencyComparison for efficiency comparison.
+"""
+type CompanyEfficiencyComparison {
+  "Company data"
+  companies: [CompanyEfficiencyData!]!
+  "Average efficiency"
+  avgEfficiency: Float!
+}
+
+"""
+CompanyEfficiencyData for company efficiency.
+"""
+type CompanyEfficiencyData {
+  "Company ID"
+  companyId: ID!
+  "Company name"
+  companyName: String!
+  "Labor efficiency"
+  laborEfficiency: Float!
+  "Resource efficiency"
+  resourceEfficiency: Float!
+  "Overall score"
+  overallScore: Float!
+  "Rank"
+  rank: Int!
+}
+
+"""
+CompanyQualityComparison for quality comparison.
+"""
+type CompanyQualityComparison {
+  "Company data"
+  companies: [CompanyQualityData!]!
+  "Average quality"
+  avgQuality: Float!
+}
+
+"""
+CompanyQualityData for company quality.
+"""
+type CompanyQualityData {
+  "Company ID"
+  companyId: ID!
+  "Company name"
+  companyName: String!
+  "Grade A percentage"
+  gradeAPercentage: Float!
+  "Avg BJR"
+  avgBjr: Float!
+  "Quality score"
+  qualityScore: Float!
+  "Rank"
+  rank: Int!
+}
+
+"""
+RegionalTrends for regional trends.
+"""
+type RegionalTrends {
+  "Production trend"
+  productionTrend: [TrendDataPoint!]!
+  "Efficiency trend"
+  efficiencyTrend: [TrendDataPoint!]!
+  "Quality trend"
+  qualityTrend: [TrendDataPoint!]!
+}
+
+# =============================================================================
+# AREA MANAGER REPORTS
+# =============================================================================
+
+"""
+RegionalReportData for regional reports.
+"""
+type RegionalReportData {
+  "Report period"
+  period: String!
+  "Generated at"
+  generatedAt: Time!
+  "Executive summary"
+  executiveSummary: ExecutiveSummary!
+  "Company details"
+  companyDetails: [CompanyReportDetail!]!
+  "Recommendations"
+  recommendations: [String!]!
+}
+
+"""
+ExecutiveSummary for executive summary.
+"""
+type ExecutiveSummary {
+  "Total production"
+  totalProduction: Float!
+  "vs Target"
+  vsTarget: Float!
+  "vs Last period"
+  vsLastPeriod: Float!
+  "Key achievements"
+  keyAchievements: [String!]!
+  "Key challenges"
+  keyChallenges: [String!]!
+}
+
+"""
+CompanyReportDetail for company report.
+"""
+type CompanyReportDetail {
+  "Company ID"
+  companyId: ID!
+  "Company name"
+  companyName: String!
+  "Production"
+  production: Float!
+  "Target achievement"
+  targetAchievement: Float!
+  "Quality score"
+  qualityScore: Float!
+  "Efficiency score"
+  efficiencyScore: Float!
+  "Issues count"
+  issuesCount: Int!
+  "Recommendations"
+  recommendations: [String!]!
+}
+
+# =============================================================================
+# AREA MANAGER QUERIES
+# =============================================================================
+
+extend type Query {
+  "Get area manager dashboard"
+  areaManagerDashboard: AreaManagerDashboardData! @requireAuth @hasRole(roles: [AREA_MANAGER])
+  
+  "Get company details for area manager"
+  areaManagerCompanyDetail(companyId: ID!): CompanyPerformanceData! @requireAuth @hasRole(roles: [AREA_MANAGER])
+  
+  "Get area manager analytics"
+  areaManagerAnalytics(
+    period: AnalyticsPeriod!
+    companyIds: [ID!]
+  ): AreaManagerAnalyticsData! @requireAuth @hasRole(roles: [AREA_MANAGER])
+  
+  "Get regional report"
+  regionalReport(
+    period: AnalyticsPeriod!
+    month: Int
+    year: Int
+  ): RegionalReportData! @requireAuth @hasRole(roles: [AREA_MANAGER])
+  
+  "Get all managers under area manager"
+  managersUnderArea(companyId: ID): [User!]! @requireAuth @hasRole(roles: [AREA_MANAGER])
+  
+  "Get regional alerts"
+  regionalAlerts(
+    companyId: ID
+    severity: AlertSeverity
+    unreadOnly: Boolean = false
+  ): [RegionalAlert!]! @requireAuth @hasRole(roles: [AREA_MANAGER])
+}
+
+# =============================================================================
+# AREA MANAGER MUTATIONS
+# =============================================================================
+
+extend type Mutation {
+  "Mark alert as read"
+  markAlertRead(alertId: ID!): Boolean! @requireAuth @hasRole(roles: [AREA_MANAGER])
+  
+  "Create action item"
+  createAreaManagerActionItem(
+    type: AreaManagerActionType!
+    title: String!
+    description: String
+    companyId: ID
+    priority: ActionPriority!
+    dueDate: Time
+  ): AreaManagerActionItem! @requireAuth @hasRole(roles: [AREA_MANAGER])
+  
+  "Update action item status"
+  updateActionItemStatus(
+    itemId: ID!
+    status: ActionItemStatus!
+    notes: String
+  ): AreaManagerActionItem! @requireAuth @hasRole(roles: [AREA_MANAGER])
+  
+  "Set company target"
+  setCompanyTarget(
+    companyId: ID!
+    targetType: String!
+    targetValue: Float!
+    period: String!
+  ): Boolean! @requireAuth @hasRole(roles: [AREA_MANAGER])
+}
+
+# =============================================================================
+# AREA MANAGER SUBSCRIPTIONS
+# =============================================================================
+
+extend type Subscription {
+  "New regional alert"
+  newRegionalAlert: RegionalAlert! @requireAuth @hasRole(roles: [AREA_MANAGER])
+  
+  "Company status change"
+  companyStatusChange: CompanyPerformanceData! @requireAuth @hasRole(roles: [AREA_MANAGER])
+}

@@ -1,0 +1,72 @@
+golang/
+  ├── cmd/
+  │   └── server/              # Single entry point (keep current)
+  │       └── main.go
+  │
+  ├── internal/
+  │   ├── auth/                # Auth domain
+  │   │   ├── handler/
+  │   │   ├── service/
+  │   │   ├── repository/
+  │   │   └── models/
+  │   ├── gatecheck/           # Gate check domain
+  │   │   ├── handler/
+  │   │   ├── service/
+  │   │   ├── repository/
+  │   │   └── models/
+  │   ├── harvest/             # Panen domain
+  │   │   ├── handler/
+  │   │   ├── service/
+  │   │   ├── repository/
+  │   │   └── models/
+  │   └── shared/              # Cross-domain utilities
+  │       ├── database/
+  │       ├── websocket/
+  │       └── sync/
+  │
+  ├── pkg/                     # Public utilities
+  │   ├── config/
+  │   ├── logger/
+  │   ├── middleware/
+  │   └── errors/
+  │
+  ├── schema/                  # GraphQL schemas
+  │   ├── auth.graphql
+  │   ├── gatecheck.graphql
+  │   └── harvest.graphql
+  │
+  └── go.mod
+
+  ✅ Why This Works Better for Agrinova:
+
+  1. Preserves Current Architecture: Your unified GraphQL endpoint and real-time  WebSocket system stay intact
+  2. Better Organization: Clear domain boundaries without microservice complexity        
+  3. Shared Database: GORM connections remain efficient with single connection pool      
+  4. Performance: No network latency between "services"
+  5. Development Velocity: Single deployment, easier debugging, shared utilities
+  
+Best Practice Tambahan
+
+Dependency Direction
+
+handler → service → repository → models (flow clean architecture).
+
+Pastikan handler tidak langsung akses DB, hanya lewat service.
+
+DTO / Response
+
+Di handler, pisahkan antara model DB (models/) dengan response GraphQL/REST (pakai DTO).
+
+Error Handling
+
+Simpan custom error di pkg/errors (misal ErrUnauthorized, ErrNotFound) supaya konsisten.
+
+Testing
+
+Buat unit test per domain (internal/auth/service/service_test.go, dll).
+
+Bisa juga tambahkan mocks/ di tiap domain kalau butuh.
+
+Config Environment
+
+Gunakan pkg/config dengan Viper atau envconfig untuk mapping .env → struct Go.

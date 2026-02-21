@@ -1,0 +1,175 @@
+query GetUsers($companyId: String, $role: UserRole, $isActive: Boolean, $search: String, $limit: Int, $offset: Int) {
+  users(
+    companyId: $companyId
+    role: $role
+    isActive: $isActive
+    search: $search
+    limit: $limit
+    offset: $offset
+  ) {
+    users {
+      id
+      username
+      name
+      email
+      phoneNumber
+      avatar
+      role
+      isActive
+      createdAt
+      updatedAt
+      managerId
+      companyId
+      companies {
+        id
+        name
+      }
+      company {
+        id
+        name
+      }
+      estates {
+        id
+        name
+      }
+      divisions {
+        id
+        name
+      }
+    }
+    totalCount
+    hasNextPage
+    pageInfo {
+      currentPage
+      totalPages
+      hasNextPage
+      hasPreviousPage
+    }
+  }
+}
+
+query GetUser($id: ID!) {
+  user(id: $id) {
+    id
+    username
+    name
+    email
+    phoneNumber
+    avatar
+    role
+    isActive
+    managerId
+    companyId
+    companies {
+      id
+      name
+    }
+    manager {
+      id
+      name
+    }
+    estates {
+      id
+      name
+    }
+    divisions {
+      id
+      name
+    }
+  }
+}
+
+mutation CreateUser($input: CreateUserInput!) {
+  createUser(input: $input) {
+    success
+    message
+    user {
+      id
+      username
+      role
+    }
+  }
+}
+
+mutation UpdateUser($input: UpdateUserInput!) {
+  updateUser(input: $input) {
+    success
+    message
+    user {
+      id
+      username
+      role
+    }
+  }
+}
+
+mutation DeleteUser($id: ID!) {
+  deleteUser(id: $id) {
+    success
+    message
+  }
+}
+
+mutation ToggleUserStatus($id: ID!) {
+  toggleUserStatus(id: $id) {
+    success
+    message
+    user {
+      id
+      isActive
+    }
+  }
+}
+
+mutation ResetUserPassword($input: ResetPasswordInput!) {
+  resetUserPassword(input: $input) {
+    success
+    message
+  }
+}
+
+query GetAllCompanies {
+  allCompanies(pageSize: 100) {
+    companies {
+      id
+      name
+      code
+    }
+  }
+}
+
+query GetAllRoles {
+  allRoles {
+    role
+    name
+    description
+    level
+  }
+}
+
+query GetManagerCandidates($search: String, $limit: Int) {
+  users(
+    search: $search
+    limit: $limit
+  ) {
+    users {
+      id
+      username
+      name
+      role
+    }
+  }
+}
+
+query GetUserCompanyAssignments($userId: ID!) {
+  companyAssignments {
+    id
+    userId
+    companyId
+    company {
+      id
+      name
+    }
+    isActive
+  }
+}

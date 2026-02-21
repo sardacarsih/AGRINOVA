@@ -1,0 +1,131 @@
+package resolvers
+
+import (
+	"context"
+	"fmt"
+
+	"gorm.io/gorm"
+
+	"agrinovagraphql/server/internal/gatecheck/models"
+	gateCheckServices "agrinovagraphql/server/internal/gatecheck/services"
+	"agrinovagraphql/server/internal/graphql/generated"
+	"agrinovagraphql/server/internal/middleware"
+)
+
+type GateCheckResolver struct {
+	db          *gorm.DB
+	service     *gateCheckServices.GateCheckService
+	rbacService *middleware.AuthMiddleware
+}
+
+func NewGateCheckResolver(db *gorm.DB, authMiddleware *middleware.AuthMiddleware) *GateCheckResolver {
+	return &GateCheckResolver{
+		db:          db,
+		service:     gateCheckServices.NewGateCheckService(db),
+		rbacService: authMiddleware,
+	}
+}
+
+// Query Resolvers
+
+// GateCheckRecords retrieves all gate check records
+func (r *GateCheckResolver) GateCheckRecords(ctx context.Context) ([]*models.GateCheckRecord, error) {
+	return r.service.GetGateCheckRecords(ctx)
+}
+
+// GateCheckRecord retrieves a specific gate check record by ID
+func (r *GateCheckResolver) GateCheckRecord(ctx context.Context, id string) (*models.GateCheckRecord, error) {
+	return r.service.GetGateCheckRecord(ctx, id)
+}
+
+// GateCheckRecordsByStatus retrieves gate check records filtered by status
+func (r *GateCheckResolver) GateCheckRecordsByStatus(ctx context.Context, status generated.GateStatus) ([]*models.GateCheckRecord, error) {
+	return r.service.GetGateCheckRecordsByStatus(ctx, status)
+}
+
+// Mutation Resolvers
+
+// CreateGateCheck creates a new gate check record
+func (r *GateCheckResolver) CreateGateCheck(ctx context.Context, input generated.CreateGateCheckInput) (*models.GateCheckRecord, error) {
+	// RBAC Permission Check: Require gatecheck:create permission
+	if r.rbacService != nil {
+		if err := r.rbacService.ValidateGateCheckAccess(ctx, "create"); err != nil {
+			return nil, fmt.Errorf("access denied: %v", err)
+		}
+	}
+
+	return r.service.CreateGateCheck(ctx, input)
+}
+
+// UpdateGateCheck updates an existing gate check record
+func (r *GateCheckResolver) UpdateGateCheck(ctx context.Context, input generated.UpdateGateCheckInput) (*models.GateCheckRecord, error) {
+	return r.service.UpdateGateCheck(ctx, input)
+}
+
+// CompleteGateCheck completes a gate check record
+func (r *GateCheckResolver) CompleteGateCheck(ctx context.Context, id string) (*models.GateCheckRecord, error) {
+	// RBAC Permission Check: Require gatecheck:approve permission
+	if r.rbacService != nil {
+		if err := r.rbacService.ValidateGateCheckAccess(ctx, "approve"); err != nil {
+			return nil, fmt.Errorf("access denied: %v", err)
+		}
+	}
+
+	return r.service.CompleteGateCheck(ctx, id)
+}
+
+// DeleteGateCheck deletes a gate check record (soft delete)
+func (r *GateCheckResolver) DeleteGateCheck(ctx context.Context, id string) (bool, error) {
+	return r.service.DeleteGateCheck(ctx, id)
+}
+
+// GetQRTokens retrieves QR tokens based on query filters
+// Note: Role validation is done by @hasRole directive, no additional RBAC check needed
+func (r *GateCheckResolver) GetQRTokens(ctx context.Context, input *generated.QRTokenQuery) ([]*models.QRToken, error) {
+	return r.service.GetQRTokens(ctx, input)
+}
+
+// Field Resolvers
+
+// Satpam resolves the satpam field for GateCheckRecord
+func (r *GateCheckResolver) GateCheckRecord_Satpam(ctx context.Context, obj *models.GateCheckRecord) (*generated.User, error) {
+	if obj.Satpam.ID != "" {
+		return &obj.Satpam, nil
+	}
+
+	var satpam generated.User
+	err := r.db.Where("id = ?", obj.SatpamID).First(&satpam).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &satpam, nil
+}
+
+// Subscription Resolvers - TODO: Implement real-time subscriptions
+
+// GateCheckCreated handles subscription for newly created gate check records
+func (r *GateCheckResolver) GateCheckCreated(ctx context.Context) (<-chan *models.GateCheckRecord, error) {
+	ch := make(chan *models.GateCheckRecord, 1)
+
+	go func() {
+		defer close(ch)
+		// TODO: Implement real-time subscription logic
+		<-ctx.Done()
+	}()
+
+	return ch, nil
+}
+
+// GateCheckCompleted handles subscription for completed gate check records
+func (r *GateCheckResolver) GateCheckCompleted(ctx context.Context) (<-chan *models.GateCheckRecord, error) {
+	ch := make(chan *models.GateCheckRecord, 1)
+
+	go func() {
+		defer close(ch)
+		// TODO: Implement real-time subscription logic for completed records
+		<-ctx.Done()
+	}()
+
+	return ch, nil
+}

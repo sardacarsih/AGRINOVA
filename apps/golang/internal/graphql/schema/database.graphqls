@@ -1,0 +1,57 @@
+# =============================================================================
+# Database Diagnostic Schema
+# =============================================================================
+
+"""
+RLSContextInfo shows the current PostgreSQL Row-Level Security context.
+Used for debugging and verification of RLS middleware functionality.
+"""
+type RLSContextInfo {
+  "Current authenticated user ID from PostgreSQL session"
+  userId: String
+  "Current user role from PostgreSQL session"
+  userRole: String
+  "Company IDs the user has access to"
+  companyIds: [String!]
+  "Estate IDs the user has access to"
+  estateIds: [String!]
+  "Division IDs the user has access to"
+  divisionIds: [String!]
+  "Whether RLS context is currently set"
+  isSet: Boolean!
+  "Timestamp when context was set"
+  setAt: Time
+  "IP address of the client"
+  clientIp: String
+}
+
+"""
+DatabaseHealthInfo shows database connection and RLS policy status.
+"""
+type DatabaseHealthInfo {
+  "Whether database connection is healthy"
+  connected: Boolean!
+  "PostgreSQL version"
+  version: String
+  "Number of active connections"
+  activeConnections: Int
+  "Whether RLS is enabled on critical tables"
+  rlsEnabled: Boolean!
+  "List of tables with RLS enabled"
+  rlsTablesCount: Int
+}
+
+# Extend the Query type to add diagnostic queries
+extend type Query {
+  """
+  Get current PostgreSQL RLS context for the authenticated user.
+  Requires authentication. Shows session variables set by RLS middleware.
+  """
+  rlsContext: RLSContextInfo!
+
+  """
+  Get database health and RLS status.
+  Requires authentication (SUPER_ADMIN only for sensitive info).
+  """
+  databaseHealth: DatabaseHealthInfo!
+}

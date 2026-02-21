@@ -1,0 +1,481 @@
+# =============================================================================
+# Timbangan (Weighing) Role Schema
+# Features: Dashboard, Weighing Operations, PKS Integration
+# =============================================================================
+
+# =============================================================================
+# TIMBANGAN DASHBOARD TYPES
+# =============================================================================
+
+"""
+TimbanganDashboardData represents dashboard data for Timbangan operator.
+"""
+type TimbanganDashboardData {
+  "User information"
+  user: User!
+  "PKS location info"
+  pksInfo: PKSInfo!
+  "Dashboard statistics"
+  stats: TimbanganDashboardStats!
+  "Pending weighing queue"
+  pendingQueue: [WeighingQueueItem!]!
+  "Recent weighings"
+  recentWeighings: [WeighingRecord!]!
+  "Today's summary"
+  todaySummary: TimbanganTodaySummary!
+}
+
+"""
+PKSInfo represents PKS (Palm Kernel Station) information.
+"""
+type PKSInfo {
+  "PKS ID"
+  pksId: ID!
+  "PKS name"
+  pksName: String!
+  "PKS code"
+  pksCode: String!
+  "Company ID"
+  companyId: String!
+  "Company name"
+  companyName: String!
+  "Scale type"
+  scaleType: String!
+  "Scale capacity (kg)"
+  scaleCapacity: Float!
+  "Is operational"
+  isOperational: Boolean!
+}
+
+"""
+TimbanganDashboardStats represents weighing statistics.
+"""
+type TimbanganDashboardStats {
+  "Total weighings today"
+  totalWeighingsToday: Int!
+  "Total weight in (tons)"
+  totalWeightIn: Float!
+  "Total weight out (tons)"
+  totalWeightOut: Float!
+  "Pending in queue"
+  pendingInQueue: Int!
+  "Average weighing time (minutes)"
+  avgWeighingTime: Float!
+  "Trucks processed today"
+  trucksProcessed: Int!
+  "TBS received today (tons)"
+  tbsReceivedToday: Float!
+  "BJR average"
+  bjrAverage: Float!
+}
+
+"""
+WeighingQueueItem represents an item in weighing queue.
+"""
+type WeighingQueueItem {
+  "Queue ID"
+  id: ID!
+  "Queue number"
+  queueNumber: Int!
+  "Vehicle plate"
+  vehiclePlate: String!
+  "Driver name"
+  driverName: String!
+  "Source estate"
+  sourceEstate: String!
+  "Source division"
+  sourceDivision: String
+  "DO number"
+  doNumber: String
+  "Estimated weight"
+  estimatedWeight: Float
+  "Queue type"
+  queueType: WeighingQueueType!
+  "Priority"
+  priority: QueuePriority!
+  "Entry time"
+  entryTime: Time!
+  "Wait time (minutes)"
+  waitTime: Int!
+}
+
+"""
+WeighingQueueType enum.
+"""
+enum WeighingQueueType {
+  "First weighing (entry)"
+  FIRST_WEIGHING
+  "Second weighing (exit)"
+  SECOND_WEIGHING
+  "Reweighing"
+  REWEIGHING
+}
+
+"""
+QueuePriority enum.
+"""
+enum QueuePriority {
+  NORMAL
+  HIGH
+  URGENT
+}
+
+"""
+TimbanganTodaySummary represents today's summary.
+"""
+type TimbanganTodaySummary {
+  "Shift start"
+  shiftStart: Time!
+  "Weighings completed"
+  weighingsCompleted: Int!
+  "Total TBS received (tons)"
+  totalTbsReceived: Float!
+  "Total brondolan (tons)"
+  totalBrondolan: Float!
+  "Best quality estate"
+  bestQualityEstate: String
+  "Average BJR"
+  averageBjr: Float!
+}
+
+# =============================================================================
+# WEIGHING OPERATION TYPES
+# =============================================================================
+
+"""
+WeighingRecord represents a complete weighing record.
+"""
+type WeighingRecord {
+  "Record ID"
+  id: ID!
+  "Weighing number"
+  weighingNumber: String!
+  "Vehicle plate"
+  vehiclePlate: String!
+  "Driver name"
+  driverName: String!
+  "Source estate"
+  sourceEstate: String!
+  "Source division"
+  sourceDivision: String
+  "DO number"
+  doNumber: String
+  "Harvest references"
+  harvestReferences: [String!]
+  "First weight (gross)"
+  firstWeight: Float!
+  "First weighing time"
+  firstWeighingTime: Time!
+  "Second weight (tare)"
+  secondWeight: Float
+  "Second weighing time"
+  secondWeighingTime: Time
+  "Net weight"
+  netWeight: Float
+  "TBS count"
+  tbsCount: Int
+  "Brondolan weight"
+  brondolanWeight: Float
+  "BJR (Bunch to Juice Ratio)"
+  bjr: Float
+  "Quality grade"
+  qualityGrade: String
+  "Grading notes"
+  gradingNotes: String
+  "Status"
+  status: WeighingStatus!
+  "Operator ID"
+  operatorId: String!
+  "Operator name"
+  operatorName: String!
+  "Photos"
+  photos: [String!]
+  "Notes"
+  notes: String
+  "Created at"
+  createdAt: Time!
+}
+
+"""
+WeighingStatus enum.
+"""
+enum WeighingStatus {
+  "Waiting for first weighing"
+  PENDING_FIRST
+  "First weighing done, waiting for unload"
+  IN_PROCESS
+  "Waiting for second weighing"
+  PENDING_SECOND
+  "Completed"
+  COMPLETED
+  "Cancelled"
+  CANCELLED
+}
+
+"""
+CreateWeighingRecordInput for creating weighing records directly (internal use).
+"""
+input CreateWeighingRecordInput {
+  "Ticket number"
+  ticketNumber: String!
+  "Vehicle number/plate"
+  vehicleNumber: String!
+  "Gross weight (kg)"
+  grossWeight: Float!
+  "Tare weight (kg)"
+  tareWeight: Float!
+  "Net weight (kg)"
+  netWeight: Float!
+  "Weighing time"
+  weighingTime: Time!
+  "Company ID"
+  companyId: String!
+  "Driver name"
+  driverName: String
+  "Vendor name"
+  vendorName: String
+  "Cargo type"
+  cargoType: String
+}
+
+"""
+UpdateWeighingRecordInput for updating weighing records.
+"""
+input UpdateWeighingRecordInput {
+  "Ticket number"
+  ticketNumber: String
+  "Vehicle number/plate"
+  vehicleNumber: String
+  "Gross weight (kg)"
+  grossWeight: Float
+  "Tare weight (kg)"
+  tareWeight: Float
+  "Net weight (kg)"
+  netWeight: Float
+  "Weighing time"
+  weighingTime: Time
+  "Driver name"
+  driverName: String
+  "Vendor name"
+  vendorName: String
+  "Cargo type"
+  cargoType: String
+}
+
+"""
+PerformFirstWeighingInput for first weighing.
+"""
+input PerformFirstWeighingInput {
+  "Queue item ID"
+  queueItemId: ID!
+  "Measured weight (kg)"
+  weight: Float!
+  "DO number verification"
+  doNumber: String
+  "Photo path"
+  photoPath: String
+  "Notes"
+  notes: String
+  "Device ID"
+  deviceId: String!
+}
+
+"""
+PerformSecondWeighingInput for second weighing.
+"""
+input PerformSecondWeighingInput {
+  "Weighing record ID"
+  weighingRecordId: ID!
+  "Measured weight (kg)"
+  weight: Float!
+  "TBS count"
+  tbsCount: Int
+  "Brondolan weight (kg)"
+  brondolanWeight: Float
+  "Quality grade"
+  qualityGrade: String
+  "Grading notes"
+  gradingNotes: String
+  "Photo path"
+  photoPath: String
+  "Notes"
+  notes: String
+  "Device ID"
+  deviceId: String!
+}
+
+"""
+WeighingResult for operation result.
+"""
+type WeighingResult {
+  "Success"
+  success: Boolean!
+  "Message"
+  message: String!
+  "Weighing record"
+  weighingRecord: WeighingRecord
+  "Calculated net weight"
+  netWeight: Float
+  "Calculated BJR"
+  bjr: Float
+  "Errors"
+  errors: [String!]
+}
+
+# =============================================================================
+# TIMBANGAN HISTORY & REPORTS
+# =============================================================================
+
+"""
+TimbanganHistoryFilter for filtering.
+"""
+input TimbanganHistoryFilter {
+  "Date from"
+  dateFrom: Time
+  "Date to"
+  dateTo: Time
+  "Source estate"
+  sourceEstate: String
+  "Vehicle plate"
+  vehiclePlate: String
+  "Status"
+  status: WeighingStatus
+  "Page"
+  page: Int = 1
+  "Page size"
+  pageSize: Int = 20
+}
+
+"""
+TimbanganHistoryResponse for history.
+"""
+type TimbanganHistoryResponse {
+  "Items"
+  items: [WeighingRecord!]!
+  "Total count"
+  totalCount: Int!
+  "Has more"
+  hasMore: Boolean!
+  "Summary"
+  summary: TimbanganHistorySummary!
+}
+
+"""
+TimbanganHistorySummary for summary.
+"""
+type TimbanganHistorySummary {
+  "Total weighings"
+  totalWeighings: Int!
+  "Total net weight (tons)"
+  totalNetWeight: Float!
+  "Average BJR"
+  avgBjr: Float!
+  "By estate breakdown"
+  byEstate: [EstateWeighingSummary!]!
+}
+
+"""
+EstateWeighingSummary for per-estate summary.
+"""
+type EstateWeighingSummary {
+  "Estate name"
+  estateName: String!
+  "Total weight (tons)"
+  totalWeight: Float!
+  "Count"
+  count: Int!
+  "Avg BJR"
+  avgBjr: Float!
+}
+
+# =============================================================================
+# TIMBANGAN QUERIES
+# =============================================================================
+
+extend type Query {
+  "Get timbangan dashboard"
+  timbanganDashboard: TimbanganDashboardData! @requireAuth @hasRole(roles: [TIMBANGAN])
+  
+  "Get weighing queue"
+  weighingQueue(queueType: WeighingQueueType): [WeighingQueueItem!]! @requireAuth @hasRole(roles: [TIMBANGAN])
+  
+  "Get weighing record"
+  weighingRecord(id: ID!): WeighingRecord @requireAuth @hasRole(roles: [TIMBANGAN])
+  
+  "Get timbangan history"
+  timbanganHistory(filter: TimbanganHistoryFilter): TimbanganHistoryResponse! @requireAuth @hasRole(roles: [TIMBANGAN])
+  
+  "Validate DO number"
+  validateDoNumber(doNumber: String!): DoValidationResult! @requireAuth @hasRole(roles: [TIMBANGAN])
+}
+
+"""
+DoValidationResult for DO validation.
+"""
+type DoValidationResult {
+  "Is valid"
+  isValid: Boolean!
+  "Message"
+  message: String!
+  "DO details if valid"
+  doDetails: DoDetails
+}
+
+"""
+DoDetails for DO information.
+"""
+type DoDetails {
+  "DO number"
+  doNumber: String!
+  "Source estate"
+  sourceEstate: String!
+  "Source division"
+  sourceDivision: String
+  "Expected weight"
+  expectedWeight: Float
+  "Harvest date"
+  harvestDate: Time
+  "Mandor name"
+  mandorName: String
+}
+
+# =============================================================================
+# TIMBANGAN MUTATIONS
+# =============================================================================
+
+extend type Mutation {
+  "Add vehicle to queue"
+  addToWeighingQueue(
+    vehiclePlate: String!
+    driverName: String!
+    sourceEstate: String!
+    sourceDivision: String
+    doNumber: String
+    estimatedWeight: Float
+    priority: QueuePriority = NORMAL
+  ): WeighingQueueItem! @requireAuth @hasRole(roles: [TIMBANGAN])
+  
+  "Perform first weighing"
+  performFirstWeighing(input: PerformFirstWeighingInput!): WeighingResult! @requireAuth @hasRole(roles: [TIMBANGAN])
+  
+  "Perform second weighing"
+  performSecondWeighing(input: PerformSecondWeighingInput!): WeighingResult! @requireAuth @hasRole(roles: [TIMBANGAN])
+  
+  "Cancel weighing"
+  cancelWeighing(id: ID!, reason: String!): WeighingResult! @requireAuth @hasRole(roles: [TIMBANGAN])
+  
+  "Request reweighing"
+  requestReweighing(id: ID!, reason: String!): WeighingResult! @requireAuth @hasRole(roles: [TIMBANGAN])
+}
+
+# =============================================================================
+# TIMBANGAN SUBSCRIPTIONS
+# =============================================================================
+
+extend type Subscription {
+  "New vehicle in queue"
+  newVehicleInQueue: WeighingQueueItem! @requireAuth @hasRole(roles: [TIMBANGAN])
+  
+  "Weighing completed"
+  weighingCompleted: WeighingRecord! @requireAuth @hasRole(roles: [TIMBANGAN])
+}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Colors -->
+    <color name="primary_color">#2E7D32</color>
+    <color name="primary_dark">#1B5E20</color>
+    <color name="accent_color">#4CAF50</color>
+    <color name="background_color">#FFFFFF</color>
+    
+    <!-- Launcher Icon Background -->
+    <color name="launcher_icon_background">#FFFFFF</color>
+    
+    <!-- System Bar Colors -->
+    <color name="status_bar_color">#2E7D32</color>
+    <color name="navigation_bar_color">#FFFFFF</color>
+</resources>

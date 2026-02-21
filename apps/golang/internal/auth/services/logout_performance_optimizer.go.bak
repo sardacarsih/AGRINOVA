@@ -1,0 +1,463 @@
+package services
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+
+	"agrinovagraphql/server/internal/graphql/generated"
+	"gorm.io/gorm"
+)
+
+// LogoutPerformanceOptimizer handles performance optimization for logout operations
+type LogoutPerformanceOptimizer struct {
+	db           *gorm.DB
+	cache        map[string]*LogoutCacheEntry
+	cacheMutex   sync.RWMutex
+	metrics      *LogoutMetrics
+	metricsMutex sync.RWMutex
+}
+
+// LogoutCacheEntry represents a cached logout result
+type LogoutCacheEntry struct {
+	UserID      string
+	Platform    string
+	Result      *generated.UnifiedLogoutResponse
+	CachedAt    time.Time
+	ExpiresAt   time.Time
+	IsProcessed bool
+}
+
+// LogoutMetrics tracks performance metrics for logout operations
+type LogoutMetrics struct {
+	TotalOperations    int64
+	AverageDuration    time.Duration
+	ConcurrentUsers    int
+	PeakConcurrency    int
+	OperationsPerSec   float64
+	LastReset          time.Time
+	OperationHistory   []LogoutOperationEntry
+	mu                 sync.RWMutex
+}
+
+// LogoutOperationEntry represents a single logout operation record
+type LogoutOperationEntry struct {
+	Timestamp    time.Time
+	Platform     string
+	Duration     time.Duration
+	Success      bool
+	Concurrent   int
+}
+
+// NewLogoutPerformanceOptimizer creates a new logout performance optimizer
+func NewLogoutPerformanceOptimizer(db *gorm.DB) *LogoutPerformanceOptimizer {
+	return &LogoutPerformanceOptimizer{
+		db:          db,
+		cache:       make(map[string]*LogoutCacheEntry),
+		metrics:     &LogoutMetrics{LastReset: time.Now()},
+	}
+}
+
+// OptimizeLogout performs optimized logout operation with concurrent processing
+func (lpo *LogoutPerformanceOptimizer) OptimizeLogout(
+	ctx context.Context,
+	userID string,
+	platform string,
+	logoutAllDevices bool,
+	logoutFunc func(context.Context, *bool) (*generated.UnifiedLogoutResponse, error),
+) (*generated.UnifiedLogoutResponse, error) {
+	startTime := time.Now()
+
+	// Update concurrent users count
+	lpo.incrementConcurrentUsers()
+	defer lpo.decrementConcurrentUsers()
+
+	// Check cache for recent logout operation
+	cacheKey := lpo.generateCacheKey(userID, platform, logoutAllDevices)
+	if cached := lpo.getCachedResult(cacheKey); cached != nil {
+		return cached, nil
+	}
+
+	// Perform logout operation with timeout handling
+	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	resultChan := make(chan *optimizedLogoutResult, 1)
+	errorChan := make(chan error, 1)
+
+	// Execute logout in goroutine for non-blocking operation
+	go lpo.executeLogoutOperation(timeoutCtx, logoutAllDevices, logoutFunc, resultChan, errorChan)
+
+	// Wait for result or timeout
+	select {
+	case result := <-resultChan:
+		if result != nil {
+			// Cache the result for future use
+			lpo.cacheResult(cacheKey, result.response, 5*time.Minute)
+
+			// Record metrics
+			duration := time.Since(startTime)
+			lpo.recordMetrics(platform, duration, true, lpo.metrics.ConcurrentUsers)
+
+			return result.response, nil
+		}
+	case err := <-errorChan:
+		// Record metrics for failed operation
+		duration := time.Since(startTime)
+		lpo.recordMetrics(platform, duration, false, lpo.metrics.ConcurrentUsers)
+		return nil, err
+	case <-timeoutCtx.Done():
+		// Handle timeout
+		duration := time.Since(startTime)
+		lpo.recordMetrics(platform, duration, false, lpo.metrics.ConcurrentUsers)
+		return nil, fmt.Errorf("logout operation timed out after 30 seconds")
+	}
+
+	// This should never be reached, but return a default error for safety
+	return nil, fmt.Errorf("unexpected error in logout optimization")
+}
+
+// optimizedLogoutResult represents the result of an optimized logout operation
+type optimizedLogoutResult struct {
+	response *generated.UnifiedLogoutResponse
+}
+
+// executeLogoutOperation executes the logout operation in a separate goroutine
+func (lpo *LogoutPerformanceOptimizer) executeLogoutOperation(
+	ctx context.Context,
+	logoutAllDevices bool,
+	logoutFunc func(context.Context, *bool) (*generated.UnifiedLogoutResponse, error),
+	resultChan chan *optimizedLogoutResult,
+	errorChan chan error,
+) {
+	// Perform the actual logout operation
+	result, err := logoutFunc(ctx, &logoutAllDevices)
+	if err != nil {
+		errorChan <- err
+		return
+	}
+
+	// Send successful result
+	resultChan <- &optimizedLogoutResult{response: result}
+}
+
+// BatchLogout performs concurrent logout for multiple devices
+func (lpo *LogoutPerformanceOptimizer) BatchLogout(
+	ctx context.Context,
+	userID string,
+	devices []DeviceLogoutRequest,
+) ([]*generated.UnifiedLogoutResponse, error) {
+	startTime := time.Now()
+
+	// Update concurrent users count
+	lpo.incrementConcurrentUsers()
+	defer lpo.decrementConcurrentUsers()
+
+	// Create channels for results
+	results := make([]*generated.UnifiedLogoutResponse, len(devices))
+	errors := make([]error, len(devices))
+	var wg sync.WaitGroup
+
+	// Process each device logout concurrently
+	for i, device := range devices {
+		wg.Add(1)
+		go func(index int, device DeviceLogoutRequest) {
+			defer wg.Done()
+
+			// Create device-specific context with timeout
+			deviceCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+			defer cancel()
+
+			// Simulate device logout (in real implementation, this would call the actual logout service)
+			result, err := lpo.simulateDeviceLogout(deviceCtx, device)
+			if err != nil {
+				errors[index] = err
+				return
+			}
+
+			results[index] = result
+		}(i, device)
+	}
+
+	// Wait for all operations to complete
+	wg.Wait()
+
+	// Filter out any errors and return successful results
+	var successfulResults []*generated.UnifiedLogoutResponse
+	for i, result := range results {
+		if result != nil && errors[i] == nil {
+			successfulResults = append(successfulResults, result)
+		}
+	}
+
+	// Record batch metrics
+	duration := time.Since(startTime)
+	lpo.recordBatchMetrics(len(devices), len(successfulResults), duration)
+
+	return successfulResults, nil
+}
+
+// DeviceLogoutRequest represents a request to logout a specific device
+type DeviceLogoutRequest struct {
+	DeviceID   string
+	Platform   string
+	LastSeen   time.Time
+	IsActive   bool
+}
+
+// simulateDeviceLogout simulates the logout operation for a specific device
+func (lpo *LogoutPerformanceOptimizer) simulateDeviceLogout(
+	ctx context.Context,
+	device DeviceLogoutRequest,
+) (*generated.UnifiedLogoutResponse, error) {
+	// Simulate logout operation duration
+	select {
+	case <-time.After(100 * time.Millisecond):
+		// Operation completed successfully
+		securityEventID := fmt.Sprintf("logout_%d", time.Now().UnixNano())
+		return &generated.UnifiedLogoutResponse{
+			Success:      true,
+			Platform:     device.Platform,
+			Message:      fmt.Sprintf("Device %s logged out successfully", device.DeviceID),
+			LogoutAt:     time.Now(),
+			SecurityEventID: &securityEventID,
+		}, nil
+	case <-ctx.Done():
+		// Context timeout or cancellation
+		return nil, fmt.Errorf("device logout timeout or cancelled")
+	}
+}
+
+// generateCacheKey generates a unique cache key for logout operations
+func (lpo *LogoutPerformanceOptimizer) generateCacheKey(userID string, platform string, logoutAllDevices bool) string {
+	return fmt.Sprintf("%s:%s:%t", userID, platform, logoutAllDevices)
+}
+
+// getCachedResult retrieves a cached logout result if valid
+func (lpo *LogoutPerformanceOptimizer) getCachedResult(cacheKey string) *generated.UnifiedLogoutResponse {
+	lpo.cacheMutex.RLock()
+	defer lpo.cacheMutex.RUnlock()
+
+	entry, exists := lpo.cache[cacheKey]
+	if !exists || time.Now().After(entry.ExpiresAt) {
+		return nil
+	}
+
+	return entry.Result
+}
+
+// cacheResult stores a logout result in cache with expiration
+func (lpo *LogoutPerformanceOptimizer) cacheResult(cacheKey string, result *generated.UnifiedLogoutResponse, ttl time.Duration) {
+	lpo.cacheMutex.Lock()
+	defer lpo.cacheMutex.Unlock()
+
+	lpo.cache[cacheKey] = &LogoutCacheEntry{
+		Result:      result,
+		CachedAt:    time.Now(),
+		ExpiresAt:   time.Now().Add(ttl),
+		IsProcessed: true,
+	}
+
+	// Clean up expired cache entries periodically
+	go lpo.cleanupExpiredCache()
+}
+
+// cleanupExpiredCache removes expired entries from the cache
+func (lpo *LogoutPerformanceOptimizer) cleanupExpiredCache() {
+	lpo.cacheMutex.Lock()
+	defer lpo.cacheMutex.Unlock()
+
+	now := time.Now()
+	for key, entry := range lpo.cache {
+		if now.After(entry.ExpiresAt) {
+			delete(lpo.cache, key)
+		}
+	}
+}
+
+// incrementConcurrentUsers increments the concurrent users counter
+func (lpo *LogoutPerformanceOptimizer) incrementConcurrentUsers() {
+	lpo.metricsMutex.Lock()
+	defer lpo.metricsMutex.Unlock()
+
+	lpo.metrics.ConcurrentUsers++
+	if lpo.metrics.ConcurrentUsers > lpo.metrics.PeakConcurrency {
+		lpo.metrics.PeakConcurrency = lpo.metrics.ConcurrentUsers
+	}
+}
+
+// decrementConcurrentUsers decrements the concurrent users counter
+func (lpo *LogoutPerformanceOptimizer) decrementConcurrentUsers() {
+	lpo.metricsMutex.Lock()
+	defer lpo.metricsMutex.Unlock()
+
+	if lpo.metrics.ConcurrentUsers > 0 {
+		lpo.metrics.ConcurrentUsers--
+	}
+}
+
+// recordMetrics records performance metrics for a logout operation
+func (lpo *LogoutPerformanceOptimizer) recordMetrics(platform string, duration time.Duration, success bool, concurrent int) {
+	lpo.metricsMutex.Lock()
+	defer lpo.metricsMutex.Unlock()
+
+	lpo.metrics.TotalOperations++
+
+	// Update average duration
+	if lpo.metrics.TotalOperations == 1 {
+		lpo.metrics.AverageDuration = duration
+	} else {
+		// Calculate rolling average
+		totalDuration := lpo.metrics.AverageDuration * time.Duration(lpo.metrics.TotalOperations-1)
+		lpo.metrics.AverageDuration = (totalDuration + duration) / time.Duration(lpo.metrics.TotalOperations)
+	}
+
+	// Calculate operations per second (over the last minute)
+	lpo.metrics.OperationsPerSec = float64(lpo.metrics.TotalOperations) / time.Since(lpo.metrics.LastReset).Seconds()
+
+	// Add to operation history (keep last 1000 entries)
+	entry := LogoutOperationEntry{
+		Timestamp:  time.Now(),
+		Platform:   platform,
+		Duration:   duration,
+		Success:    success,
+		Concurrent: concurrent,
+	}
+
+	lpo.metrics.OperationHistory = append(lpo.metrics.OperationHistory, entry)
+	if len(lpo.metrics.OperationHistory) > 1000 {
+		lpo.metrics.OperationHistory = lpo.metrics.OperationHistory[1:]
+	}
+}
+
+// recordBatchMetrics records metrics for batch logout operations
+func (lpo *LogoutPerformanceOptimizer) recordBatchMetrics(totalDevices, successfulDevices int, duration time.Duration) {
+	lpo.metricsMutex.Lock()
+	defer lpo.metricsMutex.Unlock()
+
+	// Update metrics for batch operations
+	successRate := float64(successfulDevices) / float64(totalDevices)
+	fmt.Printf("📊 [Performance] Batch logout completed: %d/%d devices (%.1f%% success) in %v\n",
+		successfulDevices, totalDevices, successRate*100, duration)
+}
+
+// GetMetrics returns current performance metrics
+func (lpo *LogoutPerformanceOptimizer) GetMetrics() LogoutMetrics {
+	lpo.metricsMutex.RLock()
+	defer lpo.metricsMutex.RUnlock()
+
+	return *lpo.metrics
+}
+
+// GetCacheStats returns cache statistics
+func (lpo *LogoutPerformanceOptimizer) GetCacheStats() map[string]interface{} {
+	lpo.cacheMutex.RLock()
+	defer lpo.cacheMutex.RUnlock()
+
+	now := time.Now()
+	validEntries := 0
+	expiredEntries := 0
+
+	for _, entry := range lpo.cache {
+		if now.Before(entry.ExpiresAt) {
+			validEntries++
+		} else {
+			expiredEntries++
+		}
+	}
+
+	return map[string]interface{}{
+		"total_entries":    len(lpo.cache),
+		"valid_entries":    validEntries,
+		"expired_entries":  expiredEntries,
+		"cache_hit_ratio":  float64(validEntries) / float64(len(lpo.cache)+1),
+	}
+}
+
+// ResetMetrics resets all performance metrics
+func (lpo *LogoutPerformanceOptimizer) ResetMetrics() {
+	lpo.metricsMutex.Lock()
+	defer lpo.metricsMutex.Unlock()
+
+	lpo.metrics = &LogoutMetrics{
+		LastReset: time.Now(),
+	}
+}
+
+// WarmUpCache performs cache warmup for common logout scenarios
+func (lpo *LogoutPerformanceOptimizer) WarmUpCache(ctx context.Context) error {
+	// Implementation for cache warmup could include:
+	// - Preloading common logout patterns
+	// - Setting up cache for frequently logged-out devices
+	// - Initializing performance counters
+
+	fmt.Println("🔥 [Performance] Cache warmup completed")
+	return nil
+}
+
+// GetPerformanceReport generates a comprehensive performance report
+func (lpo *LogoutPerformanceOptimizer) GetPerformanceReport() map[string]interface{} {
+	metrics := lpo.GetMetrics()
+	cacheStats := lpo.GetCacheStats()
+
+	// Calculate success rate by platform
+	platformStats := make(map[string]map[string]interface{})
+
+	for _, entry := range metrics.OperationHistory {
+		if _, exists := platformStats[entry.Platform]; !exists {
+			platformStats[entry.Platform] = map[string]interface{}{
+				"total_operations": 0,
+				"successful_operations": 0,
+				"average_duration": time.Duration(0),
+			}
+		}
+
+		stats, ok := platformStats[entry.Platform]
+		if !ok {
+			continue
+		}
+
+		// Type assertions
+		totalOps, ok := stats["total_operations"].(int)
+		if !ok {
+			totalOps = 0
+		}
+		successfulOps, ok := stats["successful_operations"].(int)
+		if !ok {
+			successfulOps = 0
+		}
+		currentAvg, ok := stats["average_duration"].(time.Duration)
+		if !ok {
+			currentAvg = time.Duration(0)
+		}
+
+		// Update counters
+		totalOps++
+		if entry.Success {
+			successfulOps++
+		}
+
+		// Update average duration
+		if totalOps > 0 {
+			currentAvg = (currentAvg*time.Duration(totalOps-1) + entry.Duration) / time.Duration(totalOps)
+		}
+
+		// Store updated values
+		stats["total_operations"] = totalOps
+		stats["successful_operations"] = successfulOps
+		stats["average_duration"] = currentAvg
+	}
+
+	return map[string]interface{}{
+		"summary": map[string]interface{}{
+			"total_operations":     metrics.TotalOperations,
+			"average_duration":     metrics.AverageDuration.String(),
+			"peak_concurrency":     metrics.PeakConcurrency,
+			"operations_per_sec":   metrics.OperationsPerSec,
+			"last_reset":           metrics.LastReset,
+		},
+		"cache_stats": cacheStats,
+		"platform_breakdown":    platformStats,
+	}
+}

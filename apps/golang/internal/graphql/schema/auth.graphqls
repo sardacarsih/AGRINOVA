@@ -1,0 +1,839 @@
+# =============================================================================
+# Authentication & Authorization Schema
+# =============================================================================
+
+"""
+AuthPayload represents the response from authentication operations.
+Contains access token, refresh token, and user information.
+"""
+type AuthPayload {
+  "JWT access token for API authentication (15 min validity)"
+  accessToken: String!
+  "JWT refresh token for token renewal (7 days validity)"
+  refreshToken: String!
+  "Optional offline token for mobile devices (30 days validity)"
+  offlineToken: String
+  "Token type (always 'Bearer')"
+  tokenType: String!
+  "Token expiration time in seconds"
+  expiresIn: Int!
+  "Timestamp when access token expires"
+  expiresAt: Time!
+  "Timestamp when refresh token expires"
+  refreshExpiresAt: Time
+  "Timestamp when offline token expires (mobile only)"
+  offlineExpiresAt: Time
+  "Authenticated user information"
+  user: User!
+  "User assignments for role-based access control"
+  assignments: UserAssignments!
+}
+
+"""
+WebLoginPayload represents the response from web authentication operations.
+Contains user information and company assignments for web dashboard.
+"""
+type WebLoginPayload {
+  "Whether the login was successful"
+  success: Boolean!
+  "Authenticated user information (null when authentication fails)"
+  user: User
+  "User assignments for role-based access control (null when authentication fails or not needed)"
+  assignments: UserAssignments
+  "Session ID for tracking (null when authentication fails)"
+  sessionId: String
+  "Message describing the login result"
+  message: String!
+}
+
+
+"""
+MobileLoginInput represents simplified input for mobile authentication.
+Automatically detects user role and provides role-appropriate response.
+"""
+input MobileLoginInput {
+  "Username or email address for authentication"
+  identifier: String!
+  "User password"
+  password: String!
+  "Client platform (ANDROID, IOS)"
+  platform: PlatformType!
+  "Device ID for binding (optional, auto-generated if not provided)"
+  deviceId: String
+  "Device fingerprint for security validation (optional, auto-generated if not provided)"
+  deviceFingerprint: String
+}
+
+"""
+WebLoginInput represents simplified input for web authentication with cookie support.
+Automatically handles session creation and cookie management for web browsers.
+"""
+input WebLoginInput {
+  "Username or email address for authentication"
+  identifier: String!
+  "User password"
+  password: String!
+}
+
+"""
+DeviceInfoInput contains device information for registration.
+"""
+input DeviceInfoInput {
+  "Device model/name"
+  model: String!
+  "Operating system version"
+  osVersion: String!
+  "Application version"
+  appVersion: String!
+  "Device name set by user"
+  deviceName: String
+  "Screen resolution"
+  screenResolution: String
+  "Device language"
+  deviceLanguage: String
+}
+
+"""
+ChangePasswordInput represents input for changing user password.
+"""
+input ChangePasswordInput {
+  "Current password for verification"
+  currentPassword: String!
+  "New password"
+  newPassword: String!
+  "Confirmation of new password"
+  confirmPassword: String!
+  "Whether to logout from all other devices"
+  logoutOtherDevices: Boolean = false
+}
+
+"""
+DeviceBindInput represents input for binding a device.
+"""
+input DeviceBindInput {
+  "Device ID to bind"
+  deviceId: String!
+  "Device fingerprint"
+  deviceFingerprint: String!
+  "Device platform"
+  platform: PlatformType!
+  "Device information"
+  deviceInfo: DeviceInfoInput!
+  "Biometric hash for additional security"
+  biometricHash: String
+}
+
+"""
+DeviceResponse represents the response from device operations.
+"""
+type DeviceResponse {
+  "Whether the operation was successful"
+  success: Boolean!
+  "Result message"
+  message: String!
+  "Device information"
+  device: Device
+  "Trust level assigned"
+  trustLevel: String
+}
+
+"""
+RefreshTokenInput represents the input for token refresh operations.
+"""
+input RefreshTokenInput {
+  "Valid refresh token"
+  refreshToken: String!
+  "Device ID for mobile token refresh"
+  deviceId: String
+  "Device fingerprint for security validation"
+  deviceFingerprint: String
+}
+
+"""
+DeviceRenewInput for exchanging an offline/session token for a new access+refresh token pair.
+Use this when refreshToken returns REFRESH_EXPIRED or REFRESH_REVOKED.
+"""
+input DeviceRenewInput {
+  "Opaque offline/session token received at login (30-day validity)"
+  offlineToken: String!
+  "Device ID bound to this token"
+  deviceId: String!
+  "Device fingerprint for additional security validation"
+  deviceFingerprint: String
+}
+
+"""
+User represents a system user with role-based access control.
+Supports hierarchical roles from field workers to system administrators.
+"""
+type User {
+  "Unique identifier for the user"
+  id: ID!
+  "Unique username for authentication"
+  username: String!
+  "Display name of the user"
+  name: String!
+  "Optional email address for notifications"
+  email: String
+  "Optional phone number"
+  phoneNumber: String
+  "Optional avatar image URL or data URI"
+  avatar: String
+  "Role defining user permissions and access level"
+  role: UserRole!
+  "Manager/Supervisor of this user"
+  managerId: String
+  "Manager entity"
+  manager: User
+  "Whether the user account is active"
+  isActive: Boolean!
+  "Timestamp when user was created"
+  createdAt: Time!
+  "Timestamp when user was last updated"
+  updatedAt: Time!
+  "Company identifier this user belongs to"
+  companyId: String
+  company: Company
+  "Companies this user is assigned to (multi-company support)"
+  companies: [Company!]
+  "Estates assigned to this user"
+  estates: [Estate!]
+  "Divisions assigned to this user"
+  divisions: [Division!]
+}
+
+"""
+Device represents a bound device for mobile authentication.
+Supports trust levels and device fingerprinting for security.
+"""
+type Device {
+  "Unique device identifier"
+  id: ID!
+  "User-friendly device ID"
+  deviceId: String!
+  "Device fingerprint for security validation"
+  deviceFingerprint: String!
+  "Platform this device runs on"
+  platform: PlatformType!
+  "Device information"
+  deviceInfo: DeviceInfo!
+  "Trust level assigned to this device"
+  trustLevel: String!
+  "Whether device is trusted"
+  isTrusted: Boolean!
+  "Whether device is authorized to access the system"
+  isAuthorized: Boolean!
+  "Last time this device was used"
+  lastSeenAt: Time!
+  "When device was first bound"
+  createdAt: Time!
+  "When device binding was last updated"
+  updatedAt: Time!
+}
+
+"""
+DeviceInfo contains detailed information about a device.
+"""
+type DeviceInfo {
+  "Device model/name"
+  model: String!
+  "Operating system version"
+  osVersion: String!
+  "Application version"
+  appVersion: String!
+  "Device name set by user"
+  deviceName: String
+  "Screen resolution"
+  screenResolution: String
+  "Device language"
+  deviceLanguage: String
+}
+
+"""
+CreateUserInput represents the input for creating a new user with comprehensive validation.
+"""
+input CreateUserInput {
+  "Unique username for authentication"
+  username: String!
+  "Display name of the user"
+  name: String!
+  "Optional email address for notifications"
+  email: String
+  "Optional phone number"
+  phoneNumber: String
+  "Role defining user permissions and access level"
+  role: UserRole!
+  "Company identifiers this user belongs to (supports multi-company assignment, optional for SUPER_ADMIN)"
+  companyIds: [String!]
+  "Estate identifiers (optional, for field roles)"
+  estateIds: [String!]
+  "Division identifiers (optional, for field roles)"
+  divisionIds: [String!]
+  "Manager/Supervisor identifier"
+  managerId: String
+  "Initial password for the user"
+  password: String!
+  "Whether the user account should be active immediately"
+  isActive: Boolean = true
+}
+
+"""
+UpdateUserInput represents the input for updating an existing user.
+"""
+input UpdateUserInput {
+  "User ID to update"
+  id: ID!
+  "New username (must be unique)"
+  username: String
+  "New display name"
+  name: String
+  "New email address"
+  email: String
+  "New phone number"
+  phoneNumber: String
+  "New avatar image URL or data URI (empty string removes avatar)"
+  avatar: String
+  "New role (requires proper authorization)"
+  role: UserRole
+  "New company assignments (replaces all existing assignments)"
+  companyIds: [String!]
+  "New estate assignments"
+  estateIds: [String!]
+  "New division assignments"
+  divisionIds: [String!]
+  "New manager/supervisor assignment"
+  managerId: String
+  "Whether the user account should be active"
+  isActive: Boolean
+}
+
+"""
+ResetPasswordInput represents the input for resetting a user's password.
+"""
+input ResetPasswordInput {
+  "User ID whose password should be reset"
+  userId: ID!
+  "New temporary password"
+  newPassword: String!
+  "Whether to require password change on next login"
+  requirePasswordChange: Boolean = true
+  "Whether to logout from all devices"
+  logoutOtherDevices: Boolean = true
+}
+
+# Auth-specific queries
+extend type Query {
+  # Authentication Queries
+  "Get current authenticated user information with session validation"
+  me: User
+  "Get current user with full company context and permissions"
+  currentUser: WebLoginPayload
+  "Get current user's bound devices"
+  myDevices: [Device!]!
+  
+  # User Management Queries
+  "Retrieve all users in the system with optional filtering"
+  users(
+    "Filter by company ID"
+    companyId: String
+    "Filter by user role"
+    role: UserRole
+    "Filter by active status"
+    isActive: Boolean
+    "Search query for name or username"
+    search: String
+    "Pagination limit"
+    limit: Int
+    "Pagination offset"
+    offset: Int
+  ): UserListResponse!
+  "Get a specific user by ID"
+  user(id: ID!): User
+  "Get users by company with role-based access control"
+  usersByCompany(companyId: String!): [User!]!
+  "Get users by role with proper authorization"
+  usersByRole(role: UserRole!): [User!]!
+  
+  # Role Hierarchy Queries
+  "Get information about a specific role"
+  roleInfo(role: UserRole!): RoleInfo
+  "Get all roles in hierarchical order"
+  allRoles: [RoleInfo!]!
+  "Get the complete role hierarchy tree organized by levels"
+  roleHierarchyTree: [RoleHierarchyTree!]!
+  "Check if a role can access another role"
+  checkRoleAccess(requesterRole: UserRole!, targetRole: UserRole!): RoleAccessCheck!
+  "Check if a role has a specific permission"
+  checkRolePermission(role: UserRole!, permission: String!): RolePermissionCheck!
+  "Get all roles that a requester can access"
+  getAccessibleRoles(requesterRole: UserRole!): [UserRole!]!
+  "Get all roles that a requester can manage"
+  getManageableRoles(requesterRole: UserRole!): [UserRole!]!
+  "Get all roles that a requester can assign"
+  getAssignableRoles(requesterRole: UserRole!): [UserRole!]!
+  "Get all roles hierarchically superior to a given role"
+  getHierarchicalSuperiors(role: UserRole!): [UserRole!]!
+  "Get all roles hierarchically subordinate to a given role" 
+  getHierarchicalSubordinates(role: UserRole!): [UserRole!]!
+}
+
+# Auth-specific mutations
+extend type Mutation {
+  # Authentication mutations
+  "Web authentication with cookie-based session management"
+  webLogin(input: WebLoginInput!): WebLoginPayload!
+  "Mobile authentication with simplified input for mobile apps"
+  mobileLogin(input: MobileLoginInput!): AuthPayload!
+  "Refresh access token using standard AuthPayload"
+  refreshToken(input: RefreshTokenInput!): AuthPayload!
+  "Renew access+refresh tokens using offline/session token (use when refresh token is expired/revoked)"
+  deviceRenew(input: DeviceRenewInput!): AuthPayload!
+  "Logout user and revoke current device token"
+  logout: Boolean!
+  "Logout from all devices and revoke all user tokens"
+  logoutAllDevices: Boolean!
+  "Change user password with security validation"
+  changePassword(input: ChangePasswordInput!): Boolean!
+  "Bind device for trusted authentication"
+  bindDevice(input: DeviceBindInput!): DeviceResponse!
+  "Unbind device and revoke access"
+  unbindDevice(deviceId: ID!): Boolean!
+
+  # User Management Mutations
+  "Create a new user with role-based authorization"
+  createUser(input: CreateUserInput!): UserMutationResponse!
+  "Update an existing user with proper validation"
+  updateUser(input: UpdateUserInput!): UserMutationResponse!
+  "Delete a user with cascade handling"
+  deleteUser(id: ID!): UserMutationResponse!
+  "Toggle user active status"
+  toggleUserStatus(id: ID!): UserMutationResponse!
+  "Reset user password (admin only)"
+  resetUserPassword(input: ResetPasswordInput!): UserMutationResponse!
+}
+
+# =============================================================================
+# Role Hierarchy Types
+# =============================================================================
+
+"""
+RoleInfo contains comprehensive information about a role including its hierarchical level and permissions.
+"""
+type RoleInfo {
+  "The user role"
+  role: UserRole!
+  "Hierarchical level (1 = highest authority)"
+  level: Int!
+  "Human-readable name"
+  name: String!
+  "Role description"
+  description: String!
+  "List of permissions assigned to this role"
+  permissions: [String!]!
+  "Whether this role has web dashboard access"
+  webAccess: Boolean!
+  "Whether this role has mobile application access"
+  mobileAccess: Boolean!
+}
+
+"""
+RoleHierarchyTree represents the complete role hierarchy organized by levels.
+"""
+type RoleHierarchyTree {
+  "Level number (1 = highest authority)"
+  level: Int!
+  "Roles at this hierarchical level"
+  roles: [RoleInfo!]!
+}
+
+"""
+RolePermissionCheck represents the result of a permission check.
+"""
+type RolePermissionCheck {
+  "Whether the requester has the permission"
+  hasPermission: Boolean!
+  "The specific permission that was checked"
+  permission: String!
+  "Reason why permission was granted or denied"
+  reason: String
+}
+
+"""
+RoleAccessCheck represents the result of a role access check.
+"""
+type RoleAccessCheck {
+  "Whether the requester can access the target role"
+  canAccess: Boolean!
+  "Whether the requester can manage the target role"
+  canManage: Boolean!
+  "Whether the requester can assign the target role"
+  canAssignRole: Boolean!
+  "The requester's role"
+  requesterRole: UserRole!
+  "The target role being checked"
+  targetRole: UserRole!
+  "Explanation of the access decision"
+  explanation: String
+}
+
+# =============================================================================
+# Role-Based Profile Union Types
+# =============================================================================
+
+"""
+UserProfile represents different profile structures based on user role.
+Each role returns specific data relevant to their responsibilities and scope.
+"""
+union UserProfile = SuperAdminProfile | CompanyAdminProfile | AreaManagerProfile | ManagerProfile | AsistenProfile | MandorProfile | SatpamProfile
+
+"""
+SuperAdminProfile provides system-wide access and administrative data.
+"""
+type SuperAdminProfile {
+  "Basic user information"
+  user: User!
+  "All companies in the system"
+  companies: [Company!]!
+  "System statistics and health metrics"
+  systemStats: SystemStats
+  "Access to all estates across companies"
+  estates: [Estate!]!
+  "Access to all divisions across estates"
+  divisions: [Division!]!
+}
+
+"""
+CompanyAdminProfile provides company-level administrative access.
+"""
+type CompanyAdminProfile {
+  "Basic user information"
+  user: User!
+  "Company managed by this admin"
+  company: Company!
+  "All estates within the company"
+  estates: [Estate!]!
+  "All divisions within company estates"
+  divisions: [Division!]!
+  "Company-specific statistics"
+  companyStats: CompanyStats
+}
+
+"""
+AreaManagerProfile provides multi-company monitoring access.
+"""
+type AreaManagerProfile {
+  "Basic user information"
+  user: User!
+  "Companies assigned to this area manager"
+  companies: [Company!]!
+  "Estates across assigned companies"
+  estates: [Estate!]!
+  "Area-level performance metrics"
+  areaStats: AreaStats
+}
+
+"""
+ManagerProfile provides estate-level management access.
+"""
+type ManagerProfile {
+  "Basic user information"
+  user: User!
+  "Company this manager belongs to"
+  company: Company!
+  "Estates assigned to this manager"
+  estates: [Estate!]!
+  "Manager-specific performance metrics"
+  managerStats: ManagerStats
+}
+
+"""
+AsistenProfile provides division-level assistant management access.
+"""
+type AsistenProfile {
+  "Basic user information"
+  user: User!
+  "Company this assistant belongs to"
+  company: Company!
+  "Estate this assistant is assigned to"
+  estate: Estate!
+  "Divisions assigned to this assistant"
+  divisions: [Division!]!
+  "Assistant-specific work metrics"
+  asistenStats: AsistenStats
+}
+
+"""
+MandorProfile provides field-level supervisor access.
+"""
+type MandorProfile {
+  "Basic user information"
+  user: User!
+  "Company this supervisor belongs to"
+  company: Company!
+  "Estate this supervisor works in"
+  estate: Estate!
+  "Divisions assigned to this supervisor"
+  divisions: [Division!]!
+  "Supervisor-specific work metrics"
+  mandorStats: MandorStats
+}
+
+"""
+SatpamProfile provides security gate check access.
+"""
+type SatpamProfile {
+  "Basic user information"
+  user: User!
+  "Company this security guard belongs to"
+  company: Company!
+  "Gate check statistics and access"
+  gateStats: GateStats
+}
+
+# =============================================================================
+# Role-Specific Statistics Types
+# =============================================================================
+
+"""
+SystemStats provides system-wide administrative metrics.
+"""
+type SystemStats {
+  "Total number of active companies"
+  totalCompanies: Int!
+  "Total number of active users"
+  totalUsers: Int!
+  "Total number of estates across all companies"
+  totalEstates: Int!
+  "System uptime and performance metrics"
+  systemHealth: SystemHealth
+}
+
+"""
+CompanyStats provides company-level administrative metrics.
+"""
+type CompanyStats {
+  "Number of estates in the company"
+  totalEstates: Int!
+  "Number of active users in the company"
+  totalUsers: Int!
+  "Number of divisions across all estates"
+  totalDivisions: Int!
+  "Company performance metrics"
+  performanceMetrics: CompanyPerformance
+}
+
+"""
+AreaStats provides area manager performance metrics.
+"""
+type AreaStats {
+  "Number of companies under management"
+  companiesManaged: Int!
+  "Total estates across managed companies"
+  totalEstates: Int!
+  "Cross-company performance summary"
+  crossCompanyMetrics: CrossCompanyMetrics
+}
+
+"""
+ManagerStats provides estate manager performance metrics.
+"""
+type ManagerStats {
+  "Number of estates managed"
+  estatesManaged: Int!
+  "Total divisions across managed estates"
+  totalDivisions: Int!
+  "Estate performance summary"
+  estatePerformance: EstatePerformance
+}
+
+"""
+AsistenStats provides assistant work metrics.
+"""
+type AsistenStats {
+  "Number of divisions assigned"
+  divisionsAssigned: Int!
+  "Pending approvals count"
+  pendingApprovals: Int!
+  "Daily work summary"
+  dailyWorkload: AsistenWorkload
+}
+
+"""
+MandorStats provides supervisor work metrics.
+"""
+type MandorStats {
+  "Number of divisions supervised"
+  divisionsSupervised: Int!
+  "Daily harvest records created"
+  dailyHarvestRecords: Int!
+  "Field work summary"
+  fieldWorkSummary: MandorWorkload
+}
+
+"""
+GateStats provides security gate check metrics.
+"""
+type GateStats {
+  "Daily gate check count"
+  dailyGateChecks: Int!
+  "Pending vehicle approvals"
+  pendingApprovals: Int!
+  "Gate security summary"
+  securitySummary: GateSecuritySummary
+}
+
+# =============================================================================
+# Enhanced AuthPayload with UserProfile (Reserved for Future Enhancement)
+# =============================================================================
+
+# =============================================================================
+# Placeholder Types for Statistics (can be extended with actual implementations)
+# =============================================================================
+
+"""
+SystemHealth represents system-wide health and performance metrics.
+"""
+type SystemHealth {
+  "System uptime in seconds"
+  uptimeSeconds: Int!
+  "Memory usage percentage"
+  memoryUsage: Float!
+  "CPU usage percentage"
+  cpuUsage: Float!
+  "Database connection status"
+  databaseStatus: String!
+}
+
+"""
+CompanyPerformance represents company-level performance metrics.
+"""
+type CompanyPerformance {
+  "Monthly harvest volume"
+  monthlyHarvestVolume: Float!
+  "Average quality score"
+  averageQualityScore: Float!
+  "Estate efficiency metrics"
+  estateEfficiency: Float!
+}
+
+"""
+CrossCompanyMetrics represents area manager cross-company metrics.
+"""
+type CrossCompanyMetrics {
+  "Best performing company"
+  bestPerformingCompany: String!
+  "Average performance across companies"
+  averagePerformance: Float!
+  "Total production across all companies"
+  totalProduction: Float!
+}
+
+"""
+EstatePerformance represents estate-level performance metrics.
+"""
+type EstatePerformance {
+  "Monthly production target"
+  monthlyTarget: Float!
+  "Actual production achieved"
+  actualProduction: Float!
+  "Production efficiency percentage"
+  efficiency: Float!
+}
+
+"""
+AsistenWorkload represents assistant daily workload metrics.
+"""
+type AsistenWorkload {
+  "Approvals completed today"
+  approvalsCompleted: Int!
+  "Rejections made today"
+  rejectionsToday: Int!
+  "Average approval time in minutes"
+  averageApprovalTime: Float!
+}
+
+"""
+MandorWorkload represents supervisor field work metrics.
+"""
+type MandorWorkload {
+  "Harvest records created today"
+  recordsCreated: Int!
+  "Blocks supervised"
+  blocksSupervised: Int!
+  "Quality score average"
+  qualityScoreAverage: Float!
+}
+
+"""
+GateSecuritySummary represents gate security operation summary.
+"""
+type GateSecuritySummary {
+  "Vehicles processed today"
+  vehiclesProcessed: Int!
+  "Security incidents reported"
+  securityIncidents: Int!
+  "Average processing time in minutes"
+  averageProcessingTime: Float!
+}
+
+# =============================================================================
+# User Management Response Types
+# =============================================================================
+
+"""
+UserListResponse represents a paginated list of users with metadata.
+"""
+type UserListResponse {
+  "List of users"
+  users: [User!]!
+  "Total number of users matching the criteria"
+  totalCount: Int!
+  "Whether there are more users to fetch"
+  hasNextPage: Boolean!
+  "Current page information"
+  pageInfo: PageInfo!
+}
+
+"""
+UserMutationResponse represents the response from user mutation operations.
+"""
+type UserMutationResponse {
+  "Whether the operation was successful"
+  success: Boolean!
+  "Result message"
+  message: String!
+  "User data (when operation is successful)"
+  user: User
+  "List of validation errors (when operation fails)"
+  errors: [ValidationError!]
+}
+
+"""
+PageInfo provides pagination information for list queries.
+"""
+type PageInfo {
+  "Starting cursor for the current page"
+  startCursor: String
+  "Ending cursor for the current page"
+  endCursor: String
+  "Whether there are more pages available"
+  hasNextPage: Boolean!
+  "Whether there are previous pages available"
+  hasPreviousPage: Boolean!
+  "Current page number"
+  currentPage: Int!
+  "Total number of pages"
+  totalPages: Int!
+}
+
+"""
+ValidationError represents a validation error for user input.
+"""
+type ValidationError {
+  "Field that has the validation error"
+  field: String!
+  "Error message"
+  message: String!
+  "Error code for programmatic handling"
+  code: String
+}

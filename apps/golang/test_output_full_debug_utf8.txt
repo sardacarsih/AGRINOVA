@@ -1,0 +1,126 @@
+﻿=== RUN   TestUserRepository_FindWithFilters
+    user_repository_test.go:187: Starting TestUserRepository_FindWithFilters
+
+2026/02/11 17:07:44 C:/Users/Dadang H/go/pkg/mod/github.com/glebarez/sqlite@v1.11.0/migrator.go:32
+[0.000ms] [rows:-] SELECT count(*) FROM sqlite_master WHERE type='table' AND name="users"
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository_test.go:38
+[0.000ms] [rows:0] CREATE TABLE `users` (`id` uuid,`username` text NOT NULL,`email` text,`password` text NOT NULL,`role` text NOT NULL,`is_active` numeric DEFAULT true,`created_at` datetime,`updated_at` datetime,`deleted_at` datetime,PRIMARY KEY (`id`))
+
+2026/02/11 17:07:44 C:/Users/Dadang H/go/pkg/mod/github.com/glebarez/sqlite@v1.11.0/migrator.go:274
+[0.512ms] [rows:0] CREATE INDEX `idx_users_deleted_at` ON `users`(`deleted_at`)
+
+2026/02/11 17:07:44 C:/Users/Dadang H/go/pkg/mod/github.com/glebarez/sqlite@v1.11.0/migrator.go:274
+[0.000ms] [rows:0] CREATE UNIQUE INDEX `idx_users_username` ON `users`(`username`)
+
+2026/02/11 17:07:44 C:/Users/Dadang H/go/pkg/mod/github.com/glebarez/sqlite@v1.11.0/migrator.go:32
+[0.000ms] [rows:-] SELECT count(*) FROM sqlite_master WHERE type='table' AND name="companies"
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository_test.go:38
+[0.000ms] [rows:0] CREATE TABLE `companies` (`id` uuid,`nama` text NOT NULL,`status` text DEFAULT "Active",`alamat` text,`telepon` text,`is_active` numeric DEFAULT true,`created_at` datetime,`updated_at` datetime,PRIMARY KEY (`id`))
+
+2026/02/11 17:07:44 C:/Users/Dadang H/go/pkg/mod/github.com/glebarez/sqlite@v1.11.0/migrator.go:274
+[0.000ms] [rows:0] CREATE INDEX `idx_companies_is_active` ON `companies`(`is_active`)
+
+2026/02/11 17:07:44 C:/Users/Dadang H/go/pkg/mod/github.com/glebarez/sqlite@v1.11.0/migrator.go:32
+[0.000ms] [rows:-] SELECT count(*) FROM sqlite_master WHERE type='table' AND name="user_company_assignments"
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository_test.go:38
+[0.519ms] [rows:0] CREATE TABLE `user_company_assignments` (`id` uuid,`user_id` uuid NOT NULL,`company_id` uuid NOT NULL,`name` text NOT NULL,`phone` text,`is_active` numeric DEFAULT true,`assigned_by` uuid,`assigned_at` datetime,`created_at` datetime,`updated_at` datetime,PRIMARY KEY (`id`),CONSTRAINT `fk_user_company_assignments_company` FOREIGN KEY (`company_id`) REFERENCES `companies`(`id`),CONSTRAINT `fk_users_company_assignments` FOREIGN KEY (`user_id`) REFERENCES `users`(`id`))
+
+2026/02/11 17:07:44 C:/Users/Dadang H/go/pkg/mod/github.com/glebarez/sqlite@v1.11.0/migrator.go:274
+[0.000ms] [rows:0] CREATE INDEX `idx_user_company_assignments_is_active` ON `user_company_assignments`(`is_active`)
+
+2026/02/11 17:07:44 C:/Users/Dadang H/go/pkg/mod/github.com/glebarez/sqlite@v1.11.0/migrator.go:274
+[0.000ms] [rows:0] CREATE INDEX `idx_user_company_assignments_company_id` ON `user_company_assignments`(`company_id`)
+
+2026/02/11 17:07:44 C:/Users/Dadang H/go/pkg/mod/github.com/glebarez/sqlite@v1.11.0/migrator.go:274
+[0.000ms] [rows:0] CREATE INDEX `idx_user_company_assignments_user_id` ON `user_company_assignments`(`user_id`)
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:217
+[0.000ms] [rows:1] INSERT INTO `user_company_assignments` (`id`,`user_id`,`company_id`,`name`,`phone`,`is_active`,`assigned_by`,`assigned_at`,`created_at`,`updated_at`) VALUES ("assign-1","4161871c-0014-4f02-8e39-fb1e2a42b1f8","company-1","User One",NULL,true,"","0000-00-00 00:00:00","2026-02-11 17:07:44.041","2026-02-11 17:07:44.041") ON CONFLICT (`id`) DO UPDATE SET `user_id`=`excluded`.`user_id`
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:217
+[0.000ms] [rows:1] INSERT INTO `users` (`id`,`username`,`email`,`password`,`role`,`is_active`,`created_at`,`updated_at`,`deleted_at`) VALUES ("4161871c-0014-4f02-8e39-fb1e2a42b1f8","user1","user1@example.com","password","MANAGER",true,"2026-02-11 17:07:44.041","2026-02-11 17:07:44.041",NULL)
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:217
+[0.000ms] [rows:1] INSERT INTO `user_company_assignments` (`id`,`user_id`,`company_id`,`name`,`phone`,`is_active`,`assigned_by`,`assigned_at`,`created_at`,`updated_at`) VALUES ("assign-2","b76ca6e5-6a88-464a-8eed-948f202f53aa","company-1","User Two",NULL,true,"","0000-00-00 00:00:00","2026-02-11 17:07:44.042","2026-02-11 17:07:44.042") ON CONFLICT (`id`) DO UPDATE SET `user_id`=`excluded`.`user_id`
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:217
+[0.524ms] [rows:1] INSERT INTO `users` (`id`,`username`,`email`,`password`,`role`,`is_active`,`created_at`,`updated_at`,`deleted_at`) VALUES ("b76ca6e5-6a88-464a-8eed-948f202f53aa","user2","user2@example.com","password","ASISTEN",true,"2026-02-11 17:07:44.042","2026-02-11 17:07:44.042",NULL)
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:217
+[0.000ms] [rows:1] INSERT INTO `user_company_assignments` (`id`,`user_id`,`company_id`,`name`,`phone`,`is_active`,`assigned_by`,`assigned_at`,`created_at`,`updated_at`) VALUES ("assign-3","30f8cdbf-4ae6-4061-8582-7153ea7996a3","company-2","User Three",NULL,true,"","0000-00-00 00:00:00","2026-02-11 17:07:44.042","2026-02-11 17:07:44.042") ON CONFLICT (`id`) DO UPDATE SET `user_id`=`excluded`.`user_id`
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:217
+[0.000ms] [rows:1] INSERT INTO `users` (`id`,`username`,`email`,`password`,`role`,`is_active`,`created_at`,`updated_at`,`deleted_at`) VALUES ("30f8cdbf-4ae6-4061-8582-7153ea7996a3","user3","user3@example.com","password","MANAGER",true,"2026-02-11 17:07:44.042","2026-02-11 17:07:44.042",NULL)
+    user_repository_test.go:247: Users created successfully
+    user_repository_test.go:251: Filtering by company: company-1
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:167
+[0.000ms] [rows:1] SELECT COUNT(`users`.`id`) FROM `users` JOIN user_company_assignments ON user_company_assignments.user_id = users.id WHERE user_company_assignments.company_id = "company-1" AND user_company_assignments.is_active = true
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:191
+[0.000ms] [rows:0] SELECT * FROM `companies` WHERE `companies`.`id` = "company-1"
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:191
+[0.514ms] [rows:2] SELECT * FROM `user_company_assignments` WHERE `user_company_assignments`.`user_id` IN ("b76ca6e5-6a88-464a-8eed-948f202f53aa","4161871c-0014-4f02-8e39-fb1e2a42b1f8")
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:191
+[0.514ms] [rows:2] SELECT `users`.`id`,`users`.`username`,`users`.`email`,`users`.`password`,`users`.`role`,`users`.`is_active`,`users`.`created_at`,`users`.`updated_at`,`users`.`deleted_at` FROM `users` JOIN user_company_assignments ON user_company_assignments.user_id = users.id WHERE user_company_assignments.company_id = "company-1" AND user_company_assignments.is_active = true ORDER BY users.created_at DESC
+    user_repository_test.go:262: Filter by company passed
+    user_repository_test.go:266: Filtering by role: MANAGER
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:167
+[0.000ms] [rows:1] SELECT COUNT(`users`.`id`) FROM `users` WHERE users.role = "MANAGER"
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:191
+[0.000ms] [rows:0] SELECT * FROM `companies` WHERE `companies`.`id` IN ("company-2","company-1")
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:191
+[0.000ms] [rows:2] SELECT * FROM `user_company_assignments` WHERE `user_company_assignments`.`user_id` IN ("30f8cdbf-4ae6-4061-8582-7153ea7996a3","4161871c-0014-4f02-8e39-fb1e2a42b1f8")
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:191
+[0.000ms] [rows:2] SELECT * FROM `users` WHERE users.role = "MANAGER" ORDER BY users.created_at DESC
+    user_repository_test.go:277: Filter by role passed
+    user_repository_test.go:281: Filtering by active status: true
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:167
+[0.391ms] [rows:1] SELECT COUNT(`users`.`id`) FROM `users` WHERE users.is_active = true
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:191
+[0.000ms] [rows:0] SELECT * FROM `companies` WHERE `companies`.`id` IN ("company-2","company-1")
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:191
+[0.000ms] [rows:3] SELECT * FROM `user_company_assignments` WHERE `user_company_assignments`.`user_id` IN ("b76ca6e5-6a88-464a-8eed-948f202f53aa","30f8cdbf-4ae6-4061-8582-7153ea7996a3","4161871c-0014-4f02-8e39-fb1e2a42b1f8")
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:191
+[0.000ms] [rows:3] SELECT * FROM `users` WHERE users.is_active = true ORDER BY users.created_at DESC
+    user_repository_test.go:290: 
+        	Error Trace:	D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository_test.go:290
+        	Error:      	Not equal: 
+        	            	expected: 2
+        	            	actual  : 3
+        	Test:       	TestUserRepository_FindWithFilters
+    user_repository_test.go:291: 
+        	Error Trace:	D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository_test.go:291
+        	Error:      	"[0xc000263040 0xc0002631e0 0xc000263380]" should have 2 item(s), but has 3
+        	Test:       	TestUserRepository_FindWithFilters
+    user_repository_test.go:292: Filter by status passed
+    user_repository_test.go:296: Searching for: User One
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:167
+[0.000ms] [rows:1] SELECT COUNT(`users`.`id`) FROM `users` LEFT JOIN user_company_assignments ON user_company_assignments.user_id = users.id WHERE LOWER(users.username) LIKE LOWER("%User One%") OR LOWER(user_company_assignments.name) LIKE LOWER("%User One%") OR LOWER(users.email) LIKE LOWER("%User One%")
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:191
+[0.000ms] [rows:0] SELECT * FROM `companies` WHERE `companies`.`id` = "company-1"
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:191
+[0.000ms] [rows:1] SELECT * FROM `user_company_assignments` WHERE `user_company_assignments`.`user_id` = "4161871c-0014-4f02-8e39-fb1e2a42b1f8"
+
+2026/02/11 17:07:44 D:/VSCODE/agrinova/apps/golang/internal/auth/features/shared/infrastructure/postgres/user_repository.go:191
+[0.000ms] [rows:1] SELECT `users`.`id`,`users`.`username`,`users`.`email`,`users`.`password`,`users`.`role`,`users`.`is_active`,`users`.`created_at`,`users`.`updated_at`,`users`.`deleted_at` FROM `users` LEFT JOIN user_company_assignments ON user_company_assignments.user_id = users.id WHERE LOWER(users.username) LIKE LOWER("%User One%") OR LOWER(user_company_assignments.name) LIKE LOWER("%User One%") OR LOWER(users.email) LIKE LOWER("%User One%") ORDER BY users.created_at DESC
+--- FAIL: TestUserRepository_FindWithFilters (0.01s)
+FAIL
+FAIL	agrinovagraphql/server/internal/auth/features/shared/infrastructure/postgres	0.522s
+FAIL

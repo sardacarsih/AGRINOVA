@@ -1,0 +1,3 @@
+{
+    "query": "mutation { mobileLogin(input: { identifier: \"mandor\", password: \"demo123\", platform: ANDROID, deviceId: \"device-check-12345\", deviceFingerprint: \"fp-check-12345\" }) { user { id name managerId manager { id name } } } }"
+}

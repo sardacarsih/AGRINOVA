@@ -1,0 +1,70 @@
+# =============================================================================
+# JWT Token Management Schema
+# =============================================================================
+
+"""
+JWTTokenRecord represents a token record stored in jwt_tokens table.
+"""
+type JWTTokenRecord {
+  "Token record UUID"
+  id: UUID!
+  "User who owns the token"
+  user: User!
+  "User ID"
+  userId: UUID!
+  "Device identifier"
+  deviceId: String!
+  "Token type (JWT, REFRESH, OFFLINE)"
+  tokenType: String!
+  "Access token expiry"
+  expiresAt: Time!
+  "Refresh token expiry (if available)"
+  refreshExpiresAt: Time
+  "Offline token expiry (if available)"
+  offlineExpiresAt: Time
+  "Whether token is revoked"
+  isRevoked: Boolean!
+  "Time token was revoked"
+  revokedAt: Time
+  "Last usage timestamp"
+  lastUsedAt: Time
+  "Record creation time"
+  createdAt: Time!
+  "Record update time"
+  updatedAt: Time!
+}
+
+"""
+JWTTokenFilterInput allows filtering JWT token records.
+"""
+input JWTTokenFilterInput {
+  "Filter by user ID"
+  userId: UUID
+  "Filter by device ID"
+  deviceId: String
+  "Filter by token type"
+  tokenType: String
+  "Filter by revoked status"
+  isRevoked: Boolean
+  "Filter only currently active tokens"
+  activeOnly: Boolean
+}
+
+"""
+RevokeJWTTokenResponse describes revoke operation result.
+"""
+type RevokeJWTTokenResponse {
+  success: Boolean!
+  message: String!
+}
+
+extend type Query {
+  "List jwt_tokens records (SUPER_ADMIN only)"
+  jwtTokens(filter: JWTTokenFilterInput): [JWTTokenRecord!]!
+}
+
+extend type Mutation {
+  "Revoke one JWT token by token record ID (SUPER_ADMIN only)"
+  revokeJWTToken(tokenId: UUID!): RevokeJWTTokenResponse!
+}
+

@@ -1,0 +1,20 @@
+{
+    "General": {
+        "network": "Network error occurred. Please try again.",
+        "server": "Server error occurred. Please try again later.",
+        "unauthorized": "You do not have access to this page.",
+        "forbidden": "Access denied.",
+        "notFound": "Page not found.",
+        "unknown": "An unexpected error occurred."
+    },
+    "Validation": {
+        "required": "This field is required.",
+        "invalidEmail": "Invalid email format.",
+        "invalidPhone": "Invalid phone number format.",
+        "passwordMismatch": "Passwords do not match.",
+        "minLength": "Minimum {min} characters.",
+        "maxLength": "Maximum {max} characters.",
+        "fileTooBig": "File size too big. Maximum {size}MB.",
+        "invalidFileType": "File type not supported."
+    }
+}

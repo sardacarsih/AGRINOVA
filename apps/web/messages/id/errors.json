@@ -1,0 +1,20 @@
+{
+    "General": {
+        "network": "Terjadi kesalahan jaringan. Silakan coba lagi.",
+        "server": "Terjadi kesalahan server. Silakan coba lagi nanti.",
+        "unauthorized": "Anda tidak memiliki akses ke halaman ini.",
+        "forbidden": "Akses ditolak.",
+        "notFound": "Halaman tidak ditemukan.",
+        "unknown": "Terjadi kesalahan yang tidak terduga."
+    },
+    "Validation": {
+        "required": "Field ini wajib diisi.",
+        "invalidEmail": "Format email tidak valid.",
+        "invalidPhone": "Format nomor telepon tidak valid.",
+        "passwordMismatch": "Password tidak cocok.",
+        "minLength": "Minimal {min} karakter.",
+        "maxLength": "Maksimal {max} karakter.",
+        "fileTooBig": "Ukuran file terlalu besar. Maksimal {size}MB.",
+        "invalidFileType": "Tipe file tidak didukung."
+    }
+}

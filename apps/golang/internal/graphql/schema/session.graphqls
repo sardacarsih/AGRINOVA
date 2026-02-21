@@ -1,0 +1,121 @@
+# =============================================================================
+# User Session Monitoring Schema
+# =============================================================================
+
+"""
+UserSession represents a user login session.
+"""
+type UserSession {
+  "Unique identifier for the session"
+  id: UUID!
+  "User associated with this session"
+  user: User!
+  "Session ID (often same as ID but can be different depending on implementation)"
+  sessionId: String!
+  "Platform used for login (WEB, ANDROID, IOS)"
+  platform: String!
+  "IP address of the client"
+  ipAddress: String
+  "User agent string"
+  userAgent: String
+  "Time when the session was created"
+  loginTime: Time!
+  "Time of last activity"
+  lastActivity: Time!
+  "Time when the session expires"
+  expiresAt: Time!
+  "Whether the session has been revoked"
+  revoked: Boolean!
+  "User who revoked the session (if revoked)"
+  revokedBy: User
+  "Reason for revocation"
+  revokedReason: String
+}
+
+"""
+SessionFilterInput allows filtering user sessions.
+"""
+input SessionFilterInput {
+  "Filter by user ID"
+  userId: UUID
+  "Filter by platform"
+  platform: String
+  "Filter by revoked status"
+  revoked: Boolean
+  "Filter only active sessions (not expired and not revoked)"
+  activeOnly: Boolean
+}
+
+"""
+ForceLogoutResponse represents the result of a force logout operation.
+"""
+type ForceLogoutResponse {
+  "Whether the operation was successful"
+  success: Boolean!
+  "Message describing the result"
+  message: String!
+  "Number of sessions affected"
+  count: Int
+}
+
+"""
+LogoutType represents the reason/context for a logout operation.
+"""
+enum LogoutType {
+  "User manually initiated logout"
+  USER_INITIATED
+  "Session expired due to inactivity"
+  SESSION_TIMEOUT
+  "Access token expired"
+  TOKEN_EXPIRED
+  "Security violation detected"
+  SECURITY_VIOLATION
+  "Administrator forced logout"
+  ADMIN_FORCED
+  "Device reported as compromised"
+  DEVICE_COMPROMISED
+  "Emergency system-wide logout"
+  EMERGENCY
+}
+
+"""
+DeviceContextInput provides context about the device for logout operations.
+"""
+input DeviceContextInput {
+  "Unique identifier for the device"
+  deviceId: String!
+  "Platform the device is running on"
+  platform: PlatformType!
+  "Version of the application"
+  appVersion: String!
+}
+
+"""
+LogoutAllDevicesResponse represents the result of a multi-device logout operation.
+"""
+type LogoutAllDevicesResponse {
+  "Whether the operation was successful"
+  success: Boolean!
+  "Number of sessions successfully terminated"
+  sessionsTerminated: Int!
+  "Result message"
+  message: String!
+  "Server timestamp of the operation"
+  serverTimestamp: Time!
+  "Audit log identifier for tracking"
+  auditLogId: String
+}
+
+extend type Query {
+  "List user sessions with optional filtering (Super Admin only)"
+  userSessions(filter: SessionFilterInput): [UserSession!]!
+}
+
+extend type Mutation {
+  "Force logout a specific session (Super Admin only)"
+  forceLogoutSession(sessionId: UUID!, reason: String): ForceLogoutResponse!
+  
+  "Force logout all sessions for a user (Super Admin only)"
+  forceLogoutAllSessions(userId: UUID!, reason: String): ForceLogoutResponse!
+}
+

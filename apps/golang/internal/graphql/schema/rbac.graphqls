@@ -1,0 +1,290 @@
+# RBAC (Role-Based Access Control) Schema
+extend schema {
+  query: Query
+  mutation: Mutation
+}
+
+# Permission Scope for granular access control
+type PermissionScope {
+  type: String!  # company, estate, division, block
+  id: String!   # UUID of the resource
+}
+
+# Role information
+type Role {
+  id: ID!
+  name: String!
+  displayName: String!
+  level: Int!
+  description: String
+  isActive: Boolean!
+  isSystem: Boolean!
+  createdAt: Time!
+  updatedAt: Time!
+  deletedAt: Time
+}
+
+# Permission information
+type Permission {
+  id: ID!
+  name: String!
+  resource: String!
+  action: String!
+  description: String
+  isActive: Boolean!
+  createdAt: Time!
+  updatedAt: Time!
+  deletedAt: Time
+}
+
+# Role-Permission relationship
+type RolePermission {
+  id: ID!
+  role: Role!
+  permission: Permission!
+  inheritedFromRole: Role
+  isDenied: Boolean!
+  createdAt: Time!
+}
+
+# User permission override
+type UserPermissionAssignment {
+  id: ID!
+  user: User!
+  permission: Permission!
+  isGranted: Boolean!
+  scope: PermissionScope
+  expiresAt: Time
+  createdAt: Time!
+  createdBy: User!
+}
+
+# User permissions summary
+type UserPermissions {
+  userId: String!
+  role: String!
+  permissions: [String!]!
+  overrides: [UserPermissionOverride!]
+}
+
+# User permission override for display
+type UserPermissionOverride {
+  permission: String!
+  isGranted: Boolean!
+  scope: PermissionScope
+  expiresAt: Time
+}
+
+# Permission check result
+type PermissionCheckResult {
+  userId: String!
+  permission: String!
+  hasAccess: Boolean!
+  reason: String
+}
+
+# Batch permission check result
+type BatchPermissionCheckResult {
+  userId: String!
+  permissions: [String!]!
+  hasAccess: Boolean!
+  failedPermissions: [String!]
+}
+
+# RBAC system statistics
+type RBACStats {
+  totalRoles: Int!
+  activeRoles: Int!
+  totalPermissions: Int!
+  activePermissions: Int!
+  totalRolePermissions: Int!
+  totalUserOverrides: Int!
+  cacheStats: JSON
+}
+
+# Role hierarchy types
+type RoleHierarchyNode {
+  role: Role!
+  level: Int!
+  children: [RoleHierarchyNode!]
+  permissions: [String!]
+}
+
+type RoleRelationship {
+  sourceRole: String!
+  targetRole: String!
+  canManage: Boolean!
+  levelDifference: Int!
+  relationship: String!  # superior, subordinate, equal, unrelated
+}
+
+# Input types
+input RolePermissionInput {
+  roleName: String!
+  permissions: [String!]!
+  inheritFrom: String
+}
+
+input UserPermissionInput {
+  userId: String!
+  permission: String!
+  isGranted: Boolean!
+  scope: PermissionScopeInput
+  expiresAt: Time
+}
+
+input PermissionScopeInput {
+  type: String!
+  id: String!
+}
+
+input PermissionCheckInput {
+  userId: String!
+  permission: String!
+  scope: PermissionScopeInput
+}
+
+input BatchPermissionCheckInput {
+  userId: String!
+  permissions: [String!]!
+  requireAll: Boolean = false
+}
+
+# Queries
+extend type Query {
+  "Get role hierarchy from highest to lowest authority"
+  roleHierarchy: [Role!]!
+
+  "Get all roles"
+  roles(activeOnly: Boolean = true): [Role!]!
+
+  "Get role by name"
+  role(name: String!): Role
+
+  "Get all permissions"
+  permissions(activeOnly: Boolean = true): [Permission!]!
+
+  "Get permission by name"
+  permission(name: String!): Permission
+
+  "Get all permissions for a role including inherited permissions"
+  rolePermissions(roleName: String!): [String!]!
+
+  "Get all permissions for a specific user including overrides"
+  userPermissions(userId: String!): UserPermissions
+
+  "Check if a user has a specific permission"
+  checkPermission(input: PermissionCheckInput!): PermissionCheckResult!
+
+  "Check multiple permissions for a user"
+  checkPermissions(input: BatchPermissionCheckInput!): BatchPermissionCheckResult!
+
+  "Check if current user can manage users with target role"
+  canManageRole(targetRoleName: String!): Boolean!
+
+  "Get RBAC system statistics"
+  rbacStats: RBACStats!
+
+  "Get user permission overrides"
+  userPermissionOverrides(userId: String!): [UserPermissionAssignment!]!
+
+  # ========== ROLE HIERARCHY QUERIES (10) ==========
+
+  "Get all roles above (higher authority than) a specific role"
+  rbacRolesAbove(roleName: String!): [Role!]!
+
+  "Get all roles below (lower authority than) a specific role"
+  rbacRolesBelow(roleName: String!): [Role!]!
+
+  "Get direct subordinate roles (roles one level below)"
+  rbacSubordinateRoles(roleName: String!): [Role!]!
+
+  "Get direct superior roles (roles one level above)"
+  rbacSuperiorRoles(roleName: String!): [Role!]!
+
+  "Get all roles at a specific hierarchy level"
+  rbacRolesAtLevel(level: Int!): [Role!]!
+
+  "Get all roles within a level range (inclusive)"
+  rbacRolesByLevelRange(minLevel: Int!, maxLevel: Int!): [Role!]!
+
+  "Check if source role can manage target role based on hierarchy"
+  rbacCanRoleManage(sourceRole: String!, targetRole: String!): Boolean!
+
+  "Get detailed relationship between two roles"
+  rbacRoleRelationship(sourceRole: String!, targetRole: String!): RoleRelationship!
+
+  "Get role permissions including inherited permissions from role hierarchy"
+  rbacEffectivePermissions(roleName: String!): [String!]!
+
+  "Get complete RBAC role hierarchy as a tree structure"
+  rbacHierarchyTree: [RoleHierarchyNode!]!
+}
+
+# Mutations
+extend type Mutation {
+  "Assign permissions to a role"
+  assignRolePermissions(input: RolePermissionInput!): Role!
+
+  "Remove permissions from a role"
+  removeRolePermissions(roleName: String!, permissions: [String!]!): Role!
+
+  "Create a new role"
+  createRole(
+    name: String!
+    displayName: String!
+    level: Int!
+    description: String
+  ): Role!
+
+  "Update an existing role"
+  updateRole(
+    name: String!
+    displayName: String
+    description: String
+    isActive: Boolean
+  ): Role!
+
+  "Delete a role"
+  deleteRole(name: String!): Boolean!
+
+  "Create a new permission"
+  createPermission(
+    name: String!
+    resource: String!
+    action: String!
+    description: String
+  ): Permission!
+
+  "Update an existing permission"
+  updatePermission(
+    name: String!
+    description: String
+    isActive: Boolean
+  ): Permission!
+
+  "Delete a permission"
+  deletePermission(name: String!): Boolean!
+
+  "Assign permission override to a user"
+  assignUserPermission(input: UserPermissionInput!): UserPermissionAssignment!
+
+  "Remove user permission override"
+  removeUserPermission(
+    userId: String!
+    permission: String!
+    scope: PermissionScopeInput
+  ): Boolean!
+
+  "Remove all permission overrides for a user"
+  clearUserPermissions(userId: String!): Boolean!
+
+  "Batch assign user permissions"
+  assignUserPermissions(
+    userId: String!
+    permissions: [UserPermissionInput!]!
+  ): [UserPermissionAssignment!]!
+
+  "Migrate static permissions to RBAC system"
+  migrateStaticPermissions: Boolean!
+}

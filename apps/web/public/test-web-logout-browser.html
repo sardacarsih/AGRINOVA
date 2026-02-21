@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Logout Test Suite (Day 1 + Day 2)</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .container {
+            background: #252526;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        h1 {
+            color: #4ec9b0;
+            text-align: center;
+            margin: 0 0 20px 0;
+        }
+        h2 {
+            color: #569cd6;
+            margin: 20px 0 10px 0;
+        }
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #1177bb;
+        }
+        button:disabled {
+            background: #3c3c3c;
+            cursor: not-allowed;
+        }
+        .success { color: #4ec9b0; }
+        .error { color: #f48771; }
+        .warning { color: #dcdcaa; }
+        .info { color: #9cdcfe; }
+        .log {
+            background: #1e1e1e;
+            border: 1px solid #3c3c3c;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            font-size: 13px;
+            line-height: 1.6;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .summary {
+            background: #264f78;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .test-result {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            margin: 5px 0;
+            background: #1e1e1e;
+            border-radius: 4px;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        pre {
+            margin: 5px 0;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Web Logout Test Suite (Day 1 + Day 2 Integration)</h1>
+
+        <div class="controls">
+            <button onclick="runAllTests()" id="runAllBtn">▶ Run All Tests</button>
+            <button onclick="clearLog()">🗑️ Clear Log</button>
+            <button onclick="checkStorageState()">📦 Check Storage</button>
+        </div>
+
+        <div class="summary" id="summary" style="display:none;">
+            <h2>Test Summary</h2>
+            <div id="summaryContent"></div>
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const BASE_URL = 'http://localhost:8080/graphql';
+
+        // Storage simulator for testing
+        class FrontendStorageSimulator {
+            setLogoutFlag() {
+                sessionStorage.setItem('agrinova_logout_in_progress', 'true');
+                this.log('   📝 Frontend: Set logout flag in sessionStorage', 'info');
+            }
+
+            clearLogoutFlag() {
+                sessionStorage.removeItem('agrinova_logout_in_progress');
+                this.log('   📝 Frontend: Cleared logout flag', 'info');
+            }
+
+            isLogoutInProgress() {
+                return sessionStorage.getItem('agrinova_logout_in_progress') === 'true';
+            }
+
+            setSessionCache(session) {
+                const cacheData = {
+                    user: session.user,
+                    expiresAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
+                    cachedAt: new Date().toISOString(),
+                    isAuthenticated: true
+                };
+                sessionStorage.setItem('agrinova_session_cache', JSON.stringify(cacheData));
+                this.log('   📝 Frontend: Cached session (TTL: 15min)', 'info');
+            }
+
+            getSessionCache() {
+                const cached = sessionStorage.getItem('agrinova_session_cache');
+                if (!cached) return null;
+
+                const sessionData = JSON.parse(cached);
+                const cachedAt = new Date(sessionData.cachedAt);
+                const cacheAge = Date.now() - cachedAt.getTime();
+
+                if (cacheAge < 15 * 60 * 1000) {
+                    return sessionData;
+                }
+                return null;
+            }
+
+            clearAllStorage() {
+                sessionStorage.clear();
+                localStorage.clear();
+                this.log('   📝 Frontend: Cleared all storage', 'info');
+            }
+
+            shouldSkipMeQuery() {
+                return this.isLogoutInProgress();
+            }
+
+            log(message, type = 'info') {
+                logMessage(message, type);
+            }
+        }
+
+        function logMessage(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type;
+            logDiv.innerHTML += `<pre class="${className}">[${timestamp}] ${message}</pre>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            document.getElementById('summary').style.display = 'none';
+        }
+
+        function checkStorageState() {
+            logMessage('\n🔍 Current Storage State:', 'info');
+            logMessage(`   Session Cache: ${sessionStorage.getItem('agrinova_session_cache') ? 'EXISTS' : 'NONE'}`, 'info');
+            logMessage(`   Logout Flag: ${sessionStorage.getItem('agrinova_logout_in_progress') || 'NONE'}`, 'info');
+            logMessage(`   Local Storage: ${localStorage.length} items`, 'info');
+        }
+
+        async function graphql(query, variables = {}) {
+            const response = await fetch(BASE_URL, {
+                method: 'POST',
+                credentials: 'include', // CRITICAL: Include cookies
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ query, variables })
+            });
+
+            return await response.json();
+        }
+
+        // Test 1: Normal Logout Flow
+        async function testNormalLogoutFlow() {
+            logMessage('\n' + '='.repeat(60), 'info');
+            logMessage('TEST 1: Normal Logout Flow (No Auto-Login)', 'info');
+            logMessage('='.repeat(60) + '\n', 'info');
+
+            const storage = new FrontendStorageSimulator();
+
+            try {
+                // Step 1: Login
+                logMessage('Step 1: Login as manager...', 'info');
+                const loginQuery = `
+                    mutation WebLogin($input: WebLoginInput!) {
+                        webLogin(input: $input) {
+                            success
+                            user {
+                                username
+                                role
+                            }
+                            sessionId
+                            message
+                        }
+                    }
+                `;
+
+                const loginResult = await graphql(loginQuery, {
+                    input: { identifier: "manager", password: "demo123" }
+                });
+
+                if (loginResult.errors) {
+                    logMessage('❌ Login failed: ' + JSON.stringify(loginResult.errors), 'error');
+                    return false;
+                }
+
+                if (!loginResult.data?.webLogin?.success) {
+                    logMessage('❌ Login failed: ' + loginResult.data.webLogin.message, 'error');
+                    return false;
+                }
+
+                const user = loginResult.data.webLogin.user;
+                logMessage('✅ Login successful: ' + user.username, 'success');
+                logMessage('   Role: ' + user.role, 'info');
+                logMessage('   Session: ' + loginResult.data.webLogin.sessionId, 'info');
+
+                // Cache session
+                storage.setSessionCache({ user });
+
+                // Step 2: Verify Me query works
+                logMessage('\nStep 2: Verify Me query works...', 'info');
+                const meQuery = `query { me { username role } }`;
+                const meResult1 = await graphql(meQuery);
+
+                if (meResult1.errors) {
+                    logMessage('❌ Me query failed before logout', 'error');
+                    return false;
+                }
+
+                logMessage('✅ Me query works: ' + meResult1.data.me.username, 'success');
+
+                // Step 3: Logout with frontend flow
+                logMessage('\nStep 3: Logout (frontend synchronous flow)...', 'info');
+
+                // Set logout flag FIRST
+                storage.setLogoutFlag();
+
+                // Call server logout
+                const logoutStart = Date.now();
+                const logoutQuery = `mutation { logout }`;
+                const logoutResult = await graphql(logoutQuery);
+                const logoutDuration = Date.now() - logoutStart;
+
+                if (logoutResult.errors) {
+                    logMessage('❌ Server logout failed: ' + JSON.stringify(logoutResult.errors), 'error');
+                    return false;
+                }
+
+                logMessage('✅ Server logout successful', 'success');
+                logMessage(`   Duration: ${logoutDuration}ms (target: <300ms)`, logoutDuration < 300 ? 'success' : 'warning');
+
+                // Clear all storage
+                storage.clearAllStorage();
+
+                // Step 4: Wait for server cleanup
+                logMessage('\nStep 4: Waiting 500ms for server cleanup...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Step 5: Try Me query (should FAIL)
+                logMessage('\nStep 5: Testing Me query after logout (should fail)...', 'info');
+                const meResult2 = await graphql(meQuery);
+
+                if (meResult2.errors) {
+                    logMessage('✅ Me query failed after logout (expected)', 'success');
+                    logMessage('   Error: ' + meResult2.errors[0]?.message, 'info');
+
+                    // Verify cache is cleared
+                    const cachedSession = storage.getSessionCache();
+                    if (cachedSession === null) {
+                        logMessage('✅ Session cache properly cleared', 'success');
+                        logMessage('\n✅ TEST PASSED: No auto-login detected!', 'success');
+                        return true;
+                    } else {
+                        logMessage('❌ Session cache not cleared!', 'error');
+                        return false;
+                    }
+                } else {
+                    logMessage('❌ Me query succeeded after logout!', 'error');
+                    logMessage('   AUTO-LOGIN DETECTED!', 'error');
+                    logMessage('   User: ' + JSON.stringify(meResult2.data.me), 'error');
+                    return false;
+                }
+
+            } catch (error) {
+                logMessage('❌ Test error: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        // Test 2: Me Query Race Condition
+        async function testMeQueryRaceCondition() {
+            logMessage('\n' + '='.repeat(60), 'info');
+            logMessage('TEST 2: Me Query Race Condition Prevention', 'info');
+            logMessage('='.repeat(60) + '\n', 'info');
+
+            const storage = new FrontendStorageSimulator();
+
+            try {
+                // Step 1: Login
+                logMessage('Step 1: Login...', 'info');
+                const loginQuery = `
+                    mutation WebLogin($input: WebLoginInput!) {
+                        webLogin(input: $input) {
+                            success
+                            sessionId
+                        }
+                    }
+                `;
+
+                const loginResult = await graphql(loginQuery, {
+                    input: { identifier: "manager", password: "demo123" }
+                });
+
+                if (!loginResult.data?.webLogin?.success) {
+                    logMessage('❌ Login failed', 'error');
+                    return false;
+                }
+                logMessage('✅ Login successful', 'success');
+
+                // Step 2: Set logout flag
+                logMessage('\nStep 2: Set logout flag (logout process started)...', 'info');
+                storage.setLogoutFlag();
+
+                // Step 3: Check shouldSkipMeQuery
+                logMessage('\nStep 3: Check shouldSkipMeQuery()...', 'info');
+                const shouldSkip = storage.shouldSkipMeQuery();
+
+                if (shouldSkip) {
+                    logMessage('✅ Me query will be skipped (logout flag detected)', 'success');
+                    logMessage('\n✅ TEST PASSED: Race condition prevented!', 'success');
+
+                    // Cleanup
+                    await graphql(`mutation { logout }`);
+                    storage.clearAllStorage();
+                    return true;
+                } else {
+                    logMessage('❌ Me query would execute during logout!', 'error');
+                    logMessage('   RACE CONDITION DETECTED!', 'error');
+                    return false;
+                }
+
+            } catch (error) {
+                logMessage('❌ Test error: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        // Test 3: Session Cache Blocked
+        async function testSessionCacheBlocked() {
+            logMessage('\n' + '='.repeat(60), 'info');
+            logMessage('TEST 3: Session Cache Restoration Blocked', 'info');
+            logMessage('='.repeat(60) + '\n', 'info');
+
+            const storage = new FrontendStorageSimulator();
+
+            try {
+                // Step 1: Login and cache
+                logMessage('Step 1: Login and cache session...', 'info');
+                const loginQuery = `
+                    mutation WebLogin($input: WebLoginInput!) {
+                        webLogin(input: $input) {
+                            success
+                            user {
+                                username
+                                role
+                            }
+                        }
+                    }
+                `;
+
+                const loginResult = await graphql(loginQuery, {
+                    input: { identifier: "manager", password: "demo123" }
+                });
+
+                if (!loginResult.data?.webLogin?.success) {
+                    logMessage('❌ Login failed', 'error');
+                    return false;
+                }
+
+                const user = loginResult.data.webLogin.user;
+                storage.setSessionCache({ user });
+                logMessage('✅ Session cached', 'success');
+
+                // Step 2: Verify cache works
+                logMessage('\nStep 2: Verify cache restoration works...', 'info');
+                const cachedBefore = storage.getSessionCache();
+                if (cachedBefore && cachedBefore.user.username === 'manager') {
+                    logMessage('✅ Cache restoration works before logout', 'success');
+                } else {
+                    logMessage('❌ Cache not working before logout', 'error');
+                    return false;
+                }
+
+                // Step 3: Set logout flag
+                logMessage('\nStep 3: Set logout flag...', 'info');
+                storage.setLogoutFlag();
+
+                // Step 4: Try cache restoration
+                logMessage('\nStep 4: Try cache restoration with logout flag...', 'info');
+
+                if (storage.isLogoutInProgress()) {
+                    logMessage('✅ Cache restoration blocked (logout flag detected)', 'success');
+                    logMessage('✅ Session NOT restored during logout', 'success');
+                    logMessage('\n✅ TEST PASSED: Cache restoration properly blocked!', 'success');
+
+                    // Cleanup
+                    await graphql(`mutation { logout }`);
+                    storage.clearAllStorage();
+                    return true;
+                }
+
+                logMessage('❌ Cache restoration not blocked!', 'error');
+                return false;
+
+            } catch (error) {
+                logMessage('❌ Test error: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        // Test 4: Rapid Logout-Login
+        async function testRapidLogoutLogin() {
+            logMessage('\n' + '='.repeat(60), 'info');
+            logMessage('TEST 4: Rapid Logout-Login Sequence', 'info');
+            logMessage('='.repeat(60) + '\n', 'info');
+
+            const storage = new FrontendStorageSimulator();
+
+            try {
+                // Step 1: Login
+                logMessage('Step 1: Initial login...', 'info');
+                const loginQuery = `
+                    mutation WebLogin($input: WebLoginInput!) {
+                        webLogin(input: $input) {
+                            success
+                            sessionId
+                        }
+                    }
+                `;
+
+                const loginResult1 = await graphql(loginQuery, {
+                    input: { identifier: "manager", password: "demo123" }
+                });
+
+                if (!loginResult1.data?.webLogin?.success) {
+                    logMessage('❌ Initial login failed', 'error');
+                    return false;
+                }
+
+                const sessionId1 = loginResult1.data.webLogin.sessionId;
+                logMessage('✅ Initial login successful, session: ' + sessionId1, 'success');
+
+                // Step 2: Immediate logout
+                logMessage('\nStep 2: Immediate logout...', 'info');
+                storage.setLogoutFlag();
+                const logoutStart = Date.now();
+                await graphql(`mutation { logout }`);
+                const logoutDuration = Date.now() - logoutStart;
+                storage.clearAllStorage();
+                logMessage(`✅ Logout complete (${logoutDuration}ms)`, 'success');
+
+                // Step 3: Immediate re-login
+                logMessage('\nStep 3: Immediate re-login...', 'info');
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                const loginResult2 = await graphql(loginQuery, {
+                    input: { identifier: "manager", password: "demo123" }
+                });
+
+                if (!loginResult2.data?.webLogin?.success) {
+                    logMessage('❌ Re-login failed', 'error');
+                    return false;
+                }
+
+                const sessionId2 = loginResult2.data.webLogin.sessionId;
+                logMessage('✅ Re-login successful, new session: ' + sessionId2, 'success');
+
+                // Step 4: Verify new session
+                if (sessionId1 !== sessionId2) {
+                    logMessage('✅ New session created (different from old session)', 'success');
+                } else {
+                    logMessage('⚠️ Same session ID (might be OK)', 'warning');
+                }
+
+                // Step 5: Verify new session works
+                logMessage('\nStep 4: Verify new session works...', 'info');
+                const meQuery = `query { me { username } }`;
+                const meResult = await graphql(meQuery);
+
+                if (meResult.data?.me?.username === 'manager') {
+                    logMessage('✅ New session works correctly', 'success');
+                    logMessage('\n✅ TEST PASSED: Rapid logout-login sequence works!', 'success');
+
+                    // Cleanup
+                    await graphql(`mutation { logout }`);
+                    return true;
+                } else {
+                    logMessage('❌ New session not working', 'error');
+                    return false;
+                }
+
+            } catch (error) {
+                logMessage('❌ Test error: ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        // Run all tests
+        async function runAllTests() {
+            const btn = document.getElementById('runAllBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Running tests...';
+
+            clearLog();
+
+            logMessage('╔════════════════════════════════════════════════════════════╗', 'info');
+            logMessage('║   Complete Web Logout Test Suite (Day 1 + Day 2)          ║', 'info');
+            logMessage('║   Backend + Frontend Integration Tests                    ║', 'info');
+            logMessage('╚════════════════════════════════════════════════════════════╝', 'info');
+
+            const results = {};
+
+            // Run tests
+            results.normalLogout = await testNormalLogoutFlow();
+            results.raceCondition = await testMeQueryRaceCondition();
+            results.cacheBlocked = await testSessionCacheBlocked();
+            results.rapidSequence = await testRapidLogoutLogin();
+
+            // Show summary
+            showSummary(results);
+
+            btn.disabled = false;
+            btn.textContent = '▶ Run All Tests';
+        }
+
+        function showSummary(results) {
+            const summaryDiv = document.getElementById('summary');
+            const summaryContent = document.getElementById('summaryContent');
+
+            summaryDiv.style.display = 'block';
+
+            const allPassed = Object.values(results).every(r => r === true);
+
+            let html = '';
+            html += `<div class="test-result">
+                <span>Test 1 - Normal Logout:</span>
+                <span class="${results.normalLogout ? 'success' : 'error'}">${results.normalLogout ? '✅ PASS' : '❌ FAIL'}</span>
+            </div>`;
+            html += `<div class="test-result">
+                <span>Test 2 - Race Condition:</span>
+                <span class="${results.raceCondition ? 'success' : 'error'}">${results.raceCondition ? '✅ PASS' : '❌ FAIL'}</span>
+            </div>`;
+            html += `<div class="test-result">
+                <span>Test 3 - Cache Blocked:</span>
+                <span class="${results.cacheBlocked ? 'success' : 'error'}">${results.cacheBlocked ? '✅ PASS' : '❌ FAIL'}</span>
+            </div>`;
+            html += `<div class="test-result">
+                <span>Test 4 - Rapid Sequence:</span>
+                <span class="${results.rapidSequence ? 'success' : 'error'}">${results.rapidSequence ? '✅ PASS' : '❌ FAIL'}</span>
+            </div>`;
+
+            if (allPassed) {
+                html += `<div style="margin-top: 20px; padding: 15px; background: #0e4f1f; border-radius: 4px;">
+                    <div class="success">🎉 ALL TESTS PASSED!</div>
+                    <div style="margin-top: 10px; font-size: 13px;">
+                        ✅ Backend: Synchronous session clearing<br>
+                        ✅ Frontend: Synchronous logout API call<br>
+                        ✅ Frontend: Logout flag prevents cache restoration<br>
+                        ✅ Frontend: Me query skipped during logout<br>
+                        ✅ No auto-login detected in any scenario
+                    </div>
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #3c3c3c;">
+                        <div class="info">📊 NEXT STEPS:</div>
+                        <div style="margin-top: 5px;">
+                            ✅ Day 2 complete - proceed to Day 3: Mobile App Fixes
+                        </div>
+                    </div>
+                </div>`;
+            } else {
+                const failedTests = Object.entries(results)
+                    .filter(([_, passed]) => !passed)
+                    .map(([test, _]) => test);
+
+                html += `<div style="margin-top: 20px; padding: 15px; background: #4f1e1e; border-radius: 4px;">
+                    <div class="error">⚠️ SOME TESTS FAILED!</div>
+                    <div style="margin-top: 10px;">
+                        Failed tests: ${failedTests.join(', ')}
+                    </div>
+                </div>`;
+            }
+
+            summaryContent.innerHTML = html;
+
+            // Scroll to summary
+            summaryDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# =============================================================================
+# Root Schema - Combines all domain schemas
+# =============================================================================
+
+# Root types that are extended by domain schemas
+type Query
+type Mutation  
+type Subscription

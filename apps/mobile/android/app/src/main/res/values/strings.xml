@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Agrinova Mobile</string>
+    
+    <!-- Firebase Configuration -->
+    <string name="default_web_client_id">123456789000-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com</string>
+    <string name="firebase_database_url">https://agrinova-mobile-dev-default-rtdb.firebaseio.com/</string>
+    <string name="gcm_defaultSenderId">123456789000</string>
+    <string name="google_api_key">AIzaSyDummyKeyForDevelopment123456789012345</string>
+    <string name="google_app_id">1:123456789000:android:abcdef123456789012345</string>
+    <string name="google_crash_reporting_api_key">AIzaSyDummyKeyForDevelopment123456789012345</string>
+    <string name="google_storage_bucket">agrinova-mobile-dev.appspot.com</string>
+    <string name="project_id">agrinova-mobile-dev</string>
+</resources>

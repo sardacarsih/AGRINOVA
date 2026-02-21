@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Company Dashboard Button Test</title>
+    <script>
+        function testGraphQLConnection() {
+            console.log('Testing GraphQL connection...');
+            
+            // Test authentication first
+            fetch('http://localhost:8080/graphql', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    query: `
+                        mutation {
+                            login(input: {
+                                identifier: "super_admin",
+                                password: "password123",
+                                platform: WEB
+                            }) {
+                                accessToken
+                                user {
+                                    username
+                                    role
+                                }
+                            }
+                        }
+                    `
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Login response:', data);
+                
+                if (data.data && data.data.login) {
+                    console.log('Login successful, testing companies query...');
+                    
+                    // Test companies query
+                    return fetch('http://localhost:8080/graphql', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            query: `
+                                query {
+                                    companies {
+                                        id
+                                        nama
+                                        alamat
+                                        telepon
+                                        status
+                                        users {
+                                            id
+                                            username
+                                        }
+                                        estates {
+                                            id
+                                            nama
+                                        }
+                                        createdAt
+                                        updatedAt
+                                    }
+                                }
+                            `
+                        })
+                    });
+                } else {
+                    throw new Error('Login failed: ' + JSON.stringify(data));
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Companies query response:', data);
+                
+                if (data.data && data.data.companies) {
+                    console.log('✅ Companies query successful, found', data.data.companies.length, 'companies');
+                    document.getElementById('result').innerHTML = `
+                        <h3>✅ GraphQL Connection Working</h3>
+                        <p>Found ${data.data.companies.length} companies</p>
+                        <pre>${JSON.stringify(data.data.companies, null, 2)}</pre>
+                    `;
+                } else {
+                    throw new Error('Companies query failed: ' + JSON.stringify(data));
+                }
+            })
+            .catch(error => {
+                console.error('❌ GraphQL connection error:', error);
+                document.getElementById('result').innerHTML = `
+                    <h3>❌ GraphQL Connection Failed</h3>
+                    <p>Error: ${error.message}</p>
+                `;
+            });
+        }
+
+        function testCreateCompany() {
+            console.log('Testing create company mutation...');
+            
+            const testCompany = {
+                nama: 'Test Company ' + Date.now(),
+                alamat: 'Test Address',
+                telepon: '1234567890',
+                status: 'ACTIVE'
+            };
+
+            fetch('http://localhost:8080/graphql', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    query: `
+                        mutation CreateCompany($input: CreateCompanyInput!) {
+                            createCompany(input: $input) {
+                                id
+                                nama
+                                alamat
+                                telepon
+                                status
+                                createdAt
+                                updatedAt
+                            }
+                        }
+                    `,
+                    variables: {
+                        input: testCompany
+                    }
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Create company response:', data);
+                
+                if (data.data && data.data.createCompany) {
+                    console.log('✅ Create company successful');
+                    document.getElementById('create-result').innerHTML = `
+                        <h3>✅ Create Company Working</h3>
+                        <pre>${JSON.stringify(data.data.createCompany, null, 2)}</pre>
+                    `;
+                } else {
+                    throw new Error('Create company failed: ' + JSON.stringify(data));
+                }
+            })
+            .catch(error => {
+                console.error('❌ Create company error:', error);
+                document.getElementById('create-result').innerHTML = `
+                    <h3>❌ Create Company Failed</h3>
+                    <p>Error: ${error.message}</p>
+                `;
+            });
+        }
+    </script>
+</head>
+<body>
+    <h1>Company Dashboard Button Test</h1>
+    
+    <button onclick="testGraphQLConnection()" style="padding: 10px; margin: 10px; background: blue; color: white; border: none; cursor: pointer;">
+        Test GraphQL Connection & Companies Query
+    </button>
+    
+    <button onclick="testCreateCompany()" style="padding: 10px; margin: 10px; background: green; color: white; border: none; cursor: pointer;">
+        Test Create Company Mutation
+    </button>
+    
+    <div id="result" style="margin: 20px; padding: 20px; border: 1px solid #ccc;"></div>
+    <div id="create-result" style="margin: 20px; padding: 20px; border: 1px solid #ccc;"></div>
+    
+    <h2>Instructions:</h2>
+    <ol>
+        <li>Open browser developer tools (F12)</li>
+        <li>Click the test buttons above</li>
+        <li>Check console output for detailed logging</li>
+        <li>If GraphQL works here, the issue is in the React frontend</li>
+    </ol>
+</body>
+</html>

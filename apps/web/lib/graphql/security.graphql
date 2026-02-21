@@ -1,0 +1,60 @@
+query GetSecurityEvents($filter: SecurityEventsFilter, $limit: Int, $offset: Int) {
+  securityEvents(filter: $filter, limit: $limit, offset: $offset) {
+    events {
+      id
+      eventType
+      severity
+      userId
+      user {
+        id
+        nama
+        email
+        role
+      }
+      ipAddress
+      userAgent
+      deviceId
+      details
+      isResolved
+      resolvedBy
+      resolvedAt
+      createdAt
+      updatedAt
+    }
+    totalCount
+    hasNextPage
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      currentPage
+      totalPages
+    }
+  }
+}
+
+query GetSecurityEventStats($filter: SecurityEventsFilter) {
+  securityEventStats(filter: $filter) {
+    totalEvents
+    criticalEvents
+    recentEvents
+    unresolvedEvents
+    mostCommonEventType
+    eventsBySeverity {
+      severity
+      count
+    }
+    eventsByType {
+      eventType
+      count
+    }
+  }
+}
+
+mutation ResolveSecurityEvent($id: ID!, $notes: String) {
+  resolveSecurityEvent(id: $id, notes: $notes) {
+    id
+    isResolved
+    resolvedBy
+    resolvedAt
+  }
+}

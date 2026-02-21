@@ -1,0 +1,137 @@
+# =============================================================================
+# BKM Potong Buah Report — Laporan pekerjaan 41001 (Potong Buah)
+# Aggregated by estate → divisi → blok with drill-down to detail rows
+# =============================================================================
+
+"""Detail row for a single BKM Potong Buah record."""
+type BkmPotongBuahDetail {
+  tanggal: String
+  mandor: String
+  nik: String
+  nama: String
+  qty: Float
+  satuan: String
+  jumlah: Float
+}
+
+"""Block-level aggregation of Potong Buah data."""
+type BkmPotongBuahBlock {
+  blok: String!
+  totalQty: Float!
+  totalJumlah: Float!
+  totalRecords: Int!
+  details: [BkmPotongBuahDetail!]!
+}
+
+"""Division-level aggregation of Potong Buah data."""
+type BkmPotongBuahDivision {
+  divisi: String!
+  totalQty: Float!
+  totalJumlah: Float!
+  totalRecords: Int!
+  blocks: [BkmPotongBuahBlock!]!
+}
+
+"""Estate-level aggregation of Potong Buah data."""
+type BkmPotongBuahEstate {
+  periode: Int!
+  estate: String!
+  totalRecords: Int!
+  totalQty: Float!
+  totalJumlah: Float!
+  divisions: [BkmPotongBuahDivision!]!
+}
+
+"""Filter input for BKM Potong Buah report query."""
+input BkmPotongBuahFilter {
+  """Periode in YYYYMM format (e.g. 202601)"""
+  periode: Int!
+  """Optional company ID scope filter"""
+  companyId: ID
+  """Optional estate code filter"""
+  estate: String
+  """Optional division code filter"""
+  divisi: String
+  """Optional block code filter"""
+  blok: String
+}
+
+"""Top-level summary result for BKM Potong Buah report."""
+type BkmPotongBuahSummary {
+  totalRecords: Int!
+  totalQty: Float!
+  totalJumlah: Float!
+  estates: [BkmPotongBuahEstate!]!
+}
+
+extend type Query {
+  """Get BKM Potong Buah report (pekerjaan=41001) aggregated by estate/divisi/blok."""
+  bkmPotongBuahReport(filter: BkmPotongBuahFilter!): BkmPotongBuahSummary!
+
+  """Get BKM Potong Buah report as flat list with pagination"""
+  bkmPotongBuahFlat(filter: BkmPotongBuahFilter!, page: Int!, limit: Int!): BkmPotongBuahFlatResponse!
+
+  """Get BKM Potong Buah analytics aggregates without returning detail rows."""
+  bkmPotongBuahAnalytics(filter: BkmPotongBuahFilter!, topN: Int = 10): BkmPotongBuahAnalytics!
+}
+
+type BkmPotongBuahFlatItem {
+  tanggal: String
+  companyCode: String
+  companyName: String
+  estate: String
+  divisi: String
+  blok: String
+  nik: String
+  nama: String
+  qtyp1: Float
+  satp1: String
+  qtyp2: Float
+  satp2: String
+  qty: Float
+  satuan: String
+  jumlah: Float
+}
+
+type BkmPotongBuahFlatResponse {
+  data: [BkmPotongBuahFlatItem!]!
+  total: Int!
+  summary: BkmPotongBuahKPI!
+}
+
+type BkmPotongBuahKPI {
+  totalQty: Float!
+  totalJumlah: Float!
+  totalHk: Int!
+  bgm: Float!
+  outputPerHk: Float!
+}
+
+type BkmPotongBuahDailyPoint {
+  date: String!
+  outputQty: Float!
+  totalJumlah: Float!
+  workerCount: Int!
+}
+
+type BkmPotongBuahOutputPoint {
+  name: String!
+  outputQty: Float!
+}
+
+type BkmPotongBuahHarvesterPoint {
+  nik: String!
+  name: String!
+  outputQty: Float!
+}
+
+type BkmPotongBuahAnalytics {
+  totalRecords: Int!
+  summary: BkmPotongBuahKPI!
+  daily: [BkmPotongBuahDailyPoint!]!
+  companies: [BkmPotongBuahOutputPoint!]!
+  estates: [BkmPotongBuahOutputPoint!]!
+  divisions: [BkmPotongBuahOutputPoint!]!
+  blocks: [BkmPotongBuahOutputPoint!]!
+  harvesters: [BkmPotongBuahHarvesterPoint!]!
+}

@@ -1,0 +1,456 @@
+package services
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"time"
+
+	"gorm.io/gorm"
+
+	"agrinovagraphql/server/internal/notifications/models"
+	"agrinovagraphql/server/internal/notifications/repositories"
+)
+
+// NotificationService handles business logic for notifications
+type NotificationService struct {
+	repo *repositories.NotificationRepository
+	db   *gorm.DB
+}
+
+// NewNotificationService creates a new notification service
+func NewNotificationService(db *gorm.DB) *NotificationService {
+	repo := repositories.NewNotificationRepository(db)
+	return &NotificationService{
+		repo: repo,
+		db:   db,
+	}
+}
+
+// CreateNotification creates a new notification from input data
+func (s *NotificationService) CreateNotification(ctx context.Context, input interface{}) error {
+	// Convert input to map for processing
+	inputMap, ok := input.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("invalid input format for notification creation")
+	}
+
+	// Extract required fields
+	notificationType, ok := inputMap["type"].(string)
+	if !ok {
+		return fmt.Errorf("notification type is required")
+	}
+
+	title, ok := inputMap["title"].(string)
+	if !ok {
+		return fmt.Errorf("notification title is required")
+	}
+
+	message, ok := inputMap["message"].(string)
+	if !ok {
+		return fmt.Errorf("notification message is required")
+	}
+
+	// Create notification model
+	notification := &models.Notification{
+		Type:    models.NotificationType(notificationType),
+		Title:   title,
+		Message: message,
+		Status:  models.NotificationStatusUnread,
+	}
+
+	// Set priority
+	if priority, exists := inputMap["priority"].(string); exists {
+		notification.Priority = models.NotificationPriority(priority)
+	} else {
+		notification.Priority = models.NotificationPriorityMedium
+	}
+
+	// Set recipient information
+	if recipientId, exists := inputMap["recipientId"].(string); exists {
+		notification.RecipientID = recipientId
+	}
+
+	if recipientRole, exists := inputMap["recipientRole"].(string); exists {
+		notification.RecipientRole = recipientRole
+	}
+
+	if recipientCompanyId, exists := inputMap["recipientCompanyId"].(string); exists {
+		notification.RecipientCompanyID = recipientCompanyId
+	}
+
+	// Set related entity information
+	if relatedEntityType, exists := inputMap["relatedEntityType"].(string); exists {
+		notification.RelatedEntityType = relatedEntityType
+	}
+
+	if relatedEntityId, exists := inputMap["relatedEntityId"].(string); exists {
+		notification.RelatedEntityID = relatedEntityId
+	}
+
+	// Set action information
+	if actionUrl, exists := inputMap["actionUrl"].(string); exists {
+		notification.ActionURL = actionUrl
+	}
+
+	if actionLabel, exists := inputMap["actionLabel"].(string); exists {
+		notification.ActionLabel = actionLabel
+	}
+
+	// Set sender information
+	if senderId, exists := inputMap["senderId"].(string); exists {
+		notification.SenderID = senderId
+	}
+
+	if senderRole, exists := inputMap["senderRole"].(string); exists {
+		notification.SenderRole = senderRole
+	}
+
+	// Set metadata
+	if metadata, exists := inputMap["metadata"]; exists {
+		metadataBytes, err := json.Marshal(metadata)
+		if err != nil {
+			return fmt.Errorf("failed to marshal notification metadata: %w", err)
+		}
+		notification.Metadata = string(metadataBytes)
+	}
+
+	// Set scheduling
+	if scheduledFor, exists := inputMap["scheduledFor"].(time.Time); exists {
+		notification.ScheduledFor = &scheduledFor
+	}
+
+	if expiresAt, exists := inputMap["expiresAt"].(time.Time); exists {
+		notification.ExpiresAt = &expiresAt
+	}
+
+	// Create the notification
+	if err := s.repo.CreateNotification(ctx, notification); err != nil {
+		return fmt.Errorf("failed to create notification: %w", err)
+	}
+
+	return nil
+}
+
+// CreateRoleBasedNotification creates notifications for all users with a specific role
+func (s *NotificationService) CreateRoleBasedNotification(ctx context.Context, role string, input interface{}) error {
+	// For role-based notifications, we create a single notification with recipientRole set
+	// The client can query notifications by role to get role-specific notifications
+	inputMap, ok := input.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("invalid input format for role-based notification creation")
+	}
+
+	// Set the recipient role
+	inputMap["recipientRole"] = role
+	// Remove specific recipient ID for role-based notifications
+	delete(inputMap, "recipientId")
+
+	return s.CreateNotification(ctx, inputMap)
+}
+
+// GetUserNotifications retrieves notifications for a specific user
+func (s *NotificationService) GetUserNotifications(ctx context.Context, userID string, limit int, offset int) ([]*models.Notification, error) {
+	filter := &repositories.NotificationFilter{
+		Limit:   limit,
+		Offset:  offset,
+		OrderBy: "created_at DESC",
+	}
+
+	return s.repo.GetUserNotifications(ctx, userID, filter)
+}
+
+// GetRoleNotifications retrieves notifications for a specific role
+func (s *NotificationService) GetRoleNotifications(ctx context.Context, role string, limit int, offset int) ([]*models.Notification, error) {
+	filter := &repositories.NotificationFilter{
+		Limit:   limit,
+		Offset:  offset,
+		OrderBy: "created_at DESC",
+	}
+
+	return s.repo.GetRoleNotifications(ctx, role, filter)
+}
+
+// GetUnreadCount returns the count of unread notifications for a user
+func (s *NotificationService) GetUnreadCount(ctx context.Context, userID string) (int64, error) {
+	return s.repo.GetUnreadCount(ctx, userID)
+}
+
+// MarkAsRead marks a notification as read
+func (s *NotificationService) MarkAsRead(ctx context.Context, id string, userID string) error {
+	return s.repo.MarkAsRead(ctx, id, userID)
+}
+
+// MarkAsDismissed marks a notification as dismissed
+func (s *NotificationService) MarkAsDismissed(ctx context.Context, id string, userID string) error {
+	return s.repo.MarkAsDismissed(ctx, id, userID)
+}
+
+// MarkAllAsRead marks all unread notifications for a user as read
+func (s *NotificationService) MarkAllAsRead(ctx context.Context, userID string) error {
+	return s.repo.MarkAllAsRead(ctx, userID)
+}
+
+// GetNotificationSummary returns aggregated notification statistics for a user
+func (s *NotificationService) GetNotificationSummary(ctx context.Context, userID string) (*repositories.NotificationSummary, error) {
+	return s.repo.GetNotificationSummary(ctx, userID)
+}
+
+// CleanupExpiredNotifications removes expired notifications
+func (s *NotificationService) CleanupExpiredNotifications(ctx context.Context) error {
+	return s.repo.DeleteExpiredNotifications(ctx)
+}
+
+// Harvest-specific notification helper methods
+
+// NotifyHarvestCreated creates a notification for harvest record creation
+func (s *NotificationService) NotifyHarvestCreated(ctx context.Context, harvestID, mandorID, mandorName, blockName string, weight float64) error {
+	notification := map[string]interface{}{
+		"type":              "HARVEST_APPROVAL_NEEDED",
+		"priority":          "HIGH",
+		"title":             "New Harvest Record Needs Approval",
+		"message":           fmt.Sprintf("Harvest record from %s in block %s (%.1f kg) requires approval", mandorName, blockName, weight),
+		"recipientRole":     "ASISTEN",
+		"relatedEntityType": "HARVEST_RECORD",
+		"relatedEntityId":   harvestID,
+		"actionUrl":         fmt.Sprintf("/dashboard/harvest-approval/pending?recordId=%s", harvestID),
+		"actionLabel":       "Review Record",
+		"senderId":          mandorID,
+		"senderRole":        "MANDOR",
+		"metadata": map[string]interface{}{
+			"harvestId":  harvestID,
+			"mandorName": mandorName,
+			"blockName":  blockName,
+			"weight":     weight,
+		},
+	}
+
+	return s.CreateRoleBasedNotification(ctx, "ASISTEN", notification)
+}
+
+// NotifyHarvestApproved creates a notification for harvest record approval
+func (s *NotificationService) NotifyHarvestApproved(ctx context.Context, harvestID, mandorID, approvedBy, blockName string, weight float64) error {
+	notification := map[string]interface{}{
+		"type":              "HARVEST_APPROVED",
+		"priority":          "MEDIUM",
+		"title":             "Harvest Record Approved",
+		"message":           fmt.Sprintf("Your harvest record for block %s (%.1f kg) has been approved", blockName, weight),
+		"recipientId":       mandorID,
+		"recipientRole":     "MANDOR",
+		"relatedEntityType": "HARVEST_RECORD",
+		"relatedEntityId":   harvestID,
+		"actionUrl":         fmt.Sprintf("/dashboard/harvest/records/%s", harvestID),
+		"actionLabel":       "View Record",
+		"senderId":          approvedBy,
+		"senderRole":        "ASISTEN",
+		"metadata": map[string]interface{}{
+			"harvestId":  harvestID,
+			"blockName":  blockName,
+			"weight":     weight,
+			"approvedBy": approvedBy,
+		},
+	}
+
+	return s.CreateNotification(ctx, notification)
+}
+
+// NotifyHarvestRejected creates a notification for harvest record rejection
+func (s *NotificationService) NotifyHarvestRejected(ctx context.Context, harvestID, mandorID, rejectedBy, blockName string, weight float64, reason string) error {
+	notification := map[string]interface{}{
+		"type":              "HARVEST_REJECTED",
+		"priority":          "HIGH",
+		"title":             "Harvest Record Rejected",
+		"message":           fmt.Sprintf("Your harvest record for block %s (%.1f kg) has been rejected: %s", blockName, weight, reason),
+		"recipientId":       mandorID,
+		"recipientRole":     "MANDOR",
+		"relatedEntityType": "HARVEST_RECORD",
+		"relatedEntityId":   harvestID,
+		"actionUrl":         fmt.Sprintf("/dashboard/harvest/records/%s", harvestID),
+		"actionLabel":       "View & Correct",
+		"senderId":          rejectedBy,
+		"senderRole":        "ASISTEN",
+		"metadata": map[string]interface{}{
+			"harvestId":      harvestID,
+			"blockName":      blockName,
+			"weight":         weight,
+			"rejectedReason": reason,
+		},
+	}
+
+	return s.CreateNotification(ctx, notification)
+}
+
+// High-Value Harvest notification for MANAGER and AREA_MANAGER
+func (s *NotificationService) NotifyHighValueHarvest(ctx context.Context, harvestID, mandorID, mandorName, blockName string, weight, value float64, threshold float64) error {
+	// Notify MANAGER with high-value harvest alert
+	managerNotification := map[string]interface{}{
+		"type":              "HIGH_VALUE_HARVEST",
+		"priority":          "HIGH",
+		"title":             "High-Value Harvest Detected",
+		"message":           fmt.Sprintf("High-value harvest from %s in block %s (%.1f kg, Rp %.0f) exceeds threshold (Rp %.0f)", mandorName, blockName, weight, value, threshold),
+		"recipientRole":     "MANAGER",
+		"relatedEntityType": "HARVEST_RECORD",
+		"relatedEntityId":   harvestID,
+		"actionUrl":         fmt.Sprintf("/dashboard/harvest/records/%s", harvestID),
+		"actionLabel":       "Review Harvest",
+		"senderId":          mandorID,
+		"senderRole":        "MANDOR",
+		"metadata": map[string]interface{}{
+			"harvestId":    harvestID,
+			"mandorName":   mandorName,
+			"blockName":    blockName,
+			"weight":       weight,
+			"value":        value,
+			"threshold":    threshold,
+			"alertReason":  "VALUE_THRESHOLD_EXCEEDED",
+		},
+	}
+
+	// Also notify AREA_MANAGER for company-wide oversight
+	areaManagerNotification := map[string]interface{}{
+		"type":              "HIGH_VALUE_HARVEST",
+		"priority":          "MEDIUM",
+		"title":             "High-Value Harvest Alert",
+		"message":           fmt.Sprintf("Estate harvest from %s exceeds value threshold (%.1f kg, Rp %.0f)", blockName, weight, value),
+		"recipientRole":     "AREA_MANAGER",
+		"relatedEntityType": "HARVEST_RECORD",
+		"relatedEntityId":   harvestID,
+		"actionUrl":         fmt.Sprintf("/dashboard/analytics/harvest-overview?recordId=%s", harvestID),
+		"actionLabel":       "View Analytics",
+		"senderId":          mandorID,
+		"senderRole":        "MANDOR",
+		"metadata": map[string]interface{}{
+			"harvestId":    harvestID,
+			"mandorName":   mandorName,
+			"blockName":    blockName,
+			"weight":       weight,
+			"value":        value,
+			"threshold":    threshold,
+			"alertLevel":   "COMPANY_OVERSIGHT",
+		},
+	}
+
+	// Create both notifications
+	if err := s.CreateRoleBasedNotification(ctx, "MANAGER", managerNotification); err != nil {
+		return fmt.Errorf("failed to create MANAGER high-value notification: %w", err)
+	}
+
+	if err := s.CreateRoleBasedNotification(ctx, "AREA_MANAGER", areaManagerNotification); err != nil {
+		return fmt.Errorf("failed to create AREA_MANAGER high-value notification: %w", err)
+	}
+
+	return nil
+}
+
+// Daily harvest summary for MANAGER
+func (s *NotificationService) NotifyDailyHarvestSummary(ctx context.Context, managerID, estateID, estateName string, totalWeight float64, totalValue float64, recordCount int) error {
+	notification := map[string]interface{}{
+		"type":              "HARVEST_SUMMARY_DAILY",
+		"priority":          "LOW",
+		"title":             "Daily Harvest Summary",
+		"message":           fmt.Sprintf("Daily summary for %s: %d records, %.1f kg total, Rp %.0f value", estateName, recordCount, totalWeight, totalValue),
+		"recipientId":       managerID,
+		"recipientRole":     "MANAGER",
+		"relatedEntityType": "ESTATE",
+		"relatedEntityId":   estateID,
+		"actionUrl":         "/dashboard/harvest/daily-summary",
+		"actionLabel":       "View Details",
+		"metadata": map[string]interface{}{
+			"estateId":    estateID,
+			"estateName":  estateName,
+			"totalWeight": totalWeight,
+			"totalValue":  totalValue,
+			"recordCount": recordCount,
+			"summaryType": "DAILY",
+		},
+	}
+
+	return s.CreateNotification(ctx, notification)
+}
+
+// Production milestone notification for AREA_MANAGER
+func (s *NotificationService) NotifyProductionMilestone(ctx context.Context, companyID, companyName string, milestoneType string, value float64, target float64) error {
+	notification := map[string]interface{}{
+		"type":              "PRODUCTION_MILESTONE",
+		"priority":          "MEDIUM",
+		"title":             "Production Milestone Achieved",
+		"message":           fmt.Sprintf("%s milestone achieved for %s: %.1f (Target: %.1f)", milestoneType, companyName, value, target),
+		"recipientRole":     "AREA_MANAGER",
+		"recipientCompanyId": companyID,
+		"relatedEntityType": "COMPANY",
+		"relatedEntityId":   companyID,
+		"actionUrl":         "/dashboard/analytics/production-overview",
+		"actionLabel":       "View Analytics",
+		"metadata": map[string]interface{}{
+			"companyId":     companyID,
+			"companyName":   companyName,
+			"milestoneType": milestoneType,
+			"achievedValue": value,
+			"targetValue":   target,
+			"achievement":   (value / target) * 100,
+		},
+	}
+
+	return s.CreateRoleBasedNotification(ctx, "AREA_MANAGER", notification)
+}
+
+// Quality alert notification for MANAGER
+func (s *NotificationService) NotifyQualityAlert(ctx context.Context, harvestID, blockName, alertType string, severity string, details string) error {
+	priority := "MEDIUM"
+	if severity == "CRITICAL" {
+		priority = "CRITICAL"
+	} else if severity == "HIGH" {
+		priority = "HIGH"
+	}
+
+	notification := map[string]interface{}{
+		"type":              "QUALITY_ALERT",
+		"priority":          priority,
+		"title":             fmt.Sprintf("Quality Alert: %s", alertType),
+		"message":           fmt.Sprintf("Quality issue detected in block %s: %s", blockName, details),
+		"recipientRole":     "MANAGER",
+		"relatedEntityType": "HARVEST_RECORD",
+		"relatedEntityId":   harvestID,
+		"actionUrl":         fmt.Sprintf("/dashboard/quality/alerts?recordId=%s", harvestID),
+		"actionLabel":       "Investigate",
+		"metadata": map[string]interface{}{
+			"harvestId":  harvestID,
+			"blockName":  blockName,
+			"alertType":  alertType,
+			"severity":   severity,
+			"details":    details,
+		},
+	}
+
+	return s.CreateRoleBasedNotification(ctx, "MANAGER", notification)
+}
+
+// Critical escalation notification for AREA_MANAGER
+func (s *NotificationService) NotifyCriticalEscalation(ctx context.Context, escalationType, sourceRole, description string, relatedEntityType, relatedEntityId string) error {
+	notification := map[string]interface{}{
+		"type":              "CRITICAL_ESCALATION",
+		"priority":          "CRITICAL",
+		"title":             "Critical Issue Escalation",
+		"message":           fmt.Sprintf("Critical %s escalated from %s: %s", escalationType, sourceRole, description),
+		"recipientRole":     "AREA_MANAGER",
+		"relatedEntityType": relatedEntityType,
+		"relatedEntityId":   relatedEntityId,
+		"actionUrl":         "/dashboard/escalations/critical",
+		"actionLabel":       "Take Action",
+		"senderRole":        sourceRole,
+		"metadata": map[string]interface{}{
+			"escalationType": escalationType,
+			"sourceRole":     sourceRole,
+			"description":    description,
+			"urgencyLevel":   "CRITICAL",
+		},
+	}
+
+	return s.CreateRoleBasedNotification(ctx, "AREA_MANAGER", notification)
+}
+
+// Helper function to check if harvest value exceeds threshold
+func (s *NotificationService) ShouldNotifyHighValue(weight float64, pricePerKg float64, threshold float64) bool {
+	totalValue := weight * pricePerKg
+	return totalValue > threshold
+}
