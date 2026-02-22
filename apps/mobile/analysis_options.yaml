@@ -11,9 +11,8 @@ include: package:flutter_lints/flutter.yaml
 
 analyzer:
   exclude:
-    # Abaikan kode example/test dari path-dependency lokal di packages/
-    - packages/**/example/**
-    - packages/**/test/**
+    # Abaikan seluruh kode dari path-dependency lokal di packages/
+    - packages/**
 
 linter:
   # The lint rules applied to this project can be customized in the
