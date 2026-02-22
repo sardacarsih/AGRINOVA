@@ -283,7 +283,7 @@ function LoginPageContent() {
     {
       icon: TrendingUp,
       title: "Real-time Analytics",
-      description: "Monitor panen & gate check secara langsung",
+      description: "Monitoring Produksi Panen dan Lalu lintas Kendaraan di kebun.",
       color: "text-emerald-600 dark:text-emerald-400",
       bgColor: "bg-emerald-50 dark:bg-emerald-900/20",
       borderColor: "border-emerald-200 dark:border-emerald-800"
@@ -299,7 +299,7 @@ function LoginPageContent() {
     {
       icon: Clock,
       title: "Offline-First Mobile",
-      description: "Tetap produktif meski tanpa koneksi internet",
+      description: "Tetap produktif meski tanpa koneksi internet untuk role Mandor dan Satpam",
       color: "text-purple-600 dark:text-purple-400",
       bgColor: "bg-purple-50 dark:bg-purple-900/20",
       borderColor: "border-purple-200 dark:border-purple-800"
@@ -385,16 +385,22 @@ function LoginPageContent() {
               <footer className="px-4 pb-5 pt-1 flex flex-col items-center gap-2">
                 <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                   <Shield className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                  <span className="text-center">Dilindungi dengan enkripsi end to end</span>
+                  <span className="text-center">Dilindungi dengan enkripsi end-to-end</span>
                 </div>
-                <a
-                  href="/privacy-policy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-                >
-                  Kebijakan Privasi
-                </a>
+                <div className="flex items-center gap-3">
+                  <a
+                    href="/privacy-policy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                  >
+                    Kebijakan Privasi
+                  </a>
+                  <span className="text-xs text-slate-300 dark:text-slate-600">•</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">
+                    v{process.env.NEXT_PUBLIC_APP_VERSION ?? '—'}
+                  </span>
+                </div>
               </footer>
             </motion.section>
           </div>
@@ -491,9 +497,7 @@ function LoginPageContent() {
                   className="text-lg sm:text-xl lg:text-2xl text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl mx-auto lg:mx-0 px-4 sm:px-0"
                   aria-describedby="brand-tagline"
                 >
-                  Solusi inovatif untuk manajemen kebun sawit dengan teknologi{' '}
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">offline-first</span>
-                  {' '}dan keamanan enterprise.
+                  Solusi inovatif untuk manajemen perkebunan kelapa sawit dengan keamanan enterprise.
                 </motion.p>
               </header>
 
@@ -567,42 +571,6 @@ function LoginPageContent() {
               </motion.div>
 
 
-              {/* 30-Day Offline Mode Card */}
-              <motion.div
-                variants={itemVariants}
-                className=""
-              >
-                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/20 dark:to-indigo-900/20 backdrop-blur-sm rounded-2xl p-6 border border-purple-200 dark:border-purple-800">
-                  <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 p-3 bg-purple-100 dark:bg-purple-900/30 rounded-2xl">
-                      <Clock className="h-8 w-8 text-purple-600 dark:text-purple-400" aria-hidden="true" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-bold text-purple-800 dark:text-purple-200 mb-2">
-                        30-Day Offline Mode
-                      </h3>
-                      <p className="text-sm text-purple-700 dark:text-purple-300 mb-3">
-                        Aplikasi mobile dapat bekerja sepenuhnya offline hingga 30 hari tanpa koneksi internet.
-                      </p>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-xs text-purple-600 dark:text-purple-400">
-                          <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                          <span>JWT authentication offline</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-purple-600 dark:text-purple-400">
-                          <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                          <span>SQLite local storage</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-purple-600 dark:text-purple-400">
-                          <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                          <span>Auto-sync saat online</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-
               {/* Mobile App Download Card */}
               <motion.div
                 variants={itemVariants}
@@ -624,24 +592,22 @@ function LoginPageContent() {
 
                   <div className="grid grid-cols-1 gap-3 mb-4">
                     {/* Android Download */}
-                    <button
-                      onClick={() => toast.info('📱 Android APK - Coming Soon! We\'re putting the finishing touches on the mobile app.', {
-                        description: 'The Android app will be available for download shortly.',
-                        duration: 5000,
-                      })}
+                    <a
+                      href="https://play.google.com/store/apps/details?id=com.agrinova.mobile.dev"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-xl border border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 group"
-                      role="button"
-                      aria-label="Android APK coming soon"
+                      aria-label="Download di Google Play Store"
                     >
                       <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
                         <Download className="h-5 w-5 text-green-600 dark:text-green-400" />
                       </div>
                       <div className="flex-1">
-                        <div className="text-sm font-semibold text-green-700 dark:text-green-400">Android APK</div>
-                        <div className="text-xs text-green-600 dark:text-green-500">v1.0.0 • Flutter • Coming Soon</div>
+                        <div className="text-sm font-semibold text-green-700 dark:text-green-400">Android</div>
+                        <div className="text-xs text-green-600 dark:text-green-500">Google Play Store</div>
                       </div>
                       <ChevronRight className="h-4 w-4 text-green-500 group-hover:translate-x-1 transition-transform" />
-                    </button>
+                    </a>
 
                     {/* iOS App Store */}
                     <button
@@ -767,16 +733,22 @@ function LoginPageContent() {
                   <footer className="px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 pt-2 sm:pt-3 flex flex-col items-center gap-2">
                     <div className="flex items-center justify-center gap-1.5 sm:gap-2 text-xs text-slate-500 dark:text-slate-400">
                       <Shield className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                      <span className="text-center">Dilindungi dengan enkripsi end to end</span>
+                      <span className="text-center">Dilindungi dengan enkripsi end-to-end</span>
                     </div>
-                    <a
-                      href="/privacy-policy"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-                    >
-                      Kebijakan Privasi
-                    </a>
+                    <div className="flex items-center gap-3">
+                      <a
+                        href="/privacy-policy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                      >
+                        Kebijakan Privasi
+                      </a>
+                      <span className="text-xs text-slate-300 dark:text-slate-600">•</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">
+                        v{process.env.NEXT_PUBLIC_APP_VERSION ?? '—'}
+                      </span>
+                    </div>
                   </footer>
                 </motion.div>
 

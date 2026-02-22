@@ -280,9 +280,8 @@ export function LoginForm({
       </Tabs>
 
       {/* Role Information - Mobile optimized */}
-      <div className="text-center text-xs sm:text-sm text-slate-500 dark:text-slate-400 space-y-1 px-2">
+      <div className="text-center text-xs sm:text-sm text-slate-500 dark:text-slate-400 px-2">
         <p>Peran Anda akan ditentukan secara otomatis berdasarkan akun yang terdaftar.</p>
-        <p className="text-xs">Sistem mendukung multi-role access untuk Manager dan Area Manager.</p>
       </div>
     </motion.div>
   );
