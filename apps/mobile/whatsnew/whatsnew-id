@@ -1,0 +1,4 @@
+Versi 1.0.1:
+- Perbaikan flutter analyze: vendor package tidak lagi memicu warning
+- Hapus file test yang sudah tidak sinkron dengan API terbaru
+- Perbaikan deklarasi aset fonts di pubspec.yaml

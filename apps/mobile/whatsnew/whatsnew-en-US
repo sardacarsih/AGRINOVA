@@ -1,0 +1,4 @@
+Version 1.0.1:
+- Fix flutter analyze: vendor packages no longer trigger warnings
+- Remove test files that were out of sync with the current API
+- Fix empty fonts asset declaration in pubspec.yaml
