@@ -11,7 +11,7 @@ on:
       - "package-lock.json"
       - "yarn.lock"
       - ".github/workflows/ci.yml"
-      - ".github/workflows/build-production-artifact.yml"
+      - ".github/workflows/backend-web-release.yml"
   pull_request:
     branches: [main, develop, graphql]
     paths:
@@ -22,7 +22,7 @@ on:
       - "package-lock.json"
       - "yarn.lock"
       - ".github/workflows/ci.yml"
-      - ".github/workflows/build-production-artifact.yml"
+      - ".github/workflows/backend-web-release.yml"
   workflow_dispatch:
 
 permissions:

@@ -7,6 +7,8 @@ param(
 
     [string]$ReleaseName,
 
+    [string]$Version = "dev",
+
     [switch]$SkipSeed,
 
     [switch]$SkipEnvTemplate
@@ -51,8 +53,8 @@ try {
 
     foreach ($target in $buildTargets) {
         $outputPath = Join-Path $releaseDir "$($target.Name)$exeExt"
-        Write-Host "Building $($target.Name)$exeExt for $TargetOS/$TargetArch..."
-        go build -trimpath -ldflags "-s -w" -o $outputPath $target.Path
+        Write-Host "Building $($target.Name)$exeExt for $TargetOS/$TargetArch (version=$Version)..."
+        go build -trimpath -ldflags "-s -w -X main.version=$Version" -o $outputPath $target.Path
     }
 
     if (-not $SkipEnvTemplate) {

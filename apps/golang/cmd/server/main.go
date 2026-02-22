@@ -47,6 +47,13 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// version is injected at build time via:
+//
+//	go build -ldflags "-X main.version=1.2.3"
+//
+// Falls back to "dev" when built without ldflags (local development).
+var version = "dev"
+
 func main() {
 	// Initialize logger
 	log := logger.New()
@@ -145,7 +152,7 @@ func main() {
 		c.JSON(200, gin.H{
 			"status":  "ok",
 			"service": "agrinova-graphql",
-			"version": "1.0.0",
+			"version": version,
 		})
 	})
 

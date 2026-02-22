@@ -1,47 +1,39 @@
-# Windows Production Auto Deploy (Artifact-Only)
+# Windows Production Auto Deploy (GitHub Releases)
 
 Dokumen ini adalah runbook deployment produksi untuk skenario:
-1. Build dilakukan di GitHub Actions.
-2. Server Windows hanya mengambil artifact (tanpa pull source code).
-3. Backend wajib menjalankan `agrinova-migrate.exe` sebelum `agrinova-server.exe`.
+1. Build dilakukan di GitHub Actions (dipicu oleh git tag `v*.*.*`).
+2. GitHub Actions membuat **GitHub Release** dengan ZIP artifact terlampir.
+3. Server Windows mendeteksi release baru dan mengunduh ZIP tersebut.
+4. Backend wajib menjalankan `agrinova-migrate.exe` sebelum `agrinova-server.exe`.
 
 ## Alur end-to-end
 
-1. Developer push ke branch `main`.
-2. GitHub Actions menjalankan workflow `build-production-artifact.yml`.
-3. Workflow upload artifact `agrinova-production-bundle`.
+1. Developer push git tag: `git tag -a v1.2.3 -m "..." && git push origin v1.2.3`
+2. GitHub Actions menjalankan `backend-web-release.yml` → validate → build → create GitHub Release.
+3. Release berisi ZIP `agrinova-production-1.2.3.zip` (backend + web).
 4. Server menjalankan `deploy.ps1` (manual/terjadwal).
-5. `deploy.ps1` download artifact terbaru, extract, deploy ke `releases`, update `current`, restart service, health check.
-6. Jika health check gagal, script rollback otomatis ke release sebelumnya.
+5. `deploy.ps1` cek `/releases/latest`, bandingkan tag dengan versi aktif, download ZIP jika ada versi baru.
+6. Extract, deploy ke `releases`, update `current`, restart service, health check.
+7. Jika health check gagal, script rollback otomatis ke release sebelumnya.
 
 ## 1) Sisi Laptop Development
 
 1. Pastikan file ini ada di repo:
-- `.github/workflows/build-production-artifact.yml`
+- `.github/workflows/backend-web-release.yml`
+- `.github/workflows/android-release.yml`
 - `scripts/windows-production/deploy.ps1`
 - `scripts/windows-production/run-backend.ps1`
 - `scripts/windows-production/run-web.ps1`
 
-2. Commit dan push ke `main`.
+2. Push git tag untuk rilis:
 
-cd d:\VSCODE\agrinova
-git checkout main
-git pull origin main
-
-git add .github/workflows/build-production-artifact.yml
-git add apps/golang/pkg/config/config.go
-git add apps/golang/internal/auth/internal/config/config.go
-git add scripts/windows-production/deploy.ps1
-git add scripts/windows-production/run-backend.ps1
-git add scripts/windows-production/run-web.ps1
-git add scripts/windows-production/README.md
-
-git commit -m "Add artifact-only Windows production deploy workflow and env policy"
-git push origin main
+```bash
+git tag -a v1.0.0 -m "Rilis pertama" && git push origin v1.0.0
+```
 
 Cek hasil:
-git log -1 --oneline
-git status
+- GitHub Actions → tab **Actions** → workflow `Backend & Web Release` harus sukses
+- GitHub → tab **Releases** → release `v1.0.0` harus muncul dengan asset ZIP
 
 
 3. Verifikasi cepat sebelum push (opsional):
@@ -73,20 +65,21 @@ Kalau Test-Path hasilnya True, berarti lolos verifikasi.
 ## 2) Sisi GitHub
 
 1. Workflow yang dipakai:
-- File: `.github/workflows/build-production-artifact.yml`
-- Trigger: `push` ke `main` dan `workflow_dispatch`
+- File: `.github/workflows/backend-web-release.yml`
+- Trigger: `push` git tag `v*.*.*`
 
 2. Output workflow:
-- Artifact name: `agrinova-production-bundle`
-- Struktur minimum:
+- GitHub Release dengan tag `v1.2.3`
+- Asset ZIP: `agrinova-production-1.2.3.zip`
+- Struktur minimum di dalam ZIP:
   - `backend/`
   - `web/`
-  - `VERSION.txt`
+  - `VERSION.txt` (berisi semver `1.2.3`)
   - `MANIFEST.json`
 
 3. Cek hasil di GitHub:
-- Buka `Actions` -> run terbaru -> status harus `success`.
-- Pastikan artifact `agrinova-production-bundle` tersedia.
+- Buka `Releases` → pastikan release `v1.2.3` ada dan statusnya bukan draft.
+- Pastikan asset ZIP `agrinova-production-1.2.3.zip` terlampir.
 
 ## 3) Sisi Server Production (Windows)
 
@@ -169,23 +162,26 @@ schtasks /Create /SC MINUTE /MO 5 /TN "AgrinovaAutoDeploy" /TR "powershell -Exec
 
 ## 4) Operasional harian
 
-1. Developer push ke `main`.
-2. GitHub build artifact baru.
-3. Task Scheduler menjalankan deploy.
-4. Jika run ID baru, server deploy versi baru.
-5. Jika gagal health check, rollback otomatis ke versi sebelumnya.
+1. Developer push git tag: `git tag -a v1.2.3 -m "Catatan rilis" && git push origin v1.2.3`
+2. GitHub Actions build dan buat GitHub Release.
+3. Task Scheduler menjalankan `deploy.ps1` setiap 5 menit.
+4. Jika tag release lebih baru dari `deployed-version.txt`, server download dan deploy.
+5. Jika health check gagal, rollback otomatis ke versi sebelumnya.
 
 ## 5) Parameter penting `deploy.ps1`
 
 - `-RepoOwner` (wajib)
 - `-RepoName` (wajib)
-- `-WorkflowFile` default: `build-production-artifact.yml`
-- `-Branch` default: `main`
-- `-ArtifactName` default: `agrinova-production-bundle`
+- `-ReleaseTag` default: `latest` (otomatis ambil release terbaru; atau spesifik: `v1.2.3`)
 - `-BackendServiceName` default: `agrinova-backend`
 - `-WebServiceName` default: `agrinova-web`
 - `-BackendHealthUrl` default: `http://127.0.0.1:8080/health`
 - `-WebHealthUrl` default: `http://127.0.0.1:3000`
+
+### Contoh deploy ke versi spesifik (rollforward / pinned):
+```powershell
+.\deploy.ps1 -RepoOwner sardacarsih -RepoName AGRINOVA -ReleaseTag v1.2.1
+```
 
 ## 6) Policy env loading
 
@@ -212,9 +208,11 @@ schtasks /Create /SC MINUTE /MO 5 /TN "AgrinovaAutoDeploy" /TR "powershell -Exec
 - Periksa hasil migrate (schema/DB credentials).
 - Pastikan path `AGRINOVA_UPLOADS_DIR` ada dan bisa ditulis oleh service account.
 
-4. Artifact tidak ditemukan:
-- Pastikan workflow `build-production-artifact.yml` run sukses.
-- Pastikan artifact name tetap `agrinova-production-bundle`.
+4. Release atau asset tidak ditemukan:
+- Pastikan workflow `backend-web-release.yml` selesai sukses.
+- Buka GitHub → Releases, pastikan release tidak berstatus draft.
+- Pastikan asset ZIP `agrinova-production-*.zip` terlampir di release.
+- Pastikan `AGRINOVA_GH_TOKEN` punya scope `repo` (untuk repo private) atau `public_repo`.
 
 5. Foto/upload hilang setelah deploy:
 - Pastikan server menggunakan `deploy.ps1` versi terbaru (sudah exclude `uploads` dari proses mirror ke `current`).

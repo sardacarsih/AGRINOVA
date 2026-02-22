@@ -1,9 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$RepoOwner,
     [Parameter(Mandatory = $true)][string]$RepoName,
-    [string]$WorkflowFile = "build-production-artifact.yml",
-    [string]$Branch = "main",
-    [string]$ArtifactName = "agrinova-production-bundle",
+    [string]$ReleaseTag = "latest",
     [string]$DeployRoot = "D:\agrinova",
     [string]$DeployWorkDir = "D:\agrinova\deploy",
     [string]$BackendServiceName = "agrinova-backend",
@@ -22,7 +20,6 @@ function Write-Step {
 }
 
 function Enable-Tls12ForLegacyPowerShell {
-    # GitHub API requires modern TLS. Windows PowerShell 5 can default to older protocols.
     if ($PSVersionTable.PSVersion.Major -lt 6) {
         try {
             $tls12 = [System.Net.SecurityProtocolType]::Tls12
@@ -68,21 +65,22 @@ function Invoke-GitHubApi {
     return Invoke-RestMethod -Method Get -Uri $Uri -Headers $headers
 }
 
-function Download-GitHubArtifact {
+function Download-GitHubReleaseAsset {
     param(
-        [Parameter(Mandatory = $true)][string]$Uri,
+        [Parameter(Mandatory = $true)][string]$AssetApiUrl,
         [Parameter(Mandatory = $true)][string]$DestinationPath
     )
 
+    # Release asset download requires Accept: application/octet-stream to get the binary.
+    # GitHub redirects to the actual CDN URL; MaximumRedirection handles it.
     $headers = @{
         Authorization = "Bearer $script:GitHubToken"
-        # GitHub artifact download endpoint expects JSON accept header, then responds with redirect.
-        Accept = "application/vnd.github+json"
+        Accept = "application/octet-stream"
         "X-GitHub-Api-Version" = "2022-11-28"
         "User-Agent" = "agrinova-windows-deployer"
     }
 
-    Invoke-WebRequest -Uri $Uri -Headers $headers -OutFile $DestinationPath -MaximumRedirection 5
+    Invoke-WebRequest -Uri $AssetApiUrl -Headers $headers -OutFile $DestinationPath -MaximumRedirection 5
 }
 
 function Find-BundleRoot {
@@ -215,23 +213,6 @@ function Write-FileAscii {
     Set-Content -Path $Path -Value $Value -Encoding ASCII
 }
 
-function Get-VersionFromBundle {
-    param(
-        [Parameter(Mandatory = $true)][string]$BundleRoot,
-        [Parameter(Mandatory = $true)][string]$FallbackVersion
-    )
-
-    $versionFile = Join-Path $BundleRoot "VERSION.txt"
-    if (Test-Path $versionFile) {
-        $version = (Get-Content -Path $versionFile -Raw).Trim()
-        if (-not [string]::IsNullOrWhiteSpace($version)) {
-            return $version
-        }
-    }
-
-    return $FallbackVersion
-}
-
 function Cleanup-OldReleases {
     param(
         [Parameter(Mandatory = $true)][string]$ReleasesPath,
@@ -305,7 +286,6 @@ $statePath = Join-Path $DeployWorkDir "state"
 $tempPath = Join-Path $DeployWorkDir "temp"
 $logsPath = Join-Path $DeployWorkDir "logs"
 $lockPath = Join-Path $statePath "deploy.lock"
-$runIdPath = Join-Path $statePath "deployed-run-id.txt"
 $versionPath = Join-Path $statePath "deployed-version.txt"
 
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
@@ -352,44 +332,55 @@ try {
         throw "Environment variable 'AGRINOVA_GH_TOKEN' is not set."
     }
 
-    Write-Step "Checking latest successful workflow run"
-    $runsUri = "https://api.github.com/repos/$RepoOwner/$RepoName/actions/workflows/$WorkflowFile/runs?branch=$Branch&per_page=20"
-    $runs = Invoke-GitHubApi -Uri $runsUri
-    $latestRun = $runs.workflow_runs |
-        Where-Object { $_.status -eq "completed" -and $_.conclusion -eq "success" } |
-        Select-Object -First 1
-
-    if ($null -eq $latestRun) {
-        throw "No successful workflow run found for '$WorkflowFile' on branch '$Branch'."
+    # ── Fetch GitHub Release ──────────────────────────────────────────────────
+    if ($ReleaseTag -eq "latest") {
+        Write-Step "Checking latest GitHub Release"
+        $releaseUri = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/latest"
+    }
+    else {
+        Write-Step "Checking GitHub Release tag '$ReleaseTag'"
+        $releaseUri = "https://api.github.com/repos/$RepoOwner/$RepoName/releases/tags/$ReleaseTag"
     }
 
-    $latestRunId = [string]$latestRun.id
-    $currentRunId = Read-FileTrimmed -Path $runIdPath
+    $release = Invoke-GitHubApi -Uri $releaseUri
+    $latestTag = $release.tag_name   # e.g. "v1.2.3"
 
-    if ($currentRunId -eq $latestRunId) {
-        Write-Step "No new artifact. Run ID $latestRunId is already deployed."
+    # Derive folder-safe version: strip leading "v", sanitize characters.
+    $latestVersion = ($latestTag -replace "^v", "") -replace "[^A-Za-z0-9._-]", "_"
+
+    if ([string]::IsNullOrWhiteSpace($latestVersion)) {
+        throw "Release tag '$latestTag' produced an empty version string."
+    }
+
+    # ── Skip if already deployed ──────────────────────────────────────────────
+    if ($previousVersion -eq $latestVersion) {
+        Write-Step "No new release. Version '$latestVersion' ($latestTag) is already deployed."
         return
     }
 
-    Write-Step "Fetching artifacts for run ID $latestRunId"
-    $artifactsUri = "https://api.github.com/repos/$RepoOwner/$RepoName/actions/runs/$latestRunId/artifacts?per_page=100"
-    $artifacts = Invoke-GitHubApi -Uri $artifactsUri
-    $artifact = $artifacts.artifacts |
-        Where-Object { $_.name -eq $ArtifactName -and -not $_.expired } |
+    Write-Step "New release detected: $latestTag (currently deployed: $(if ($previousVersion) { $previousVersion } else { 'none' }))"
+
+    # ── Find release asset ZIP ────────────────────────────────────────────────
+    $asset = $release.assets |
+        Where-Object { $_.name -like "agrinova-production-*.zip" } |
         Select-Object -First 1
 
-    if ($null -eq $artifact) {
-        throw "Artifact '$ArtifactName' not found for run ID $latestRunId."
+    if ($null -eq $asset) {
+        throw "No ZIP asset found in release '$latestTag'. Expected a file matching 'agrinova-production-*.zip'."
     }
 
-    $downloadZipPath = Join-Path $tempPath ("artifact_{0}_{1}.zip" -f $latestRunId, $timestamp)
-    $extractPath = Join-Path $tempPath ("extract_{0}_{1}" -f $latestRunId, $timestamp)
+    Write-Step "Found asset '$($asset.name)' ($([math]::Round($asset.size / 1MB, 1)) MB)"
+
+    # ── Download ──────────────────────────────────────────────────────────────
+    $downloadZipPath = Join-Path $tempPath ("release_{0}_{1}.zip" -f ($latestVersion -replace "\.", "_"), $timestamp)
+    $extractPath = Join-Path $tempPath ("extract_{0}_{1}" -f ($latestVersion -replace "\.", "_"), $timestamp)
     Ensure-Directory -Path $extractPath
 
-    Write-Step "Downloading artifact '$ArtifactName'"
-    Download-GitHubArtifact -Uri $artifact.archive_download_url -DestinationPath $downloadZipPath
+    Write-Step "Downloading release asset"
+    Download-GitHubReleaseAsset -AssetApiUrl $asset.url -DestinationPath $downloadZipPath
 
-    Write-Step "Extracting artifact"
+    # ── Extract & validate ────────────────────────────────────────────────────
+    Write-Step "Extracting release"
     Expand-Archive -Path $downloadZipPath -DestinationPath $extractPath -Force
     $bundleRoot = Find-BundleRoot -ExpandedPath $extractPath
 
@@ -421,17 +412,12 @@ try {
         }
     }
     if (-not $webBuildIdExists) {
-        throw "Invalid web artifact: missing .next/BUILD_ID. Ensure upload-artifact includes hidden files."
+        throw "Invalid web artifact: missing .next/BUILD_ID."
     }
 
-    $fallbackVersion = "{0}-{1}" -f $latestRun.run_number, $latestRun.head_sha.Substring(0, 7)
-    $targetVersion = Get-VersionFromBundle -BundleRoot $bundleRoot -FallbackVersion $fallbackVersion
-    $targetVersion = $targetVersion -replace "[^A-Za-z0-9._-]", "_"
+    $targetVersion = $latestVersion
 
-    if ([string]::IsNullOrWhiteSpace($targetVersion)) {
-        throw "Resolved release version is empty."
-    }
-
+    # ── Prepare release folders ───────────────────────────────────────────────
     $backendTargetRelease = Join-Path $backendReleasesPath $targetVersion
     $webTargetRelease = Join-Path $webReleasesPath $targetVersion
 
@@ -439,6 +425,7 @@ try {
     Mirror-Directory -Source $backendSource -Destination $backendTargetRelease
     Mirror-Directory -Source $webSource -Destination $webTargetRelease
 
+    # ── Deploy ────────────────────────────────────────────────────────────────
     Write-Step "Stopping services"
     Stop-ServiceIfExists -Name $WebServiceName
     Stop-ServiceIfExists -Name $BackendServiceName
@@ -451,6 +438,7 @@ try {
     Start-ServiceIfExists -Name $BackendServiceName
     Start-ServiceIfExists -Name $WebServiceName
 
+    # ── Health check ──────────────────────────────────────────────────────────
     Write-Step "Running health checks"
     $backendHealthy = Test-Health -Url $BackendHealthUrl -TimeoutSeconds $HealthTimeoutSeconds
     if (-not $backendHealthy) {
@@ -462,13 +450,13 @@ try {
         throw "Web health check failed: $WebHealthUrl"
     }
 
-    Write-FileAscii -Path $runIdPath -Value $latestRunId
+    # ── Save state ────────────────────────────────────────────────────────────
     Write-FileAscii -Path $versionPath -Value $targetVersion
 
     Cleanup-OldReleases -ReleasesPath $backendReleasesPath -Keep $KeepReleases
     Cleanup-OldReleases -ReleasesPath $webReleasesPath -Keep $KeepReleases
 
-    Write-Step "Deployment successful. Version '$targetVersion' is active."
+    Write-Step "Deployment successful. Version '$targetVersion' ($latestTag) is active."
 }
 catch {
     Write-Host ""

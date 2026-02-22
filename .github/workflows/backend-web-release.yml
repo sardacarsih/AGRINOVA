@@ -1,0 +1,344 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Backend & Web Release — Build production artifact & create GitHub Release
+#
+# Dipicu oleh: git tag v*.*.*  (push tag → validate + build + release otomatis)
+# Manual:      workflow_dispatch dengan input version
+#
+# Tag yang sama memicu KEDUA workflow sekaligus:
+#   android-release.yml   → build AAB + deploy ke Play Store
+#   backend-web-release.yml → build backend+web + create GitHub Release
+#
+# Release flow:
+#   git tag -a v1.2.3 -m "Catatan rilis di sini" && git push origin v1.2.3
+#   → validate job: go build/test + nextjs type-check/build (ubuntu, cepat)
+#   → build-and-release job: build artifact windows + create GitHub Release
+#
+# Artifact ZIP berisi:
+#   backend/   → agrinova-server.exe + agrinova-migrate.exe
+#   web/       → Next.js standalone server
+#   VERSION.txt, MANIFEST.json, RELEASE_NOTES.md
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: Backend & Web Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g. 1.2.3) — used in artifact name & GitHub Release'
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: write   # diperlukan untuk membuat GitHub Release
+
+concurrency:
+  group: backend-web-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GO_VERSION: "1.24"
+  NODE_VERSION: "20"
+
+jobs:
+  # ── Gate: validate backend + web sebelum build mahal di windows ──────────
+  validate:
+    name: Validate Backend & Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── Go ────────────────────────────────────────────────────────────────
+      - name: Set up Go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: apps/golang/go.sum
+
+      - name: Download Go dependencies
+        working-directory: apps/golang
+        run: go mod download
+
+      - name: Build all Go packages
+        working-directory: apps/golang
+        run: go build ./...
+
+      - name: Run backend smoke tests
+        working-directory: apps/golang
+        run: go test ./internal/auth/constants ./internal/auth/models ./internal/graphql/resolvers -count=1
+
+      # ── Node / Next.js ────────────────────────────────────────────────────
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Type check
+        working-directory: apps/web
+        run: npm run type-check
+
+      - name: Build frontend
+        working-directory: apps/web
+        run: npm run build
+
+  # ── Release: only runs if validate succeeds ───────────────────────────────
+  build-and-release:
+    name: Build & Create GitHub Release
+    needs: validate
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      # ── 1. Source ──────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # diperlukan untuk git log di release notes
+
+      # ── 2. Resolve version ─────────────────────────────────────────────────
+      - name: Resolve version from tag
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version_name="${{ github.event.inputs.version }}"
+            tag_name="v${version_name}"
+          else
+            # Tag push: github.ref_name = "v1.2.3", strip prefix "v"
+            tag_name="${{ github.ref_name }}"
+            version_name="${tag_name#v}"
+          fi
+          echo "name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag_name"      >> "$GITHUB_OUTPUT"
+          echo "Release: $tag_name → version=$version_name"
+
+      # ── 3. Toolchain ───────────────────────────────────────────────────────
+      - name: Set up Go ${{ env.GO_VERSION }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: apps/golang/go.sum
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      # ── 4. Build backend ───────────────────────────────────────────────────
+      - name: Build backend runtime artifact
+        shell: pwsh
+        working-directory: apps/golang
+        run: |
+          powershell -ExecutionPolicy Bypass -File .\scripts\package-binaries.ps1 `
+            -TargetOS windows -TargetArch amd64 `
+            -ReleaseName backend-windows-amd64 `
+            -Version "${{ steps.version.outputs.name }}" `
+            -SkipSeed -SkipEnvTemplate
+
+          if (!(Test-Path ".\release\backend-windows-amd64\agrinova-migrate.exe")) {
+            throw "Missing agrinova-migrate.exe in backend release."
+          }
+          if (!(Test-Path ".\release\backend-windows-amd64\agrinova-server.exe")) {
+            throw "Missing agrinova-server.exe in backend release."
+          }
+          if (Test-Path ".\release\backend-windows-amd64\agrinova-seed.exe") {
+            throw "agrinova-seed.exe must not be included in production bundle."
+          }
+          if (Test-Path ".\release\backend-windows-amd64\.env.example") {
+            throw ".env.example must not be included in production bundle."
+          }
+
+      # ── 5. Build web ───────────────────────────────────────────────────────
+      - name: Build web standalone runtime artifact
+        shell: pwsh
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_APP_VERSION: ${{ steps.version.outputs.name }}
+        run: |
+          npm ci
+          npm run build:standalone
+          powershell -ExecutionPolicy Bypass -File .\scripts\package-standalone.ps1 -ReleaseName web-standalone
+
+          if (!(Test-Path ".\release\web-standalone\server.js") -and !(Test-Path ".\release\web-standalone\apps\web\server.js")) {
+            throw "Missing server.js in web release."
+          }
+
+      # ── 6. Assemble production bundle ──────────────────────────────────────
+      - name: Assemble production bundle
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.name }}"
+          $dist = "dist"
+          Remove-Item -Path $dist -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path "$dist\backend" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$dist\web"     -Force | Out-Null
+
+          Copy-Item -Path "apps\golang\release\backend-windows-amd64\*" -Destination "$dist\backend" -Recurse -Force
+          Copy-Item -Path "apps\web\release\web-standalone\*"           -Destination "$dist\web"     -Recurse -Force
+
+          # VERSION.txt: semantic version dari tag
+          Set-Content -Path "$dist\VERSION.txt" -Value $version -Encoding ASCII
+
+          # MANIFEST.json
+          $manifest = @{
+            version     = $version
+            tag         = "${{ steps.version.outputs.tag }}"
+            repository  = "${{ github.repository }}"
+            workflow    = "${{ github.workflow }}"
+            run_id      = "${{ github.run_id }}"
+            run_number  = "${{ github.run_number }}"
+            run_attempt = "${{ github.run_attempt }}"
+            commit_sha  = "${{ github.sha }}"
+            created_utc = (Get-Date).ToUniversalTime().ToString("o")
+          } | ConvertTo-Json -Depth 5
+          Set-Content -Path "$dist\MANIFEST.json" -Value $manifest -Encoding UTF8
+
+      # ── 7. Generate release notes ──────────────────────────────────────────
+      - name: Generate release notes
+        id: notes
+        shell: pwsh
+        run: |
+          $version  = "${{ steps.version.outputs.name }}"
+          $tag      = "${{ steps.version.outputs.tag }}"
+          $sha      = "${{ github.sha }}"
+          $repo     = "${{ github.repository }}"
+          $dist     = "dist"
+
+          $shortSha     = (git rev-parse --short $sha).Trim()
+          $generatedUtc = (Get-Date).ToUniversalTime().ToString("o")
+
+          # Ambil anotasi tag jika ada (hanya pada tag push)
+          $tagBody = ""
+          if ("${{ github.event_name }}" -eq "push") {
+            $tagBody = (git tag -l --format='%(contents:body)'    $tag 2>$null).Trim()
+            if (-not $tagBody) {
+              $tagBody = (git tag -l --format='%(contents:subject)' $tag 2>$null).Trim()
+            }
+          }
+
+          $changedFiles = @(git diff-tree --no-commit-id --name-only -r $sha)
+          $backendFiles = @($changedFiles | Where-Object { $_ -like "apps/golang/*" })
+          $webFiles     = @($changedFiles | Where-Object { $_ -like "apps/web/*"    })
+          $mobileFiles  = @($changedFiles | Where-Object { $_ -like "apps/mobile/*" })
+          $ciFiles      = @($changedFiles | Where-Object { $_ -like ".github/workflows/*" -or $_ -like "scripts/*" })
+          $otherFiles   = @($changedFiles | Where-Object {
+            $_ -notlike "apps/golang/*" -and $_ -notlike "apps/web/*" -and
+            $_ -notlike "apps/mobile/*" -and $_ -notlike ".github/workflows/*" -and $_ -notlike "scripts/*"
+          })
+
+          function Format-Section([string]$Title, [array]$Items) {
+            $lines = @("### $Title")
+            if ($Items.Count -eq 0) { $lines += "- None" } else { $Items | ForEach-Object { $lines += "- $_" } }
+            $lines += ""
+            return $lines
+          }
+
+          $notes = @(
+            "# Release Notes — $tag",
+            "",
+            "Generated UTC: $generatedUtc",
+            ""
+          )
+
+          if ($tagBody) {
+            $notes += "## What's New"
+            $notes += ""
+            $notes += $tagBody
+            $notes += ""
+          }
+
+          $notes += @(
+            "## Release Metadata",
+            "- Repository: $repo",
+            "- Tag: $tag",
+            "- Version: $version",
+            "- Commit: $sha ($shortSha)",
+            "- Run: #${{ github.run_number }}",
+            ""
+          )
+
+          $notes += "## Changed Files By Area"
+          $notes += ""
+          $notes += Format-Section -Title "Backend (apps/golang)" -Items $backendFiles
+          $notes += Format-Section -Title "Web (apps/web)"        -Items $webFiles
+          $notes += Format-Section -Title "Mobile (apps/mobile)"  -Items $mobileFiles
+          $notes += Format-Section -Title "CI/CD"                 -Items $ciFiles
+          $notes += Format-Section -Title "Other"                 -Items $otherFiles
+
+          $notes += "## Recent Commits"
+          $notes += ""
+          $notes += @(git log --pretty=format:"- %h %s" -n 10)
+          $notes += ""
+
+          $mdContent = $notes -join "`n"
+          Set-Content -Path "$dist\RELEASE_NOTES.md" -Value $mdContent -Encoding UTF8
+          Set-Content -Path "RELEASE_NOTES.md"        -Value $mdContent -Encoding UTF8
+
+          # Simpan body untuk GitHub Release (gunakan file, bukan output multiline)
+          if ($tagBody) {
+            Set-Content -Path "gh_release_body.md" -Value $tagBody -Encoding UTF8
+          } else {
+            Set-Content -Path "gh_release_body.md" -Value "Bug fixes and improvements for version $version." -Encoding UTF8
+          }
+
+      # ── 8. Compress ────────────────────────────────────────────────────────
+      - name: Compress production bundle
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.name }}"
+          $zipName = "agrinova-production-$version.zip"
+          Compress-Archive -Path "dist\*" -DestinationPath $zipName -Force
+          Write-Host "Artifact: $zipName"
+
+      # ── 9. Upload artifact ─────────────────────────────────────────────────
+      - name: Upload production artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agrinova-production-${{ steps.version.outputs.name }}-${{ github.run_number }}
+          path: dist
+          include-hidden-files: true
+          retention-days: 90
+
+      # ── 10. Create GitHub Release (hanya pada tag push) ────────────────────
+      - name: Create GitHub Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "v${{ steps.version.outputs.name }}"
+          body_path: gh_release_body.md
+          files: agrinova-production-${{ steps.version.outputs.name }}.zip
+          draft: false
+          prerelease: false
+
+      # ── 11. Summary ────────────────────────────────────────────────────────
+      - name: Write job summary
+        if: success()
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
+          ## Backend & Web Release Deployed
+
+          | Field       | Value |
+          |-------------|-------|
+          | **Version** | ${{ steps.version.outputs.name }} |
+          | **Tag**     | `${{ steps.version.outputs.tag }}` |
+          | **Commit**  | `${{ github.sha }}` |
+          | **Run**     | #${{ github.run_number }} |
+          EOF
