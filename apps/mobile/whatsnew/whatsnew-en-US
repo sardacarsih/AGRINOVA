@@ -1,4 +1,5 @@
-Version 1.0.1:
+Version 1.0.2:
 - Fix flutter analyze: vendor packages no longer trigger warnings
-- Remove test files that were out of sync with the current API
 - Fix empty fonts asset declaration in pubspec.yaml
+- Fix CI smoke test that failed during release
+- Release notes can now be edited interactively before tagging

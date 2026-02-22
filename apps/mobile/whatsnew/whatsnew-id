@@ -1,4 +1,5 @@
-Versi 1.0.1:
+Versi 1.0.2:
 - Perbaikan flutter analyze: vendor package tidak lagi memicu warning
-- Hapus file test yang sudah tidak sinkron dengan API terbaru
 - Perbaikan deklarasi aset fonts di pubspec.yaml
+- Perbaikan smoke test CI yang gagal saat release
+- Catatan rilis kini dapat diedit langsung sebelum tag dirilis
