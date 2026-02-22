@@ -686,7 +686,7 @@ function LoginPageContent() {
                   {/* Login Form - Mobile responsive padding with stable container */}
                   <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6">
                     {/* Fixed height container to prevent layout shifts */}
-                    <div className="login-form-shell min-h-[480px] sm:min-h-[520px] lg:min-h-[560px] flex flex-col">
+                    <div className="login-form-shell flex flex-col">
                       <LoginForm
                         onSubmit={handleLogin}
                         onQRLogin={handleQRLogin}
