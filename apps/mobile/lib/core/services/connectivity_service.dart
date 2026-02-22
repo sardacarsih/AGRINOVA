@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:internet_connection_checker/internet_connection_checker.dart';
+import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 import 'package:logger/logger.dart';
 import 'config_service.dart';
 
@@ -14,7 +14,7 @@ enum NetworkStatus {
 class ConnectivityService {
   static final Logger _logger = Logger();
   final Connectivity _connectivity;
-  final InternetConnectionChecker _internetChecker = InternetConnectionChecker.instance;
+  final InternetConnection _internetChecker = InternetConnection.createInstance();
   
   // For USB debugging: check local server as fallback
   final bool _useLocalServerFallback = true;
@@ -23,7 +23,7 @@ class ConnectivityService {
       StreamController<NetworkStatus>.broadcast();
   
   late StreamSubscription<List<ConnectivityResult>> _connectivitySubscription;
-  late StreamSubscription<InternetConnectionStatus> _internetSubscription;
+  late StreamSubscription<InternetStatus> _internetSubscription;
   
   NetworkStatus _currentStatus = NetworkStatus.checking;
 
@@ -39,9 +39,6 @@ class ConnectivityService {
   Future<void> initialize() async {
     try {
       _logger.d('Initializing connectivity service');
-      
-      // Set up internet connection checker
-      _internetChecker.checkInterval = const Duration(seconds: 10);
       
       // Check initial connection status
       await _checkInitialConnection();
@@ -96,7 +93,7 @@ class ConnectivityService {
       _updateNetworkStatus(NetworkStatus.checking);
       
       // First try standard internet check
-      final hasInternet = await _internetChecker.hasConnection;
+      final hasInternet = await _internetChecker.hasInternetAccess;
       
       if (hasInternet) {
         _updateNetworkStatus(NetworkStatus.online);
@@ -152,19 +149,16 @@ class ConnectivityService {
   }
 
   // Handle internet status changes
-  void _onInternetStatusChanged(InternetConnectionStatus status) {
+  void _onInternetStatusChanged(InternetStatus status) {
     try {
       _logger.d('Internet status changed: $status');
       
       switch (status) {
-        case InternetConnectionStatus.connected:
+        case InternetStatus.connected:
           _updateNetworkStatus(NetworkStatus.online);
           break;
-        case InternetConnectionStatus.disconnected:
+        case InternetStatus.disconnected:
           _updateNetworkStatus(NetworkStatus.offline);
-          break;
-        case InternetConnectionStatus.slow:
-          _updateNetworkStatus(NetworkStatus.online);
           break;
       }
     } catch (e) {
@@ -195,7 +189,7 @@ class ConnectivityService {
       }
       
       // First try standard internet check
-      final hasInternet = await _internetChecker.hasConnection;
+      final hasInternet = await _internetChecker.hasInternetAccess;
       
       if (hasInternet) {
         _updateNetworkStatus(NetworkStatus.online);
@@ -235,7 +229,7 @@ class ConnectivityService {
   Future<Map<String, dynamic>> getConnectionInfo() async {
     try {
       final connectivityResult = await _connectivity.checkConnectivity();
-      final hasInternet = await _internetChecker.hasConnection;
+      final hasInternet = await _internetChecker.hasInternetAccess;
       
       return {
         'type': connectivityResult.toString(),

@@ -1,1 +1,0 @@
-if(typeof window \!== "undefined" && window.authDebug) { console.log("Testing cookie status..."); window.authDebug.logCookieStatus("manual-test"); window.authDebug.testAPICall("/api/v1/companies"); } else { console.log("AuthDebug not available - this should be run in browser console"); }

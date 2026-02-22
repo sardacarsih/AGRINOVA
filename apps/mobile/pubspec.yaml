@@ -25,7 +25,6 @@ dependencies:
 
   # JWT Handling
   dart_jsonwebtoken: ^3.2.0
-  jwt_decoder: ^2.0.1
 
   # State Management
   flutter_bloc: ^9.1.1
@@ -49,7 +48,6 @@ dependencies:
   # UI & Icons
   cupertino_icons: ^1.0.2
   flutter_spinkit: ^5.2.0
-  fluttertoast: ^9.0.0
   screen_brightness: ^2.1.7
 
   # Database (Local SQLite for offline-first)
@@ -59,12 +57,12 @@ dependencies:
 
   # Network & Connectivity
   connectivity_plus: ^6.1.5
-  internet_connection_checker: ^3.0.1
+  internet_connection_checker_plus: ^2.7.2
 
   # Firebase & Notifications
   firebase_core: ^4.0.0
   firebase_messaging: ^16.0.0
-  flutter_local_notifications: ^20.1.0
+  flutter_local_notifications: ^21.0.0-dev.2
 
   # QR Code & Scanner
   mobile_scanner: ^7.0.1
@@ -115,24 +113,15 @@ dependencies:
   # Additional UI Components
   cached_network_image: ^3.3.1
   shimmer: ^3.0.0
-  pull_to_refresh: ^2.0.0
-  infinite_scroll_pagination: ^5.1.1
-  
   # App Update & Version Management
   in_app_update: ^4.2.3
   url_launcher: ^6.2.5
   version: ^3.0.2
   
   # Date & Time
-  table_calendar: ^3.0.9
-  timezone: ^0.10.1
+  timezone: ^0.11.0
   dio: ^5.9.0
   
-  # Form & Validation
-  reactive_forms: ^18.1.1
-  
-  # Animation
-  lottie: ^3.0.0
 
 dev_dependencies:
   flutter_test:

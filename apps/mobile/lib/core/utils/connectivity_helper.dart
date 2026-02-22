@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:internet_connection_checker/internet_connection_checker.dart';
+import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 import 'package:logger/logger.dart';
 
 /// Network connectivity helper for app updates and sync operations
@@ -10,7 +10,7 @@ class ConnectivityHelper {
   ConnectivityHelper._internal();
 
   final Connectivity _connectivity = Connectivity();
-  final InternetConnectionChecker _internetChecker = InternetConnectionChecker.instance;
+  final InternetConnection _internetChecker = InternetConnection.createInstance();
   final Logger _logger = Logger();
 
   StreamController<ConnectivityStatus>? _connectivityController;
@@ -59,7 +59,7 @@ class ConnectivityHelper {
     }
 
     final result = results.first;
-    final hasInternet = await _internetChecker.hasConnection;
+    final hasInternet = await _internetChecker.hasInternetAccess;
     
     ConnectivityType type;
     bool isMetered = false;

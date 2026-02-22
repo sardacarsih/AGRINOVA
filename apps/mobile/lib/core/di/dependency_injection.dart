@@ -2,7 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:logger/logger.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:internet_connection_checker/internet_connection_checker.dart';
+import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -58,7 +58,7 @@ class ServiceLocator {
     sl.registerLazySingleton(() => sharedPreferences);
     sl.registerLazySingleton(() => Logger());
     sl.registerLazySingleton(() => Connectivity());
-    sl.registerLazySingleton(() => InternetConnectionChecker.instance);
+    sl.registerLazySingleton(() => InternetConnection.createInstance());
     sl.registerLazySingleton(() => LocalAuthentication());
     sl.registerLazySingleton(() => FirebaseMessaging.instance);
     sl.registerLazySingleton(() => FlutterLocalNotificationsPlugin());
