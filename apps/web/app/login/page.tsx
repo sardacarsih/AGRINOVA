@@ -573,6 +573,9 @@ function LoginPageContent() {
               {/* Mobile App Download Card */}
               <motion.div variants={itemVariants}>
                 <div className="bg-gradient-to-br from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 backdrop-blur-sm rounded-2xl p-6 border border-emerald-200 dark:border-emerald-800">
+                  <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-4">
+                    📱 Download Agrinova Mobile
+                  </h3>
                   <div className="grid grid-cols-1 gap-3">
                     {/* Android Download */}
                     <a
