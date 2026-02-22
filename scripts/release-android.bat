@@ -55,12 +55,32 @@ if not "%CURRENT_BRANCH%"=="main" (
   )
 )
 
-REM ── Cek working tree bersih ────────────────────────────────────────────────
-for /f "tokens=*" %%S in ('git status --porcelain 2^>nul') do (
-  echo [ERROR] Working tree tidak bersih. Commit atau stash perubahan terlebih dahulu.
+REM ── Cek working tree ──────────────────────────────────────────────────────
+REM Hard block hanya jika apps/mobile/ ada perubahan belum di-commit.
+REM Perubahan di luar apps/mobile/ hanya peringatan + konfirmasi.
+
+set "MOBILE_DIRTY="
+for /f "tokens=*" %%S in ('git status --porcelain -- apps/mobile 2^>nul') do set "MOBILE_DIRTY=1"
+if defined MOBILE_DIRTY (
+  echo [ERROR] apps/mobile/ memiliki perubahan yang belum di-commit.
+  echo         Commit atau stash terlebih dahulu sebelum release.
+  echo.
+  git status --short -- apps/mobile
+  pause & exit /b 1
+)
+
+set "OTHER_DIRTY="
+for /f "tokens=*" %%S in ('git status --porcelain 2^>nul') do set "OTHER_DIRTY=1"
+if defined OTHER_DIRTY (
+  echo [PERINGATAN] Ada perubahan di luar apps/mobile/ yang belum di-commit:
   echo.
   git status --short
-  pause & exit /b 1
+  echo.
+  set /p "CONTINUE_DIRTY=Tetap lanjutkan release? (y/N): "
+  if /i not "!CONTINUE_DIRTY!"=="y" (
+    echo Dibatalkan. Commit atau stash perubahan terlebih dahulu.
+    pause & exit /b 0
+  )
 )
 
 REM ── Ambil versi ───────────────────────────────────────────────────────────
