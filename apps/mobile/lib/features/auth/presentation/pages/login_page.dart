@@ -2,6 +2,7 @@ import 'dart:async' show unawaited;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../blocs/auth_bloc.dart';
 import '../blocs/biometric_auth_bloc.dart';
@@ -28,7 +29,11 @@ class _LoginPageState extends State<LoginPage>
   bool _rememberDevice = false;
   AppStatus _appStatus = AppStatus.online;
   bool _isOnline = true; // derived: _appStatus == AppStatus.online
+  bool _isRefreshingStatus = true;
+  String? _statusErrorDetail;
+  String? _statusCheckedUrl;
   bool _hasOfflineAuth = false;
+  String _appVersion = '';
   bool _biometricAvailable = false;
   bool _biometricEnabled = false;
   bool _hasBiometricSession = false;
@@ -76,6 +81,9 @@ class _LoginPageState extends State<LoginPage>
     _usernameController.addListener(_handleUsernameChanged);
     _initializeLoginState();
     _animationController.forward();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _appVersion = info.version);
+    });
   }
 
   @override
@@ -113,11 +121,15 @@ class _LoginPageState extends State<LoginPage>
   /// Runs a fresh server reachability check and updates [_appStatus] + [_isOnline].
   /// NEVER throws – ServerStatusService swallows all exceptions internally.
   Future<void> _refreshServerStatus() async {
-    final status = await ServerStatusService().checkStatus();
+    if (mounted) setState(() => _isRefreshingStatus = true);
+    final result = await ServerStatusService().checkStatus();
     if (!mounted) return;
     setState(() {
-      _appStatus = status;
-      _isOnline = status == AppStatus.online;
+      _appStatus = result.status;
+      _isOnline = result.status == AppStatus.online;
+      _statusErrorDetail = result.errorDetail;
+      _statusCheckedUrl = result.checkedUrl;
+      _isRefreshingStatus = false;
     });
   }
 
@@ -423,7 +435,7 @@ class _LoginPageState extends State<LoginPage>
   Widget _buildConnectionPill() {
     final Color pillColor;
     final String label;
-    final String? subtext;
+    String? subtext;
 
     switch (_appStatus) {
       case AppStatus.online:
@@ -439,11 +451,11 @@ class _LoginPageState extends State<LoginPage>
       case AppStatus.serverDown:
         pillColor = Colors.orange;
         label = 'Offline Mode';
-        subtext = 'Server Down';
+        subtext = _statusErrorDetail ?? 'Server Down';
         break;
     }
 
-    return Container(
+    final pill = Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
         color: pillColor.withValues(alpha: 0.15),
@@ -459,32 +471,46 @@ class _LoginPageState extends State<LoginPage>
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: pillColor,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: pillColor.withValues(alpha: 0.5),
-                      blurRadius: 6,
-                    ),
-                  ],
+              if (_isRefreshingStatus)
+                SizedBox(
+                  width: 8,
+                  height: 8,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: pillColor,
+                  ),
+                )
+              else
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: pillColor,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: pillColor.withValues(alpha: 0.5),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
               const SizedBox(width: 8),
               Text(
-                label,
+                _isRefreshingStatus ? 'Memeriksa...' : label,
                 style: TextStyle(
                   color: pillColor,
                   fontWeight: FontWeight.w600,
                   fontSize: 13,
                 ),
               ),
+              if (!_isRefreshingStatus && _appStatus != AppStatus.online) ...[
+                const SizedBox(width: 6),
+                Icon(Icons.refresh_rounded, color: pillColor, size: 14),
+              ],
             ],
           ),
-          if (subtext != null) ...[
+          if (!_isRefreshingStatus && subtext != null) ...[
             const SizedBox(height: 2),
             Text(
               subtext,
@@ -498,6 +524,16 @@ class _LoginPageState extends State<LoginPage>
         ],
       ),
     );
+
+    if (_appStatus != AppStatus.online) {
+      return GestureDetector(
+        onTap: _isRefreshingStatus
+            ? null
+            : () => unawaited(_refreshServerStatus()),
+        child: pill,
+      );
+    }
+    return pill;
   }
 
   Widget _buildGlassCard(AuthState state) {
@@ -777,7 +813,7 @@ class _LoginPageState extends State<LoginPage>
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
-        'v${ApiConstants.appVersion}',
+        _appVersion.isEmpty ? '' : 'v$_appVersion',
         style: TextStyle(
           color: Colors.white.withValues(alpha: 0.4),
           fontSize: 12,

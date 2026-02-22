@@ -19,6 +19,7 @@ import '../services/biometric_auth_service.dart';
 import '../services/device_service.dart';
 import '../network/graphql_client_service.dart';
 import '../graphql/graphql_client.dart';
+import '../network/dio_client.dart';
 import '../../features/auth/domain/repositories/auth_repository.dart';
 import '../../features/auth/data/repositories/auth_repository.dart';
 import '../../features/auth/data/services/graphql_auth_service.dart';
@@ -68,12 +69,13 @@ class ServiceLocator {
 
     // Notification Storage Service (for storing FCM notifications locally)
     sl.registerLazySingleton<NotificationStorageService>(
-        () => NotificationStorageService());
+      () => NotificationStorageService(),
+    );
 
     // Core Services
-    sl.registerLazySingleton<ConnectivityService>(() => ConnectivityService(
-          sl(),
-        ));
+    sl.registerLazySingleton<ConnectivityService>(
+      () => ConnectivityService(sl()),
+    );
 
     await UnifiedSecureStorageService.initialize();
 
@@ -81,26 +83,28 @@ class ServiceLocator {
     sl.registerLazySingleton<JWTStorageService>(() => JWTStorageService());
 
     sl.registerLazySingleton<DeviceService>(() => DeviceService());
+    sl.registerLazySingleton<DioClient>(() => DioClient());
 
-    sl.registerLazySingleton<GraphQLClientService>(() => AgroGraphQLClient(
-          connectivityService: sl(),
-        ));
+    sl.registerLazySingleton<GraphQLClientService>(
+      () => AgroGraphQLClient(connectivityService: sl()),
+    );
 
     // Initialize GraphQL client with base URL
     final graphqlClient = sl<GraphQLClientService>();
     await graphqlClient.initialize(baseUrl: ApiConstants.baseUrl);
 
-    sl.registerLazySingleton<GraphQLAuthService>(() => GraphQLAuthService(
-          graphqlClient: sl<GraphQLClientService>(),
-        ));
+    sl.registerLazySingleton<GraphQLAuthService>(
+      () => GraphQLAuthService(graphqlClient: sl<GraphQLClientService>()),
+    );
 
-    sl.registerLazySingleton<BiometricAuthService>(() => BiometricAuthService(
-          localAuth: sl<LocalAuthentication>(),
-        ));
+    sl.registerLazySingleton<BiometricAuthService>(
+      () => BiometricAuthService(localAuth: sl<LocalAuthentication>()),
+    );
 
     sl.registerLazySingleton<DatabaseService>(() => DatabaseService());
     sl.registerLazySingleton<EnhancedDatabaseService>(
-        () => EnhancedDatabaseService());
+      () => EnhancedDatabaseService(),
+    );
 
     // Permission Service (needed by Location and Camera services)
     sl.registerLazySingleton<PermissionService>(() => PermissionService());
@@ -113,31 +117,38 @@ class ServiceLocator {
       // Camera not available - continue without cameras
     }
 
-    sl.registerLazySingleton<LocationService>(() => LocationService(
-          permissionService: sl<PermissionService>(),
-        ));
+    sl.registerLazySingleton<LocationService>(
+      () => LocationService(permissionService: sl<PermissionService>()),
+    );
 
-    sl.registerLazySingleton<CameraService>(() => CameraService(
-          cameras: cameras,
-          permissionService: sl<PermissionService>(),
-        ));
+    sl.registerLazySingleton<CameraService>(
+      () => CameraService(
+        cameras: cameras,
+        permissionService: sl<PermissionService>(),
+      ),
+    );
 
-    sl.registerLazySingleton<GraphQLSyncService>(() => GraphQLSyncService(
-          database: sl<EnhancedDatabaseService>(),
-          graphqlClient: sl<GraphQLClientService>() as AgroGraphQLClient,
-          connectivity: sl<ConnectivityService>(),
-        ));
+    sl.registerLazySingleton<GraphQLSyncService>(
+      () => GraphQLSyncService(
+        database: sl<EnhancedDatabaseService>(),
+        graphqlClient: sl<GraphQLClientService>() as AgroGraphQLClient,
+        connectivity: sl<ConnectivityService>(),
+      ),
+    );
 
-    sl.registerLazySingleton<HarvestSyncService>(() => HarvestSyncService(
-          graphqlClient: sl<GraphQLClientService>() as AgroGraphQLClient,
-          databaseService: sl<EnhancedDatabaseService>(),
-        ));
+    sl.registerLazySingleton<HarvestSyncService>(
+      () => HarvestSyncService(
+        graphqlClient: sl<GraphQLClientService>() as AgroGraphQLClient,
+        databaseService: sl<EnhancedDatabaseService>(),
+      ),
+    );
 
     sl.registerLazySingleton<MandorMasterSyncService>(
-        () => MandorMasterSyncService(
-              graphqlClient: sl<GraphQLClientService>() as AgroGraphQLClient,
-              databaseService: sl<EnhancedDatabaseService>(),
-            ));
+      () => MandorMasterSyncService(
+        graphqlClient: sl<GraphQLClientService>() as AgroGraphQLClient,
+        databaseService: sl<EnhancedDatabaseService>(),
+      ),
+    );
 
     await _registerRepositories();
     await _registerBlocs();
@@ -146,47 +157,56 @@ class ServiceLocator {
   static Future<void> _registerRepositories() async {
     // Auth Data Sources
     sl.registerLazySingleton<AuthRemoteDataSource>(
-        () => AuthRemoteDataSourceImpl(
-              sl<GraphQLAuthService>(),
-            ));
+      () => AuthRemoteDataSourceImpl(sl<GraphQLAuthService>()),
+    );
 
-    sl.registerLazySingleton<AuthLocalDataSource>(() => AuthLocalDataSourceImpl(
-          localAuth: sl<LocalAuthentication>(),
-          biometricAuthService: sl<BiometricAuthService>(),
-        ));
+    sl.registerLazySingleton<AuthLocalDataSource>(
+      () => AuthLocalDataSourceImpl(
+        localAuth: sl<LocalAuthentication>(),
+        biometricAuthService: sl<BiometricAuthService>(),
+      ),
+    );
 
     // Auth Repository
-    sl.registerLazySingleton<AuthRepository>(() => AuthRepositoryImpl(
-          remoteDataSource: sl<AuthRemoteDataSource>(),
-          localDataSource: sl<AuthLocalDataSource>(),
-          connectivityService: sl<ConnectivityService>(),
-        ));
+    sl.registerLazySingleton<AuthRepository>(
+      () => AuthRepositoryImpl(
+        remoteDataSource: sl<AuthRemoteDataSource>(),
+        localDataSource: sl<AuthLocalDataSource>(),
+        connectivityService: sl<ConnectivityService>(),
+      ),
+    );
 
     // Auth Use Cases
     sl.registerLazySingleton(() => LoginUseCase(sl()));
     sl.registerLazySingleton(() => LogoutUseCase(sl()));
 
-    sl.registerLazySingleton<HarvestRepository>(() => HarvestRepositoryImpl(
-          databaseService: sl<EnhancedDatabaseService>(),
-          locationService: sl<LocationService>(),
-          cameraService: sl<CameraService>(),
-          connectivityService: sl<ConnectivityService>(),
-        ));
+    sl.registerLazySingleton<HarvestRepository>(
+      () => HarvestRepositoryImpl(
+        databaseService: sl<EnhancedDatabaseService>(),
+        locationService: sl<LocationService>(),
+        cameraService: sl<CameraService>(),
+        connectivityService: sl<ConnectivityService>(),
+      ),
+    );
 
-    sl.registerLazySingleton<ApprovalRepository>(() => ApprovalRepositoryImpl(
-          graphQLClient: sl<GraphQLClientService>() as AgroGraphQLClient,
-        ));
+    sl.registerLazySingleton<ApprovalRepository>(
+      () => ApprovalRepositoryImpl(
+        graphQLClient: sl<GraphQLClientService>() as AgroGraphQLClient,
+      ),
+    );
 
     sl.registerLazySingleton<MonitoringRepository>(
-        () => MonitoringRepositoryImpl(
-              approvalRepository: sl<ApprovalRepository>(),
-              graphqlClient: sl<GraphQLClientService>(),
-            ));
+      () => MonitoringRepositoryImpl(
+        approvalRepository: sl<ApprovalRepository>(),
+        graphqlClient: sl<GraphQLClientService>(),
+      ),
+    );
 
     sl.registerLazySingleton<AreaManagerDashboardRepository>(
-        () => AreaManagerDashboardRepository(
-              graphqlClient: sl<GraphQLClientService>(),
-            ));
+      () => AreaManagerDashboardRepository(
+        graphqlClient: sl<GraphQLClientService>(),
+      ),
+    );
 
     sl.registerLazySingleton<ManagerDashboardRepository>(
       () =>
@@ -207,41 +227,44 @@ class ServiceLocator {
   }
 
   static Future<void> _registerBlocs() async {
-    sl.registerFactory(() => AuthBloc(
-          authRepository: sl(),
-          connectivityService: sl(),
-        ));
+    sl.registerFactory(
+      () => AuthBloc(authRepository: sl(), connectivityService: sl()),
+    );
 
-    sl.registerFactory(() => BiometricAuthBloc(
-          biometricAuthService: sl<BiometricAuthService>(),
-        ));
+    sl.registerFactory(
+      () => BiometricAuthBloc(biometricAuthService: sl<BiometricAuthService>()),
+    );
 
-    sl.registerFactory(() => HarvestBloc(
-          harvestRepository: sl<HarvestRepository>(),
-          locationService: sl<LocationService>(),
-          cameraService: sl<CameraService>(),
-          syncService: sl<GraphQLSyncService>(),
-        ));
+    sl.registerFactory(
+      () => HarvestBloc(
+        harvestRepository: sl<HarvestRepository>(),
+        locationService: sl<LocationService>(),
+        cameraService: sl<CameraService>(),
+        syncService: sl<GraphQLSyncService>(),
+      ),
+    );
 
-    sl.registerFactory(() => MandorDashboardBloc(
-          harvestRepository: sl<HarvestRepository>(),
-        ));
+    sl.registerFactory(
+      () => MandorDashboardBloc(harvestRepository: sl<HarvestRepository>()),
+    );
 
-    sl.registerFactory(() => ApprovalBloc(
-          approvalRepository: sl<ApprovalRepository>(),
-        ));
+    sl.registerFactory(
+      () => ApprovalBloc(approvalRepository: sl<ApprovalRepository>()),
+    );
 
-    sl.registerFactory(() => MonitoringBloc(
-          monitoringRepository: sl<MonitoringRepository>(),
-        ));
+    sl.registerFactory(
+      () => MonitoringBloc(monitoringRepository: sl<MonitoringRepository>()),
+    );
 
-    sl.registerFactory(() => AreaManagerDashboardBloc(
-          repository: sl<AreaManagerDashboardRepository>(),
-        ));
+    sl.registerFactory(
+      () => AreaManagerDashboardBloc(
+        repository: sl<AreaManagerDashboardRepository>(),
+      ),
+    );
 
-    sl.registerFactory(() => ManagerDashboardBloc(
-          repository: sl<ManagerDashboardRepository>(),
-        ));
+    sl.registerFactory(
+      () => ManagerDashboardBloc(repository: sl<ManagerDashboardRepository>()),
+    );
   }
 }
 

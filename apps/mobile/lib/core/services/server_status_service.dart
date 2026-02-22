@@ -16,6 +16,21 @@ enum AppStatus {
   online,
 }
 
+/// Result of a server status check, including diagnostic details.
+class AppStatusResult {
+  final AppStatus status;
+
+  /// Human-readable error detail for [AppStatus.serverDown], e.g. "Timeout",
+  /// "Cannot reach server", "SSL error", "HTTP 503". Null when [status] is
+  /// [AppStatus.online] or [AppStatus.noInternet].
+  final String? errorDetail;
+
+  /// The URL that was checked in Stage B. Useful for diagnostics.
+  final String? checkedUrl;
+
+  const AppStatusResult(this.status, {this.errorDetail, this.checkedUrl});
+}
+
 /// Stateless service for checking server reachability.
 ///
 /// Not registered in the GetIt DI container – callers simply do
@@ -25,7 +40,7 @@ enum AppStatus {
 /// appropriate [AppStatus].
 class ServerStatusService {
   static final Logger _logger = Logger();
-  static const Duration _timeout = Duration(seconds: 5);
+  static const Duration _timeout = Duration(seconds: 10);
 
   /// Two-stage reachability probe.
   ///
@@ -36,13 +51,13 @@ class ServerStatusService {
   /// **Stage B** – HTTP GET to `{baseUrl}/health`. A 2xx status code means
   /// [AppStatus.online]; any timeout, connection error, or non-2xx status
   /// means [AppStatus.serverDown].
-  Future<AppStatus> checkStatus() async {
+  Future<AppStatusResult> checkStatus() async {
     // ── Stage A: network interface check ─────────────────────────────
     try {
       final result = await Connectivity().checkConnectivity();
       if (result.contains(ConnectivityResult.none)) {
         _logger.d('ServerStatusService: no network interface → noInternet');
-        return AppStatus.noInternet;
+        return const AppStatusResult(AppStatus.noInternet);
       }
     } catch (e) {
       // If the connectivity check itself fails we cannot be certain there is
@@ -51,9 +66,10 @@ class ServerStatusService {
     }
 
     // ── Stage B: HTTP health check ────────────────────────────────────
+    String? healthUrl;
     try {
       final config = await ConfigService.getConfig();
-      final healthUrl = '${config.baseUrl}/health';
+      healthUrl = '${config.baseUrl}/health';
       _logger.d('ServerStatusService: checking $healthUrl');
 
       final client = HttpClient();
@@ -70,10 +86,25 @@ class ServerStatusService {
         'ServerStatusService: ${response.statusCode} '
         '→ ${isSuccess ? "online" : "serverDown"}',
       );
-      return isSuccess ? AppStatus.online : AppStatus.serverDown;
+      return AppStatusResult(
+        isSuccess ? AppStatus.online : AppStatus.serverDown,
+        checkedUrl: healthUrl,
+        errorDetail: isSuccess ? null : 'HTTP ${response.statusCode}',
+      );
     } catch (e) {
       _logger.d('ServerStatusService: health check failed → serverDown: $e');
-      return AppStatus.serverDown;
+      final errorDetail = e is TimeoutException
+          ? 'Timeout (>${_timeout.inSeconds}s)'
+          : e is SocketException
+              ? 'Server tidak terjangkau'
+              : e is HandshakeException
+                  ? 'SSL error'
+                  : 'Koneksi gagal';
+      return AppStatusResult(
+        AppStatus.serverDown,
+        checkedUrl: healthUrl,
+        errorDetail: errorDetail,
+      );
     }
   }
 }

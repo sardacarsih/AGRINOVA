@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../shared/widgets/auth_listener_wrapper.dart';
+import '../../../../../../core/di/dependency_injection.dart';
 import '../../../../data/models/manager_dashboard_models.dart';
 import '../../../blocs/manager_dashboard_bloc.dart';
 import '../manager_theme.dart';
@@ -30,6 +31,28 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final existingBloc = _tryGetDashboardBloc(context);
+    if (existingBloc == null) {
+      return BlocProvider<ManagerDashboardBloc>(
+        create: (_) =>
+            sl<ManagerDashboardBloc>()
+              ..add(const ManagerDashboardLoadRequested()),
+        child: _buildScaffoldBody(),
+      );
+    }
+
+    return _buildScaffoldBody();
+  }
+
+  ManagerDashboardBloc? _tryGetDashboardBloc(BuildContext context) {
+    try {
+      return context.read<ManagerDashboardBloc>();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Widget _buildScaffoldBody() {
     return AuthListenerWrapper(
       child: BlocBuilder<ManagerDashboardBloc, ManagerDashboardState>(
         builder: (context, state) {
@@ -44,8 +67,9 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
 
           final loaded = state as ManagerDashboardLoaded;
           if (!loaded.isRefreshing) {
-            _selectedPeriodIndex =
-                _periodIndexFromValue(loaded.analytics.period);
+            _selectedPeriodIndex = _periodIndexFromValue(
+              loaded.analytics.period,
+            );
           }
 
           final analytics = loaded.analytics;
@@ -56,8 +80,9 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
           final divisionPerformance = {
             for (final division in analytics.divisionPerformance)
               (division.divisionName.isEmpty
-                  ? 'Divisi ${division.rank}'
-                  : division.divisionName): division.achievement,
+                      ? 'Divisi ${division.rank}'
+                      : division.divisionName):
+                  division.achievement,
           };
           final qualityDistribution = analytics.qualityAnalysis.distribution;
           final efficiencyScore = analytics.efficiencyMetrics.overallScore;
@@ -169,10 +194,10 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
                 if (_selectedPeriodIndex == entry.key) return;
                 setState(() => _selectedPeriodIndex = entry.key);
                 context.read<ManagerDashboardBloc>().add(
-                      ManagerAnalyticsPeriodChanged(
-                        period: _periodMap[entry.key] ?? 'WEEKLY',
-                      ),
-                    );
+                  ManagerAnalyticsPeriodChanged(
+                    period: _periodMap[entry.key] ?? 'WEEKLY',
+                  ),
+                );
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -197,8 +222,9 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
                     color: isSelected
                         ? ManagerTheme.primaryPurple
                         : Colors.grey[600],
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontWeight: isSelected
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                   ),
                 ),
               ),
@@ -212,13 +238,10 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
   Widget _buildProductionTrendCard(List<TrendDataPointModel> trendPoints) {
     final spots = trendPoints.isNotEmpty
         ? trendPoints
-            .asMap()
-            .entries
-            .map((entry) => FlSpot(
-                  entry.key.toDouble(),
-                  entry.value.value,
-                ))
-            .toList()
+              .asMap()
+              .entries
+              .map((entry) => FlSpot(entry.key.toDouble(), entry.value.value))
+              .toList()
         : <FlSpot>[const FlSpot(0, 0)];
     final labels = trendPoints.isNotEmpty
         ? trendPoints.map((point) => point.label).toList()
@@ -269,18 +292,17 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
                       drawVerticalLine: false,
                       horizontalInterval: maxY / 4,
                       getDrawingHorizontalLine: (value) {
-                        return FlLine(
-                          color: Colors.grey[200]!,
-                          strokeWidth: 1,
-                        );
+                        return FlLine(color: Colors.grey[200]!, strokeWidth: 1);
                       },
                     ),
                     titlesData: FlTitlesData(
                       leftTitles: AxisTitles(
                         axisNameWidget: Text(
                           'Volume (ton)',
-                          style:
-                              TextStyle(fontSize: 10, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[600],
+                          ),
                         ),
                         sideTitles: SideTitles(
                           showTitles: true,
@@ -290,7 +312,9 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
                             return Text(
                               value.toInt().toString(),
                               style: TextStyle(
-                                  fontSize: 10, color: Colors.grey[600]),
+                                fontSize: 10,
+                                color: Colors.grey[600],
+                              ),
                             );
                           },
                         ),
@@ -306,7 +330,9 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
                                 child: Text(
                                   labels[index],
                                   style: TextStyle(
-                                      fontSize: 10, color: Colors.grey[600]),
+                                    fontSize: 10,
+                                    color: Colors.grey[600],
+                                  ),
                                 ),
                               );
                             }
@@ -362,8 +388,10 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
                   right: 10,
                   top: 20,
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: ManagerTheme.primaryPurple,
                       borderRadius: BorderRadius.circular(20),
@@ -451,13 +479,7 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(title, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
           const SizedBox(height: 8),
           Row(
             children: [
@@ -549,10 +571,10 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
               final color = value >= 90
                   ? Colors.green
                   : value >= 80
-                      ? Colors.blue
-                      : value >= 70
-                          ? Colors.orange
-                          : Colors.red;
+                  ? Colors.blue
+                  : value >= 70
+                  ? Colors.orange
+                  : Colors.red;
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Column(
@@ -561,10 +583,7 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          entry.key,
-                          style: const TextStyle(fontSize: 12),
-                        ),
+                        Text(entry.key, style: const TextStyle(fontSize: 12)),
                         Text(
                           '${value.toStringAsFixed(1)}%',
                           style: TextStyle(
@@ -598,12 +617,14 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
     required List<QualityDistributionModel> qualityDistribution,
   }) {
     final pieSections = qualityDistribution
-        .map((item) => PieChartSectionData(
-              value: item.percentage,
-              color: _colorFromHex(item.colorCode),
-              radius: 25,
-              showTitle: false,
-            ))
+        .map(
+          (item) => PieChartSectionData(
+            value: item.percentage,
+            color: _colorFromHex(item.colorCode),
+            radius: 25,
+            showTitle: false,
+          ),
+        )
         .toList();
 
     return Container(
@@ -687,11 +708,7 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
                     color: Colors.orange[100],
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    Icons.eco,
-                    color: Colors.orange[700],
-                    size: 28,
-                  ),
+                  child: Icon(Icons.eco, color: Colors.orange[700], size: 28),
                 ),
               ],
             ),
@@ -801,7 +818,11 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
   }
 
   Widget _buildPersonCount(
-      IconData icon, String label, int count, Color color) {
+    IconData icon,
+    String label,
+    int count,
+    Color color,
+  ) {
     return Row(
       children: [
         Icon(icon, size: 16, color: color),
@@ -913,7 +934,11 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
     if (cleanHex.length != 6) {
       return Colors.grey;
     }
-    return Color(int.parse('FF$cleanHex', radix: 16));
+    try {
+      return Color(int.parse('FF$cleanHex', radix: 16));
+    } catch (_) {
+      return Colors.grey;
+    }
   }
 
   void _handleBottomNavigation(BuildContext context, int index) {
@@ -938,4 +963,3 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
     }
   }
 }
-

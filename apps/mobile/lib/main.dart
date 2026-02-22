@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'core/config/app_config.dart';
 import 'core/di/service_locator.dart';
 import 'core/init/app_initializer.dart';
+import 'core/services/app_update_manager.dart';
 import 'features/auth/presentation/blocs/auth_bloc.dart';
 import 'core/theme/app_theme.dart';
 import 'core/routes/app_routes.dart';
@@ -33,6 +34,7 @@ class AgrinovaApp extends StatefulWidget {
 
 class _AgrinovaAppState extends State<AgrinovaApp> {
   bool _isInitialized = false;
+  bool _isUpdateManagerInitialized = false;
   String? _initError;
   AuthBloc? _authBloc;
 
@@ -53,6 +55,7 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
           _isInitialized = true;
           _authBloc = authBloc;
         });
+        _initializeAppUpdateManager();
       }
     } catch (e) {
       debugPrint('❌ Failed to initialize: $e');
@@ -64,13 +67,43 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
     }
   }
 
+  void _initializeAppUpdateManager() {
+    if (_isUpdateManagerInitialized) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+
+      try {
+        final manager = AppUpdateManager();
+        manager.updateContext(context);
+        await manager.initialize(context);
+
+        if (mounted) {
+          setState(() {
+            _isUpdateManagerInitialized = true;
+          });
+        }
+      } catch (e) {
+        debugPrint('Failed to initialize AppUpdateManager: $e');
+      }
+    });
+  }
+
   void _retry() {
+    AppUpdateManager().dispose();
     setState(() {
       _isInitialized = false;
+      _isUpdateManagerInitialized = false;
       _initError = null;
       _authBloc = null;
     });
     _initialize();
+  }
+
+  @override
+  void dispose() {
+    AppUpdateManager().dispose();
+    super.dispose();
   }
 
   @override
@@ -92,10 +125,14 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
         return AppRoutes.generateRoute(settings);
       },
       builder: (context, child) {
+        if (_isUpdateManagerInitialized) {
+          AppUpdateManager().updateContext(context);
+        }
+
         Widget result = MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: const TextScaler.linear(1.0),
-          ),
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(1.0)),
           child: child!,
         );
 

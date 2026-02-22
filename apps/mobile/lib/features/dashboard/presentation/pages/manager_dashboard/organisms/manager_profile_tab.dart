@@ -6,6 +6,7 @@ import '../../../../../../core/services/role_service.dart';
 import '../../../../../../shared/widgets/auth_listener_wrapper.dart';
 import 'manager_monitor_tab.dart';
 import 'manager_analytics_tab.dart';
+import '../../../blocs/manager_dashboard_bloc.dart';
 
 /// Organism: Manager Profile Tab
 /// Full profile page with user info, settings, and logout
@@ -19,7 +20,8 @@ class ManagerProfileTab extends StatelessWidget {
         builder: (context, state) {
           if (state is AuthAuthenticated) {
             return Scaffold(
-              backgroundColor: ManagerTheme.scaffoldBackground, // Light background
+              backgroundColor:
+                  ManagerTheme.scaffoldBackground, // Light background
               appBar: AppBar(
                 title: const Text(
                   'Profil Manager',
@@ -148,17 +150,17 @@ class ManagerProfileTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.white),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     RoleService.getRoleDisplayName(user.role),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.white,
-                    ),
+                    style: const TextStyle(fontSize: 10, color: Colors.white),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -208,18 +210,17 @@ class ManagerProfileTab extends StatelessWidget {
       children: [
         Icon(icon, color: ManagerTheme.primaryPurple, size: 24),
         const SizedBox(height: 8),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
         Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
     );
   }
 
   Widget _buildVerticalDivider() {
-    return Container(
-      height: 40,
-      width: 1,
-      color: Colors.grey[200],
-    );
+    return Container(height: 40, width: 1, color: Colors.grey[200]);
   }
 
   Widget _buildSectionTitle(String title) {
@@ -239,15 +240,31 @@ class ManagerProfileTab extends StatelessWidget {
       decoration: ManagerTheme.whiteCardDecoration,
       child: Column(
         children: [
-          _buildInfoRow(Icons.business_rounded, 'Estate', state.user.estate ?? 'Kebun Utara'),
+          _buildInfoRow(
+            Icons.business_rounded,
+            'Estate',
+            state.user.estate ?? 'Kebun Utara',
+          ),
           const SizedBox(height: 12),
           _buildInfoRow(Icons.email_rounded, 'Email', state.user.email),
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.phone_rounded, 'Telepon', '+62 812-9876-5432'), // Mock
+          _buildInfoRow(
+            Icons.phone_rounded,
+            'Telepon',
+            '+62 812-9876-5432',
+          ), // Mock
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.calendar_today_rounded, 'Bergabung', '20 Maret 2021'), // Mock
+          _buildInfoRow(
+            Icons.calendar_today_rounded,
+            'Bergabung',
+            '20 Maret 2021',
+          ), // Mock
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.star_rounded, 'Penghargaan', 'Manager Terbaik 2023'), // Mock
+          _buildInfoRow(
+            Icons.star_rounded,
+            'Penghargaan',
+            'Manager Terbaik 2023',
+          ), // Mock
         ],
       ),
     );
@@ -258,7 +275,10 @@ class ManagerProfileTab extends StatelessWidget {
       children: [
         Icon(icon, size: 20, color: ManagerTheme.primaryPurple),
         const SizedBox(width: 12),
-        SizedBox(width: 100, child: Text(label, style: ManagerTheme.bodyMedium)),
+        SizedBox(
+          width: 100,
+          child: Text(label, style: ManagerTheme.bodyMedium),
+        ),
         Expanded(
           child: Text(
             value,
@@ -293,7 +313,10 @@ class ManagerProfileTab extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label, style: ManagerTheme.bodyMedium),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+        ),
       ],
     );
   }
@@ -342,14 +365,23 @@ class ManagerProfileTab extends StatelessWidget {
               color: ManagerTheme.primaryPurple.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.spa_rounded, color: ManagerTheme.primaryPurple),
+            child: const Icon(
+              Icons.spa_rounded,
+              color: ManagerTheme.primaryPurple,
+            ),
           ),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Agrinova Mobile', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              Text('v1.0.0 Manager Edition', style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+              const Text(
+                'Agrinova Mobile',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+              Text(
+                'v1.0.0 Manager Edition',
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
             ],
           ),
         ],
@@ -367,7 +399,13 @@ class ManagerProfileTab extends StatelessWidget {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(vertical: 12),
         ),
-        child: const Text('Keluar', style: TextStyle(color: ManagerTheme.rejectedRed, fontWeight: FontWeight.bold)),
+        child: const Text(
+          'Keluar',
+          style: TextStyle(
+            color: ManagerTheme.rejectedRed,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
     );
   }
@@ -388,7 +426,10 @@ class ManagerProfileTab extends StatelessWidget {
               Navigator.pop(context);
               context.read<AuthBloc>().add(AuthLogoutRequested());
             },
-            child: const Text('Keluar', style: TextStyle(color: ManagerTheme.rejectedRed)),
+            child: const Text(
+              'Keluar',
+              style: TextStyle(color: ManagerTheme.rejectedRed),
+            ),
           ),
         ],
       ),
@@ -414,9 +455,18 @@ class ManagerProfileTab extends StatelessWidget {
         selectedItemColor: ManagerTheme.primaryPurple,
         unselectedItemColor: Colors.grey[600],
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
-          BottomNavigationBarItem(icon: Icon(Icons.monitor_outlined), label: 'Monitor'),
-          BottomNavigationBarItem(icon: Icon(Icons.analytics_outlined), label: 'Analytics'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_outlined),
+            label: 'Dashboard',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.monitor_outlined),
+            label: 'Monitor',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.analytics_outlined),
+            label: 'Analytics',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
         onTap: (index) => _handleBottomNavigation(context, index),
@@ -439,9 +489,17 @@ class ManagerProfileTab extends StatelessWidget {
         break;
       case 2:
         // Go to Analytics
+        final dashboardBloc = _tryGetDashboardBloc(context);
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const ManagerAnalyticsTab()),
+          MaterialPageRoute(
+            builder: (context) => dashboardBloc == null
+                ? const ManagerAnalyticsTab()
+                : BlocProvider<ManagerDashboardBloc>.value(
+                    value: dashboardBloc,
+                    child: const ManagerAnalyticsTab(),
+                  ),
+          ),
         );
         break;
       case 3:
@@ -449,5 +507,12 @@ class ManagerProfileTab extends StatelessWidget {
         break;
     }
   }
-}
 
+  ManagerDashboardBloc? _tryGetDashboardBloc(BuildContext context) {
+    try {
+      return context.read<ManagerDashboardBloc>();
+    } catch (_) {
+      return null;
+    }
+  }
+}

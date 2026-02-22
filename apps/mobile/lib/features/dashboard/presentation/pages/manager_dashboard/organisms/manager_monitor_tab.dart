@@ -9,6 +9,7 @@ import '../../../../../../core/di/service_locator.dart';
 import '../../../../../../core/network/graphql_client_service.dart';
 import '../../../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../../../../core/services/fcm_service.dart';
+import '../../../blocs/manager_dashboard_bloc.dart';
 import '../manager_theme.dart';
 import '../molecules/manager_monitor_components.dart';
 import 'manager_analytics_tab.dart';
@@ -29,7 +30,7 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
   ManagerMonitorSnapshot _snapshot = ManagerMonitorSnapshot.empty();
   late DateTimeRange _selectedDateRange;
   StreamSubscription<HarvestNotificationEvent>?
-      _harvestNotificationSubscription;
+  _harvestNotificationSubscription;
   Timer? _notificationRefreshDebounce;
 
   late final ManagerMonitorRepository _repository;
@@ -48,8 +49,8 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
     _repository = ManagerMonitorRepository(
       graphqlClient: ServiceLocator.get<GraphQLClientService>(),
     );
-    _harvestNotificationSubscription =
-        FCMService.harvestNotificationStream.listen(_handleHarvestNotification);
+    _harvestNotificationSubscription = FCMService.harvestNotificationStream
+        .listen(_handleHarvestNotification);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _loadMonitorData();
@@ -109,7 +110,8 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
 
     final action = event.action.toUpperCase();
     final type = event.type.toUpperCase();
-    final isRelevant = type == 'HARVEST_ESCALATION' ||
+    final isRelevant =
+        type == 'HARVEST_ESCALATION' ||
         type == 'HARVEST_SLA_BREACH' ||
         type == 'HARVEST_STATUS_UPDATE' ||
         type == 'HARVEST_PKS_UPDATE' ||
@@ -137,12 +139,14 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
   List<ManagerMonitorMember> _filteredMembers() {
     final selectedFilter = _filters[_selectedFilterIndex];
 
-    final filtered = _snapshot.members.where((member) {
-      if (selectedFilter == 'Semua') {
-        return true;
-      }
-      return member.role == selectedFilter;
-    }).toList(growable: false);
+    final filtered = _snapshot.members
+        .where((member) {
+          if (selectedFilter == 'Semua') {
+            return true;
+          }
+          return member.role == selectedFilter;
+        })
+        .toList(growable: false);
 
     filtered.sort((a, b) {
       final byPerformance = b.performance.compareTo(a.performance);
@@ -169,10 +173,7 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
       appBar: AppBar(
         title: const Text(
           'Tim Estate',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
@@ -255,34 +256,31 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
                 ),
               )
             else if (members.isEmpty)
-              const SliverToBoxAdapter(
-                child: _MonitorEmptyState(),
-              )
+              const SliverToBoxAdapter(child: _MonitorEmptyState())
             else
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final member = members[index];
-                      return MonitorEmployeeCard(
-                        name: member.name,
-                        role: member.role,
-                        division: member.division,
-                        performance:
-                            double.parse(member.performance.toStringAsFixed(1)),
-                        production: double.parse(
-                            member.productionTon.toStringAsFixed(1)),
-                        isActive: member.isActive,
-                        initials: _initials(member.name),
-                        avatarColor: _avatarColor(member.role),
-                        onDetail: () => _showMemberDetail(context, member),
-                        onEvaluate: () =>
-                            _showComingSoon(context, 'Evaluasi ${member.name}'),
-                      );
-                    },
-                    childCount: members.length,
-                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final member = members[index];
+                    return MonitorEmployeeCard(
+                      name: member.name,
+                      role: member.role,
+                      division: member.division,
+                      performance: double.parse(
+                        member.performance.toStringAsFixed(1),
+                      ),
+                      production: double.parse(
+                        member.productionTon.toStringAsFixed(1),
+                      ),
+                      isActive: member.isActive,
+                      initials: _initials(member.name),
+                      avatarColor: _avatarColor(member.role),
+                      onDetail: () => _showMemberDetail(context, member),
+                      onEvaluate: () =>
+                          _showComingSoon(context, 'Evaluasi ${member.name}'),
+                    );
+                  }, childCount: members.length),
                 ),
               ),
             const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
@@ -399,12 +397,7 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
             color: ManagerTheme.pendingOrange,
           ),
           const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: ManagerTheme.bodySmall,
-            ),
-          ),
+          Expanded(child: Text(message, style: ManagerTheme.bodySmall)),
         ],
       ),
     );
@@ -423,8 +416,11 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.cloud_off_rounded,
-                  size: 56, color: ManagerTheme.textMuted),
+              const Icon(
+                Icons.cloud_off_rounded,
+                size: 56,
+                color: ManagerTheme.textMuted,
+              ),
               const SizedBox(height: 10),
               Text(
                 'Monitor gagal dimuat',
@@ -488,11 +484,7 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
           picked.start.month,
           picked.start.day,
         ),
-        end: DateTime(
-          picked.end.year,
-          picked.end.month,
-          picked.end.day,
-        ),
+        end: DateTime(picked.end.year, picked.end.month, picked.end.day),
       );
     });
 
@@ -566,17 +558,25 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
         currentIndex: 1, // Monitor is index 1
         selectedItemColor: ManagerTheme.primaryPurple,
         unselectedItemColor: ManagerTheme.textMuted,
-        selectedLabelStyle:
-            const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        selectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
         unselectedLabelStyle: const TextStyle(fontSize: 12),
         items: const [
           BottomNavigationBarItem(
-              icon: Icon(Icons.dashboard_outlined), label: 'Dashboard'),
+            icon: Icon(Icons.dashboard_outlined),
+            label: 'Dashboard',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.monitor), label: 'Monitor'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.bar_chart_outlined), label: 'Analytics'),
+            icon: Icon(Icons.bar_chart_outlined),
+            label: 'Analytics',
+          ),
           BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline), label: 'Profile'),
+            icon: Icon(Icons.person_outline),
+            label: 'Profile',
+          ),
         ],
         onTap: (index) => _handleBottomNavigation(context, index),
       ),
@@ -594,9 +594,17 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
         break;
       case 2:
         // Go to Analytics using pushReplacement
+        final dashboardBloc = _tryGetDashboardBloc(context);
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const ManagerAnalyticsTab()),
+          MaterialPageRoute(
+            builder: (context) => dashboardBloc == null
+                ? const ManagerAnalyticsTab()
+                : BlocProvider<ManagerDashboardBloc>.value(
+                    value: dashboardBloc,
+                    child: const ManagerAnalyticsTab(),
+                  ),
+          ),
         );
         break;
       case 3:
@@ -606,6 +614,14 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
           MaterialPageRoute(builder: (context) => const ManagerProfileTab()),
         );
         break;
+    }
+  }
+
+  ManagerDashboardBloc? _tryGetDashboardBloc(BuildContext context) {
+    try {
+      return context.read<ManagerDashboardBloc>();
+    } catch (_) {
+      return null;
     }
   }
 }

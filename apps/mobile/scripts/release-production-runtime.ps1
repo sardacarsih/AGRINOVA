@@ -1,5 +1,7 @@
 param(
     [string]$ReleaseName = "",
+    [string]$VersionName = "",
+    [int]$BuildNumber = 0,
     [switch]$SkipBuild,
     [switch]$ApkOnly,
     [switch]$AabOnly
@@ -12,8 +14,69 @@ function Write-Step {
     Write-Host "==> $Message"
 }
 
+function Get-LatestVersionFromTag {
+    param([string]$RepoRoot)
+
+    $mobileTags = git -C $RepoRoot tag -l "mobile/v*" --sort=-version:refname 2>$null
+    foreach ($tag in $mobileTags) {
+        if ($tag -match '^mobile/v(\d+\.\d+\.\d+)$') {
+            return $Matches[1]
+        }
+    }
+
+    $genericTags = git -C $RepoRoot tag -l "v*" --sort=-version:refname 2>$null
+    foreach ($tag in $genericTags) {
+        if ($tag -match '^v(\d+\.\d+\.\d+)$') {
+            return $Matches[1]
+        }
+    }
+
+    return $null
+}
+
+function Get-PubspecVersionName {
+    param([string]$PubspecPath)
+
+    if (-not (Test-Path $PubspecPath)) {
+        return $null
+    }
+
+    $match = Select-String -Path $PubspecPath -Pattern '^\s*version:\s*([0-9]+\.[0-9]+\.[0-9]+)\+[0-9]+\s*$' |
+        Select-Object -First 1
+    if ($null -eq $match -or $match.Matches.Count -eq 0) {
+        return $null
+    }
+
+    return $match.Matches[0].Groups[1].Value
+}
+
 $projectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
 $releaseRoot = Join-Path $projectRoot "release"
+$pubspecPath = Join-Path $projectRoot "pubspec.yaml"
+
+if ([string]::IsNullOrWhiteSpace($VersionName)) {
+    $VersionName = Get-LatestVersionFromTag -RepoRoot $projectRoot
+    if ([string]::IsNullOrWhiteSpace($VersionName)) {
+        $VersionName = Get-PubspecVersionName -PubspecPath $pubspecPath
+        if ([string]::IsNullOrWhiteSpace($VersionName)) {
+            throw "Failed to resolve version. Provide -VersionName or set a valid version in pubspec.yaml."
+        }
+        Write-Step "No release tag found. Using pubspec version: $VersionName"
+    } else {
+        Write-Step "Using latest git tag version: $VersionName"
+    }
+} else {
+    Write-Step "Using provided version: $VersionName"
+}
+
+if ($VersionName -notmatch '^\d+\.\d+\.\d+$') {
+    throw "Invalid version '$VersionName'. Expected semantic format MAJOR.MINOR.PATCH (e.g. 1.1.0)."
+}
+
+if ($BuildNumber -le 0) {
+    $BuildNumber = [int][DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+}
+Write-Step "Resolved app version: $VersionName+$BuildNumber"
 
 if ([string]::IsNullOrWhiteSpace($ReleaseName)) {
     $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
@@ -63,14 +126,14 @@ try {
         }
 
         Write-Step "Preparing release build configuration"
-        flutter build apk --release --config-only --dart-define-from-file=env/prod.json
+        flutter build apk --release --config-only --build-name=$VersionName --build-number=$BuildNumber --dart-define-from-file=env/prod.json
         if ($LASTEXITCODE -ne 0) {
             throw "flutter build apk --config-only failed with exit code $LASTEXITCODE."
         }
 
         if ($buildApk) {
             Write-Step "Building release APK (env/prod.json)"
-            flutter build apk --release --dart-define-from-file=env/prod.json
+            flutter build apk --release --build-name=$VersionName --build-number=$BuildNumber --dart-define-from-file=env/prod.json
             if ($LASTEXITCODE -ne 0) {
                 throw "flutter build apk failed with exit code $LASTEXITCODE."
             }
@@ -78,7 +141,7 @@ try {
 
         if ($buildAab) {
             Write-Step "Building release AAB (env/prod.json)"
-            flutter build appbundle --release --dart-define-from-file=env/prod.json
+            flutter build appbundle --release --build-name=$VersionName --build-number=$BuildNumber --dart-define-from-file=env/prod.json
             if ($LASTEXITCODE -ne 0) {
                 throw "flutter build appbundle failed with exit code $LASTEXITCODE."
             }
@@ -131,6 +194,9 @@ $readme = @"
 Agrinova mobile production artifact
 ==================================
 
+Version:
+- $VersionName+$BuildNumber
+
 Contents:
 - Release APK/AAB (depending on selected mode)
 - checksums.sha256
@@ -141,6 +207,8 @@ Build flags:
 - SkipBuild: $SkipBuild
 - ApkOnly: $ApkOnly
 - AabOnly: $AabOnly
+- VersionName: $VersionName
+- BuildNumber: $BuildNumber
 
 Notes:
 1. Use 'prod.json.example' as reference for dart-define values.
@@ -148,6 +216,7 @@ Notes:
 3. Keep 'proguard-mapping.txt' for crash symbolication.
 "@
 Set-Content -Path (Join-Path $releaseDir "README.txt") -Encoding UTF8 -Value $readme
+Set-Content -Path (Join-Path $releaseDir "VERSION.txt") -Encoding ASCII -Value "$VersionName+$BuildNumber"
 
 if (Test-Path $zipPath) {
     Remove-Item -Path $zipPath -Force
