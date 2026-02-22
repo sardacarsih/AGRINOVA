@@ -30,6 +30,7 @@ class _WebQRLoginPageState extends State<WebQRLoginPage> {
 
   bool _isFlashOn = false;
   bool _isProcessing = false;
+  bool _hasCompletedDecision = false;
   String _statusTitle = 'Siap Scan';
   String _statusMessage =
       'Arahkan kamera ke QR dari halaman login web untuk menyetujui login.';
@@ -44,7 +45,7 @@ class _WebQRLoginPageState extends State<WebQRLoginPage> {
   }
 
   Future<void> _onDetect(BarcodeCapture capture) async {
-    if (_isProcessing || capture.barcodes.isEmpty) {
+    if (_isProcessing || _hasCompletedDecision || capture.barcodes.isEmpty) {
       return;
     }
 
@@ -62,11 +63,7 @@ class _WebQRLoginPageState extends State<WebQRLoginPage> {
     _lastScanData = raw;
     _lastScanAt = now;
 
-    await _approveFromQR(raw);
-  }
-
-  Future<void> _approveFromQR(String qrData) async {
-    final payload = _parseWebQRPayload(qrData);
+    final payload = _parseWebQRPayload(raw);
     if (payload == null) {
       _setStatus(
         title: 'QR Tidak Didukung',
@@ -85,6 +82,61 @@ class _WebQRLoginPageState extends State<WebQRLoginPage> {
       return;
     }
 
+    await _confirmDecision(payload);
+  }
+
+  Future<void> _confirmDecision(_WebQRPayload payload) async {
+    setState(() => _isProcessing = true);
+
+    final decision = await showDialog<_WebQRDecision>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Konfirmasi Login Web'),
+        content: const Text(
+          'Apakah Anda ingin menyetujui login web dari QR ini?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop(_WebQRDecision.reject);
+            },
+            child: const Text('Reject'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop(_WebQRDecision.approve);
+            },
+            child: const Text('Approve'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (decision == null) {
+      setState(() => _isProcessing = false);
+      return;
+    }
+
+    if (decision == _WebQRDecision.reject) {
+      _setStatus(
+        title: 'Login Ditolak',
+        message: 'Permintaan login web ditolak dari perangkat ini.',
+        color: const Color(0xFFF59E0B),
+      );
+      await _closeScannerAfterDecision();
+      return;
+    }
+
+    await _approveSession(payload);
+    await _closeScannerAfterDecision();
+  }
+
+  Future<void> _approveSession(_WebQRPayload payload) async {
     _setStatus(
       title: 'Memproses',
       message: 'Mengirim persetujuan login ke server...',
@@ -160,10 +212,26 @@ class _WebQRLoginPageState extends State<WebQRLoginPage> {
         message: e.toString(),
         color: const Color(0xFFDC2626),
       );
-    } finally {
-      if (mounted) {
-        setState(() => _isProcessing = false);
-      }
+    }
+  }
+
+  Future<void> _closeScannerAfterDecision() async {
+    _hasCompletedDecision = true;
+    try {
+      await _scannerController.stop();
+    } catch (e) {
+      _logger.w('Failed to stop scanner after decision', error: e);
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _isProcessing = false);
+
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) {
+      navigator.pop();
     }
   }
 
@@ -332,3 +400,5 @@ class _WebQRPayload {
     return DateTime.now().isAfter(expiresAt!);
   }
 }
+
+enum _WebQRDecision { approve, reject }
