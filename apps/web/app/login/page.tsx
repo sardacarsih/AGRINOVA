@@ -382,7 +382,7 @@ function LoginPageContent() {
                 />
               </div>
 
-              <footer className="px-4 pb-5 pt-1 flex flex-col items-center gap-2">
+              <footer className="px-4 pb-5 flex flex-col items-center gap-2">
                 <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                   <Shield className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
                   <span className="text-center">Dilindungi dengan enkripsi end-to-end</span>
@@ -654,7 +654,7 @@ function LoginPageContent() {
                     y: -2,
                     transition: { duration: 0.3 }
                   }}
-                  className="login-card bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-lg sm:shadow-xl lg:shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500 focus-within:ring-offset-2 w-full"
+                  className="login-card bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-lg sm:shadow-xl lg:shadow-2xl border-2 border-amber-400 dark:border-amber-500 overflow-hidden focus-within:ring-2 focus-within:ring-amber-400 focus-within:ring-offset-2 w-full"
                   tabIndex={-1}
                 >
                   {/* Login Header - Mobile optimized */}
@@ -698,7 +698,7 @@ function LoginPageContent() {
                   </div>
 
                   {/* Footer - Mobile responsive */}
-                  <footer className="px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 pt-2 sm:pt-3 flex flex-col items-center gap-2">
+                  <footer className="px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 flex flex-col items-center gap-2">
                     <div className="flex items-center justify-center gap-1.5 sm:gap-2 text-xs text-slate-500 dark:text-slate-400">
                       <Shield className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
                       <span className="text-center">Dilindungi dengan enkripsi end-to-end</span>
