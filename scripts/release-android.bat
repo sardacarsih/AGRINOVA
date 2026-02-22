@@ -84,8 +84,10 @@ if not "%~1"=="" (
 )
 
 REM ── Validasi format versi ─────────────────────────────────────────────────
-echo %VERSION% | findstr /r "^[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*$" >nul
-if errorlevel 1 (
+REM Hapus semua digit (0-9) dari versi; sisanya harus persis ".." (dua titik).
+set "_VCHECK=%VERSION%"
+for /l %%D in (0,1,9) do set "_VCHECK=!_VCHECK:%%D=!"
+if not "!_VCHECK!"==".." (
   echo [ERROR] Format versi tidak valid: '%VERSION%'
   echo         Gunakan format: MAJOR.MINOR.PATCH (contoh: 1.2.3)
   pause & exit /b 1
