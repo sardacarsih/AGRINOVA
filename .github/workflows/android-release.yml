@@ -19,7 +19,7 @@
 #
 # Versioning:
 #   versionName = dari tag git (v1.2.3 → "1.2.3")
-#   versionCode = github.run_number (integer monoton naik, unik per run)
+#   versionCode = Unix timestamp (seconds), selalu naik dan aman untuk upgrade path
 #
 # Release flow:
 #   git tag -a mobile/v1.2.3 -m "Catatan rilis di sini" && git push origin mobile/v1.2.3
@@ -47,6 +47,10 @@ on:
         description: 'Version name (e.g. 1.2.3) — used as Android versionName'
         required: true
         default: '1.0.0'
+      version_code:
+        description: 'Optional Android versionCode override (must be integer and > existing Play versionCode)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -127,7 +131,21 @@ jobs:
             version_name="${{ github.ref_name }}"
             version_name="${version_name#mobile/v}"
           fi
-          version_code="${{ github.run_number }}"
+          if [ -n "${{ github.event.inputs.version_code }}" ]; then
+            version_code="${{ github.event.inputs.version_code }}"
+          else
+            version_code="$(date +%s)"
+          fi
+
+          if ! [[ "$version_code" =~ ^[0-9]+$ ]]; then
+            echo "::error::versionCode must be a positive integer, got '$version_code'"
+            exit 1
+          fi
+
+          if [ "$version_code" -gt 2100000000 ]; then
+            echo "::error::versionCode exceeds Android max (2100000000): $version_code"
+            exit 1
+          fi
           echo "name=$version_name" >> "$GITHUB_OUTPUT"
           echo "code=$version_code" >> "$GITHUB_OUTPUT"
           echo "Release: ${{ github.ref_name }} → versionName=$version_name, versionCode=$version_code"
