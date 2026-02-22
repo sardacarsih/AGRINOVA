@@ -593,7 +593,7 @@ function LoginPageContent() {
                   <div className="grid grid-cols-1 gap-3 mb-4">
                     {/* Android Download */}
                     <a
-                      href="https://play.google.com/store/apps/details?id=com.agrinova.mobile.dev"
+                      href="https://play.google.com/store/apps/details?id=com.agrinova.android"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-xl border border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 group"
