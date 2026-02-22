@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { motion, useReducedMotion } from 'framer-motion';
-import { Sprout, Shield, Clock, Users, TrendingUp, LucideIcon } from 'lucide-react';
+import { Sprout, Shield, Clock, Users, TrendingUp, LucideIcon, Download, ExternalLink, ChevronRight } from 'lucide-react';
 
 import { LoginForm } from '@/components/auth/login-form';
 import { useAuth } from '@/hooks/use-auth';
@@ -568,6 +568,50 @@ function LoginPageContent() {
                   // Return the FeatureCard directly since SplashCursor is a global overlay
                   return <div key={index} className="flex">{FeatureCard}</div>;
                 })}
+              </motion.div>
+
+              {/* Mobile App Download Card */}
+              <motion.div variants={itemVariants}>
+                <div className="bg-gradient-to-br from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 backdrop-blur-sm rounded-2xl p-6 border border-emerald-200 dark:border-emerald-800">
+                  <div className="grid grid-cols-1 gap-3">
+                    {/* Android Download */}
+                    <a
+                      href="https://play.google.com/store/apps/details?id=com.agrinova.android"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-xl border border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 group"
+                      aria-label="Download di Google Play Store"
+                    >
+                      <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
+                        <Download className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-green-700 dark:text-green-400">Android</div>
+                        <div className="text-xs text-green-600 dark:text-green-500">Google Play Store</div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-green-500 group-hover:translate-x-1 transition-transform" />
+                    </a>
+
+                    {/* iOS App Store */}
+                    <button
+                      onClick={() => toast.info('🍎 iOS App Store - Coming Soon!', {
+                        description: 'The iOS app will be available on the App Store soon.',
+                        duration: 5000,
+                      })}
+                      className="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-xl border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 group"
+                      aria-label="iOS App Store coming soon"
+                    >
+                      <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
+                        <ExternalLink className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-blue-700 dark:text-blue-400">iOS App Store</div>
+                        <div className="text-xs text-blue-600 dark:text-blue-500">Coming Soon</div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-blue-500 group-hover:translate-x-1 transition-transform" />
+                    </button>
+                  </div>
+                </div>
               </motion.div>
             </motion.div>
 
