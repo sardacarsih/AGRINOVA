@@ -2,14 +2,14 @@
 
 import * as React from 'react';
 import dynamic from 'next/dynamic';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Sprout, Shield, Clock, Users, TrendingUp, LucideIcon, Download, ExternalLink, ChevronRight } from 'lucide-react';
 
 import { LoginForm } from '@/components/auth/login-form';
 import { useAuth } from '@/hooks/use-auth';
-import { LoginFormData } from '@/types/auth';
+import type { AuthSession, LoginFormData, User } from '@/types/auth';
 import { PermissionManager } from '@/lib/auth/permissions';
 import cookieAuthService from '@/lib/auth/cookie-auth-service';
 
@@ -31,6 +31,12 @@ interface FeatureItem {
 interface LoginErrorBoundaryState {
   hasError: boolean;
   error?: Error;
+}
+
+interface QRLoginData {
+  user: User;
+  expiresAt?: Date;
+  token?: string;
 }
 
 // Simple error boundary component
@@ -79,9 +85,11 @@ class LoginErrorBoundary extends React.Component<
 
 function LoginPageContent() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const { login, isAuthenticated, user } = useAuth();
   const [loading, setLoading] = React.useState(false);
+  const hasRedirectedAfterAuthRef = React.useRef(false);
   const shouldReduceMotion = useReducedMotion();
   const [isMobileViewport, setIsMobileViewport] = React.useState<boolean>(() => {
     if (typeof window === 'undefined') {
@@ -93,25 +101,56 @@ function LoginPageContent() {
   const redirectPath = searchParams?.get('redirect') || null;
   const usernameParam = searchParams?.get('username') || null;
 
+  const resolveSafeRedirectPath = React.useCallback((targetUser: User | null) => {
+    const roleBasedPath = PermissionManager.getRoleBasedRedirectPath(targetUser);
+    const authRoutes = ['/login', '/forgot-password', '/reset-password', '/change-password', '/register'];
+
+    const normalizePath = (value: string): string => {
+      const [pathWithoutQuery] = value.split('?');
+      const [pathWithoutHash] = pathWithoutQuery.split('#');
+      return pathWithoutHash || '/';
+    };
+
+    const isSafeRedirectParam =
+      typeof redirectPath === 'string' &&
+      redirectPath.startsWith('/') &&
+      !redirectPath.startsWith('//') &&
+      !authRoutes.some((route) => normalizePath(redirectPath) === route || normalizePath(redirectPath).startsWith(`${route}/`));
+
+    const targetPath = isSafeRedirectParam ? redirectPath : roleBasedPath || '/';
+    const normalizedTargetPath = normalizePath(targetPath);
+    const normalizedCurrentPath = normalizePath(pathname || '/');
+
+    if (!normalizedTargetPath || normalizedTargetPath === normalizedCurrentPath) {
+      return roleBasedPath || '/';
+    }
+
+    return normalizedTargetPath;
+  }, [pathname, redirectPath]);
+
   // Redirect if already authenticated
   React.useEffect(() => {
-    if (isAuthenticated && user) {
-      const roleBasedPath = PermissionManager.getRoleBasedRedirectPath(user);
-      // Additional safety check for the redirect path
-      const safePath = typeof roleBasedPath === 'string' && roleBasedPath.length > 0
-        ? roleBasedPath
-        : '/';
-
-      console.log('🔍 Authenticated user redirect:', {
-        userRole: user.role,
-        userEmail: user.email,
-        roleBasedPath,
-        safePath
-      });
-
-      router.push(safePath);
+    if (!isAuthenticated || !user) {
+      hasRedirectedAfterAuthRef.current = false;
+      return;
     }
-  }, [isAuthenticated, user, router]);
+
+    if (hasRedirectedAfterAuthRef.current) {
+      return;
+    }
+
+    const safePath = resolveSafeRedirectPath(user);
+    hasRedirectedAfterAuthRef.current = true;
+
+    console.log('Authenticated user redirect:', {
+      userRole: user.role,
+      userEmail: user.email,
+      redirectPath,
+      safePath,
+    });
+
+    router.replace(safePath);
+  }, [isAuthenticated, redirectPath, resolveSafeRedirectPath, router, user]);
 
   React.useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 767px)');
@@ -141,19 +180,17 @@ function LoginPageContent() {
     setLoading(true);
 
     try {
-      console.log('🔍 Using Cookie-based authentication');
+      console.log('[Login] Using cookie-based authentication');
 
       const response = await cookieAuthService.login(data);
 
-      console.log('🔍 Cookie Login response:', response);
-      console.log('🔍 User data:', response.data?.user);
-      console.log('🔍 User name:', response.data?.user?.name);
+      console.log('[Login] Cookie login response:', response);
+      console.log('[Login] User data:', response.data?.user);
+      console.log('[Login] User name:', response.data?.user?.name);
 
       if (response.success && response.data) {
-        const userName = response.data.user?.name || response.data.user?.username || response.data.user?.email || 'User';
-
         // Enhanced debugging with cookie response validation
-        console.log('🔍 [Cookie Login] API Response details:', {
+        console.log('[Login] Cookie API response details:', {
           hasResponse: !!response,
           hasData: !!response.data,
           hasUser: !!response.data?.user,
@@ -163,25 +200,7 @@ function LoginPageContent() {
 
         login(response.data);
 
-        // Robust path resolution with fallbacks to prevent undefined targetPath
-        const roleBasedPath = PermissionManager.getRoleBasedRedirectPath(response.data.user);
-        const targetPath = redirectPath || roleBasedPath || '/';
-
-        // Additional safety check to ensure targetPath is a valid string
-        const safePath = typeof targetPath === 'string' && targetPath.length > 0
-          ? targetPath
-          : '/';
-
-        console.log('🔍 Navigation path resolution:', {
-          redirectPath,
-          userRole: response.data?.user?.role,
-          roleBasedPath,
-          targetPath,
-          safePath,
-          userData: response.data?.user
-        });
-
-        router.push(safePath);
+        console.log('Login successful, waiting auth state to redirect...');
       } else {
         // Login failed - throw error so LoginForm can handle it properly
         const errorMessage = response.message || 'Login gagal. Periksa kredensial Anda.';
@@ -192,15 +211,22 @@ function LoginPageContent() {
         // Throw error to let LoginForm handle error display
         throw new Error(errorMessage);
       }
-    } catch (error: any) {
-      const message = typeof error?.message === 'string' ? error.message : '';
+    } catch (error: unknown) {
+      const normalizedError = error as {
+        message?: string;
+        details?: string;
+        statusCode?: number;
+      };
+      const message =
+        typeof normalizedError?.message === 'string' ? normalizedError.message : '';
       if (!isExpectedAuthFailure(message)) {
         console.error('Cookie Login error:', error);
       }
 
-      if (error.message === 'Password change required' ||
-        error.details === 'Password change required' ||
-        (error.statusCode === 401 && error.message?.includes('Password change required'))) {
+      if (message === 'Password change required' ||
+        normalizedError.details === 'Password change required' ||
+        (normalizedError.statusCode === 401 &&
+          message.includes('Password change required'))) {
         toast.info('Password Anda perlu diubah sebelum melanjutkan.');
         router.push(`/change-password?username=${encodeURIComponent(data.email)}`);
         return;
@@ -210,7 +236,9 @@ function LoginPageContent() {
       // LoginForm will handle all error display including toast notifications
 
       // Re-throw error so LoginForm can handle it properly  
-      throw error;
+      throw error instanceof Error
+        ? error
+        : new Error(message || 'Login gagal. Silakan coba lagi.');
     } finally {
       setLoading(false);
     }
@@ -220,33 +248,22 @@ function LoginPageContent() {
     toast.success('Fitur lupa password akan segera tersedia.');
   };
 
-  const handleQRLogin = async (data: any) => {
+  const handleQRLogin = async (data: QRLoginData) => {
     setLoading(true);
 
     try {
       toast.success(`Selamat datang via QR, ${data.user.name}!`);
 
-      login(data);
+      const authSession: AuthSession = {
+        user: data.user,
+        accessToken: data.token || '',
+        refreshToken: '',
+        expiresAt: data.expiresAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000),
+      };
 
-      // Robust path resolution with fallbacks to prevent undefined targetPath
-      const roleBasedPath = PermissionManager.getRoleBasedRedirectPath(data.user);
-      const targetPath = redirectPath || roleBasedPath || '/';
+      login(authSession);
 
-      // Additional safety check to ensure targetPath is a valid string
-      const safePath = typeof targetPath === 'string' && targetPath.length > 0
-        ? targetPath
-        : '/';
-
-      console.log('🔍 QR Login navigation path resolution:', {
-        redirectPath,
-        userRole: data?.user?.role,
-        roleBasedPath,
-        targetPath,
-        safePath,
-        userData: data?.user
-      });
-
-      router.push(safePath);
+      console.log('QR login successful, waiting auth state to redirect...');
     } catch (error) {
       console.error('QR Login error:', error);
       toast.error('Terjadi kesalahan saat login dengan QR. Silakan coba lagi.');
