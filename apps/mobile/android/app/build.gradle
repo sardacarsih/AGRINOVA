@@ -15,14 +15,18 @@ if (localPropertiesFile.exists()) {
 
 def flutterVersionName = localProperties.getProperty('flutter.versionName')
 if (flutterVersionName == null) {
-    flutterVersionName = '1.0'
+    flutterVersionName = '1.0.0'
+}
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) {
+    flutterVersionCode = '1'
 }
 
 def envVersionCode = System.getenv('ANDROID_VERSION_CODE')
 def envVersionName = System.getenv('ANDROID_VERSION_NAME')
 def resolvedVersionCode = envVersionCode != null
         ? envVersionCode.toInteger()
-        : (System.currentTimeMillis() / 1000L).toInteger()
+        : flutterVersionCode.toInteger()
 def resolvedVersionName = envVersionName ?: flutterVersionName
 
 def keystoreProperties = new Properties()

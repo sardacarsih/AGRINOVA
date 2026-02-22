@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../config/env_config.dart';
 
 class ApiConstants {
@@ -76,7 +77,40 @@ class ApiConstants {
 
   // Application Info
   static const String appName = 'Agrinova Mobile';
-  static const String appVersion = '1.0.0';
+  static String _appVersion = const String.fromEnvironment(
+    'APP_VERSION',
+    defaultValue: 'unknown',
+  );
+  static String _appBuildNumber = const String.fromEnvironment(
+    'APP_BUILD_NUMBER',
+    defaultValue: '0',
+  );
+  static bool _isAppInfoInitialized = false;
+
+  static String get appVersion => _appVersion;
+  static String get appBuildNumber => _appBuildNumber;
+  static String get appVersionDisplay =>
+      _appVersion == 'unknown' ? '-' : _appVersion;
+
+  static Future<void> initializeAppInfo() async {
+    if (_isAppInfoInitialized) return;
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      final version = packageInfo.version.trim();
+      final buildNumber = packageInfo.buildNumber.trim();
+
+      if (version.isNotEmpty) {
+        _appVersion = version;
+      }
+      if (buildNumber.isNotEmpty) {
+        _appBuildNumber = buildNumber;
+      }
+    } catch (_) {
+      // Keep compile-time defaults when package metadata is unavailable.
+    } finally {
+      _isAppInfoInitialized = true;
+    }
+  }
 }
 
 class DatabaseConstants {

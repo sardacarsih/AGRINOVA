@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../core/constants/api_constants.dart';
 import '../../../../../../core/database/enhanced_database_service.dart';
 import '../../../../../../shared/widgets/current_user_avatar.dart';
 import '../mandor_theme.dart';
@@ -476,7 +477,10 @@ class GenZProfileTab extends StatelessWidget {
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
                     )),
-                Text('v1.0.0', style: MandorTheme.labelSmall),
+                Text(
+                  'v${ApiConstants.appVersionDisplay}',
+                  style: MandorTheme.labelSmall,
+                ),
               ],
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../../../core/constants/api_constants.dart';
 import '../manager_theme.dart';
 import '../../../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../../../../core/services/role_service.dart';
@@ -379,7 +380,7 @@ class ManagerProfileTab extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
               ),
               Text(
-                'v1.0.0 Manager Edition',
+                'v${ApiConstants.appVersionDisplay} Manager Edition',
                 style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
             ],

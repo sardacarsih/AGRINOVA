@@ -1,4 +1,5 @@
 import 'dart:developer' as developer;
+import '../constants/api_constants.dart';
 import '../database/enhanced_database_service.dart';
 import '../models/jwt_models.dart';
 
@@ -186,7 +187,7 @@ class UserSyncService {
           'Flutter Device', // Not available in current Session model
       'platform': 'ANDROID', // Not available in current Session model
       'os_version': 'flutter',
-      'app_version': '1.0.0',
+      'app_version': ApiConstants.appVersion,
       'device_fingerprint': '', // Not available in current Session model
       'is_authorized': 1,
       'is_trusted': 0, // Device trusted not available in Session model

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../../../core/constants/api_constants.dart';
 import '../asisten_theme.dart';
 import '../../../../../auth/presentation/blocs/auth_bloc.dart';
 
@@ -440,15 +441,15 @@ class AsistenProfileTab extends StatelessWidget {
             label: 'Tentang Aplikasi',
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Text(
-                  'v1.0.0',
-                  style: TextStyle(
+                  'v${ApiConstants.appVersionDisplay}',
+                  style: const TextStyle(
                     color: Color(0xFF757575),
                     fontSize: 14,
                   ),
                 ),
-                Icon(Icons.chevron_right, color: Color(0xFF9E9E9E)),
+                const Icon(Icons.chevron_right, color: Color(0xFF9E9E9E)),
               ],
             ),
             onTap: () => _showComingSoon(context, 'Tentang Aplikasi'),
@@ -529,9 +530,9 @@ class AsistenProfileTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          const Text(
-            'v1.0.0',
-            style: TextStyle(
+          Text(
+            'v${ApiConstants.appVersionDisplay}',
+            style: const TextStyle(
               color: Color(0xFF9E9E9E),
               fontSize: 12,
             ),

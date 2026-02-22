@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../../../../core/constants/api_constants.dart';
 import '../../../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../../../auth/presentation/pages/change_password_page.dart';
 import '../../../../../../core/services/profile_photo_service.dart';
@@ -698,7 +699,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
                   ),
                 ),
                 Text(
-                  'v1.0.0 • Satpam Dashboard',
+                  'v${ApiConstants.appVersionDisplay} - Satpam Dashboard',
                   style: TextStyle(
                     fontSize: 12,
                     color: Colors.white.withValues(alpha: 0.5),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/constants/api_constants.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/routes/app_routes.dart';
 import '../../features/auth/presentation/blocs/auth_bloc.dart';
@@ -167,7 +168,7 @@ class LogoutMenuWidget extends StatelessWidget {
           children: [
             Text('Agrinova Mobile App'),
             SizedBox(height: 8),
-            Text('Version: 1.0.0'),
+            Text('Version: ${ApiConstants.appVersionDisplay}'),
             SizedBox(height: 8),
             Text(
                 'Palm oil management system with offline-first capabilities and JWT authentication.'),

@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../constants/api_constants.dart';
 import 'device_service.dart';
 
 void _debugLog(Object? message) {
@@ -64,7 +65,7 @@ class SecurityEvent {
     'timestamp': timestamp.toIso8601String(),
     'severity': severity,
     'platform': 'flutter',
-    'appVersion': '1.0.0',
+    'appVersion': ApiConstants.appVersion,
   };
 
   factory SecurityEvent.fromJson(Map<String, dynamic> json) => SecurityEvent(

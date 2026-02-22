@@ -2,8 +2,14 @@ import 'env_config.dart';
 
 class AppConfig {
   static const String appName = EnvConfig.appName;
-  static const String appVersion = '1.0.0';
-  static const int appBuildNumber = 1;
+  static const String appVersion = String.fromEnvironment(
+    'APP_VERSION',
+    defaultValue: 'unknown',
+  );
+  static const int appBuildNumber = int.fromEnvironment(
+    'APP_BUILD_NUMBER',
+    defaultValue: 0,
+  );
 
   // API Configuration - injected via --dart-define-from-file
   static const String baseUrl = EnvConfig.baseUrl;

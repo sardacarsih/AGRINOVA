@@ -39,6 +39,10 @@ class AppInitializer {
       
       // Initialize Hive for local storage
       await Hive.initFlutter();
+      await ApiConstants.initializeAppInfo();
+      _debugLog(
+        'App version ${ApiConstants.appVersion}+${ApiConstants.appBuildNumber}',
+      );
       _debugLog('✅ AppInitializer: Hive initialized');
       
       // Initialize configuration service
