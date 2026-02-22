@@ -576,7 +576,7 @@ function LoginPageContent() {
                   <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-4">
                     📱 Download Agrinova Mobile
                   </h3>
-                  <div className="grid grid-cols-1 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {/* Android Download */}
                     <a
                       href="https://play.google.com/store/apps/details?id=com.agrinova.android"
