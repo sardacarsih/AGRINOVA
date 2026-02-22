@@ -6,7 +6,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../blocs/auth_bloc.dart';
 import '../blocs/biometric_auth_bloc.dart';
-import '../../../../core/constants/api_constants.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/services/unified_secure_storage_service.dart';
 import '../../../../core/di/dependency_injection.dart';
@@ -31,7 +30,6 @@ class _LoginPageState extends State<LoginPage>
   bool _isOnline = true; // derived: _appStatus == AppStatus.online
   bool _isRefreshingStatus = true;
   String? _statusErrorDetail;
-  String? _statusCheckedUrl;
   bool _hasOfflineAuth = false;
   String _appVersion = '';
   bool _biometricAvailable = false;
@@ -72,11 +70,13 @@ class _LoginPageState extends State<LoginPage>
       CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.3),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-        parent: _animationController, curve: Curves.easeOutCubic));
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _usernameController.addListener(_handleUsernameChanged);
     _initializeLoginState();
@@ -128,7 +128,6 @@ class _LoginPageState extends State<LoginPage>
       _appStatus = result.status;
       _isOnline = result.status == AppStatus.online;
       _statusErrorDetail = result.errorDetail;
-      _statusCheckedUrl = result.checkedUrl;
       _isRefreshingStatus = false;
     });
   }
@@ -155,7 +154,7 @@ class _LoginPageState extends State<LoginPage>
             await UnifiedSecureStorageService.hasValidOfflineAuth();
         _hasBiometricSession =
             (await UnifiedSecureStorageService.isAuthenticated()) ||
-                _hasOfflineAuth;
+            _hasOfflineAuth;
         _biometricOwnerUsername =
             await UnifiedSecureStorageService.getBiometricOwnerUsername();
 
@@ -198,16 +197,20 @@ class _LoginPageState extends State<LoginPage>
   void _login() {
     if (_formKey.currentState!.validate()) {
       if (_isOnline) {
-        context.read<AuthBloc>().add(AuthLoginRequested(
-              username: _usernameController.text.trim(),
-              password: _passwordController.text,
-              rememberDevice: _rememberDevice,
-            ));
+        context.read<AuthBloc>().add(
+          AuthLoginRequested(
+            username: _usernameController.text.trim(),
+            password: _passwordController.text,
+            rememberDevice: _rememberDevice,
+          ),
+        );
       } else if (_hasOfflineAuth) {
-        context.read<AuthBloc>().add(AuthOfflineLoginRequested(
-              username: _usernameController.text.trim(),
-              password: _passwordController.text,
-            ));
+        context.read<AuthBloc>().add(
+          AuthOfflineLoginRequested(
+            username: _usernameController.text.trim(),
+            password: _passwordController.text,
+          ),
+        );
       } else {
         _showErrorSnackBar('Tidak ada koneksi. Silakan hubungkan ke internet.');
       }
@@ -217,15 +220,18 @@ class _LoginPageState extends State<LoginPage>
   void _loginWithBiometric() {
     if (!_hasBiometricSession) {
       _showErrorSnackBar(
-          'Sesi biometrik tidak tersedia. Silakan login dengan password.');
+        'Sesi biometrik tidak tersedia. Silakan login dengan password.',
+      );
       return;
     }
 
     if (_biometricAvailable && _biometricEnabled) {
-      _biometricAuthBloc.add(const BiometricAuthenticationRequested(
-        reason: 'Gunakan biometrik untuk masuk ke Agrinova',
-        allowFallback: false,
-      ));
+      _biometricAuthBloc.add(
+        const BiometricAuthenticationRequested(
+          reason: 'Gunakan biometrik untuk masuk ke Agrinova',
+          allowFallback: false,
+        ),
+      );
     }
   }
 
@@ -269,10 +275,12 @@ class _LoginPageState extends State<LoginPage>
                       listener: (context, state) {
                         if (state is AuthAuthenticated) {
                           // Navigate to role-based dashboard
-                          final route =
-                              AppRoutes.getDashboardRoute(state.user.role);
-                          Navigator.of(context)
-                              .pushNamedAndRemoveUntil(route, (route) => false);
+                          final route = AppRoutes.getDashboardRoute(
+                            state.user.role,
+                          );
+                          Navigator.of(
+                            context,
+                          ).pushNamedAndRemoveUntil(route, (route) => false);
                         } else if (state is AuthError) {
                           _showErrorSnackBar(state.message);
                         }
@@ -289,9 +297,9 @@ class _LoginPageState extends State<LoginPage>
                                 _shouldEnableBiometricForCurrentInput();
                           });
                         } else if (state is BiometricAuthSuccess) {
-                          context
-                              .read<AuthBloc>()
-                              .add(const AuthBiometricRequested());
+                          context.read<AuthBloc>().add(
+                            const AuthBiometricRequested(),
+                          );
                         }
                       },
                     ),
@@ -304,12 +312,15 @@ class _LoginPageState extends State<LoginPage>
                           position: _slideAnimation,
                           child: SingleChildScrollView(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 16),
+                              horizontal: 24,
+                              vertical: 16,
+                            ),
                             child: Column(
                               children: [
                                 SizedBox(
-                                    height: MediaQuery.of(context).size.height *
-                                        0.08),
+                                  height:
+                                      MediaQuery.of(context).size.height * 0.08,
+                                ),
                                 _buildHeader(),
                                 const SizedBox(height: 48),
                                 _buildGlassCard(state),
@@ -393,10 +404,7 @@ class _LoginPageState extends State<LoginPage>
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(28),
-            child: Image.asset(
-              'assets/images/logo.png',
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset('assets/images/logo.png', fit: BoxFit.cover),
           ),
         ),
 
@@ -460,10 +468,7 @@ class _LoginPageState extends State<LoginPage>
       decoration: BoxDecoration(
         color: pillColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: pillColor.withValues(alpha: 0.3),
-          width: 1,
-        ),
+        border: Border.all(color: pillColor.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -674,8 +679,9 @@ class _LoginPageState extends State<LoginPage>
               return Colors.transparent;
             }),
             side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
+            ),
           ),
         ),
         const SizedBox(width: 10),
@@ -695,9 +701,7 @@ class _LoginPageState extends State<LoginPage>
       height: 56,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          colors: [_accentNeon, _accentCyan],
-        ),
+        gradient: LinearGradient(colors: [_accentNeon, _accentCyan]),
         boxShadow: [
           BoxShadow(
             color: _accentNeon.withValues(alpha: 0.3),
@@ -711,8 +715,9 @@ class _LoginPageState extends State<LoginPage>
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
         child: isLoading
             ? const SizedBox(
@@ -742,17 +747,21 @@ class _LoginPageState extends State<LoginPage>
         Row(
           children: [
             Expanded(
-                child: Divider(color: Colors.white.withValues(alpha: 0.2))),
+              child: Divider(color: Colors.white.withValues(alpha: 0.2)),
+            ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'atau',
                 style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.5), fontSize: 13),
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 13,
+                ),
               ),
             ),
             Expanded(
-                child: Divider(color: Colors.white.withValues(alpha: 0.2))),
+              child: Divider(color: Colors.white.withValues(alpha: 0.2)),
+            ),
           ],
         ),
         const SizedBox(height: 20),
@@ -784,11 +793,7 @@ class _LoginPageState extends State<LoginPage>
                           ),
                         ),
                       )
-                    : Icon(
-                        Icons.fingerprint,
-                        size: 36,
-                        color: _accentCyan,
-                      ),
+                    : Icon(Icons.fingerprint, size: 36, color: _accentCyan),
               ),
             );
           },
