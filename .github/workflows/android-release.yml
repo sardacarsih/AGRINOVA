@@ -140,9 +140,12 @@ jobs:
           if [ -n "$GOOGLE_SERVICES_JSON" ]; then
             echo "$GOOGLE_SERVICES_JSON" | base64 --decode > google-services.json
             echo "google-services.json written from secret."
-          else
-            echo "GOOGLE_SERVICES_JSON_BASE64 not set — using committed google-services.json."
           fi
+          if [ ! -f google-services.json ]; then
+            echo "::error::google-services.json is missing. Either commit the file or set GOOGLE_SERVICES_JSON_BASE64 secret."
+            exit 1
+          fi
+          echo "google-services.json is present."
 
       # ── 5. Android signing (keystore dari GitHub Secrets) ─────────────────
       # key.properties dibaca oleh android/app/build.gradle via rootProject.file.

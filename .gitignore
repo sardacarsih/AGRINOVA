@@ -113,7 +113,6 @@ apps/mobile/android/gradlew.bat
 apps/mobile/android/local.properties
 apps/mobile/android/.project
 apps/mobile/android/.settings/
-apps/mobile/android/app/google-services.json
 apps/mobile/analysis_output*.txt
 apps/mobile/**/*.apk
 apps/mobile/**/*.aab
@@ -133,6 +132,7 @@ dump.rdb
 !**/firebase.json.example
 **/firebase-service-account.json
 **/google-services.json
+!apps/mobile/android/app/google-services.json
 **/GoogleService-Info.plist
 
 # Prisma
