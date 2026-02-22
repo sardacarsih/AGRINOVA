@@ -454,7 +454,7 @@ function LoginPageContent() {
       >
         <div className="w-full max-w-7xl mx-auto">
           {/* Mobile-first responsive grid layout */}
-          <div className="login-layout flex flex-col lg:grid lg:grid-cols-2 gap-4 sm:gap-6 md:gap-8 lg:gap-16 items-start min-h-[calc(100vh-2rem)] sm:min-h-[calc(100vh-3rem)]">
+          <div className="login-layout flex flex-col lg:grid lg:grid-cols-2 gap-4 sm:gap-6 md:gap-8 lg:gap-16 items-stretch min-h-[calc(100vh-2rem)] sm:min-h-[calc(100vh-3rem)]">
 
             {/* Left Side - Brand & Value Proposition - Hidden on mobile, shown on tablet+ */}
             <motion.div
@@ -644,17 +644,17 @@ function LoginPageContent() {
             {/* Login Form Section - Mobile-first responsive with fixed height container */}
             <motion.section
               variants={itemVariants}
-              className="login-form-section order-2 lg:order-2 flex flex-col items-center justify-start w-full"
+              className="login-form-section order-2 lg:order-2 flex flex-col items-center justify-start w-full h-full"
               role="form"
               aria-labelledby="login-heading"
             >
-              <div className="login-form-wrapper w-full max-w-md mx-auto px-2 sm:px-0 mt-0">
+              <div className="login-form-wrapper w-full max-w-md mx-auto px-2 sm:px-0 mt-0 h-full flex flex-col">
                 <motion.div
                   whileHover={shouldReduceMotion ? {} : {
                     y: -2,
                     transition: { duration: 0.3 }
                   }}
-                  className="login-card bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-lg sm:shadow-xl lg:shadow-2xl border-2 border-amber-400 dark:border-amber-500 overflow-hidden focus-within:ring-2 focus-within:ring-amber-400 focus-within:ring-offset-2 w-full"
+                  className="login-card bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-lg sm:shadow-xl lg:shadow-2xl border-2 border-amber-400 dark:border-amber-500 overflow-hidden focus-within:ring-2 focus-within:ring-amber-400 focus-within:ring-offset-2 w-full flex flex-col flex-1"
                   tabIndex={-1}
                 >
                   {/* Login Header - Mobile optimized */}
@@ -684,7 +684,7 @@ function LoginPageContent() {
                   </header>
 
                   {/* Login Form - Mobile responsive padding with stable container */}
-                  <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6">
+                  <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex-1">
                     {/* Fixed height container to prevent layout shifts */}
                     <div className="login-form-shell flex flex-col">
                       <LoginForm
