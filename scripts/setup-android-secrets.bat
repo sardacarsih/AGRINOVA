@@ -90,15 +90,10 @@ if not exist "!KEYSTORE_PATH!" (
 )
 
 echo Encode dan upload KEYSTORE_BASE64...
-set "TMP_B64=%TEMP%\keystore_b64.txt"
-certutil -encode "!KEYSTORE_PATH!" "!TMP_B64!" >nul
-REM certutil menambah header/footer, ambil hanya konten base64
-set "B64_CONTENT="
-for /f "skip=1 tokens=*" %%L in (!TMP_B64!) do (
-  echo %%L | findstr /i "-----END" >nul || set "B64_CONTENT=!B64_CONTENT!%%L"
-)
-echo !B64_CONTENT! | gh secret set KEYSTORE_BASE64 --repo "%REPO_OWNER%/%REPO_NAME%"
-del "!TMP_B64!" >nul 2>&1
+REM Gunakan PowerShell agar tidak ada batas panjang variabel CMD dan encoding binary benar
+powershell -NoProfile -Command ^
+  "[Convert]::ToBase64String([IO.File]::ReadAllBytes('!KEYSTORE_PATH!'))" ^
+  | gh secret set KEYSTORE_BASE64 --repo "%REPO_OWNER%/%REPO_NAME%"
 if errorlevel 1 (echo [ERROR] Gagal upload KEYSTORE_BASE64. & goto end_error)
 echo   OK: KEYSTORE_BASE64
 
@@ -167,14 +162,9 @@ if not exist "!GSJ_PATH!" (
   goto end_error
 )
 
-set "TMP_B64=%TEMP%\gsj_b64.txt"
-certutil -encode "!GSJ_PATH!" "!TMP_B64!" >nul
-set "B64_CONTENT="
-for /f "skip=1 tokens=*" %%L in (!TMP_B64!) do (
-  echo %%L | findstr /i "-----END" >nul || set "B64_CONTENT=!B64_CONTENT!%%L"
-)
-echo !B64_CONTENT! | gh secret set GOOGLE_SERVICES_JSON_BASE64 --repo "%REPO_OWNER%/%REPO_NAME%"
-del "!TMP_B64!" >nul 2>&1
+powershell -NoProfile -Command ^
+  "[Convert]::ToBase64String([IO.File]::ReadAllBytes('!GSJ_PATH!'))" ^
+  | gh secret set GOOGLE_SERVICES_JSON_BASE64 --repo "%REPO_OWNER%/%REPO_NAME%"
 if errorlevel 1 (echo [ERROR] Gagal upload GOOGLE_SERVICES_JSON_BASE64. & goto end_error)
 echo   OK: GOOGLE_SERVICES_JSON_BASE64
 
