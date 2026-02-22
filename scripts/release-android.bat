@@ -8,12 +8,13 @@ REM Cara pakai:
 REM   scripts\release-android.bat          (interaktif, minta input versi)
 REM   scripts\release-android.bat 1.2.3    (langsung beri versi)
 REM
-REM Apa yang dilakukan:
-REM   1. Cek working tree bersih (tidak ada uncommitted changes)
-REM   2. Minta versi dan catatan rilis
-REM   3. Buat annotated git tag (v1.2.3)
-REM   4. Push tag ke remote → memicu GitHub Actions android-release.yml
-REM   5. Tampilkan link Actions untuk memantau progress
+REM Alur lengkap:
+REM   1. Tampilkan status git dan commit terakhir
+REM   2. Commit semua perubahan pending (jika ada)
+REM   3. Push commits ke GitHub (main)
+REM   4. Minta versi dan catatan rilis
+REM   5. Buat annotated git tag (v1.2.3)
+REM   6. Push tag → memicu GitHub Actions android-release.yml
 REM ──────────────────────────────────────────────────────────────────────────────
 
 set "SCRIPT_DIR=%~dp0"
@@ -44,8 +45,8 @@ if errorlevel 1 (
 
 REM ── Cek branch ────────────────────────────────────────────────────────────
 for /f "tokens=*" %%B in ('git rev-parse --abbrev-ref HEAD 2^>nul') do set "CURRENT_BRANCH=%%B"
-if not "%CURRENT_BRANCH%"=="main" (
-  echo [PERINGATAN] Branch saat ini: %CURRENT_BRANCH%
+if not "!CURRENT_BRANCH!"=="main" (
+  echo [PERINGATAN] Branch saat ini: !CURRENT_BRANCH!
   echo              Biasanya release dibuat dari branch 'main'.
   echo.
   set /p "CONTINUE=Lanjutkan dari branch ini? (y/N): "
@@ -55,26 +56,64 @@ if not "%CURRENT_BRANCH%"=="main" (
   )
 )
 
-REM ── Cek working tree ──────────────────────────────────────────────────────
-REM Hard block hanya jika apps/mobile/ ada perubahan belum di-commit.
-REM Perubahan di luar apps/mobile/ hanya peringatan + konfirmasi.
+REM ── Tampilkan commit terakhir ──────────────────────────────────────────────
+echo ── Commit terakhir ─────────────────────────────────────────────────────
+git log --oneline -5
+echo.
 
+REM ── Tampilkan status apps/mobile/ ─────────────────────────────────────────
+echo ── Status apps/mobile/ ─────────────────────────────────────────────────
 set "MOBILE_DIRTY="
 for /f "tokens=*" %%S in ('git status --porcelain -- apps/mobile 2^>nul') do set "MOBILE_DIRTY=1"
 if defined MOBILE_DIRTY (
-  echo [ERROR] apps/mobile/ memiliki perubahan yang belum di-commit.
-  echo         Commit atau stash terlebih dahulu sebelum release.
-  echo.
   git status --short -- apps/mobile
-  pause & exit /b 1
+) else (
+  echo   (tidak ada perubahan)
+)
+echo.
+
+REM ── Tampilkan status keseluruhan ───────────────────────────────────────────
+echo ── Status keseluruhan ──────────────────────────────────────────────────
+set "ANY_DIRTY="
+for /f "tokens=*" %%S in ('git status --porcelain 2^>nul') do set "ANY_DIRTY=1"
+if defined ANY_DIRTY (
+  git status --short
+) else (
+  echo   (working tree bersih)
+)
+echo.
+
+REM ── Commit perubahan pending (jika ada) ───────────────────────────────────
+if defined ANY_DIRTY (
+  set /p "COMMIT_MSG=Pesan commit (Enter untuk pakai pesan otomatis): "
+  if "!COMMIT_MSG!"=="" set "COMMIT_MSG=chore: update sebelum release Android"
+  echo.
+  echo Meng-stage semua perubahan...
+  git add -A
+  git commit -m "!COMMIT_MSG!"
+  if errorlevel 1 (
+    echo [ERROR] Gagal commit. Periksa pesan error di atas.
+    pause & exit /b 1
+  )
+  echo   OK: commit berhasil.
+  echo.
 )
 
+REM ── Push commits ke GitHub ─────────────────────────────────────────────────
+echo ── Push commits ke GitHub ──────────────────────────────────────────────
+git push origin "!CURRENT_BRANCH!"
+if errorlevel 1 (
+  echo [ERROR] Gagal push ke origin. Cek koneksi atau akses repo.
+  pause & exit /b 1
+)
+echo   OK: commits ter-push ke origin/!CURRENT_BRANCH!.
+echo.
 
 REM ── Ambil versi ───────────────────────────────────────────────────────────
+echo ── Buat Release Tag ────────────────────────────────────────────────────
 if not "%~1"=="" (
   set "VERSION=%~1"
 ) else (
-  REM Tampilkan tag terakhir sebagai referensi
   for /f "tokens=*" %%T in ('git tag --sort=-version:refname 2^>nul ^| findstr /r "^v[0-9]"') do (
     if "!LAST_TAG!"=="" set "LAST_TAG=%%T"
   )
@@ -84,7 +123,6 @@ if not "%~1"=="" (
 )
 
 REM ── Validasi format versi ─────────────────────────────────────────────────
-REM Hapus semua digit (0-9) dari versi; sisanya harus persis ".." (dua titik).
 set "_VCHECK=%VERSION%"
 for /l %%D in (0,1,9) do set "_VCHECK=!_VCHECK:%%D=!"
 if not "!_VCHECK!"==".." (
@@ -105,7 +143,7 @@ if not errorlevel 1 (
 
 REM ── Minta catatan rilis ────────────────────────────────────────────────────
 echo.
-echo Catatan rilis untuk %TAG% (tekan Enter untuk skip, gunakan default):
+echo Catatan rilis untuk %TAG% (tekan Enter untuk pakai default):
 set /p "RELEASE_NOTES=Catatan rilis: "
 if "!RELEASE_NOTES!"=="" (
   set "RELEASE_NOTES=Perbaikan bug dan peningkatan performa untuk versi %VERSION%."
@@ -115,7 +153,7 @@ REM ── Konfirmasi ───────────────────�
 echo.
 echo ─────────────────────────────────────────
 echo   Tag      : %TAG%
-echo   Branch   : %CURRENT_BRANCH%
+echo   Branch   : !CURRENT_BRANCH!
 echo   Catatan  : !RELEASE_NOTES!
 echo ─────────────────────────────────────────
 echo.
