@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # Android Release — Build AAB & Deploy to Google Play Store (alpha track)
 #
-# Dipicu oleh: git tag v*.*.*  (push tag → build + deploy otomatis)
+# Dipicu oleh: git tag mobile/v*.*.*  (push tag → build + deploy otomatis)
 # Manual:      workflow_dispatch dengan input version
 #
 # Required GitHub Secrets (Settings → Secrets → Actions):
@@ -22,7 +22,7 @@
 #   versionCode = github.run_number (integer monoton naik, unik per run)
 #
 # Release flow:
-#   git tag -a v1.2.3 -m "Catatan rilis di sini" && git push origin v1.2.3
+#   git tag -a mobile/v1.2.3 -m "Catatan rilis di sini" && git push origin mobile/v1.2.3
 #   → workflow terpicu otomatis
 #   → AAB dibangun, diunggah ke Play Store alpha track
 #   → What's New diambil dari anotasi tag (maks 500 karakter)
@@ -40,7 +40,7 @@ name: Android Release
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'mobile/v[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
     inputs:
       version:
@@ -123,9 +123,9 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             version_name="${{ github.event.inputs.version }}"
           else
-            # Tag push: github.ref_name = "v1.2.3", strip prefix "v"
+            # Tag push: github.ref_name = "mobile/v1.2.3", strip prefix "mobile/v"
             version_name="${{ github.ref_name }}"
-            version_name="${version_name#v}"
+            version_name="${version_name#mobile/v}"
           fi
           version_code="${{ github.run_number }}"
           echo "name=$version_name" >> "$GITHUB_OUTPUT"
@@ -176,12 +176,11 @@ jobs:
 
       - name: Build release AAB (bundleRelease)
         working-directory: apps/mobile
-        env:
-          ANDROID_VERSION_CODE: ${{ steps.version.outputs.code }}
-          ANDROID_VERSION_NAME: ${{ steps.version.outputs.name }}
         run: |
           flutter build appbundle \
             --release \
+            --build-name=${{ steps.version.outputs.name }} \
+            --build-number=${{ steps.version.outputs.code }} \
             --dart-define-from-file=env/prod.json
 
       # ── 7. Archive ────────────────────────────────────────────────────────
