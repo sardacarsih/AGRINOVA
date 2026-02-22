@@ -69,19 +69,6 @@ if defined MOBILE_DIRTY (
   pause & exit /b 1
 )
 
-set "OTHER_DIRTY="
-for /f "tokens=*" %%S in ('git status --porcelain 2^>nul') do set "OTHER_DIRTY=1"
-if defined OTHER_DIRTY (
-  echo [PERINGATAN] Ada perubahan di luar apps/mobile/ yang belum di-commit:
-  echo.
-  git status --short
-  echo.
-  set /p "CONTINUE_DIRTY=Tetap lanjutkan release? (y/N): "
-  if /i not "!CONTINUE_DIRTY!"=="y" (
-    echo Dibatalkan. Commit atau stash perubahan terlebih dahulu.
-    pause & exit /b 0
-  )
-)
 
 REM ── Ambil versi ───────────────────────────────────────────────────────────
 if not "%~1"=="" (
