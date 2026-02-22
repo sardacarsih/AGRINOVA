@@ -1,5 +1,3 @@
-Versi 1.0.2:
-- Perbaikan flutter analyze: vendor package tidak lagi memicu warning
-- Perbaikan deklarasi aset fonts di pubspec.yaml
-- Perbaikan smoke test CI yang gagal saat release
-- Catatan rilis kini dapat diedit langsung sebelum tag dirilis
+Versi 1.0.3:
+- Perbaikan proses signing Android: keystore tidak lagi corrupt saat upload ke CI
+- Perbaikan script setup secrets menggunakan PowerShell untuk encoding binary yang benar

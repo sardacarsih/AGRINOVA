@@ -1,5 +1,3 @@
-Version 1.0.2:
-- Fix flutter analyze: vendor packages no longer trigger warnings
-- Fix empty fonts asset declaration in pubspec.yaml
-- Fix CI smoke test that failed during release
-- Release notes can now be edited interactively before tagging
+Version 1.0.3:
+- Fix Android signing: keystore no longer corrupted when uploading to CI
+- Fix secrets setup script to use PowerShell for correct binary encoding
