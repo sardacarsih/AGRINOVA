@@ -307,7 +307,7 @@ function LoginPageContent() {
     {
       icon: Users,
       title: "Multi-Role Access",
-      description: "Satpam, Mandor, Asisten, Manager, Area Manager, Admin Perusahaan, Timbangan, dan Grading - semua terintegrasi",
+      description: "Semua peran kebun — Mandor, Satpam, Asisten, Manager hingga Grading — dalam satu sistem.",
       color: "text-orange-600 dark:text-orange-400",
       bgColor: "bg-orange-50 dark:bg-orange-900/20",
       borderColor: "border-orange-200 dark:border-orange-800"
@@ -519,7 +519,7 @@ function LoginPageContent() {
                         scale: 1.02,
                         transition: { duration: 0.2 }
                       }}
-                      className={`p-6 rounded-2xl border transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${index === 0 ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' :
+                      className={`w-full p-6 rounded-2xl border transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${index === 0 ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' :
                           index === 1 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' :
                             index === 2 ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800' :
                               'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
@@ -566,7 +566,7 @@ function LoginPageContent() {
                   );
 
                   // Return the FeatureCard directly since SplashCursor is a global overlay
-                  return <div key={index}>{FeatureCard}</div>;
+                  return <div key={index} className="flex">{FeatureCard}</div>;
                 })}
               </motion.div>
             </motion.div>
