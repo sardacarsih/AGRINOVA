@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import '../../core/models/app_update_models.dart';
 
 /// App Update Notification Banner Widget
-/// 
+///
 /// Shows a persistent banner when app update is available
 class AppUpdateBanner extends StatelessWidget {
   final AppUpdateInfo updateInfo;
@@ -49,14 +49,18 @@ class AppUpdateBanner extends StatelessWidget {
                   isCritical ? 'Critical Update Required' : 'Update Available',
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: isCritical ? Colors.red.shade800 : Colors.blue.shade800,
+                    color: isCritical
+                        ? Colors.red.shade800
+                        : Colors.blue.shade800,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Agrinova ${updateInfo.latestVersion} is ready to install',
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: isCritical ? Colors.red.shade600 : Colors.blue.shade600,
+                    color: isCritical
+                        ? Colors.red.shade600
+                        : Colors.blue.shade600,
                   ),
                 ),
                 if (updateInfo.fileSizeBytes != null) ...[
@@ -96,7 +100,7 @@ class AppUpdateBanner extends StatelessWidget {
 }
 
 /// App Update Dialog Widget
-/// 
+///
 /// Shows detailed update information in a dialog
 class AppUpdateDialog extends StatelessWidget {
   final AppUpdateInfo updateInfo;
@@ -127,9 +131,7 @@ class AppUpdateDialog extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             isCritical ? 'Critical Update' : 'App Update',
-            style: TextStyle(
-              color: isCritical ? Colors.red : Colors.blue,
-            ),
+            style: TextStyle(color: isCritical ? Colors.red : Colors.blue),
           ),
         ],
       ),
@@ -204,7 +206,7 @@ class AppUpdateDialog extends StatelessWidget {
     IconData icon,
   ) {
     final theme = Theme.of(context);
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -234,7 +236,7 @@ class AppUpdateDialog extends StatelessWidget {
 
   Widget _buildReleaseNotes(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -267,18 +269,15 @@ class AppUpdateDialog extends StatelessWidget {
 
     if (!isCritical && onSkipTap != null) {
       actions.add(
-        TextButton(
-          onPressed: onSkipTap,
-          child: const Text('Skip Version'),
-        ),
+        TextButton(onPressed: onSkipTap, child: const Text('Skip Version')),
       );
     }
 
-    if (!isCritical && onLaterTap != null) {
+    if (onLaterTap != null) {
       actions.add(
         TextButton(
           onPressed: onLaterTap,
-          child: const Text('Later'),
+          child: Text(isCritical ? 'Close' : 'Later'),
         ),
       );
     }
@@ -310,7 +309,7 @@ class AppUpdateDialog extends StatelessWidget {
 }
 
 /// App Update Progress Widget
-/// 
+///
 /// Shows update download/installation progress
 class AppUpdateProgressWidget extends StatelessWidget {
   final AppUpdateProgress progress;
@@ -335,10 +334,7 @@ class AppUpdateProgressWidget extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(
-                  _getStatusIcon(),
-                  color: _getStatusColor(),
-                ),
+                Icon(_getStatusIcon(), color: _getStatusColor()),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -357,10 +353,7 @@ class AppUpdateProgressWidget extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (progress.message != null)
-              Text(
-                progress.message!,
-                style: theme.textTheme.bodyMedium,
-              ),
+              Text(progress.message!, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 12),
             if (progress.progress != null) ...[
               LinearProgressIndicator(
@@ -400,10 +393,7 @@ class AppUpdateProgressWidget extends StatelessWidget {
                 ),
                 child: Text(
                   progress.error!,
-                  style: TextStyle(
-                    color: Colors.red.shade700,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.red.shade700, fontSize: 12),
                 ),
               ),
             ],
@@ -453,7 +443,7 @@ class AppUpdateProgressWidget extends StatelessWidget {
 }
 
 /// App Update Settings Widget
-/// 
+///
 /// Allows users to configure update preferences
 class AppUpdateSettingsWidget extends StatefulWidget {
   final AppUpdatePolicy policy;
@@ -466,7 +456,8 @@ class AppUpdateSettingsWidget extends StatefulWidget {
   });
 
   @override
-  State<AppUpdateSettingsWidget> createState() => _AppUpdateSettingsWidgetState();
+  State<AppUpdateSettingsWidget> createState() =>
+      _AppUpdateSettingsWidgetState();
 }
 
 class _AppUpdateSettingsWidgetState extends State<AppUpdateSettingsWidget> {
@@ -494,7 +485,8 @@ class _AppUpdateSettingsWidgetState extends State<AppUpdateSettingsWidget> {
           'Download updates automatically',
           'Download updates when available (requires Wi-Fi)',
           _policy.autoDownloadEnabled,
-          (value) => _updatePolicy(_policy.copyWith(autoDownloadEnabled: value)),
+          (value) =>
+              _updatePolicy(_policy.copyWith(autoDownloadEnabled: value)),
         ),
         const Divider(),
         _buildSectionHeader('Network Settings'),
@@ -508,7 +500,8 @@ class _AppUpdateSettingsWidgetState extends State<AppUpdateSettingsWidget> {
           'Allow metered connections',
           'Download updates even on mobile data (may incur charges)',
           _policy.allowMeteredConnection,
-          (value) => _updatePolicy(_policy.copyWith(allowMeteredConnection: value)),
+          (value) =>
+              _updatePolicy(_policy.copyWith(allowMeteredConnection: value)),
         ),
       ],
     );
@@ -537,9 +530,9 @@ class _AppUpdateSettingsWidgetState extends State<AppUpdateSettingsWidget> {
       title: Text(title),
       subtitle: Text(
         subtitle,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-          color: Colors.grey.shade600,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
       ),
       value: value,
       onChanged: onChanged,
@@ -570,7 +563,8 @@ extension AppUpdatePolicyCopyWith on AppUpdatePolicy {
       autoCheckEnabled: autoCheckEnabled ?? this.autoCheckEnabled,
       autoDownloadEnabled: autoDownloadEnabled ?? this.autoDownloadEnabled,
       wifiOnlyDownload: wifiOnlyDownload ?? this.wifiOnlyDownload,
-      allowMeteredConnection: allowMeteredConnection ?? this.allowMeteredConnection,
+      allowMeteredConnection:
+          allowMeteredConnection ?? this.allowMeteredConnection,
       quietHours: quietHours ?? this.quietHours,
       allowedNetworkTypes: allowedNetworkTypes ?? this.allowedNetworkTypes,
       maxDownloadSizeMB: maxDownloadSizeMB ?? this.maxDownloadSizeMB,

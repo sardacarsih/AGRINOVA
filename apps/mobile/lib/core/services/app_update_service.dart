@@ -124,6 +124,12 @@ class AppUpdateService {
           _logger.d(
             '$_tag: Skipping version check, last checked ${timeSinceLastCheck.inMinutes} minutes ago',
           );
+          if (_pendingUpdate != null && _isSkippedUpdate(_pendingUpdate!)) {
+            _logger.d(
+              '$_tag: Cached update ${_pendingUpdate!.latestVersion} is skipped by user policy',
+            );
+            return null;
+          }
           return _pendingUpdate;
         }
       }
@@ -134,6 +140,14 @@ class AppUpdateService {
       // Primary source for Android app updates.
       final playStoreUpdate = await _checkForPlayStoreUpdate(currentVersion);
       if (playStoreUpdate != null) {
+        if (_isSkippedUpdate(playStoreUpdate)) {
+          _logger.i(
+            '$_tag: Skipping Play Store update ${playStoreUpdate.latestVersion} based on user preference',
+          );
+          _clearPendingUpdate();
+          return null;
+        }
+
         _pendingUpdate = playStoreUpdate;
         await _savePendingUpdate(playStoreUpdate);
         _logger.i(
@@ -157,6 +171,14 @@ class AppUpdateService {
 
       // Check if update is available
       if (_isUpdateAvailable(currentVersion, updateInfo)) {
+        if (_isSkippedUpdate(updateInfo)) {
+          _logger.i(
+            '$_tag: Skipping update ${updateInfo.latestVersion} based on user preference',
+          );
+          _clearPendingUpdate();
+          return null;
+        }
+
         _pendingUpdate = updateInfo;
         await _savePendingUpdate(updateInfo);
 
@@ -474,6 +496,15 @@ class AppUpdateService {
     }
   }
 
+  bool _isSkippedUpdate(AppUpdateInfo updateInfo) {
+    if (updateInfo.isCritical) {
+      return false;
+    }
+
+    final skippedVersions = getSkippedVersions();
+    return skippedVersions.contains(updateInfo.latestVersion);
+  }
+
   /// Get update policy settings
   AppUpdatePolicy getUpdatePolicy() {
     final policyJson = _prefs?.getString(_kUpdatePolicyKey);
@@ -503,6 +534,10 @@ class AppUpdateService {
     skippedVersions.add(version);
 
     await _prefs?.setStringList(_kSkippedVersionsKey, skippedVersions.toList());
+    if (_pendingUpdate?.latestVersion == version &&
+        !(_pendingUpdate?.isCritical ?? false)) {
+      _clearPendingUpdate();
+    }
     _logger.i('$_tag: Version $version added to skip list');
   }
 

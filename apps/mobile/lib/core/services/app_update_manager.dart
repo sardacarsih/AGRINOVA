@@ -119,8 +119,13 @@ class AppUpdateManager {
         barrierDismissible: false,
         builder: (context) => AppUpdateDialog(
           updateInfo: updateInfo,
-          onUpdateTap: () => _startUpdate(updateInfo),
-          // No "later" or "skip" options for critical updates
+          onUpdateTap: () {
+            unawaited(_startUpdate(updateInfo));
+          },
+          onLaterTap: () {
+            Navigator.of(context).pop();
+            _showCriticalUpdateDeferredMessage();
+          },
         ),
       );
     }
@@ -366,6 +371,11 @@ class AppUpdateManager {
       return false;
     }
 
+    if (updateInfo.isCritical ||
+        updateInfo.deliveryMethod == UpdateDeliveryMethod.playStore) {
+      return true;
+    }
+
     if (policy.wifiOnlyDownload && status.isMetered) {
       return false;
     }
@@ -416,9 +426,15 @@ class AppUpdateManager {
   void _showConnectivityError(AppUpdateInfo updateInfo) {
     if (_currentContext == null) return;
 
+    final isPlayStoreFlow =
+        updateInfo.deliveryMethod == UpdateDeliveryMethod.playStore;
+    final message = isPlayStoreFlow
+        ? 'Internet connection required to start Play Store update'
+        : 'Wi-Fi connection required for update download';
+
     ScaffoldMessenger.of(_currentContext!).showSnackBar(
       SnackBar(
-        content: Text('Wi-Fi connection required for update download'),
+        content: Text(message),
         action: SnackBarAction(
           label: 'Settings',
           onPressed: () {
@@ -440,6 +456,17 @@ class AppUpdateManager {
     ScaffoldMessenger.of(
       _currentContext!,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _showCriticalUpdateDeferredMessage() {
+    if (_currentContext == null) return;
+
+    ScaffoldMessenger.of(_currentContext!).showSnackBar(
+      const SnackBar(
+        content: Text('Critical update is still pending. Please update soon.'),
+        backgroundColor: Colors.orange,
+      ),
+    );
   }
 
   void _showUpdateError(String error) {

@@ -35,6 +35,7 @@ class AgrinovaApp extends StatefulWidget {
 class _AgrinovaAppState extends State<AgrinovaApp> {
   bool _isInitialized = false;
   bool _isUpdateManagerInitialized = false;
+  bool _isUpdateManagerInitializing = false;
   String? _initError;
   AuthBloc? _authBloc;
 
@@ -55,7 +56,6 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
           _isInitialized = true;
           _authBloc = authBloc;
         });
-        _initializeAppUpdateManager();
       }
     } catch (e) {
       debugPrint('❌ Failed to initialize: $e');
@@ -67,24 +67,36 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
     }
   }
 
-  void _initializeAppUpdateManager() {
-    if (_isUpdateManagerInitialized) return;
+  void _initializeAppUpdateManager(BuildContext appContext) {
+    if (_isUpdateManagerInitialized || _isUpdateManagerInitializing) return;
+    _isUpdateManagerInitializing = true;
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
+      if (!mounted) {
+        _isUpdateManagerInitializing = false;
+        return;
+      }
+
+      var initialized = false;
 
       try {
         final manager = AppUpdateManager();
-        manager.updateContext(context);
-        await manager.initialize(context);
-
-        if (mounted) {
-          setState(() {
-            _isUpdateManagerInitialized = true;
-          });
-        }
+        manager.updateContext(appContext);
+        await manager.initialize(appContext);
+        initialized = true;
       } catch (e) {
         debugPrint('Failed to initialize AppUpdateManager: $e');
+      } finally {
+        if (mounted) {
+          setState(() {
+            if (initialized) {
+              _isUpdateManagerInitialized = true;
+            }
+            _isUpdateManagerInitializing = false;
+          });
+        } else {
+          _isUpdateManagerInitializing = false;
+        }
       }
     });
   }
@@ -94,6 +106,7 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
     setState(() {
       _isInitialized = false;
       _isUpdateManagerInitialized = false;
+      _isUpdateManagerInitializing = false;
       _initError = null;
       _authBloc = null;
     });
@@ -125,7 +138,8 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
         return AppRoutes.generateRoute(settings);
       },
       builder: (context, child) {
-        if (_isUpdateManagerInitialized) {
+        if (_isInitialized) {
+          _initializeAppUpdateManager(context);
           AppUpdateManager().updateContext(context);
         }
 
