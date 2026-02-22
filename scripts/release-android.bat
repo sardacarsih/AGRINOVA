@@ -129,6 +129,45 @@ if errorlevel 1 (
 echo   OK: commits ter-push ke origin/!CURRENT_BRANCH!.
 echo.
 
+REM ── Update whatsnew files ─────────────────────────────────────────────────
+echo ── Catatan Rilis (whatsnew/) ────────────────────────────────────────────
+set "WHATSNEW_ID=%ROOT_DIR%\apps\mobile\whatsnew\whatsnew-id"
+set "WHATSNEW_EN=%ROOT_DIR%\apps\mobile\whatsnew\whatsnew-en-US"
+echo.
+echo Isi saat ini dari whatsnew-id:
+echo ─────────────────────────────────────────
+type "%WHATSNEW_ID%" 2>nul || echo   (file belum ada)
+echo ─────────────────────────────────────────
+echo.
+set /p "EDIT_NOTES=Update catatan rilis di whatsnew/ sebelum tag? (y/N): "
+if /i "!EDIT_NOTES!"=="y" (
+  echo.
+  echo Membuka whatsnew-id di Notepad. Simpan dan tutup untuk melanjutkan...
+  notepad "%WHATSNEW_ID%"
+  echo Membuka whatsnew-en-US di Notepad. Simpan dan tutup untuk melanjutkan...
+  notepad "%WHATSNEW_EN%"
+  echo.
+  REM Commit & push whatsnew changes
+  for /f "tokens=*" %%S in ('git status --porcelain -- apps/mobile/whatsnew 2^>nul') do set "NOTES_DIRTY=1"
+  if defined NOTES_DIRTY (
+    git add apps\mobile\whatsnew\
+    git commit -m "chore(mobile): update release notes before release"
+    if errorlevel 1 (
+      echo [ERROR] Gagal commit whatsnew. Cek error di atas.
+      pause & exit /b 1
+    )
+    git push origin "!CURRENT_BRANCH!"
+    if errorlevel 1 (
+      echo [ERROR] Gagal push whatsnew. Cek koneksi.
+      pause & exit /b 1
+    )
+    echo   OK: catatan rilis diperbarui dan di-push.
+  ) else (
+    echo   Tidak ada perubahan pada whatsnew/.
+  )
+  echo.
+)
+
 REM ── Ambil versi ───────────────────────────────────────────────────────────
 echo ── Buat Release Tag ────────────────────────────────────────────────────
 if not "%~1"=="" (
