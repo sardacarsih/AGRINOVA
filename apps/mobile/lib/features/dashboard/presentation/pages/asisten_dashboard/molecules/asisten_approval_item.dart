@@ -17,7 +17,7 @@ class AsistenApprovalItem extends StatelessWidget {
   final VoidCallback? onTap;
 
   const AsistenApprovalItem({
-    Key? key,
+    super.key,
     required this.id,
     required this.mandorName,
     required this.blok,
@@ -28,7 +28,7 @@ class AsistenApprovalItem extends StatelessWidget {
     this.onApprove,
     this.onReject,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +49,7 @@ class AsistenApprovalItem extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AsistenTheme.primaryBlue.withOpacity(0.1),
+                        color: AsistenTheme.primaryBlue.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
@@ -104,7 +104,7 @@ class AsistenApprovalItem extends StatelessWidget {
                       onPressed: onReject,
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AsistenTheme.rejectedRed,
-                        side: BorderSide(color: AsistenTheme.rejectedRed.withOpacity(0.5)),
+                        side: BorderSide(color: AsistenTheme.rejectedRed.withValues(alpha: 0.5)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
@@ -147,3 +147,4 @@ class AsistenApprovalItem extends StatelessWidget {
     );
   }
 }
+

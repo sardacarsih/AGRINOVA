@@ -6,7 +6,7 @@ import '../blocs/biometric_auth_bloc.dart';
 import '../widgets/biometric_auth_widget.dart';
 
 class BiometricSettingsPage extends StatefulWidget {
-  const BiometricSettingsPage({Key? key}) : super(key: key);
+  const BiometricSettingsPage({super.key});
 
   @override
   State<BiometricSettingsPage> createState() => _BiometricSettingsPageState();
@@ -293,9 +293,9 @@ class _BiometricSettingsPageState extends State<BiometricSettingsPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
+        color: Colors.red.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.withOpacity(0.3)),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -376,7 +376,7 @@ class _BiometricSettingsPageState extends State<BiometricSettingsPage> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -505,7 +505,7 @@ class _BiometricSettingsPageState extends State<BiometricSettingsPage> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<BiometricType>(
-              value: state.preferredType,
+              initialValue: state.preferredType,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -607,8 +607,6 @@ class _BiometricSettingsPageState extends State<BiometricSettingsPage> {
         return Icons.security;
       case BiometricType.weak:
         return Icons.enhanced_encryption;
-      default:
-        return Icons.help_outline;
     }
   }
 
@@ -743,3 +741,4 @@ class _BiometricSettingsPageState extends State<BiometricSettingsPage> {
     );
   }
 }
+

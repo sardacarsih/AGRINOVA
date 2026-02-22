@@ -63,7 +63,8 @@ class CurrentUserAvatar extends StatelessWidget {
                     ? Image.network(
                         avatar,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _fallback(initials),
+                        errorBuilder: (context, error, stackTrace) =>
+                            _fallback(initials),
                       )
                     : _fallback(initials),
           ),

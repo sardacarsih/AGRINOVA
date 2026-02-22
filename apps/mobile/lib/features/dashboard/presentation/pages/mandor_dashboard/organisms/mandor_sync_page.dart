@@ -22,11 +22,11 @@ class MandorSyncPage extends StatefulWidget {
   final int refreshSignal;
 
   const MandorSyncPage({
-    Key? key,
+    super.key,
     this.onMasterSyncCompleted,
     this.showAppBar = true,
     this.refreshSignal = 0,
-  }) : super(key: key);
+  });
 
   @override
   State<MandorSyncPage> createState() => _MandorSyncPageState();
@@ -227,7 +227,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
         gradient: LinearGradient(
           colors: [
             MandorTheme.darkGreen,
-            MandorTheme.forestGreen.withOpacity(0.8),
+            MandorTheme.forestGreen.withValues(alpha: 0.8),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -235,7 +235,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: MandorTheme.forestGreen.withOpacity(0.3),
+            color: MandorTheme.forestGreen.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -257,7 +257,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
                       width: 56,
                       height: 56,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: _isSyncingAll
@@ -294,7 +294,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
                                 ? 'Sinkronisasi sedang berjalan...'
                                 : 'Sinkronkan data master & transaksi',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                               fontSize: 13,
                             ),
                           ),
@@ -303,7 +303,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
                     ),
                     Icon(
                       Icons.arrow_forward_ios_rounded,
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       size: 18,
                     ),
                   ],
@@ -343,9 +343,9 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.16),
+        color: color.withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withOpacity(0.35)),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -379,7 +379,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
         color: MandorTheme.gray800,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: result != null ? color.withOpacity(0.3) : Colors.transparent,
+          color: result != null ? color.withValues(alpha: 0.3) : Colors.transparent,
           width: 1,
         ),
       ),
@@ -399,7 +399,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.15),
+                        color: color.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: isLoading
@@ -420,7 +420,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
                         children: [
                           Text(
                             title,
-                            style: MandorTheme.bodyLarge?.copyWith(
+                            style: MandorTheme.bodyLarge.copyWith(
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -438,7 +438,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(0.15),
+                        color: color.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -478,7 +478,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
                           child: Text(
                             result,
                             style:
-                                MandorTheme.bodySmall?.copyWith(fontSize: 12),
+                                MandorTheme.bodySmall.copyWith(fontSize: 12),
                           ),
                         ),
                       ],
@@ -499,7 +499,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: MandorTheme.gray800.withOpacity(0.5),
+        color: MandorTheme.gray800.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -512,7 +512,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
           const SizedBox(width: 10),
           Text(
             'Terakhir sync: $timeAgo',
-            style: MandorTheme.bodySmall?.copyWith(
+            style: MandorTheme.bodySmall.copyWith(
               color: MandorTheme.gray400,
             ),
           ),
@@ -525,10 +525,10 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: MandorTheme.skyBlue.withOpacity(0.1),
+        color: MandorTheme.skyBlue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: MandorTheme.skyBlue.withOpacity(0.3),
+          color: MandorTheme.skyBlue.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -544,7 +544,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
               const SizedBox(width: 8),
               Text(
                 'Informasi Sinkronisasi',
-                style: MandorTheme.bodyMedium?.copyWith(
+                style: MandorTheme.bodyMedium.copyWith(
                   fontWeight: FontWeight.w600,
                   color: MandorTheme.skyBlue,
                 ),
@@ -812,3 +812,4 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
     );
   }
 }
+

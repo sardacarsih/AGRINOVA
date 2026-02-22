@@ -24,7 +24,7 @@ class AreaManagerWelcomeSection extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AreaManagerTheme.primaryTeal.withOpacity(0.3),
+            color: AreaManagerTheme.primaryTeal.withValues(alpha: 0.3),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -37,7 +37,7 @@ class AreaManagerWelcomeSection extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(14),
             ),
             child: const CurrentUserAvatar(
@@ -58,7 +58,7 @@ class AreaManagerWelcomeSection extends StatelessWidget {
                       child: Text(
                         'Welcome,',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 14,
                         ),
                       ),
@@ -70,7 +70,7 @@ class AreaManagerWelcomeSection extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.25),
+                        color: Colors.white.withValues(alpha: 0.25),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -96,7 +96,7 @@ class AreaManagerWelcomeSection extends StatelessWidget {
                 Text(
                   'Multi-Estate Oversight & Manager Coordination',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
+                    color: Colors.white.withValues(alpha: 0.85),
                     fontSize: 13,
                   ),
                 ),
@@ -108,3 +108,4 @@ class AreaManagerWelcomeSection extends StatelessWidget {
     );
   }
 }
+

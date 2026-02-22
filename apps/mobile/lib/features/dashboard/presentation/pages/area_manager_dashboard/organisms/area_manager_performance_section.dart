@@ -62,7 +62,7 @@ class AreaManagerPerformanceSection extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: AreaManagerTheme.primaryTeal.withOpacity(0.3),
+                color: AreaManagerTheme.primaryTeal.withValues(alpha: 0.3),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
@@ -82,3 +82,4 @@ class AreaManagerPerformanceSection extends StatelessWidget {
     );
   }
 }
+

@@ -194,7 +194,7 @@ class SatpamDashboardHelpers {
   static String generateId([String prefix = '']) {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final random = (timestamp % 10000).toString().padLeft(4, '0');
-    return '${prefix}${prefix.isNotEmpty ? '_' : ''}$timestamp$random';
+    return '$prefix${prefix.isNotEmpty ? '_' : ''}$timestamp$random';
   }
 
   /// Build section header widget
@@ -205,9 +205,9 @@ class SatpamDashboardHelpers {
         vertical: SatpamDashboardConstants.mediumPadding,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(SatpamDashboardConstants.borderRadius),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [

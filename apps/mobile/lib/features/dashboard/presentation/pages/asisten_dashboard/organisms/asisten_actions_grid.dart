@@ -13,14 +13,14 @@ class AsistenActionsGrid extends StatelessWidget {
   final VoidCallback? onHistory;
 
   const AsistenActionsGrid({
-    Key? key,
+    super.key,
     this.onApprovals,
     this.onBatchApproval,
     this.onQualityCheck,
     this.onMonitoring,
     this.onReports,
     this.onHistory,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -6,11 +6,11 @@ class LogoutConfirmationDialog extends StatelessWidget {
   final VoidCallback? onCancel;
 
   const LogoutConfirmationDialog({
-    Key? key,
+    super.key,
     this.username,
     required this.onConfirm,
     this.onCancel,
-  }) : super(key: key);
+  });
 
   static Future<void> show(
     BuildContext context, {

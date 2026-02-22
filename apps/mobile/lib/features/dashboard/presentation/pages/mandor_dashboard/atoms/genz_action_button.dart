@@ -14,13 +14,13 @@ class GenZActionButton extends StatelessWidget {
   final int? badgeCount;
 
   const GenZActionButton({
-    Key? key,
+    super.key,
     required this.label,
     required this.icon,
     required this.color,
     required this.onTap,
     this.badgeCount,
-  }) : super(key: key);
+  });
 
   /// Green theme action button
   factory GenZActionButton.green({
@@ -126,9 +126,9 @@ class GenZActionButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.25)),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -206,3 +206,4 @@ class ActionButtonData {
     this.badgeCount,
   });
 }
+

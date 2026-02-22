@@ -2,6 +2,7 @@
 /// 
 /// This file contains all the data models used for API communication
 /// between the Flutter mobile app and the NestJS backend.
+library;
 
 // Export commonly used models
 export 'jwt_models.dart';
@@ -55,24 +56,17 @@ class PaginatedApiResponse<T> extends ApiResponse<List<T>> {
   final int? itemsPerPage;
 
   PaginatedApiResponse({
-    required bool success,
-    List<T>? data,
-    String? message,
-    String? error,
-    int? statusCode,
-    Map<String, dynamic>? metadata,
+    required super.success,
+    super.data,
+    super.message,
+    super.error,
+    super.statusCode,
+    super.metadata,
     this.totalItems,
     this.currentPage,
     this.totalPages,
     this.itemsPerPage,
-  }) : super(
-          success: success,
-          data: data,
-          message: message,
-          error: error,
-          statusCode: statusCode,
-          metadata: metadata,
-        );
+  });
 
   factory PaginatedApiResponse.fromJson(
     Map<String, dynamic> json,

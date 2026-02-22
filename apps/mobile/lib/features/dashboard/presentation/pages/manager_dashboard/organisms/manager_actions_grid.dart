@@ -13,14 +13,14 @@ class ManagerActionsGrid extends StatelessWidget {
   final VoidCallback? onSettings;
 
   const ManagerActionsGrid({
-    Key? key,
+    super.key,
     this.onMonitoring,
     this.onTeamReview,
     this.onReports,
     this.onPlanning,
     this.onAnalytics,
     this.onSettings,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

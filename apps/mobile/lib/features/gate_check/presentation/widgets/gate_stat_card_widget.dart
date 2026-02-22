@@ -14,7 +14,7 @@ class GateStatCardWidget extends StatelessWidget {
   final VoidCallback? onTap;
 
   const GateStatCardWidget({
-    Key? key,
+    super.key,
     required this.title,
     required this.value,
     required this.icon,
@@ -22,7 +22,7 @@ class GateStatCardWidget extends StatelessWidget {
     this.subtitle,
     this.isCompact = false,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -32,9 +32,9 @@ class GateStatCardWidget extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.all(isCompact ? 12 : 16),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(isCompact ? 10 : 12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
@@ -102,7 +102,7 @@ class GateStatCardWidget extends StatelessWidget {
               Text(
                 subtitle!,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: color.withOpacity(0.7),
+                  color: color.withValues(alpha: 0.7),
                   fontSize: isCompact ? 10 : 11,
                 ),
                 maxLines: 1,
@@ -160,7 +160,7 @@ class GateStatCardWidget extends StatelessWidget {
           Text(
             subtitle!,
             style: TextStyle(
-              color: color.withOpacity(0.7),
+              color: color.withValues(alpha: 0.7),
               fontSize: 9,
             ),
             maxLines: 1,

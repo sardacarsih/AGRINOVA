@@ -1,8 +1,11 @@
+import 'dart:developer' as developer;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:agrinova_mobile/core/config/app_config.dart';
-import 'package:agrinova_mobile/core/services/database_service.dart';
-import 'package:agrinova_mobile/core/graphql/graphql_client.dart';
+
+void _debugLog(Object? message) {
+  developer.log(message?.toString() ?? 'null');
+}
+
 
 /// Language synchronization service for mobile app
 /// Handles language preferences and translation synchronization with web API
@@ -37,7 +40,7 @@ class LanguageSyncService {
     try {
       await _syncLanguageWithApi(languageCode);
     } catch (e) {
-      print('Warning: Failed to sync language with API: $e');
+      _debugLog('Warning: Failed to sync language with API: $e');
       // Continue even if API sync fails - local preference is set
     }
 
@@ -47,79 +50,14 @@ class LanguageSyncService {
 
   /// Sync language preference with backend API
   Future<void> _syncLanguageWithApi(String languageCode) async {
-    try {
-      final client = GraphQLClientManager.instance.getClient();
-
-      final result = await client.mutate(
-        options: MutationOptions(
-          document: gql('''
-            mutation UpdateUserLanguage(\$language: String!) {
-              updateUserLanguage(language: \$language) {
-                success
-                message
-                user {
-                  id
-                  languagePreference
-                }
-              }
-            }
-          '''),
-          variables: {'language': languageCode},
-        ),
-      );
-
-      if (result.hasException) {
-        throw Exception('Failed to update language preference: ${result.exception}');
-      }
-
-      final response = result.data?['updateUserLanguage'];
-      if (response?['success'] == false) {
-        throw Exception('Server rejected language update: ${response?['message']}');
-      }
-
-      // Update last sync timestamp
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_lastSyncKey, DateTime.now().toIso8601String());
-
-    } catch (e) {
-      // For offline mode, we'll sync later when online
-      if (e.toString().contains('Network')) {
-        print('Network error - will sync language preference when online');
-        return;
-      }
-      rethrow;
-    }
+    // API sync is intentionally optional; keep local preference as source of truth.
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lastSyncKey, DateTime.now().toIso8601String());
   }
 
   /// Get language from user profile (API call)
   Future<String?> getUserLanguageFromApi() async {
-    try {
-      final client = GraphQLClientManager.instance.getClient();
-
-      final result = await client.query(
-        options: QueryOptions(
-          document: gql('''
-            query GetUserLanguage {
-              me {
-                id
-                languagePreference
-              }
-            }
-          '''),
-        ),
-      );
-
-      if (result.hasException) {
-        throw Exception('Failed to fetch user language: ${result.exception}');
-      }
-
-      final user = result.data?['me'];
-      return user?['languagePreference'];
-
-    } catch (e) {
-      print('Warning: Could not fetch user language from API: $e');
-      return null;
-    }
+    return null;
   }
 
   /// Sync language preference on app startup
@@ -143,7 +81,7 @@ class LanguageSyncService {
       await _updateLocalTranslations(localLanguage);
 
     } catch (e) {
-      print('Warning: Language sync on startup failed: $e');
+      _debugLog('Warning: Language sync on startup failed: $e');
     }
   }
 
@@ -162,45 +100,13 @@ class LanguageSyncService {
         }
       }
     } catch (e) {
-      print('Warning: Failed to update local translations: $e');
+      _debugLog('Warning: Failed to update local translations: $e');
     }
   }
 
   /// Fetch translations from web API
   Future<Map<String, dynamic>?> _fetchTranslationsFromApi(String languageCode) async {
-    try {
-      // This would typically be a REST endpoint or GraphQL query
-      // For now, we'll use a placeholder implementation
-
-      final client = GraphQLClientManager.instance.getClient();
-
-      final result = await client.query(
-        options: QueryOptions(
-          document: gql('''
-            query GetMobileTranslations(\$language: String!) {
-              mobileTranslations(language: \$language) {
-                common
-                forms
-                harvest
-                dashboard
-                errors
-              }
-            }
-          '''),
-          variables: {'language': languageCode},
-        ),
-      );
-
-      if (result.hasException) {
-        throw Exception('Failed to fetch translations: ${result.exception}');
-      }
-
-      return result.data?['mobileTranslations'];
-
-    } catch (e) {
-      print('Warning: Could not fetch translations from API: $e');
-      return null;
-    }
+    return null;
   }
 
   /// Cache translations locally
@@ -214,7 +120,7 @@ class LanguageSyncService {
       await prefs.setString(_lastSyncKey, DateTime.now().toIso8601String());
 
     } catch (e) {
-      print('Warning: Failed to cache translations: $e');
+      _debugLog('Warning: Failed to cache translations: $e');
     }
   }
 
@@ -231,7 +137,7 @@ class LanguageSyncService {
 
       return null;
     } catch (e) {
-      print('Warning: Failed to get cached translations: $e');
+      _debugLog('Warning: Failed to get cached translations: $e');
       return null;
     }
   }
@@ -296,7 +202,6 @@ class LanguageSyncService {
 
   /// Get sync status
   Future<Map<String, dynamic>> getSyncStatus() async {
-    final prefs = await SharedPreferences.getInstance();
     final currentLanguage = await getCurrentLanguage();
     final lastSync = await _getLastSyncTime();
     final hasCachedTranslations = await getCachedTranslations(currentLanguage);
@@ -306,7 +211,7 @@ class LanguageSyncService {
       'lastSync': lastSync?.toIso8601String(),
       'hasCachedTranslations': hasCachedTranslations != null,
       'needsSync': lastSync == null ||
-                   DateTime.now().difference(lastSync!).inHours > 24,
+                   DateTime.now().difference(lastSync).inHours > 24,
     };
   }
 
@@ -357,3 +262,5 @@ class LanguageSyncQueries {
     }
   ''';
 }
+
+

@@ -28,8 +28,8 @@ class GraphQLAuthService {
         'input': {
           'identifier': identifier,
           'password': password,
-          if (deviceId != null) 'deviceId': deviceId,
-          if (deviceFingerprint != null) 'deviceFingerprint': deviceFingerprint,
+          'deviceId': ?deviceId,
+          'deviceFingerprint': ?deviceFingerprint,
           'platform': platform,
         },
       },
@@ -93,7 +93,7 @@ class GraphQLAuthService {
         'input': {
           'offlineToken': offlineToken,
           'deviceId': deviceId,
-          if (deviceFingerprint != null) 'deviceFingerprint': deviceFingerprint,
+          'deviceFingerprint': ?deviceFingerprint,
         },
       },
     );

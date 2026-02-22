@@ -21,11 +21,11 @@ class GenZStatusBadge extends StatelessWidget {
   final bool compact;
 
   const GenZStatusBadge({
-    Key? key,
+    super.key,
     required this.type,
     this.customLabel,
     this.compact = false,
-  }) : super(key: key);
+  });
 
   /// Offline mode badge
   factory GenZStatusBadge.offline({bool compact = false}) {
@@ -67,10 +67,10 @@ class GenZStatusBadge extends StatelessWidget {
         vertical: compact ? 4 : 6,
       ),
       decoration: BoxDecoration(
-        color: config.color.withOpacity(0.15),
+        color: config.color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(compact ? 8 : 20),
         border: Border.all(
-          color: config.color.withOpacity(0.3),
+          color: config.color.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -165,19 +165,19 @@ class GenZOfflineBanner extends StatelessWidget {
   final String? message;
 
   const GenZOfflineBanner({
-    Key? key,
+    super.key,
     this.message,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: MandorTheme.amberOrange.withOpacity(0.12),
+        color: MandorTheme.amberOrange.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: MandorTheme.amberOrange.withOpacity(0.25),
+          color: MandorTheme.amberOrange.withValues(alpha: 0.25),
         ),
       ),
       child: Row(
@@ -201,3 +201,4 @@ class GenZOfflineBanner extends StatelessWidget {
     );
   }
 }
+

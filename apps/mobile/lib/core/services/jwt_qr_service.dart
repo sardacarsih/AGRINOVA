@@ -1,11 +1,9 @@
 import 'dart:convert';
-import 'dart:math';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:logger/logger.dart';
 import 'package:uuid/uuid.dart';
 
-import '../models/jwt_models.dart';
 import '../database/enhanced_database_service.dart';
 import './device_service.dart';
 
@@ -170,7 +168,6 @@ class JWTQRService {
       final payload = _parseTokenPayload(token);
       final jti = payload['jti'] as String;
       final allowedScan = payload['allowed_scan'] as String?;
-      final currentStatus = payload['current_status'] as String? ?? 'UNUSED';
       final generationIntent = payload['generation_intent'] as String?;
       
       // Check if token is already used in database (cross-device support)
@@ -203,7 +200,6 @@ class JWTQRService {
     try {
       final payload = _parseTokenPayload(token);
       final jti = payload['jti'] as String;
-      final exp = DateTime.fromMillisecondsSinceEpoch(payload['exp'] * 1000);
       
       try {
         final now = DateTime.now().millisecondsSinceEpoch;
@@ -703,6 +699,7 @@ class JWTQRService {
     return await DeviceService.getDeviceId();
   }
 
+  // ignore: unused_element
   Future<String> _getDeviceFingerprint() async {
     // Generate device fingerprint for token binding
     final deviceId = await _generateDeviceId();
@@ -836,6 +833,7 @@ class JWTQRService {
   }
 
   /// Get last used phase for token
+  // ignore: unused_element
   Future<String?> _getLastUsedPhase(String jti) async {
     try {
       final result = await _db.query(
@@ -860,6 +858,7 @@ class JWTQRService {
   }
 
   /// Get expected next phase based on usage history
+  // ignore: unused_element
   String _getExpectedNextPhase(String? lastPhase, List<String> phases) {
     if (lastPhase == null) {
       return phases.first; // Start with first phase
@@ -884,6 +883,7 @@ class JWTQRService {
     return payload as Map<String, dynamic>;
   }
 
+  // ignore: unused_element
   Future<bool> _isTokenUsed(String jti) async {
     try {
       // Check in-memory cache first

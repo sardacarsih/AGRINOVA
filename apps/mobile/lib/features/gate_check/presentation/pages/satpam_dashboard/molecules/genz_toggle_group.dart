@@ -11,11 +11,11 @@ class GenZToggleGroup extends StatelessWidget {
   final Function(String) onChanged;
 
   const GenZToggleGroup({
-    Key? key,
+    super.key,
     required this.items,
     required this.selectedValue,
     required this.onChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -64,10 +64,10 @@ class GenZEntryExitToggle extends StatelessWidget {
   final Function(String) onChanged;
 
   const GenZEntryExitToggle({
-    Key? key,
+    super.key,
     required this.value,
     required this.onChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -98,10 +98,10 @@ class GenZHistoryFilterToggle extends StatelessWidget {
   final Function(String) onChanged;
 
   const GenZHistoryFilterToggle({
-    Key? key,
+    super.key,
     required this.value,
     required this.onChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

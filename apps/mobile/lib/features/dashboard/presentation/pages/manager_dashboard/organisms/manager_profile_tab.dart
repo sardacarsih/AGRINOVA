@@ -4,14 +4,13 @@ import '../manager_theme.dart';
 import '../../../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../../../../core/services/role_service.dart';
 import '../../../../../../shared/widgets/auth_listener_wrapper.dart';
-import 'package:go_router/go_router.dart';
 import 'manager_monitor_tab.dart';
 import 'manager_analytics_tab.dart';
 
 /// Organism: Manager Profile Tab
 /// Full profile page with user info, settings, and logout
 class ManagerProfileTab extends StatelessWidget {
-  const ManagerProfileTab({Key? key}) : super(key: key);
+  const ManagerProfileTab({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +92,7 @@ class ManagerProfileTab extends StatelessWidget {
 
   Widget _buildProfileHeaderCard(AuthAuthenticated state) {
     final user = state.user;
-    final initials = (user.fullName ?? user.username)
+    final initials = user.fullName
         .split(' ')
         .take(2)
         .map((e) => e.isNotEmpty ? e[0].toUpperCase() : '')
@@ -106,7 +105,7 @@ class ManagerProfileTab extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: ManagerTheme.primaryPurple.withOpacity(0.3),
+            color: ManagerTheme.primaryPurple.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -121,7 +120,7 @@ class ManagerProfileTab extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white, width: 2),
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
             ),
             child: Center(
               child: Text(
@@ -140,7 +139,7 @@ class ManagerProfileTab extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  user.fullName ?? user.username,
+                  user.fullName,
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -167,14 +166,14 @@ class ManagerProfileTab extends StatelessWidget {
                   'PT Agrinova Plantation',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                 ),
                 Text(
                   user.estate ?? 'Kebun Utara',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -242,7 +241,7 @@ class ManagerProfileTab extends StatelessWidget {
         children: [
           _buildInfoRow(Icons.business_rounded, 'Estate', state.user.estate ?? 'Kebun Utara'),
           const SizedBox(height: 12),
-          _buildInfoRow(Icons.email_rounded, 'Email', state.user.email ?? 'surya@agrinova.com'),
+          _buildInfoRow(Icons.email_rounded, 'Email', state.user.email),
           const SizedBox(height: 12),
           _buildInfoRow(Icons.phone_rounded, 'Telepon', '+62 812-9876-5432'), // Mock
           const SizedBox(height: 12),
@@ -340,7 +339,7 @@ class ManagerProfileTab extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: ManagerTheme.primaryPurple.withOpacity(0.1),
+              color: ManagerTheme.primaryPurple.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(Icons.spa_rounded, color: ManagerTheme.primaryPurple),
@@ -402,7 +401,7 @@ class ManagerProfileTab extends StatelessWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -451,3 +450,4 @@ class ManagerProfileTab extends StatelessWidget {
     }
   }
 }
+

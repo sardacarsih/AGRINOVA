@@ -18,11 +18,11 @@ class GenZQuickStats extends StatelessWidget {
   final int exitCount;
 
   const GenZQuickStats({
-    Key? key,
+    super.key,
     required this.totalCount,
     required this.entryCount,
     required this.exitCount,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -32,11 +32,11 @@ class GenZQuickStats extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             const Color(0xFF1F2937),
-            const Color(0xFF1F2937).withOpacity(0.8),
+            const Color(0xFF1F2937).withValues(alpha: 0.8),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF374151).withOpacity(0.5)),
+        border: Border.all(color: const Color(0xFF374151).withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
@@ -74,9 +74,9 @@ class GenZStatsBar extends StatelessWidget {
   final List<GenZStatData> items;
 
   const GenZStatsBar({
-    Key? key,
+    super.key,
     required this.items,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -86,11 +86,11 @@ class GenZStatsBar extends StatelessWidget {
         gradient: LinearGradient(
           colors: [
             const Color(0xFF1F2937),
-            const Color(0xFF1F2937).withOpacity(0.8),
+            const Color(0xFF1F2937).withValues(alpha: 0.8),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF374151).withOpacity(0.5)),
+        border: Border.all(color: const Color(0xFF374151).withValues(alpha: 0.5)),
       ),
       child: Row(
         children: items.asMap().entries.map((entry) {
@@ -127,3 +127,4 @@ class GenZStatData {
     required this.color,
   });
 }
+

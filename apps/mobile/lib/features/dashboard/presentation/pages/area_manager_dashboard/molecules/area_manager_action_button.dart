@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../area_manager_theme.dart';
 
 /// Molecule: Quick Action Button for Area Manager
 /// Colored icon button with label
@@ -32,7 +31,7 @@ class AreaManagerActionButton extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.25),
+                  color: Colors.white.withValues(alpha: 0.25),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -61,3 +60,4 @@ class AreaManagerActionButton extends StatelessWidget {
     );
   }
 }
+

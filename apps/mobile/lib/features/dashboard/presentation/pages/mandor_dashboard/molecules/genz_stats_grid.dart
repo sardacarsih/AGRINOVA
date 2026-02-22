@@ -17,7 +17,7 @@ class GenZStatsGrid extends StatelessWidget {
   final VoidCallback? onBlockTap;
 
   const GenZStatsGrid({
-    Key? key,
+    super.key,
     this.harvestValue = '0 jjg',
     this.pendingValue = '0',
     this.employeeValue = '0',
@@ -26,7 +26,7 @@ class GenZStatsGrid extends StatelessWidget {
     this.onPendingTap,
     this.onEmployeeTap,
     this.onBlockTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -92,11 +92,11 @@ class GenZCustomStatsGrid extends StatelessWidget {
   final double childAspectRatio;
 
   const GenZCustomStatsGrid({
-    Key? key,
+    super.key,
     required this.stats,
     this.crossAxisCount = 2,
     this.childAspectRatio = 1.4,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -131,14 +131,14 @@ class GenZQuickStatsBar extends StatelessWidget {
   final String secondValue;
 
   const GenZQuickStatsBar({
-    Key? key,
+    super.key,
     this.totalLabel = 'Total',
     this.totalValue = '0',
     this.firstLabel = 'Selesai',
     this.firstValue = '0',
     this.secondLabel = 'Pending',
     this.secondValue = '0',
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -173,7 +173,7 @@ class GenZQuickStatsBar extends StatelessWidget {
           Text(
             label,
             style:
-                MandorTheme.bodySmall.copyWith(color: color.withOpacity(0.8)),
+                MandorTheme.bodySmall.copyWith(color: color.withValues(alpha: 0.8)),
           ),
         ],
       ),
@@ -188,3 +188,4 @@ class GenZQuickStatsBar extends StatelessWidget {
     );
   }
 }
+

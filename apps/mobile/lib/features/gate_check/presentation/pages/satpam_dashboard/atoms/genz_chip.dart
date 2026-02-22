@@ -13,14 +13,14 @@ class GenZChip extends StatelessWidget {
   final double? width;
 
   const GenZChip({
-    Key? key,
+    super.key,
     required this.label,
     this.icon,
     required this.isSelected,
     required this.selectedColor,
     required this.onTap,
     this.width,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -31,10 +31,10 @@ class GenZChip extends StatelessWidget {
         width: width,
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
         decoration: BoxDecoration(
-          color: isSelected ? selectedColor.withOpacity(0.2) : Colors.transparent,
+          color: isSelected ? selectedColor.withValues(alpha: 0.2) : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? selectedColor.withOpacity(0.5) : Colors.transparent,
+            color: isSelected ? selectedColor.withValues(alpha: 0.5) : Colors.transparent,
           ),
         ),
         child: Row(
@@ -71,11 +71,11 @@ class GenZPillChip extends StatelessWidget {
   final VoidCallback onTap;
 
   const GenZPillChip({
-    Key? key,
+    super.key,
     required this.label,
     required this.isSelected,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   static const _purple = Color(0xFF8B5CF6);
 
@@ -87,10 +87,10 @@ class GenZPillChip extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? _purple.withOpacity(0.15) : Colors.transparent,
+          color: isSelected ? _purple.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? _purple.withOpacity(0.5) : const Color(0xFF374151),
+            color: isSelected ? _purple.withValues(alpha: 0.5) : const Color(0xFF374151),
           ),
         ),
         child: Text(
@@ -105,3 +105,4 @@ class GenZPillChip extends StatelessWidget {
     );
   }
 }
+

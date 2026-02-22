@@ -6,11 +6,13 @@ on:
     paths:
       - "apps/mobile/**"
       - ".github/workflows/mobile-ci.yml"
+      - ".github/workflows/android-release.yml"
   pull_request:
     branches: [main, develop, graphql]
     paths:
       - "apps/mobile/**"
       - ".github/workflows/mobile-ci.yml"
+      - ".github/workflows/android-release.yml"
   workflow_dispatch:
 
 permissions:

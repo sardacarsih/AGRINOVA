@@ -88,44 +88,130 @@ class PhotoCompressionService {
     return _defaultSettings[photoType.toUpperCase()] ?? _defaultSettings['VEHICLE_PHOTO']!;
   }
 
-  /// Compress a single photo with specified settings
+  /// Backward-compatible validation helper.
+  Future<ValidationResult> validatePhoto(File file) async {
+    if (!await file.exists()) {
+      return ValidationResult.invalid('File does not exist');
+    }
+    final size = await file.length();
+    if (size <= 0) {
+      return ValidationResult.invalid('File is empty');
+    }
+    return ValidationResult.valid();
+  }
+
+  /// Backward-compatible batch compression API.
+  Future<BatchCompressionResult> compressBatch({
+    required List<PhotoCompressionRequest> requests,
+    bool parallelProcessing = false,
+    int maxConcurrency = 3,
+  }) async {
+    final outputDir = (await getTemporaryDirectory()).path;
+    final results = <CompressionResult>[];
+    final errors = <CompressionError>[];
+
+    for (final request in requests) {
+      try {
+        final result = await compressPhoto(
+          inputFile: request.inputFile,
+          photoType: request.photoType,
+          customSettings: request.settings,
+          generateThumbnail: request.generateThumbnail,
+          outputDir: outputDir,
+        );
+        results.add(result);
+      } catch (e) {
+        errors.add(
+          CompressionError(filePath: request.inputFile.path, error: e.toString()),
+        );
+      }
+    }
+
+    final totalOriginalSize = results.fold<int>(
+      0,
+      (sum, result) => sum + result.originalSize,
+    );
+    final totalCompressedSize = results.fold<int>(
+      0,
+      (sum, result) => sum + result.compressedSize,
+    );
+    final averageCompressionRatio =
+        totalOriginalSize > 0
+            ? ((totalOriginalSize - totalCompressedSize) / totalOriginalSize) *
+                100
+            : 0.0;
+
+    return BatchCompressionResult(
+      results: results,
+      errors: errors,
+      totalOriginalSize: totalOriginalSize,
+      totalCompressedSize: totalCompressedSize,
+      averageCompressionRatio: averageCompressionRatio,
+    );
+  }
+
+  /// Compress a single photo with specified settings.
+  /// Supports both the new API (`inputPath`, `outputDir`, `settings`) and
+  /// legacy API (`inputFile`, `photoType`, `customSettings`, `generateThumbnail`).
   Future<CompressionResult> compressPhoto({
-    required String inputPath,
-    required String outputDir,
-    required CompressionSettings settings,
+    String? inputPath,
+    String? outputDir,
+    CompressionSettings? settings,
     String? customFileName,
+    File? inputFile,
+    String? photoType,
+    CompressionSettings? customSettings,
+    bool generateThumbnail = false,
   }) async {
     try {
-      final inputFile = File(inputPath);
-      if (!await inputFile.exists()) {
-        throw CompressionException('Input file does not exist: $inputPath');
+      final effectiveInputPath = inputPath ?? inputFile?.path;
+      if (effectiveInputPath == null) {
+        throw CompressionException('Input file path is required');
       }
 
-      final originalSize = await inputFile.length();
-      final fileName = customFileName ?? path.basename(inputPath);
-      final fileExtension = settings.format == CompressFormat.jpeg ? 'jpg' : 
-                           settings.format == CompressFormat.webp ? 'webp' : 
-                           settings.format == CompressFormat.png ? 'png' : 'jpg';
+      final sourceFile = File(effectiveInputPath);
+      if (!await sourceFile.exists()) {
+        throw CompressionException(
+          'Input file does not exist: $effectiveInputPath',
+        );
+      }
+
+      final effectiveSettings =
+          settings ??
+          customSettings ??
+          getSettingsForPhotoType(photoType ?? 'VEHICLE_PHOTO');
+      final effectiveOutputDir =
+          outputDir ?? (await getTemporaryDirectory()).path;
+
+      final originalSize = await sourceFile.length();
+      final fileName = customFileName ?? path.basename(effectiveInputPath);
+      final fileExtension = effectiveSettings.format == CompressFormat.jpeg
+          ? 'jpg'
+          : effectiveSettings.format == CompressFormat.webp
+          ? 'webp'
+          : effectiveSettings.format == CompressFormat.png
+          ? 'png'
+          : 'jpg';
       
       final outputFileName = '${path.basenameWithoutExtension(fileName)}_compressed.$fileExtension';
-      final outputPath = path.join(outputDir, outputFileName);
+      final outputPath = path.join(effectiveOutputDir, outputFileName);
       final outputFile = File(outputPath);
 
       // Ensure output directory exists
       await outputFile.parent.create(recursive: true);
 
-      _logger.d('Starting photo compression: $inputPath -> $outputPath');
-      _logger.d('Compression settings: ${settings.toString()}');
+      _logger.d('Starting photo compression: $effectiveInputPath -> $outputPath');
+      _logger.d('Compression settings: ${effectiveSettings.toString()}');
 
       // Compress the image
       final compressedFile = await FlutterImageCompress.compressAndGetFile(
-        inputFile.absolute.path,
+        sourceFile.absolute.path,
         outputFile.absolute.path,
-        quality: settings.quality,
-        minWidth: settings.minWidth ?? 0,
-        minHeight: settings.minHeight ?? 0,
-        format: settings.format,
-        keepExif: settings.keepExif,
+        quality: effectiveSettings.quality,
+        minWidth: effectiveSettings.minWidth ?? 0,
+        minHeight: effectiveSettings.minHeight ?? 0,
+        format: effectiveSettings.format,
+        keepExif: effectiveSettings.keepExif,
         numberOfRetries: 3,
       );
 
@@ -145,7 +231,7 @@ class PhotoCompressionService {
       
       // Validate compressed file
       final validationResult = await _validateCompressedFile(
-        originalFile: inputFile,
+        originalFile: sourceFile,
         compressedFile: File(compressedFile.path),
         originalSize: originalSize,
         compressedSize: compressedSize,
@@ -155,16 +241,33 @@ class PhotoCompressionService {
         throw CompressionException('Validation failed: ${validationResult.error}');
       }
 
+      CompressionResult? thumbnailResult;
+      if (generateThumbnail) {
+        final thumbSettings = _defaultSettings['THUMBNAIL']!;
+        thumbnailResult = await compressPhoto(
+          inputPath: effectiveInputPath,
+          outputDir: effectiveOutputDir,
+          settings: thumbSettings,
+          customFileName: '${path.basenameWithoutExtension(fileName)}_thumb',
+        );
+      }
+
       final result = CompressionResult(
-        originalPath: inputPath,
+        originalPath: effectiveInputPath,
         compressedPath: compressedFile.path,
         originalSize: originalSize,
         compressedSize: compressedSize,
         compressionRatio: compressionRatio,
         base64Data: base64Data,
         checksum: checksum,
-        format: settings.format,
-        quality: settings.quality,
+        format: effectiveSettings.format,
+        quality: effectiveSettings.quality,
+        thumbnail: thumbnailResult,
+        metadata: CompressionMetadata(
+          photoType: photoType ?? 'GENERAL_PHOTO',
+          generatedAt: DateTime.now().toIso8601String(),
+          outputPath: compressedFile.path,
+        ),
       );
 
       _logger.i('Photo compression completed successfully');
@@ -497,6 +600,8 @@ class CompressionResult {
   final String checksum;
   final CompressFormat format;
   final int quality;
+  final CompressionResult? thumbnail;
+  final CompressionMetadata metadata;
 
   CompressionResult({
     required this.originalPath,
@@ -508,7 +613,29 @@ class CompressionResult {
     required this.checksum,
     required this.format,
     required this.quality,
+    this.thumbnail,
+    this.metadata = const CompressionMetadata(),
   });
+}
+
+class CompressionMetadata {
+  final String photoType;
+  final String generatedAt;
+  final String outputPath;
+
+  const CompressionMetadata({
+    this.photoType = 'GENERAL_PHOTO',
+    this.generatedAt = '',
+    this.outputPath = '',
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'photoType': photoType,
+      'generatedAt': generatedAt,
+      'outputPath': outputPath,
+    };
+  }
 }
 
 /// Photo with thumbnail
@@ -550,6 +677,22 @@ class CompressionError {
   CompressionError({
     required this.filePath,
     required this.error,
+  });
+
+  String get fileName => path.basename(filePath);
+}
+
+class PhotoCompressionRequest {
+  final File inputFile;
+  final String photoType;
+  final CompressionSettings? settings;
+  final bool generateThumbnail;
+
+  const PhotoCompressionRequest({
+    required this.inputFile,
+    required this.photoType,
+    this.settings,
+    this.generateThumbnail = false,
   });
 }
 

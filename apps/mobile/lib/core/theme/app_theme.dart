@@ -32,12 +32,10 @@ class AppTheme {
         primary: primaryColor,
         secondary: secondaryColor,
         surface: surfaceColor,
-        background: backgroundColor,
         error: errorColor,
         onPrimary: onPrimaryColor,
         onSecondary: onPrimaryColor,
         onSurface: primaryTextColor,
-        onBackground: primaryTextColor,
         onError: onPrimaryColor,
       ),
 
@@ -288,7 +286,6 @@ class AppTheme {
 
   // Dark Theme
   static ThemeData get darkTheme {
-    const Color darkBackgroundColor = Color(0xFF121212);
     const Color darkSurfaceColor = Color(0xFF1E1E1E);
     const Color darkPrimaryTextColor = Color(0xFFE0E0E0);
     const Color darkSecondaryTextColor = Color(0xFFB0B0B0);
@@ -299,12 +296,10 @@ class AppTheme {
         primary: primaryColor,
         secondary: secondaryColor,
         surface: darkSurfaceColor,
-        background: darkBackgroundColor,
         error: errorColor,
         onPrimary: onPrimaryColor,
         onSecondary: onPrimaryColor,
         onSurface: darkPrimaryTextColor,
-        onBackground: darkPrimaryTextColor,
         onError: onPrimaryColor,
       ),
       scaffoldBackgroundColor: backgroundColor,

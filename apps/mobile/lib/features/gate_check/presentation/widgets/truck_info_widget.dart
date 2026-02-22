@@ -10,7 +10,7 @@ class TruckInfoWidget extends StatelessWidget {
   final String? status;
 
   const TruckInfoWidget({
-    Key? key,
+    super.key,
     required this.licensePlate,
     required this.driverName,
     required this.doNumber,
@@ -18,7 +18,7 @@ class TruckInfoWidget extends StatelessWidget {
     this.entryTime,
     this.exitTime,
     this.status,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -227,7 +227,7 @@ class TruckInfoWidget extends StatelessWidget {
       children: [
         Icon(
           icon,
-          color: color.withOpacity(0.8),
+          color: color.withValues(alpha: 0.8),
           size: 20,
         ),
         const SizedBox(width: 8),
@@ -238,7 +238,7 @@ class TruckInfoWidget extends StatelessWidget {
               Text(
                 label,
                 style: TextStyle(
-                  color: color.withOpacity(0.8),
+                  color: color.withValues(alpha: 0.8),
                   fontWeight: FontWeight.w600,
                   fontSize: 12,
                 ),

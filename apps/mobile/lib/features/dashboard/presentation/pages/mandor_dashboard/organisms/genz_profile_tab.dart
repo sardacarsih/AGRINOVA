@@ -19,9 +19,9 @@ class GenZProfileTab extends StatelessWidget {
   final VoidCallback? onLogout;
 
   const GenZProfileTab({
-    Key? key,
+    super.key,
     this.onLogout,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -87,14 +87,14 @@ class GenZProfileTab extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            MandorTheme.forestGreen.withOpacity(0.3),
-            MandorTheme.darkGreen.withOpacity(0.3),
+            MandorTheme.forestGreen.withValues(alpha: 0.3),
+            MandorTheme.darkGreen.withValues(alpha: 0.3),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: MandorTheme.forestGreen.withOpacity(0.3)),
+        border: Border.all(color: MandorTheme.forestGreen.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -107,7 +107,7 @@ class GenZProfileTab extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: MandorTheme.forestGreen.withOpacity(0.4),
+                  color: MandorTheme.forestGreen.withValues(alpha: 0.4),
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),
@@ -126,7 +126,7 @@ class GenZProfileTab extends StatelessWidget {
 
           // Name
           Text(
-            user.fullName ?? user.username,
+            user.fullName,
             style: MandorTheme.headingMedium,
             textAlign: TextAlign.center,
           ),
@@ -136,10 +136,10 @@ class GenZProfileTab extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: MandorTheme.forestGreen.withOpacity(0.2),
+              color: MandorTheme.forestGreen.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
               border:
-                  Border.all(color: MandorTheme.forestGreen.withOpacity(0.5)),
+                  Border.all(color: MandorTheme.forestGreen.withValues(alpha: 0.5)),
             ),
             child: Text(
               'Mandor',
@@ -209,7 +209,7 @@ class GenZProfileTab extends StatelessWidget {
           _buildInfoRow(
             icon: Icons.email_rounded,
             label: 'Email',
-            value: state.user.email ?? '-',
+            value: state.user.email,
           ),
           const Divider(color: Color(0xFF374151), height: 24),
           _buildInfoRow(
@@ -501,7 +501,7 @@ class GenZProfileTab extends StatelessWidget {
           ),
         ),
         style: OutlinedButton.styleFrom(
-          side: BorderSide(color: MandorTheme.coralRed.withOpacity(0.5)),
+          side: BorderSide(color: MandorTheme.coralRed.withValues(alpha: 0.5)),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
@@ -559,3 +559,4 @@ class GenZProfileTab extends StatelessWidget {
     );
   }
 }
+

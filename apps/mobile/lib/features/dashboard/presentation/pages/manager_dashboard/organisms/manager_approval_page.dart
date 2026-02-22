@@ -357,7 +357,7 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: _items.length + 1,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         if (index == 0) {
           return _buildSummaryCard();

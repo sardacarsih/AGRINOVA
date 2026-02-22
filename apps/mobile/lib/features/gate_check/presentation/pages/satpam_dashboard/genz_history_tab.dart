@@ -120,8 +120,7 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
               onPrimary: Colors.white,
               surface: Color(0xFF1F2937),
               onSurface: Colors.white,
-            ),
-            dialogBackgroundColor: const Color(0xFF1F2937),
+            ), dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF1F2937)),
           ),
           child: child!,
         );

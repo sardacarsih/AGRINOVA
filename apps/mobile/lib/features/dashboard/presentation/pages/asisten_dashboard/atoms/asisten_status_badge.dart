@@ -8,10 +8,10 @@ class AsistenStatusBadge extends StatelessWidget {
   final Color? color;
 
   const AsistenStatusBadge({
-    Key? key,
+    super.key,
     required this.status,
     this.color,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

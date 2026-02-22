@@ -10,7 +10,7 @@ class ConnectivityHelper {
   ConnectivityHelper._internal();
 
   final Connectivity _connectivity = Connectivity();
-  final InternetConnectionChecker _internetChecker = InternetConnectionChecker();
+  final InternetConnectionChecker _internetChecker = InternetConnectionChecker.instance;
   final Logger _logger = Logger();
 
   StreamController<ConnectivityStatus>? _connectivityController;

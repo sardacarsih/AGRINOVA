@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:collection';
-import 'dart:isolate';
 import 'dart:math';
 import 'package:logger/logger.dart';
 import 'package:uuid/uuid.dart';
@@ -37,18 +36,14 @@ class EnhancedBatchSyncService {
   static const int _maxBatchSize = 100;
   static const int _defaultBatchSize = 50;
   static const int _maxConcurrentBatches = 3;
-  static const int _maxRetryAttempts = 5;
   static const Duration _batchTimeout = Duration(minutes: 5);
-  static const Duration _dependencyTimeout = Duration(minutes: 10);
   
   // Performance monitoring
-  final _performanceMetrics = SyncPerformanceMetrics();
   final _activeBatches = <String, BatchSyncOperation>{};
   final _batchQueue = Queue<BatchSyncRequest>();
   
   // Network and device state
-  String _networkQuality = 'GOOD';
-  int _availableMemoryMB = 512;
+  final String _networkQuality = 'GOOD';
   bool _isSyncActive = false;
   StreamController<BatchSyncEvent>? _eventController;
   
@@ -353,7 +348,7 @@ class EnhancedBatchSyncService {
         totalRecordsSynced: totalSynced,
         totalConflictsDetected: results.values
             .map((r) => r.conflictsDetected)
-            .fold(0, (sum, count) => sum + count),
+            .fold<int>(0, (sum, count) => sum + count),
         duration: duration,
         tableResults: results,
       );
@@ -439,13 +434,13 @@ class EnhancedBatchSyncService {
         tablesProcessed: tablesToSync.length,
         totalRecordsProcessed: results.values
             .map((r) => r.recordsProcessed)
-            .fold(0, (sum, count) => sum + count),
+            .fold<int>(0, (sum, count) => sum + count),
         totalRecordsSynced: results.values
             .map((r) => r.recordsSynced)
-            .fold(0, (sum, count) => sum + count),
+            .fold<int>(0, (sum, count) => sum + count),
         totalConflictsDetected: results.values
             .map((r) => r.conflictsDetected)
-            .fold(0, (sum, count) => sum + count),
+            .fold<int>(0, (sum, count) => sum + count),
         duration: duration,
         tableResults: results,
         crossDeviceOperation: true,
@@ -621,7 +616,7 @@ class EnhancedBatchSyncService {
     
     try {
       _eventController?.add(BatchSyncEvent(
-        type: BatchSyncEventType.BATCH_STARTED,
+        type: BatchSyncEventType.batchStarted,
         batchId: request.batchId,
         sessionId: request.sessionId,
         message: 'Batch sync started',
@@ -633,7 +628,7 @@ class EnhancedBatchSyncService {
       operation.complete(result);
       
       _eventController?.add(BatchSyncEvent(
-        type: BatchSyncEventType.BATCH_COMPLETED,
+        type: BatchSyncEventType.batchCompleted,
         batchId: request.batchId,
         sessionId: request.sessionId,
         message: 'Batch sync completed',
@@ -644,7 +639,7 @@ class EnhancedBatchSyncService {
       operation.fail(e.toString());
       
       _eventController?.add(BatchSyncEvent(
-        type: BatchSyncEventType.BATCH_FAILED,
+        type: BatchSyncEventType.batchFailed,
         batchId: request.batchId,
         sessionId: request.sessionId,
         message: 'Batch sync failed: ${e.toString()}',
@@ -1049,17 +1044,30 @@ class BatchSyncResult {
   
   BatchSyncResult({
     required this.batchId,
-    required this.sessionId,
+    String? sessionId,
     required this.success,
-    required this.tablesProcessed,
-    required this.totalRecordsProcessed,
-    required this.totalRecordsSynced,
-    required this.totalConflictsDetected,
-    required this.duration,
-    required this.tableResults,
+    int? tablesProcessed,
+    int? totalRecordsProcessed,
+    int? totalRecordsSynced,
+    int? totalConflictsDetected,
+    Duration? duration,
+    Map<String, TableSyncResult>? tableResults,
     this.crossDeviceOperation = false,
-    this.errorMessage,
-  });
+    String? errorMessage,
+    String? message,
+    int? recordsProcessed,
+    List<String>? errors,
+  })  : sessionId = sessionId ?? '',
+        tablesProcessed = tablesProcessed ?? 0,
+        totalRecordsProcessed = totalRecordsProcessed ?? recordsProcessed ?? 0,
+        totalRecordsSynced =
+            totalRecordsSynced ??
+            (success ? (totalRecordsProcessed ?? recordsProcessed ?? 0) : 0),
+        totalConflictsDetected = totalConflictsDetected ?? 0,
+        duration = duration ?? Duration.zero,
+        tableResults = tableResults ?? const {},
+        errorMessage =
+            errorMessage ?? (!success ? (message ?? errors?.join('; ')) : null);
   
   double get successRate => totalRecordsProcessed > 0 
       ? totalRecordsSynced / totalRecordsProcessed 
@@ -1070,6 +1078,7 @@ class BatchSyncResult {
       : 0.0;
 
   String get message => errorMessage ?? (success ? 'Batch sync completed successfully' : 'Batch sync failed');
+  int get processedCount => totalRecordsProcessed;
 }
 
 class TableSyncResult {
@@ -1152,12 +1161,12 @@ class DateRange {
 }
 
 enum BatchSyncEventType {
-  BATCH_QUEUED,
-  BATCH_STARTED,
-  BATCH_PROGRESS,
-  BATCH_COMPLETED,
-  BATCH_FAILED,
-  BATCH_CANCELLED,
+  batchQueued,
+  batchStarted,
+  batchProgress,
+  batchCompleted,
+  batchFailed,
+  batchCancelled,
 }
 
 class BatchSyncEvent {

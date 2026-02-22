@@ -12,13 +12,13 @@ class SyncProgressWidget extends StatelessWidget {
   final bool showActions;
 
   const SyncProgressWidget({
-    Key? key,
+    super.key,
     required this.progress,
     this.onCancel,
     this.onPause,
     this.onResume,
     this.showActions = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -136,9 +136,9 @@ class SyncProgressWidget extends StatelessWidget {
                 margin: const EdgeInsets.only(top: 12),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: Colors.red.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -307,9 +307,9 @@ class CompactSyncProgressWidget extends StatelessWidget {
   final SyncProgress progress;
 
   const CompactSyncProgressWidget({
-    Key? key,
+    super.key,
     required this.progress,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -354,3 +354,4 @@ class CompactSyncProgressWidget extends StatelessWidget {
     );
   }
 }
+

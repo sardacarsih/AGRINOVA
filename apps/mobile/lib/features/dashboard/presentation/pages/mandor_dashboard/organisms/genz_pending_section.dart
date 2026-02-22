@@ -30,11 +30,11 @@ class GenZPendingSection extends StatelessWidget {
   final int maxItems;
 
   const GenZPendingSection({
-    Key? key,
+    super.key,
     this.items = const [],
     required this.onViewAll,
     this.maxItems = 3,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -87,16 +87,16 @@ class GenZPendingSection extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: MandorTheme.amberOrange.withOpacity(0.08),
+        color: MandorTheme.amberOrange.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: MandorTheme.amberOrange.withOpacity(0.2)),
+        border: Border.all(color: MandorTheme.amberOrange.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
           Icon(
             Icons.pending_actions_rounded,
             size: 48,
-            color: MandorTheme.amberOrange.withOpacity(0.5),
+            color: MandorTheme.amberOrange.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 12),
           Text(
@@ -110,7 +110,7 @@ class GenZPendingSection extends StatelessWidget {
           Text(
             'Data yang Anda input akan muncul di sini',
             style: MandorTheme.bodySmall.copyWith(
-              color: MandorTheme.amberOrange.withOpacity(0.7),
+              color: MandorTheme.amberOrange.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
           ),
@@ -136,19 +136,18 @@ class _PendingItemCard extends StatelessWidget {
   final PendingItem item;
 
   const _PendingItemCard({
-    Key? key,
     required this.item,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: MandorTheme.gray800.withOpacity(0.6),
+        color: MandorTheme.gray800.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: MandorTheme.amberOrange.withOpacity(0.2),
+          color: MandorTheme.amberOrange.withValues(alpha: 0.2),
         ),
       ),
       child: Row(
@@ -166,7 +165,7 @@ class _PendingItemCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: MandorTheme.amberOrange.withOpacity(0.15),
+        color: MandorTheme.amberOrange.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(
@@ -202,7 +201,7 @@ class _PendingItemCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: MandorTheme.amberOrange.withOpacity(0.15),
+        color: MandorTheme.amberOrange.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
@@ -217,3 +216,4 @@ class _PendingItemCard extends StatelessWidget {
     );
   }
 }
+

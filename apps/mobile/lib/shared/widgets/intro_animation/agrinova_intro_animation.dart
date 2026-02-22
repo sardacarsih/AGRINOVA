@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -368,8 +367,10 @@ class _HighlightPainter extends CustomPainter {
 }
 
 /// Extension to provide easy access to the animation controller.
-extension AgrinovaIntroAnimationExtension on GlobalKey<_AgrinovaIntroAnimationState> {
+extension _AgrinovaIntroAnimationExtension
+    on GlobalKey<_AgrinovaIntroAnimationState> {
   /// Restart the animation.
+  // ignore: unused_element
   void restart() {
     currentState?.restart();
   }

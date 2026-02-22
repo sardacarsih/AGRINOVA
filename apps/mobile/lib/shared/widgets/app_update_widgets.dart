@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/models/app_update_models.dart';
-import '../../core/services/app_update_service.dart';
 
 /// App Update Notification Banner Widget
 /// 
@@ -14,11 +12,11 @@ class AppUpdateBanner extends StatelessWidget {
   final VoidCallback? onDismiss;
 
   const AppUpdateBanner({
-    Key? key,
+    super.key,
     required this.updateInfo,
     this.onUpdateTap,
     this.onDismiss,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -107,12 +105,12 @@ class AppUpdateDialog extends StatelessWidget {
   final VoidCallback? onSkipTap;
 
   const AppUpdateDialog({
-    Key? key,
+    super.key,
     required this.updateInfo,
     this.onUpdateTap,
     this.onLaterTap,
     this.onSkipTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -160,8 +158,6 @@ class AppUpdateDialog extends StatelessWidget {
   }
 
   Widget _buildUpdateInfo(BuildContext context) {
-    final theme = Theme.of(context);
-    
     return Card(
       color: Colors.grey.shade50,
       child: Padding(
@@ -321,10 +317,10 @@ class AppUpdateProgressWidget extends StatelessWidget {
   final VoidCallback? onCancel;
 
   const AppUpdateProgressWidget({
-    Key? key,
+    super.key,
     required this.progress,
     this.onCancel,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -464,10 +460,10 @@ class AppUpdateSettingsWidget extends StatefulWidget {
   final Function(AppUpdatePolicy) onPolicyChanged;
 
   const AppUpdateSettingsWidget({
-    Key? key,
+    super.key,
     required this.policy,
     required this.onPolicyChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<AppUpdateSettingsWidget> createState() => _AppUpdateSettingsWidgetState();
@@ -547,7 +543,7 @@ class _AppUpdateSettingsWidgetState extends State<AppUpdateSettingsWidget> {
       ),
       value: value,
       onChanged: onChanged,
-      activeColor: Colors.blue,
+      activeThumbColor: Colors.blue,
     );
   }
 

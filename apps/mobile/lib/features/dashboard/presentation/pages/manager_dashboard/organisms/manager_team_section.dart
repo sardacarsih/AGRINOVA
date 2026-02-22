@@ -9,10 +9,10 @@ class ManagerTeamSection extends StatelessWidget {
   final List<TeamMemberPerformanceModel>? topPerformers;
 
   const ManagerTeamSection({
-    Key? key,
+    super.key,
     this.onViewAll,
     this.topPerformers,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +49,7 @@ class ManagerTeamSection extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: ManagerTheme.primaryPurple.withOpacity(0.1),
+                color: ManagerTheme.primaryPurple.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
@@ -126,7 +126,7 @@ class ManagerTeamSection extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: medalColor.withOpacity(0.2),
+              color: medalColor.withValues(alpha: 0.2),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -198,7 +198,7 @@ class ManagerTeamSection extends StatelessWidget {
                   child: LinearProgressIndicator(
                     value: percentValue / 100,
                     backgroundColor:
-                        ManagerTheme.primaryPurple.withOpacity(0.1),
+                        ManagerTheme.primaryPurple.withValues(alpha: 0.1),
                     valueColor: AlwaysStoppedAnimation<Color>(
                       ManagerTheme.primaryPurple,
                     ),
@@ -213,3 +213,4 @@ class ManagerTeamSection extends StatelessWidget {
     );
   }
 }
+

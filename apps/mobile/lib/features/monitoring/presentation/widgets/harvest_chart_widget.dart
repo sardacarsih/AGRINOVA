@@ -5,10 +5,10 @@ class HarvestChartWidget extends StatelessWidget {
   final String period;
 
   const HarvestChartWidget({
-    Key? key,
+    super.key,
     required this.chartData,
     required this.period,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

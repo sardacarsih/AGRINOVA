@@ -9,12 +9,12 @@ class ManagersSummaryHeader extends StatelessWidget {
   final String performance;
 
   const ManagersSummaryHeader({
-    Key? key,
+    super.key,
     required this.activeManagers,
     required this.estateCount,
     required this.avgTonnage,
     required this.performance,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +26,7 @@ class ManagersSummaryHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AreaManagerTheme.primaryTeal.withOpacity(0.3),
+            color: AreaManagerTheme.primaryTeal.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -75,7 +75,7 @@ class ManagersSummaryHeader extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             fontSize: 12,
           ),
         ),
@@ -87,7 +87,7 @@ class ManagersSummaryHeader extends StatelessWidget {
     return Container(
       height: 30,
       width: 1,
-      color: Colors.white.withOpacity(0.3),
+      color: Colors.white.withValues(alpha: 0.3),
     );
   }
 }
@@ -99,11 +99,11 @@ class ManagersFilterTabs extends StatelessWidget {
   final ValueChanged<int> onFilterSelected;
 
   const ManagersFilterTabs({
-    Key? key,
+    super.key,
     required this.filters,
     required this.selectedIndex,
     required this.onFilterSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -157,13 +157,13 @@ class ManagersSortRow extends StatelessWidget {
   final ValueChanged<bool> onViewToggle;
 
   const ManagersSortRow({
-    Key? key,
+    super.key,
     required this.selectedSort,
     required this.isGridView,
     required this.sortOptions,
     required this.onSortChanged,
     required this.onViewToggle,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -212,7 +212,7 @@ class ManagersSortRow extends StatelessWidget {
               Switch(
                 value: !isGridView,
                 onChanged: (value) => onViewToggle(!value),
-                activeColor: AreaManagerTheme.primaryTeal,
+                activeThumbColor: AreaManagerTheme.primaryTeal,
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               Icon(
@@ -243,7 +243,7 @@ class ManagerCard extends StatefulWidget {
   final VoidCallback? onEvaluate;
 
   const ManagerCard({
-    Key? key,
+    super.key,
     required this.name,
     required this.initials,
     required this.estateName,
@@ -255,7 +255,7 @@ class ManagerCard extends StatefulWidget {
     this.rank,
     this.onDetail,
     this.onEvaluate,
-  }) : super(key: key);
+  });
 
   @override
   State<ManagerCard> createState() => _ManagerCardState();
@@ -287,7 +287,7 @@ class _ManagerCardState extends State<ManagerCard> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(icon, color: color, size: 24),
@@ -327,7 +327,7 @@ class _ManagerCardState extends State<ManagerCard> {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -347,7 +347,7 @@ class _ManagerCardState extends State<ManagerCard> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: AreaManagerTheme.primaryTeal.withOpacity(0.15),
+                    color: AreaManagerTheme.primaryTeal.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
@@ -552,11 +552,11 @@ class ManagersBottomSummary extends StatelessWidget {
   final VoidCallback? onEvaluateBatch;
 
   const ManagersBottomSummary({
-    Key? key,
+    super.key,
     required this.avgPerformance,
     required this.targetAchievement,
     this.onEvaluateBatch,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -566,7 +566,7 @@ class ManagersBottomSummary extends StatelessWidget {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -642,3 +642,4 @@ class ManagersBottomSummary extends StatelessWidget {
     );
   }
 }
+

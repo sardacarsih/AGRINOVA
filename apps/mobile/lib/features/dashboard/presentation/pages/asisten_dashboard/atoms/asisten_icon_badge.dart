@@ -9,11 +9,11 @@ class AsistenIconBadge extends StatelessWidget {
   final Color? iconColor;
 
   const AsistenIconBadge({
-    Key? key,
+    super.key,
     required this.icon,
     this.badgeCount = 0,
     this.iconColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -10,12 +10,12 @@ class ManagerStatIndicator extends StatelessWidget {
   final Color? color;
 
   const ManagerStatIndicator({
-    Key? key,
+    super.key,
     required this.label,
     required this.value,
     this.icon,
     this.color,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

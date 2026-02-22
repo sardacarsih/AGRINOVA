@@ -1,17 +1,12 @@
 import 'dart:async';
-import 'dart:isolate';
-import 'dart:ui';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
 import 'package:logger/logger.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:workmanager/workmanager.dart';
 
 import 'database_service.dart';
 import 'connectivity_service.dart';
 import 'jwt_storage_service.dart';
 import 'enhanced_batch_sync_service.dart';
-import 'graphql_sync_service.dart';
 import 'gate_check_photo_sync_service.dart';
 import 'harvest_sync_service.dart';
 import '../di/dependency_injection.dart';
@@ -39,7 +34,6 @@ class BackgroundSyncService {
   late ConnectivityService _connectivityService;
   late JWTStorageService _jwtStorageService;
   late EnhancedBatchSyncService _batchSyncService;
-  late GraphQLSyncService _graphqlSyncService;
   late GateCheckPhotoSyncService _photoSyncService;
   late HarvestSyncService _harvestSyncService;
   
@@ -58,7 +52,7 @@ class BackgroundSyncService {
   bool _backgroundSyncEnabled = true;
   bool _photoSyncEnabled = true;
   bool _batterySavingMode = false;
-  StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+  StreamSubscription<NetworkStatus>? _connectivitySubscription;
   Timer? _foregroundSyncTimer;
   
   // Performance monitoring
@@ -101,14 +95,13 @@ class BackgroundSyncService {
   /// Initialize service dependencies
   Future<void> _initializeServices() async {
     _databaseService = DatabaseService();
-    _connectivityService = ConnectivityService();
+    _connectivityService = ConnectivityService(Connectivity());
+    await _connectivityService.initialize();
     _jwtStorageService = JWTStorageService();
     
     // Initialize sync services
     _batchSyncService = EnhancedBatchSyncService();
     await _batchSyncService.initialize();
-    
-    _graphqlSyncService = GraphQLSyncService();
     
     _photoSyncService = GateCheckPhotoSyncService();
     await _photoSyncService.initialize();
@@ -308,7 +301,7 @@ class BackgroundSyncService {
           syncType: 'immediate',
           trigger: trigger,
           success: true,
-          operationsProcessed: result.processedCount,
+          operationsProcessed: result.totalRecordsProcessed,
           duration: Duration.zero, // Would be calculated from actual sync duration
         );
         
@@ -790,3 +783,5 @@ class BatchResolutionResult {
     required this.errors,
   });
 }
+
+

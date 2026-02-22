@@ -11,11 +11,11 @@ class ManagerPerformanceGrid extends StatelessWidget {
   final ManagerAnalyticsModel? analytics;
 
   const ManagerPerformanceGrid({
-    Key? key,
+    super.key,
     this.onMetricTap,
     this.stats,
     this.analytics,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -1,41 +1,33 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:io';
 import 'dart:convert';
-import 'dart:math';
-import 'dart:typed_data';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:logger/logger.dart';
 import 'package:uuid/uuid.dart';
-import 'package:crypto/crypto.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-import 'package:get_it/get_it.dart';
-
-import 'enhanced_database_service.dart';
-import 'graphql_sync_service.dart';
+import '../database/enhanced_database_service.dart';
 import 'network_service.dart';
 
-/**
- * ====================================================================
- * GATE CHECK PHOTO SYNC SERVICE
- * ====================================================================
- * 
- * Comprehensive photo management service for gate check documentation
- * with advanced compression, deferred upload, and sync capabilities
- * 
- * Key Features:
- * - Smart compression with quality optimization
- * - Deferred upload based on network conditions  
- * - Batch upload processing for efficiency
- * - Progressive sync with retry mechanisms
- * - Storage optimization and cleanup
- * - Cross-device photo validation
- * - Real-time upload progress tracking
- * ====================================================================
- */
+/// ====================================================================
+/// GATE CHECK PHOTO SYNC SERVICE
+/// ====================================================================
+/// 
+/// Comprehensive photo management service for gate check documentation
+/// with advanced compression, deferred upload, and sync capabilities
+/// 
+/// Key Features:
+/// - Smart compression with quality optimization
+/// - Deferred upload based on network conditions  
+/// - Batch upload processing for efficiency
+/// - Progressive sync with retry mechanisms
+/// - Storage optimization and cleanup
+/// - Cross-device photo validation
+/// - Real-time upload progress tracking
+/// ====================================================================
 
 enum PhotoCompressionLevel {
   none,
@@ -133,7 +125,6 @@ class GateCheckPhotoSyncService {
   // Service dependencies
   late EnhancedDatabaseService _databaseService;
   late NetworkService _networkService;
-  late GraphQLSyncService _syncService;
   
   // Upload progress tracking
   final Map<String, PhotoUploadProgress> _uploadProgressMap = {};
@@ -163,7 +154,6 @@ class GateCheckPhotoSyncService {
     try {
       _databaseService = EnhancedDatabaseService();
       _networkService = NetworkService();
-      _syncService = GetIt.instance<GraphQLSyncService>();
       
       // Setup storage directories
       await _setupStorageDirectories();
@@ -223,7 +213,7 @@ class GateCheckPhotoSyncService {
       // Generate file paths
       final originalFileName = path.basename(photoFile.path);
       final fileExtension = path.extension(originalFileName).toLowerCase();
-      final baseFileName = '${photoId}_${timestamp}';
+      final baseFileName = '${photoId}_$timestamp';
       
       final originalPath = path.join(_photosDirectory, '$baseFileName$fileExtension');
       final thumbnailPath = path.join(_thumbnailsDirectory, '${baseFileName}_thumb.jpg');
@@ -233,7 +223,7 @@ class GateCheckPhotoSyncService {
       final originalFileSize = await originalFile.length();
       
       // Generate thumbnail
-      final thumbnailFile = await _generateThumbnail(originalFile, thumbnailPath);
+      await _generateThumbnail(originalFile, thumbnailPath);
       
       // Get image metadata
       final imageMetadata = await _extractImageMetadata(originalFile);
@@ -287,7 +277,7 @@ class GateCheckPhotoSyncService {
       // Schedule upload
       _schedulePhotoUpload(photoId, uploadPriority);
       
-      _logger.i('Saved gate check photo $photoId (${originalFileSize} bytes)');
+      _logger.i('Saved gate check photo $photoId ($originalFileSize bytes)');
       
       return {
         'photoId': photoId,
@@ -429,7 +419,7 @@ class GateCheckPhotoSyncService {
     );
     
     // Save compressed file
-    final compressedFileName = path.basenameWithoutExtension(originalFile.path) + '_compressed.jpg';
+    final compressedFileName = '${path.basenameWithoutExtension(originalFile.path)}_compressed.jpg';
     final compressedPath = path.join(_compressedDirectory, compressedFileName);
     final compressedFile = File(compressedPath);
     await compressedFile.writeAsBytes(compressedBytes);
@@ -534,7 +524,6 @@ class GateCheckPhotoSyncService {
   /// Batch upload photos for efficiency
   Future<BatchUploadResult> uploadPhotoBatch(List<String> photoIds) async {
     final startTime = DateTime.now();
-    final results = <String, dynamic>{};
     final uploadedPhotoIds = <String>[];
     final failedPhotoIds = <String>[];
     final failureReasons = <String, String>{};
@@ -583,7 +572,7 @@ class GateCheckPhotoSyncService {
       
       _logger.i(
         'Batch upload completed: ${uploadedPhotoIds.length}/${photoIds.length} '
-        'successful, ${totalBytesUploaded} bytes transferred in ${uploadDurationMs}ms'
+        'successful, $totalBytesUploaded bytes transferred in ${uploadDurationMs}ms'
       );
       
       return BatchUploadResult(
@@ -641,7 +630,9 @@ class GateCheckPhotoSyncService {
     try {
       // Check network conditions
       final networkInfo = await _networkService.getNetworkInfo();
-      if (!networkInfo.isConnected || networkInfo.connectionType == ConnectivityResult.none) {
+      final isConnected = (networkInfo['isConnected'] as bool?) ?? false;
+      final status = networkInfo['status'] as ConnectivityResult?;
+      if (!isConnected || status == ConnectivityResult.none) {
         return;
       }
       
@@ -677,6 +668,7 @@ class GateCheckPhotoSyncService {
   }
   
   /// Start periodic batch upload timer
+  // ignore: unused_element
   void _startBatchUploadTimer() {
     _batchUploadTimer?.cancel();
     _batchUploadTimer = Timer.periodic(
@@ -686,6 +678,7 @@ class GateCheckPhotoSyncService {
   }
   
   /// Handle network connectivity changes
+  // ignore: unused_element
   void _onNetworkChanged(ConnectivityResult connectivity) {
     if (connectivity != ConnectivityResult.none) {
       // Network available, trigger immediate batch upload
@@ -890,11 +883,12 @@ class GateCheckPhotoSyncService {
     };
   }
   
-  int _getBatchSizeForNetwork(dynamic networkInfo) {
+  int _getBatchSizeForNetwork(Map<String, dynamic> networkInfo) {
     // Adjust batch size based on network quality
-    if (networkInfo.connectionType == ConnectivityResult.wifi) {
+    final status = networkInfo['status'] as ConnectivityResult?;
+    if (status == ConnectivityResult.wifi) {
       return _maxBatchSize;
-    } else if (networkInfo.connectionType == ConnectivityResult.mobile) {
+    } else if (status == ConnectivityResult.mobile) {
       return (_maxBatchSize / 2).round();
     }
     return 1; // Conservative for other connections
@@ -965,10 +959,11 @@ class GateCheckPhotoSyncService {
 /// Simple semaphore implementation for controlling concurrency
 class Semaphore {
   int _currentCount;
-  final int _maxCount;
   final Queue<Completer<void>> _waitQueue = Queue<Completer<void>>();
   
-  Semaphore(this._maxCount) : _currentCount = _maxCount;
+  Semaphore(int maxCount)
+      : assert(maxCount > 0),
+        _currentCount = maxCount;
   
   Future<void> acquire() async {
     if (_currentCount > 0) {

@@ -6,11 +6,7 @@ abstract class AppError extends Equatable implements Exception {
   final String code;
   final dynamic details;
 
-  const AppError({
-    required this.message,
-    required this.code,
-    this.details,
-  });
+  const AppError({required this.message, required this.code, this.details});
 
   @override
   List<Object?> get props => [message, code, details];
@@ -22,10 +18,10 @@ abstract class AppError extends Equatable implements Exception {
 /// Network-related errors
 class NetworkError extends AppError {
   const NetworkError({
-    required String message,
-    required String code,
-    dynamic details,
-  }) : super(message: message, code: code, details: details);
+    required super.message,
+    required super.code,
+    super.details,
+  });
 
   factory NetworkError.noConnection() {
     return const NetworkError(
@@ -60,11 +56,7 @@ class NetworkError extends AppError {
 
 /// Authentication-related errors
 class AuthError extends AppError {
-  const AuthError({
-    required String message,
-    required String code,
-    dynamic details,
-  }) : super(message: message, code: code, details: details);
+  const AuthError({required super.message, required super.code, super.details});
 
   factory AuthError.invalidCredentials() {
     return const AuthError(
@@ -103,7 +95,8 @@ class AuthError extends AppError {
 
   factory AuthError.biometricNotEnrolled() {
     return const AuthError(
-      message: 'Belum ada data biometrik yang terdaftar. Silakan daftarkan terlebih dahulu.',
+      message:
+          'Belum ada data biometrik yang terdaftar. Silakan daftarkan terlebih dahulu.',
       code: 'AUTH_BIOMETRIC_NOT_ENROLLED',
     );
   }
@@ -119,10 +112,10 @@ class AuthError extends AppError {
 /// Database-related errors
 class DatabaseError extends AppError {
   const DatabaseError({
-    required String message,
-    required String code,
-    dynamic details,
-  }) : super(message: message, code: code, details: details);
+    required super.message,
+    required super.code,
+    super.details,
+  });
 
   factory DatabaseError.connectionFailed() {
     return const DatabaseError(
@@ -165,10 +158,10 @@ class DatabaseError extends AppError {
 /// Validation-related errors
 class ValidationError extends AppError {
   const ValidationError({
-    required String message,
-    required String code,
-    dynamic details,
-  }) : super(message: message, code: code, details: details);
+    required super.message,
+    required super.code,
+    super.details,
+  });
 
   factory ValidationError.required(String fieldName) {
     return ValidationError(
@@ -178,9 +171,13 @@ class ValidationError extends AppError {
     );
   }
 
-  factory ValidationError.invalidFormat(String fieldName, String expectedFormat) {
+  factory ValidationError.invalidFormat(
+    String fieldName,
+    String expectedFormat,
+  ) {
     return ValidationError(
-      message: 'Format $fieldName tidak valid. Format yang diharapkan: $expectedFormat',
+      message:
+          'Format $fieldName tidak valid. Format yang diharapkan: $expectedFormat',
       code: 'VALIDATION_INVALID_FORMAT',
       details: {'field': fieldName, 'expectedFormat': expectedFormat},
     );
@@ -203,20 +200,17 @@ class ValidationError extends AppError {
   }
 
   factory ValidationError.custom(String message) {
-    return ValidationError(
-      message: message,
-      code: 'VALIDATION_CUSTOM',
-    );
+    return ValidationError(message: message, code: 'VALIDATION_CUSTOM');
   }
 }
 
 /// Business logic-related errors
 class BusinessError extends AppError {
   const BusinessError({
-    required String message,
-    required String code,
-    dynamic details,
-  }) : super(message: message, code: code, details: details);
+    required super.message,
+    required super.code,
+    super.details,
+  });
 
   factory BusinessError.harvestAlreadyApproved(String harvestId) {
     return BusinessError(
@@ -261,11 +255,7 @@ class BusinessError extends AppError {
 
 /// Sync-related errors
 class SyncError extends AppError {
-  const SyncError({
-    required String message,
-    required String code,
-    dynamic details,
-  }) : super(message: message, code: code, details: details);
+  const SyncError({required super.message, required super.code, super.details});
 
   factory SyncError.conflictDetected(String resourceType, String id) {
     return SyncError(
@@ -277,7 +267,8 @@ class SyncError extends AppError {
 
   factory SyncError.partialSync(int successCount, int failCount) {
     return SyncError(
-      message: 'Sync sebagian berhasil. $successCount berhasil, $failCount gagal.',
+      message:
+          'Sync sebagian berhasil. $successCount berhasil, $failCount gagal.',
       code: 'SYNC_PARTIAL_SUCCESS',
       details: {'successCount': successCount, 'failCount': failCount},
     );
@@ -301,10 +292,10 @@ class SyncError extends AppError {
 /// Hardware/Device-related errors
 class DeviceError extends AppError {
   const DeviceError({
-    required String message,
-    required String code,
-    dynamic details,
-  }) : super(message: message, code: code, details: details);
+    required super.message,
+    required super.code,
+    super.details,
+  });
 
   factory DeviceError.cameraNotAvailable() {
     return const DeviceError(
@@ -345,11 +336,7 @@ class DeviceError extends AppError {
 
 /// File operation errors
 class FileError extends AppError {
-  const FileError({
-    required String message,
-    required String code,
-    dynamic details,
-  }) : super(message: message, code: code, details: details);
+  const FileError({required super.message, required super.code, super.details});
 
   factory FileError.notFound(String filePath) {
     return FileError(
@@ -387,10 +374,10 @@ class FileError extends AppError {
 /// Generic system errors
 class SystemError extends AppError {
   const SystemError({
-    required String message,
-    required String code,
-    dynamic details,
-  }) : super(message: message, code: code, details: details);
+    required super.message,
+    required super.code,
+    super.details,
+  });
 
   factory SystemError.unexpected(String? details) {
     return SystemError(

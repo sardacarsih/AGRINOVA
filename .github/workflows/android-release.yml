@@ -1,0 +1,245 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Android Release — Build AAB & Deploy to Google Play Store (alpha track)
+#
+# Dipicu oleh: git tag v*.*.*  (push tag → build + deploy otomatis)
+# Manual:      workflow_dispatch dengan input version
+#
+# Required GitHub Secrets (Settings → Secrets → Actions):
+#   KEYSTORE_BASE64                  base64-encoded release keystore (.jks/.keystore)
+#   STORE_PASSWORD                   keystore store password
+#   KEY_ALIAS                        key alias dalam keystore
+#   KEY_PASSWORD                     key password dalam keystore
+#   PLAY_STORE_SERVICE_ACCOUNT_JSON  raw JSON service account GCP
+#                                    (butuh "Release Manager" di Play Console)
+#
+# Optional Secret:
+#   GOOGLE_SERVICES_JSON_BASE64  base64-encoded google-services.json
+#                                (hanya diperlukan jika file tersebut digitignore)
+#
+# Versioning:
+#   versionName = dari tag git (v1.2.3 → "1.2.3")
+#   versionCode = github.run_number (integer monoton naik, unik per run)
+#
+# Release flow:
+#   git tag -a v1.2.3 -m "Catatan rilis di sini" && git push origin v1.2.3
+#   → workflow terpicu otomatis
+#   → AAB dibangun, diunggah ke Play Store alpha track
+#   → What's New diambil dari anotasi tag (maks 500 karakter)
+#   → Promosikan ke alpha/beta/production secara manual di Play Console
+#
+# What's New / Release Notes:
+#   Prioritas 1: apps/mobile/whatsnew/whatsnew-id  (file statis, opsional)
+#   Prioritas 2: anotasi git tag  (git tag -a v1.2.3 -m "...")
+#   Prioritas 3: fallback otomatis "Bug fixes and improvements for v1.2.3"
+#   Maks 500 karakter per locale (batas Play Store).
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: Android Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version name (e.g. 1.2.3) — used as Android versionName'
+        required: true
+        default: '1.0.0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FLUTTER_VERSION: "3.38.9"
+  JAVA_VERSION: "17"
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy to Play Store
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      # ── 1. Source ──────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Toolchain ───────────────────────────────────────────────────────
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # ── 3. Version ────────────────────────────────────────────────────────
+      - name: Resolve version from tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version_name="${{ github.event.inputs.version }}"
+          else
+            # Tag push: github.ref_name = "v1.2.3", strip prefix "v"
+            version_name="${{ github.ref_name }}"
+            version_name="${version_name#v}"
+          fi
+          version_code="${{ github.run_number }}"
+          echo "name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "code=$version_code" >> "$GITHUB_OUTPUT"
+          echo "Release: ${{ github.ref_name }} → versionName=$version_name, versionCode=$version_code"
+
+      # ── 4. Firebase config (optional secret) ─────────────────────────────
+      - name: Write google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        working-directory: apps/mobile/android/app
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" | base64 --decode > google-services.json
+            echo "google-services.json written from secret."
+          else
+            echo "GOOGLE_SERVICES_JSON_BASE64 not set — using committed google-services.json."
+          fi
+
+      # ── 5. Android signing (keystore dari GitHub Secrets) ─────────────────
+      # key.properties dibaca oleh android/app/build.gradle via rootProject.file.
+      # storeFile diresolvasi relatif terhadap android/app/ (Gradle sub-project).
+      - name: Write keystore and key.properties
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_BASE64 }}
+        working-directory: apps/mobile/android
+        run: |
+          echo "$KEYSTORE_B64" | base64 --decode > app/release.keystore
+          printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=%s\n' \
+            "${{ secrets.STORE_PASSWORD }}" \
+            "${{ secrets.KEY_PASSWORD }}" \
+            "${{ secrets.KEY_ALIAS }}" \
+            "release.keystore" \
+            > key.properties
+          echo "Keystore: android/app/release.keystore"
+          echo "Config:   android/key.properties"
+
+      # ── 6. Build ──────────────────────────────────────────────────────────
+      - name: Install Flutter dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      - name: Build release AAB (bundleRelease)
+        working-directory: apps/mobile
+        env:
+          ANDROID_VERSION_CODE: ${{ steps.version.outputs.code }}
+          ANDROID_VERSION_NAME: ${{ steps.version.outputs.name }}
+        run: |
+          flutter build appbundle \
+            --release \
+            --dart-define-from-file=env/prod.json
+
+      # ── 7. Archive ────────────────────────────────────────────────────────
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agrinova-android-${{ steps.version.outputs.name }}-${{ steps.version.outputs.code }}
+          path: apps/mobile/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      # ── 8. Prepare What's New / Release Notes ────────────────────────────
+      # Priority: static file → tag annotation → default fallback.
+      # Play Store limit: 500 chars per locale.
+      - name: Prepare release notes
+        id: notes
+        run: |
+          WHATSNEW_DIR="$(mktemp -d)/whatsnew"
+          mkdir -p "$WHATSNEW_DIR"
+
+          # Priority 1: static file committed in repo
+          STATIC_ID="apps/mobile/whatsnew/whatsnew-id"
+          STATIC_EN="apps/mobile/whatsnew/whatsnew-en-US"
+
+          if [ -f "$STATIC_ID" ]; then
+            cp "$STATIC_ID" "$WHATSNEW_DIR/whatsnew-id"
+            echo "Release notes: using static whatsnew-id"
+          else
+            # Priority 2: git tag annotation (only available on push tags)
+            TAG_BODY=""
+            if [ "${{ github.event_name }}" = "push" ]; then
+              TAG_BODY=$(git tag -l --format='%(contents:body)' "${{ github.ref_name }}" 2>/dev/null || true)
+              [ -z "$TAG_BODY" ] && TAG_BODY=$(git tag -l --format='%(contents:subject)' "${{ github.ref_name }}" 2>/dev/null || true)
+            fi
+
+            if [ -n "$TAG_BODY" ]; then
+              echo "$TAG_BODY" | head -c 500 > "$WHATSNEW_DIR/whatsnew-id"
+              echo "Release notes: using tag annotation"
+            else
+              # Priority 3: default fallback
+              echo "Perbaikan bug dan peningkatan performa untuk versi ${{ steps.version.outputs.name }}." \
+                > "$WHATSNEW_DIR/whatsnew-id"
+              echo "Release notes: using default fallback"
+            fi
+          fi
+
+          # English locale: static file or same content as Indonesian
+          if [ -f "$STATIC_EN" ]; then
+            cp "$STATIC_EN" "$WHATSNEW_DIR/whatsnew-en-US"
+          else
+            echo "Bug fixes and performance improvements for version ${{ steps.version.outputs.name }}." \
+              > "$WHATSNEW_DIR/whatsnew-en-US"
+          fi
+
+          echo "dir=$WHATSNEW_DIR" >> "$GITHUB_OUTPUT"
+          echo "── whatsnew-id ──"
+          cat "$WHATSNEW_DIR/whatsnew-id"
+          echo "── whatsnew-en-US ──"
+          cat "$WHATSNEW_DIR/whatsnew-en-US"
+
+      # ── 9. Deploy ─────────────────────────────────────────────────────────
+      # Uploads to the alpha track (available to opted-in testers).
+      # Promote to beta / production manually in Play Console.
+      - name: Deploy to Play Store — alpha track
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_STORE_SERVICE_ACCOUNT_JSON }}
+          packageName: com.agrinova.mobile.dev
+          releaseFiles: apps/mobile/build/app/outputs/bundle/release/app-release.aab
+          track: alpha
+          status: completed
+          mappingFile: apps/mobile/build/app/outputs/mapping/release/mapping.txt
+          whatsNewDirectory: ${{ steps.notes.outputs.dir }}
+
+      # ── 10. Summary ───────────────────────────────────────────────────────
+      - name: Write job summary
+        if: success()
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
+          ## Android Release Deployed
+
+          | Field       | Value |
+          |-------------|-------|
+          | **Version** | ${{ steps.version.outputs.name }}+${{ steps.version.outputs.code }} |
+          | **Tag**     | `${{ github.ref_name }}` |
+          | **Track**   | alpha |
+          | **Package** | com.agrinova.mobile.dev |
+          | **Commit**  | `${{ github.sha }}` |
+          | **Run**     | #${{ github.run_number }} |
+
+          Promote ke beta / production di [Play Console](https://play.google.com/console).
+          EOF
+
+      # ── 11. Cleanup ───────────────────────────────────────────────────────
+      # Always remove signing artifacts regardless of build outcome.
+      - name: Clean up signing files
+        if: always()
+        run: |
+          rm -f apps/mobile/android/app/release.keystore
+          rm -f apps/mobile/android/key.properties
+          rm -f apps/mobile/android/app/google-services.json

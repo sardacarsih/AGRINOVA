@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:logger/logger.dart';
 import 'package:uuid/uuid.dart';
 
@@ -8,6 +7,7 @@ import '../../../../core/database/enhanced_database_service.dart';
 import '../../../../core/services/location_service.dart';
 import '../../../../core/services/gate_check_camera_service.dart';
 import '../../../../core/services/jwt_qr_service.dart';
+import '../../../../core/services/device_service.dart';
 
 /// Enhanced Gate Check Repository for Offline-First Operations
 /// 
@@ -129,7 +129,7 @@ class EnhancedGateCheckRepository {
         userId: createdBy,
         eventType: 'GUEST_${action.toUpperCase()}',
         severity: 'MEDIUM',
-        description: 'Guest ${action} logged: $name ($vehiclePlate)',
+        description: 'Guest $action logged: $name ($vehiclePlate)',
         metadata: {
           'guest_id': guestId,
           'vehicle_plate': vehiclePlate,
@@ -416,8 +416,7 @@ class EnhancedGateCheckRepository {
         vehiclePlate: vehiclePlate,
         cargoType: cargoType,
         generationIntent: generationIntent,
-        cargoQty: cargoQty,
-        unit: unit,
+        cargoVolume: cargoQty != null ? '$cargoQty ${unit ?? ''}'.trim() : null,
         vehicleType: vehicleType,
         destination: destination,
         cargoOwner: cargoOwner,
@@ -629,7 +628,6 @@ class EnhancedGateCheckRepository {
   Future<Map<String, dynamic>> validateIntegrity() async {
     try {
       final issues = <String>[];
-      final stats = <String, dynamic>{};
 
       // Check for orphaned records
       final orphanedPhotos = await _db.rawQuery('''

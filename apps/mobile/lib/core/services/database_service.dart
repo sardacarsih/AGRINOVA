@@ -11,7 +11,7 @@ class DatabaseService {
   static final Logger _logger = Logger();
   static Database? _database;
   static final DatabaseService _instance = DatabaseService._internal();
-  
+
   factory DatabaseService() => _instance;
   DatabaseService._internal();
 
@@ -26,7 +26,7 @@ class DatabaseService {
   Future<Database> _initializeDatabase() async {
     try {
       _logger.d('Initializing database');
-      
+
       final databasesPath = await getDatabasesPath();
       final path = join(databasesPath, AppConfig.databaseName);
 
@@ -51,20 +51,20 @@ class DatabaseService {
     try {
       // Enable foreign keys
       await db.execute('PRAGMA foreign_keys = ON');
-      
+
       // Set WAL mode for better concurrency
       // Note: Use rawQuery for PRAGMA statements that return data (like journal_mode)
       await db.rawQuery('PRAGMA journal_mode = WAL');
-      
+
       // Optimize cache size (in pages, 1 page = 1024 bytes by default)
       await db.execute('PRAGMA cache_size = -2000'); // 2MB cache
-      
+
       // Set synchronous mode to NORMAL for better performance
       await db.execute('PRAGMA synchronous = NORMAL');
-      
+
       // Set temp store to memory for better performance
       await db.execute('PRAGMA temp_store = MEMORY');
-      
+
       _logger.d('Database configured');
     } catch (e) {
       _logger.e('Error configuring database: $e');
@@ -75,28 +75,28 @@ class DatabaseService {
   Future<void> _createDatabase(Database db, int version) async {
     try {
       _logger.d('Creating database tables');
-      
+
       // Authentication & Security Tables
       await _createAuthTables(db);
-      
+
       // Master Data Tables
       await _createMasterDataTables(db);
-      
+
       // User Assignment Tables
       await _createUserAssignmentTables(db);
-      
+
       // Harvest Operation Tables
       await _createHarvestTables(db);
-      
+
       // Gate Check Operation Tables
       await _createGateCheckTables(db);
-      
+
       // Sync Management Tables
       await _createSyncTables(db);
-      
+
       // System & Monitoring Tables
       await _createSystemTables(db);
-      
+
       _logger.d('Database tables created successfully');
     } catch (e) {
       _logger.e('Error creating database: $e');
@@ -457,7 +457,6 @@ class DatabaseService {
         UNIQUE(harvest_id, employee_id)
       )
     ''');
-
   }
 
   // Gate Check Operation Tables
@@ -784,111 +783,231 @@ class DatabaseService {
     _logger.d('Creating database indexes');
 
     // JWT Tokens indexes
-    await db.execute('CREATE INDEX idx_jwt_tokens_type ON jwt_tokens (token_type)');
-    await db.execute('CREATE INDEX idx_jwt_tokens_expires_at ON jwt_tokens (expires_at)');
+    await db.execute(
+      'CREATE INDEX idx_jwt_tokens_type ON jwt_tokens (token_type)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_jwt_tokens_expires_at ON jwt_tokens (expires_at)',
+    );
 
     // User Devices indexes
-    await db.execute('CREATE INDEX idx_user_devices_user_id ON user_devices (user_id)');
-    await db.execute('CREATE INDEX idx_user_devices_device_id ON user_devices (device_id)');
-    await db.execute('CREATE INDEX idx_user_devices_is_authorized ON user_devices (is_authorized)');
-
-
+    await db.execute(
+      'CREATE INDEX idx_user_devices_user_id ON user_devices (user_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_user_devices_device_id ON user_devices (device_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_user_devices_is_authorized ON user_devices (is_authorized)',
+    );
 
     // Blocks indexes
-    await db.execute('CREATE INDEX idx_blocks_division_id ON blocks (division_id)');
+    await db.execute(
+      'CREATE INDEX idx_blocks_division_id ON blocks (division_id)',
+    );
     await db.execute('CREATE INDEX idx_blocks_code ON blocks (code)');
     await db.execute('CREATE INDEX idx_blocks_is_active ON blocks (is_active)');
-    await db.execute('CREATE INDEX idx_blocks_location ON blocks (latitude, longitude)');
+    await db.execute(
+      'CREATE INDEX idx_blocks_location ON blocks (latitude, longitude)',
+    );
 
     // Employees indexes
-    await db.execute('CREATE INDEX idx_employees_company_id ON employees (company_id)');
-    await db.execute('CREATE INDEX idx_employees_employee_id ON employees (employee_id)');
-    await db.execute('CREATE INDEX idx_employees_is_active ON employees (is_active)');
+    await db.execute(
+      'CREATE INDEX idx_employees_company_id ON employees (company_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_employees_employee_id ON employees (employee_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_employees_is_active ON employees (is_active)',
+    );
 
     // Harvest Records indexes
-    await db.execute('CREATE INDEX idx_harvest_records_block_id ON harvest_records (block_id)');
-    await db.execute('CREATE INDEX idx_harvest_records_mandor_id ON harvest_records (mandor_id)');
-    await db.execute('CREATE INDEX idx_harvest_records_status ON harvest_records (status)');
-    await db.execute('CREATE INDEX idx_harvest_records_harvest_date ON harvest_records (harvest_date)');
-    await db.execute('CREATE INDEX idx_harvest_records_sync_status ON harvest_records (sync_status)');
+    await db.execute(
+      'CREATE INDEX idx_harvest_records_block_id ON harvest_records (block_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_harvest_records_mandor_id ON harvest_records (mandor_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_harvest_records_status ON harvest_records (status)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_harvest_records_harvest_date ON harvest_records (harvest_date)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_harvest_records_sync_status ON harvest_records (sync_status)',
+    );
 
     // Gate Check Records indexes
-    await db.execute('CREATE INDEX idx_gate_check_records_vehicle_plate ON gate_check_records (vehicle_plate)');
-    await db.execute('CREATE INDEX idx_gate_check_records_date ON gate_check_records (date)');
-    await db.execute('CREATE INDEX idx_gate_check_records_status ON gate_check_records (status)');
-    await db.execute('CREATE INDEX idx_gate_check_records_sync_status ON gate_check_records (sync_status)');
+    await db.execute(
+      'CREATE INDEX idx_gate_check_records_vehicle_plate ON gate_check_records (vehicle_plate)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_check_records_date ON gate_check_records (date)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_check_records_status ON gate_check_records (status)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_check_records_sync_status ON gate_check_records (sync_status)',
+    );
 
     // Sync Queue indexes
-    await db.execute('CREATE INDEX idx_sync_queue_status ON sync_queue (status)');
-    await db.execute('CREATE INDEX idx_sync_queue_priority ON sync_queue (priority)');
-    await db.execute('CREATE INDEX idx_sync_queue_created_at ON sync_queue (created_at)');
-    await db.execute('CREATE INDEX idx_sync_queue_table_operation ON sync_queue (table_name, operation_type)');
+    await db.execute(
+      'CREATE INDEX idx_sync_queue_status ON sync_queue (status)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_sync_queue_priority ON sync_queue (priority)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_sync_queue_created_at ON sync_queue (created_at)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_sync_queue_table_operation ON sync_queue (table_name, operation_type)',
+    );
 
     // Notifications indexes
-    await db.execute('CREATE INDEX idx_notifications_user_id ON notifications (user_id)');
-    await db.execute('CREATE INDEX idx_notifications_is_read ON notifications (is_read)');
-    await db.execute('CREATE INDEX idx_notifications_created_at ON notifications (created_at)');
+    await db.execute(
+      'CREATE INDEX idx_notifications_user_id ON notifications (user_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_notifications_is_read ON notifications (is_read)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_notifications_created_at ON notifications (created_at)',
+    );
 
     // User Activity Logs indexes
-    await db.execute('CREATE INDEX idx_user_activity_logs_user_id ON user_activity_logs (user_id)');
-    await db.execute('CREATE INDEX idx_user_activity_logs_action ON user_activity_logs (action)');
-    await db.execute('CREATE INDEX idx_user_activity_logs_timestamp ON user_activity_logs (timestamp)');
+    await db.execute(
+      'CREATE INDEX idx_user_activity_logs_user_id ON user_activity_logs (user_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_user_activity_logs_action ON user_activity_logs (action)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_user_activity_logs_timestamp ON user_activity_logs (timestamp)',
+    );
 
     // Guest Logs indexes
     // Gate Guest Logs indexes
-    await db.execute('CREATE INDEX idx_gate_guest_logs_guest_id ON gate_guest_logs (guest_id)');
-    await db.execute('CREATE INDEX idx_gate_guest_logs_status ON gate_guest_logs (status)');
-    await db.execute('CREATE INDEX idx_gate_guest_logs_generation_intent ON gate_guest_logs (generation_intent)');
-    await db.execute('CREATE INDEX idx_gate_guest_logs_sync_status ON gate_guest_logs (sync_status)');
-    await db.execute('CREATE INDEX idx_gate_guest_logs_created_at ON gate_guest_logs (created_at)');
-    await db.execute('CREATE INDEX idx_gate_guest_logs_entry_time ON gate_guest_logs (entry_time)');
-    await db.execute('CREATE INDEX idx_gate_guest_logs_exit_time ON gate_guest_logs (exit_time)');
+    await db.execute(
+      'CREATE INDEX idx_gate_guest_logs_guest_id ON gate_guest_logs (guest_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_guest_logs_status ON gate_guest_logs (status)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_guest_logs_generation_intent ON gate_guest_logs (generation_intent)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_guest_logs_sync_status ON gate_guest_logs (sync_status)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_guest_logs_created_at ON gate_guest_logs (created_at)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_guest_logs_entry_time ON gate_guest_logs (entry_time)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_guest_logs_exit_time ON gate_guest_logs (exit_time)',
+    );
 
     // Used Tokens indexes
     await db.execute('CREATE INDEX idx_used_tokens_jti ON used_tokens (jti)');
-    await db.execute('CREATE INDEX idx_used_tokens_user_id ON used_tokens (user_id)');
-    await db.execute('CREATE INDEX idx_used_tokens_expires_at ON used_tokens (expires_at)');
-    await db.execute('CREATE INDEX idx_used_tokens_sync_status ON used_tokens (sync_status)');
-
-
+    await db.execute(
+      'CREATE INDEX idx_used_tokens_user_id ON used_tokens (user_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_used_tokens_expires_at ON used_tokens (expires_at)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_used_tokens_sync_status ON used_tokens (sync_status)',
+    );
 
     // Gate Check Photos indexes
-    await db.execute('CREATE INDEX idx_gate_check_photos_gate_check_id ON gate_check_photos (gate_check_id)');
-    await db.execute('CREATE INDEX idx_gate_check_photos_guest_id ON gate_check_photos (guest_id)');
-    await db.execute('CREATE INDEX idx_gate_check_photos_vehicle_plate ON gate_check_photos (vehicle_plate)');
-    await db.execute('CREATE INDEX idx_gate_check_photos_type ON gate_check_photos (type)');
-    await db.execute('CREATE INDEX idx_gate_check_photos_category ON gate_check_photos (category)');
-    await db.execute('CREATE INDEX idx_gate_check_photos_timestamp ON gate_check_photos (timestamp)');
-    await db.execute('CREATE INDEX idx_gate_check_photos_sync_status ON gate_check_photos (sync_status)');
+    await db.execute(
+      'CREATE INDEX idx_gate_check_photos_gate_check_id ON gate_check_photos (gate_check_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_check_photos_guest_id ON gate_check_photos (guest_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_check_photos_vehicle_plate ON gate_check_photos (vehicle_plate)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_check_photos_type ON gate_check_photos (type)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_check_photos_category ON gate_check_photos (category)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_check_photos_timestamp ON gate_check_photos (timestamp)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_gate_check_photos_sync_status ON gate_check_photos (sync_status)',
+    );
 
     // Registered Users indexes
-    await db.execute('CREATE INDEX idx_registered_users_user_id ON registered_users (user_id)');
-    await db.execute('CREATE INDEX idx_registered_users_name ON registered_users (name)');
-    await db.execute('CREATE INDEX idx_registered_users_vehicle_plate ON registered_users (vehicle_plate)');
-    await db.execute('CREATE INDEX idx_registered_users_status ON registered_users (status)');
-    await db.execute('CREATE INDEX idx_registered_users_company_id ON registered_users (company_id)');
-    await db.execute('CREATE INDEX idx_registered_users_sync_status ON registered_users (sync_status)');
+    await db.execute(
+      'CREATE INDEX idx_registered_users_user_id ON registered_users (user_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_registered_users_name ON registered_users (name)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_registered_users_vehicle_plate ON registered_users (vehicle_plate)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_registered_users_status ON registered_users (status)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_registered_users_company_id ON registered_users (company_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_registered_users_sync_status ON registered_users (sync_status)',
+    );
 
     // QR Scan History indexes
-    await db.execute('CREATE INDEX idx_qr_scan_history_gate_check_id ON qr_scan_history (gate_check_id)');
-    await db.execute('CREATE INDEX idx_qr_scan_history_scan_type ON qr_scan_history (scan_type)');
-    await db.execute('CREATE INDEX idx_qr_scan_history_scan_time ON qr_scan_history (scan_time)');
-    await db.execute('CREATE INDEX idx_qr_scan_history_scanner_user_id ON qr_scan_history (scanner_user_id)');
+    await db.execute(
+      'CREATE INDEX idx_qr_scan_history_gate_check_id ON qr_scan_history (gate_check_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_qr_scan_history_scan_type ON qr_scan_history (scan_type)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_qr_scan_history_scan_time ON qr_scan_history (scan_time)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_qr_scan_history_scanner_user_id ON qr_scan_history (scanner_user_id)',
+    );
 
     // Sync Logs indexes
-    await db.execute('CREATE INDEX idx_sync_logs_device_id ON sync_logs (device_id)');
-    await db.execute('CREATE INDEX idx_sync_logs_user_id ON sync_logs (user_id)');
-    await db.execute('CREATE INDEX idx_sync_logs_operation_type ON sync_logs (operation_type)');
+    await db.execute(
+      'CREATE INDEX idx_sync_logs_device_id ON sync_logs (device_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_sync_logs_user_id ON sync_logs (user_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_sync_logs_operation_type ON sync_logs (operation_type)',
+    );
     await db.execute('CREATE INDEX idx_sync_logs_status ON sync_logs (status)');
-    await db.execute('CREATE INDEX idx_sync_logs_sync_started_at ON sync_logs (sync_started_at)');
+    await db.execute(
+      'CREATE INDEX idx_sync_logs_sync_started_at ON sync_logs (sync_started_at)',
+    );
 
     _logger.d('Database indexes created');
   }
 
   // Upgrade database
-  Future<void> _upgradeDatabase(Database db, int oldVersion, int newVersion) async {
+  Future<void> _upgradeDatabase(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
     _logger.d('Upgrading database from version $oldVersion to $newVersion');
-    
+
     // Version-specific migrations
     if (oldVersion < 5) {
       // Migration v4 -> v5: Add registration_source column to gate_guest_logs
@@ -899,7 +1018,7 @@ class DatabaseService {
       // Migration v5 -> v6: Remove deprecated tbs_records table
       await db.execute('DROP TABLE IF EXISTS tbs_records');
     }
-    
+
     // If there are larger schema changes that can't be migrated, recreate
     // For now, we only add columns for minor upgrades
   }
@@ -911,9 +1030,11 @@ class DatabaseService {
       // Check if column already exists
       final columns = await db.rawQuery("PRAGMA table_info(gate_guest_logs)");
       final columnNames = columns.map((c) => c['name'] as String).toList();
-      
+
       if (!columnNames.contains('registration_source')) {
-        await db.execute('ALTER TABLE gate_guest_logs ADD COLUMN registration_source TEXT');
+        await db.execute(
+          'ALTER TABLE gate_guest_logs ADD COLUMN registration_source TEXT',
+        );
         _logger.d('Added registration_source column to gate_guest_logs');
       } else {
         _logger.d('registration_source column already exists');
@@ -925,11 +1046,12 @@ class DatabaseService {
   }
 
   // Drop all tables (for upgrade)
+  // ignore: unused_element
   Future<void> _dropAllTables(Database db) async {
     final tables = await db.rawQuery(
-      "SELECT name FROM sqlite_master WHERE type='table' AND name != 'sqlite_sequence'"
+      "SELECT name FROM sqlite_master WHERE type='table' AND name != 'sqlite_sequence'",
     );
-    
+
     for (final table in tables) {
       final tableName = table['name'] as String;
       await db.execute('DROP TABLE IF EXISTS $tableName');
@@ -937,7 +1059,10 @@ class DatabaseService {
   }
 
   // Execute raw query
-  Future<List<Map<String, dynamic>>> rawQuery(String sql, [List<dynamic>? arguments]) async {
+  Future<List<Map<String, dynamic>>> rawQuery(
+    String sql, [
+    List<dynamic>? arguments,
+  ]) async {
     try {
       final db = await database;
       return await db.rawQuery(sql, arguments);
@@ -948,10 +1073,18 @@ class DatabaseService {
   }
 
   // Insert record
-  Future<int> insert(String table, Map<String, dynamic> values, {ConflictAlgorithm? conflictAlgorithm}) async {
+  Future<int> insert(
+    String table,
+    Map<String, dynamic> values, {
+    ConflictAlgorithm? conflictAlgorithm,
+  }) async {
     try {
       final db = await database;
-      return await db.insert(table, values, conflictAlgorithm: conflictAlgorithm);
+      return await db.insert(
+        table,
+        values,
+        conflictAlgorithm: conflictAlgorithm,
+      );
     } catch (e) {
       _logger.e('Error inserting into $table: $e');
       rethrow;
@@ -959,7 +1092,12 @@ class DatabaseService {
   }
 
   // Update record
-  Future<int> update(String table, Map<String, dynamic> values, {String? where, List<dynamic>? whereArgs}) async {
+  Future<int> update(
+    String table,
+    Map<String, dynamic> values, {
+    String? where,
+    List<dynamic>? whereArgs,
+  }) async {
     try {
       final db = await database;
       return await db.update(table, values, where: where, whereArgs: whereArgs);
@@ -970,7 +1108,11 @@ class DatabaseService {
   }
 
   // Delete record
-  Future<int> delete(String table, {String? where, List<dynamic>? whereArgs}) async {
+  Future<int> delete(
+    String table, {
+    String? where,
+    List<dynamic>? whereArgs,
+  }) async {
     try {
       final db = await database;
       return await db.delete(table, where: where, whereArgs: whereArgs);
@@ -1024,6 +1166,33 @@ class DatabaseService {
     }
   }
 
+  // Get active database PRAGMA configuration
+  Future<Map<String, dynamic>> getDatabaseConfiguration() async {
+    try {
+      final db = await database;
+
+      Future<dynamic> readPragma(String pragma, String key) async {
+        final result = await db.rawQuery('PRAGMA $pragma');
+        if (result.isEmpty) return 'unknown';
+
+        final row = result.first;
+        if (row.containsKey(key)) return row[key];
+        return row.isNotEmpty ? row.values.first : 'unknown';
+      }
+
+      return {
+        'foreign_keys': await readPragma('foreign_keys', 'foreign_keys'),
+        'journal_mode': await readPragma('journal_mode', 'journal_mode'),
+        'synchronous': await readPragma('synchronous', 'synchronous'),
+        'cache_size': await readPragma('cache_size', 'cache_size'),
+        'temp_store': await readPragma('temp_store', 'temp_store'),
+      };
+    } catch (e) {
+      _logger.e('Error getting database configuration: $e');
+      return {'error': e.toString()};
+    }
+  }
+
   // Get database info
   Future<Map<String, dynamic>> getDatabaseInfo() async {
     try {
@@ -1031,17 +1200,17 @@ class DatabaseService {
       final version = await db.getVersion();
       final path = db.path;
       final isOpen = db.isOpen;
-      
+
       // Get table count
       final tables = await db.rawQuery(
-        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table'"
+        "SELECT COUNT(*) as count FROM sqlite_master WHERE type='table'",
       );
       final tableCount = tables.first['count'] as int;
-      
+
       // Get database size
       final file = File(path);
       final size = await file.length();
-      
+
       return {
         'path': path,
         'version': version,
@@ -1068,81 +1237,68 @@ class DatabaseService {
   }
 
   // Store AuthUser (for compatibility with authentication service)
-  Future<void> storeAuthUser(AuthUser user, UserAssignments? assignments) async {
+  Future<void> storeAuthUser(
+    AuthUser user,
+    UserAssignments? assignments,
+  ) async {
     try {
       await transaction((txn) async {
         // Store user in users table (adapted for existing schema)
-        await txn.insert(
-          'users',
-          {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'full_name': user.name,
-            'role': user.role,
-            'company_id': user.companyId,
-            'company_name': user.companyName,
-            'manager_id': user.managerId,
-            'manager_name': user.managerName,
-            'permissions': user.permissions?.join(','),
-            'is_active': 1,
-            'created_at': DateTime.now().millisecondsSinceEpoch,
-            'updated_at': DateTime.now().millisecondsSinceEpoch,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await txn.insert('users', {
+          'id': user.id,
+          'username': user.username,
+          'email': user.email,
+          'full_name': user.name,
+          'role': user.role,
+          'company_id': user.companyId,
+          'company_name': user.companyName,
+          'manager_id': user.managerId,
+          'manager_name': user.managerName,
+          'permissions': user.permissions?.join(','),
+          'is_active': 1,
+          'created_at': DateTime.now().millisecondsSinceEpoch,
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
 
         // Store assignments if provided
         if (assignments != null) {
           // Store company assignments
           for (final company in assignments.companies) {
-            await txn.insert(
-              'user_companies',
-              {
-                'id': '${user.id}_${company.id}',
-                'user_id': user.id,
-                'company_id': company.id,
-                'company_name': company.name,
-                'assigned_at': DateTime.now().millisecondsSinceEpoch,
-                'is_active': 1,
-              },
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
+            await txn.insert('user_companies', {
+              'id': '${user.id}_${company.id}',
+              'user_id': user.id,
+              'company_id': company.id,
+              'company_name': company.name,
+              'assigned_at': DateTime.now().millisecondsSinceEpoch,
+              'is_active': 1,
+            }, conflictAlgorithm: ConflictAlgorithm.replace);
           }
 
           // Store estate assignments
           for (final estate in assignments.estates) {
-            await txn.insert(
-              'user_estates',
-              {
-                'id': '${user.id}_${estate.id}',
-                'user_id': user.id,
-                'estate_id': estate.id,
-                'estate_name': estate.name,
-                'estate_code': estate.kode ?? estate.id,
-                'location': estate.alamat,
-                'assigned_at': DateTime.now().millisecondsSinceEpoch,
-                'is_active': 1,
-              },
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
+            await txn.insert('user_estates', {
+              'id': '${user.id}_${estate.id}',
+              'user_id': user.id,
+              'estate_id': estate.id,
+              'estate_name': estate.name,
+              'estate_code': estate.kode ?? estate.id,
+              'location': estate.alamat,
+              'assigned_at': DateTime.now().millisecondsSinceEpoch,
+              'is_active': 1,
+            }, conflictAlgorithm: ConflictAlgorithm.replace);
           }
 
           // Store division assignments
           for (final division in assignments.divisions) {
-            await txn.insert(
-              'user_divisions',
-              {
-                'id': '${user.id}_${division.id}',
-                'user_id': user.id,
-                'division_id': division.id,
-                'division_name': division.name,
-                'division_code': division.kode ?? division.id,
-                'assigned_at': DateTime.now().millisecondsSinceEpoch,
-                'is_active': 1,
-              },
-              conflictAlgorithm: ConflictAlgorithm.replace,
-            );
+            await txn.insert('user_divisions', {
+              'id': '${user.id}_${division.id}',
+              'user_id': user.id,
+              'division_id': division.id,
+              'division_name': division.name,
+              'division_code': division.kode ?? division.id,
+              'assigned_at': DateTime.now().millisecondsSinceEpoch,
+              'is_active': 1,
+            }, conflictAlgorithm: ConflictAlgorithm.replace);
           }
         }
       });
@@ -1189,46 +1345,65 @@ class DatabaseService {
   Future<UserAssignments?> getUserAssignments(String userId) async {
     try {
       // Get company assignments
-      final companies = await rawQuery('''
+      final companies = await rawQuery(
+        '''
         SELECT c.* FROM companies c
         INNER JOIN user_companies uc ON c.id = uc.company_id
         WHERE uc.user_id = ? AND uc.is_active = 1
-      ''', [userId]);
+      ''',
+        [userId],
+      );
 
       // Get estate assignments
-      final estates = await rawQuery('''
+      final estates = await rawQuery(
+        '''
         SELECT e.* FROM estates e
         INNER JOIN user_estates ue ON e.id = ue.estate_id
         WHERE ue.user_id = ? AND ue.is_active = 1
-      ''', [userId]);
+      ''',
+        [userId],
+      );
 
       // Get division assignments
-      final divisions = await rawQuery('''
+      final divisions = await rawQuery(
+        '''
         SELECT d.* FROM divisions d
         INNER JOIN user_divisions ud ON d.id = ud.division_id
         WHERE ud.user_id = ? AND ud.is_active = 1
-      ''', [userId]);
+      ''',
+        [userId],
+      );
 
       return UserAssignments(
-        companies: companies.map((c) => AuthCompany(
-          id: c['id'] as String,
-          name: c['name'] as String,
-        )).toList(),
-        estates: estates.map((e) => AuthEstate(
-          id: e['id'] as String,
-          name: e['name'] as String,
-          companyId: e['company_id'] as String?,
-          kode: e['code'] as String?,
-          alamat: e['location'] as String?,
-          luasTotal: e['area'] as double?,
-        )).toList(),
-        divisions: divisions.map((d) => AuthDivision(
-          id: d['id'] as String,
-          name: d['name'] as String,
-          estateId: d['estate_id'] as String?,
-          kode: d['code'] as String?,
-          luasDivisi: d['area'] as double?,
-        )).toList(),
+        companies: companies
+            .map(
+              (c) =>
+                  AuthCompany(id: c['id'] as String, name: c['name'] as String),
+            )
+            .toList(),
+        estates: estates
+            .map(
+              (e) => AuthEstate(
+                id: e['id'] as String,
+                name: e['name'] as String,
+                companyId: e['company_id'] as String?,
+                kode: e['code'] as String?,
+                alamat: e['location'] as String?,
+                luasTotal: e['area'] as double?,
+              ),
+            )
+            .toList(),
+        divisions: divisions
+            .map(
+              (d) => AuthDivision(
+                id: d['id'] as String,
+                name: d['name'] as String,
+                estateId: d['estate_id'] as String?,
+                kode: d['code'] as String?,
+                luasDivisi: d['area'] as double?,
+              ),
+            )
+            .toList(),
       );
     } catch (e) {
       _logger.e('Error getting UserAssignments: $e');
@@ -1239,27 +1414,23 @@ class DatabaseService {
   // Store DeviceInfo (for compatibility with authentication service)
   Future<void> storeDeviceInfo(DeviceInfo deviceInfo) async {
     try {
-      await insert(
-        'user_devices',
-        {
-          'id': deviceInfo.deviceId,
-          'user_id': 'system', // Will be updated when user logs in
-          'device_id': deviceInfo.deviceId,
-          'device_name': deviceInfo.deviceName ?? 'Unknown Device',
-          'platform': deviceInfo.platform,
-          'os_version': deviceInfo.osVersion,
-          'app_version': deviceInfo.appVersion,
-          'device_fingerprint': deviceInfo.fingerprint,
-          'is_authorized': 0,
-          'is_trusted': 0,
-          'is_primary': 0,
-          'last_seen_at': DateTime.now().millisecondsSinceEpoch,
-          'registered_at': DateTime.now().millisecondsSinceEpoch,
-          'created_at': DateTime.now().millisecondsSinceEpoch,
-          'updated_at': DateTime.now().millisecondsSinceEpoch,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      await insert('user_devices', {
+        'id': deviceInfo.deviceId,
+        'user_id': 'system', // Will be updated when user logs in
+        'device_id': deviceInfo.deviceId,
+        'device_name': deviceInfo.deviceName ?? 'Unknown Device',
+        'platform': deviceInfo.platform,
+        'os_version': deviceInfo.osVersion,
+        'app_version': deviceInfo.appVersion,
+        'device_fingerprint': deviceInfo.fingerprint,
+        'is_authorized': 0,
+        'is_trusted': 0,
+        'is_primary': 0,
+        'last_seen_at': DateTime.now().millisecondsSinceEpoch,
+        'registered_at': DateTime.now().millisecondsSinceEpoch,
+        'created_at': DateTime.now().millisecondsSinceEpoch,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
 
       _logger.d('DeviceInfo stored: ${deviceInfo.deviceId}');
     } catch (e) {
@@ -1280,18 +1451,15 @@ class DatabaseService {
     String? offlineExpiresAt,
   }) async {
     try {
-      await insert(
-        'jwt_tokens',
-        {
-          'token_type': tokenType ?? 'Bearer',
-          'token_value': accessToken,
-          'expires_at': expiresAt != null ? 
-                        DateTime.parse(expiresAt).millisecondsSinceEpoch : 
-                        DateTime.now().add(Duration(minutes: 15)).millisecondsSinceEpoch,
-          'created_at': DateTime.now().millisecondsSinceEpoch,
-          'updated_at': DateTime.now().millisecondsSinceEpoch,
-        },
-      );
+      await insert('jwt_tokens', {
+        'token_type': tokenType ?? 'Bearer',
+        'token_value': accessToken,
+        'expires_at': expiresAt != null
+            ? DateTime.parse(expiresAt).millisecondsSinceEpoch
+            : DateTime.now().add(Duration(minutes: 15)).millisecondsSinceEpoch,
+        'created_at': DateTime.now().millisecondsSinceEpoch,
+        'updated_at': DateTime.now().millisecondsSinceEpoch,
+      });
 
       _logger.d('Auth tokens stored for user: $userId');
     } catch (e) {
@@ -1331,7 +1499,9 @@ class DatabaseService {
   }
 
   // Get pending sync items
-  Future<List<Map<String, dynamic>>> getPendingSyncItems({int limit = 10}) async {
+  Future<List<Map<String, dynamic>>> getPendingSyncItems({
+    int limit = 10,
+  }) async {
     try {
       return await query(
         'sync_queue',
@@ -1347,7 +1517,11 @@ class DatabaseService {
   }
 
   // Update sync item status
-  Future<void> updateSyncItemStatus(int syncId, String status, {String? errorMessage}) async {
+  Future<void> updateSyncItemStatus(
+    int syncId,
+    String status, {
+    String? errorMessage,
+  }) async {
     try {
       await update(
         'sync_queue',
@@ -1371,7 +1545,7 @@ class DatabaseService {
   Future<Map<String, int>> getStats() async {
     try {
       final stats = <String, int>{};
-      
+
       final tables = [
         'users',
         'companies',

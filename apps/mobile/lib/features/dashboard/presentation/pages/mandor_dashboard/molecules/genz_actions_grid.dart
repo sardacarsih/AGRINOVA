@@ -32,14 +32,14 @@ class GenZActionsGrid extends StatelessWidget {
   final VoidCallback onSettings;
 
   const GenZActionsGrid({
-    Key? key,
+    super.key,
     required this.onHarvestInput,
     required this.onEmployeeSelect,
     required this.onQualityCheck,
     required this.onHistory,
     required this.onReports,
     required this.onSettings,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -112,12 +112,12 @@ class GenZCustomActionsGrid extends StatelessWidget {
   final String? title;
 
   const GenZCustomActionsGrid({
-    Key? key,
+    super.key,
     required this.actions,
     this.crossAxisCount = 3,
     this.childAspectRatio = 0.85,
     this.title,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -153,9 +153,9 @@ class GenZActionsRow extends StatelessWidget {
   final List<ActionItem> actions;
 
   const GenZActionsRow({
-    Key? key,
+    super.key,
     required this.actions,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +164,7 @@ class GenZActionsRow extends StatelessWidget {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: actions.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (context, index) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           final action = actions[index];
           return SizedBox(

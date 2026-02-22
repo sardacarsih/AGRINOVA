@@ -16,7 +16,7 @@ import 'area_manager_managers_tab.dart';
 /// - 2-column grid of company/estate cards
 /// - Floating total production card at bottom
 class AreaManagerMonitorTab extends StatefulWidget {
-  const AreaManagerMonitorTab({Key? key}) : super(key: key);
+  const AreaManagerMonitorTab({super.key});
 
   @override
   State<AreaManagerMonitorTab> createState() => _AreaManagerMonitorTabState();
@@ -236,7 +236,7 @@ class _AreaManagerMonitorTabState extends State<AreaManagerMonitorTab> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -406,3 +406,4 @@ class _AreaManagerMonitorTabState extends State<AreaManagerMonitorTab> {
     );
   }
 }
+

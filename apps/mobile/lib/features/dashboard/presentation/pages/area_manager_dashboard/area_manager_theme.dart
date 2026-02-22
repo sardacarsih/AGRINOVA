@@ -57,7 +57,7 @@ class AreaManagerTheme {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -67,10 +67,10 @@ class AreaManagerTheme {
   static BoxDecoration coloredCardDecoration(Color color) => BoxDecoration(
         color: cardBackground,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.2), width: 1),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.08),
+            color: color.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -85,7 +85,7 @@ class AreaManagerTheme {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -138,12 +138,12 @@ class AreaManagerTheme {
       );
 
   static TextStyle get bodyWhite => TextStyle(
-        color: Colors.white.withOpacity(0.9),
+        color: Colors.white.withValues(alpha: 0.9),
         fontSize: 14,
       );
 
   static TextStyle get bodyWhiteSmall => TextStyle(
-        color: Colors.white.withOpacity(0.7),
+        color: Colors.white.withValues(alpha: 0.7),
         fontSize: 12,
       );
 
@@ -168,7 +168,7 @@ class AreaManagerTheme {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -185,9 +185,9 @@ class AreaManagerTheme {
 
   // Badge/Chip Decoration
   static BoxDecoration chipDecoration(Color color) => BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       );
 
   static BoxDecoration badgeDecoration(Color color) => BoxDecoration(
@@ -195,3 +195,4 @@ class AreaManagerTheme {
         borderRadius: BorderRadius.circular(8),
       );
 }
+

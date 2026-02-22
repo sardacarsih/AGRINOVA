@@ -3,8 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../domain/entities/harvest_entity.dart';
-import '../blocs/harvest_bloc.dart';
 
 class AutoSaveService {
   static const String _autoSaveKey = 'harvest_autosave_data';
@@ -172,12 +170,12 @@ class AutoSaveFormWrapper extends StatefulWidget {
   final VoidCallback? onAutoSaveCompleted;
 
   const AutoSaveFormWrapper({
-    Key? key,
+    super.key,
     required this.child,
     required this.initialData,
     this.onDataRestored,
     this.onAutoSaveCompleted,
-  }) : super(key: key);
+  });
 
   @override
   State<AutoSaveFormWrapper> createState() => _AutoSaveFormWrapperState();
@@ -202,15 +200,16 @@ class _AutoSaveFormWrapperState extends State<AutoSaveFormWrapper> {
 
   Future<void> _checkAndRestoreData() async {
     final hasData = await _autoSaveService.hasSavedData();
+    Map<String, dynamic>? restoredData;
 
     if (hasData) {
-      final savedData = await _autoSaveService.getSavedData();
-      if (savedData != null && !_hasRestoredData) {
+      restoredData = await _autoSaveService.getSavedData();
+      if (restoredData != null && !_hasRestoredData) {
         setState(() {
           _hasRestoredData = true;
         });
 
-        widget.onDataRestored?.call(savedData);
+        widget.onDataRestored?.call(restoredData);
 
         // Show restoration notification
         _showRestoreNotification();
@@ -218,7 +217,9 @@ class _AutoSaveFormWrapperState extends State<AutoSaveFormWrapper> {
     }
 
     // Start auto-save with current or restored data
-    _autoSaveService.startAutoSave(_hasRestoredData ? savedData ?? widget.initialData : widget.initialData);
+    _autoSaveService.startAutoSave(
+      _hasRestoredData ? restoredData ?? widget.initialData : widget.initialData,
+    );
   }
 
   void _showRestoreNotification() {
@@ -271,7 +272,7 @@ class _AutoSaveFormWrapperState extends State<AutoSaveFormWrapper> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.9),
+                    color: Colors.orange.withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -305,3 +306,4 @@ class _AutoSaveFormWrapperState extends State<AutoSaveFormWrapper> {
     );
   }
 }
+

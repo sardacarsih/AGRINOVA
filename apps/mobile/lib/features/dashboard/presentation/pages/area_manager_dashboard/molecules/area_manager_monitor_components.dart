@@ -9,12 +9,12 @@ class AreaManagerMonitorSummaryBar extends StatelessWidget {
   final String efficiency;
 
   const AreaManagerMonitorSummaryBar({
-    Key? key,
+    super.key,
     required this.estateCount,
     required this.todayProduction,
     required this.managerCount,
     required this.efficiency,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +26,7 @@ class AreaManagerMonitorSummaryBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -121,11 +121,11 @@ class AreaManagerMonitorFilterTabs extends StatelessWidget {
   final ValueChanged<int> onFilterSelected;
 
   const AreaManagerMonitorFilterTabs({
-    Key? key,
+    super.key,
     required this.filters,
     required this.selectedIndex,
     required this.onFilterSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -183,7 +183,7 @@ class AreaManagerEstateCard extends StatelessWidget {
   final VoidCallback? onViewDetail;
 
   const AreaManagerEstateCard({
-    Key? key,
+    super.key,
     required this.estateName,
     required this.location,
     required this.managerName,
@@ -193,7 +193,7 @@ class AreaManagerEstateCard extends StatelessWidget {
     this.isEfficiencyUp = true,
     this.isActive = true,
     this.onViewDetail,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -204,7 +204,7 @@ class AreaManagerEstateCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -234,7 +234,7 @@ class AreaManagerEstateCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: AreaManagerTheme.primaryTeal.withOpacity(0.1),
+                  color: AreaManagerTheme.primaryTeal.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Icon(
@@ -478,11 +478,11 @@ class AreaManagerFloatingTotalCard extends StatelessWidget {
   final double targetPercentage;
 
   const AreaManagerFloatingTotalCard({
-    Key? key,
+    super.key,
     required this.totalToday,
     required this.targetTon,
     required this.targetPercentage,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -494,7 +494,7 @@ class AreaManagerFloatingTotalCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -562,3 +562,4 @@ class AreaManagerFloatingTotalCard extends StatelessWidget {
     );
   }
 }
+

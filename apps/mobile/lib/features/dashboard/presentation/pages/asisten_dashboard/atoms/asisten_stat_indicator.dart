@@ -9,12 +9,12 @@ class AsistenStatIndicator extends StatelessWidget {
   final Color? color;
 
   const AsistenStatIndicator({
-    Key? key,
+    super.key,
     required this.label,
     required this.value,
     this.icon,
     this.color,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +37,7 @@ class AsistenStatIndicator extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: (color ?? Colors.white).withOpacity(0.75),
+            color: (color ?? Colors.white).withValues(alpha: 0.75),
             fontSize: 11,
           ),
         ),
@@ -45,3 +45,4 @@ class AsistenStatIndicator extends StatelessWidget {
     );
   }
 }
+

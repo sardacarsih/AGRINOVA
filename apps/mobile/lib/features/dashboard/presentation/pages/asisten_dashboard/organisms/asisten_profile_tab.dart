@@ -9,9 +9,9 @@ class AsistenProfileTab extends StatelessWidget {
   final VoidCallback? onLogout;
 
   const AsistenProfileTab({
-    Key? key,
+    super.key,
     this.onLogout,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -108,7 +108,7 @@ class AsistenProfileTab extends StatelessWidget {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
+                          color: Colors.black.withValues(alpha: 0.1),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -140,10 +140,10 @@ class AsistenProfileTab extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.4),
+                        color: Colors.white.withValues(alpha: 0.4),
                         width: 1,
                       ),
                     ),
@@ -161,7 +161,7 @@ class AsistenProfileTab extends StatelessWidget {
                   Text(
                     '@${user.username}',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 14,
                     ),
                   ),
@@ -170,7 +170,7 @@ class AsistenProfileTab extends StatelessWidget {
                   Text(
                     user.division ?? 'Divisi Utara',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontSize: 14,
                     ),
                   ),
@@ -230,7 +230,7 @@ class AsistenProfileTab extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -269,7 +269,7 @@ class AsistenProfileTab extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -354,7 +354,7 @@ class AsistenProfileTab extends StatelessWidget {
             height: 1,
             indent: 48,
             endIndent: 16,
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withValues(alpha: 0.2),
           ),
       ],
     );
@@ -367,7 +367,7 @@ class AsistenProfileTab extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -393,7 +393,7 @@ class AsistenProfileTab extends StatelessWidget {
             trailing: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFF43A047).withOpacity(0.1),
+                color: const Color(0xFF43A047).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Text(
@@ -496,7 +496,7 @@ class AsistenProfileTab extends StatelessWidget {
             height: 1,
             indent: 48,
             endIndent: 16,
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withValues(alpha: 0.2),
           ),
       ],
     );
@@ -542,7 +542,7 @@ class AsistenProfileTab extends StatelessWidget {
   }
 
   Widget _buildLogoutButton(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: double.infinity,
       child: OutlinedButton.icon(
         onPressed: () {
@@ -592,3 +592,4 @@ class AsistenProfileTab extends StatelessWidget {
     );
   }
 }
+

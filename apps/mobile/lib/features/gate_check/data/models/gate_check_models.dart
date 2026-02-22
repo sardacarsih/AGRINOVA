@@ -65,6 +65,10 @@ class GuestLog {
   final String? serverRecordId;
   final String? registrationSource; // 'MANUAL' or 'QR_SCAN'
 
+  // Backward compatibility fields used by legacy UI.
+  String? get photoIn => null;
+  String? get photoOut => null;
+
   const GuestLog({
     this.logId,
     required this.guestId,
@@ -151,9 +155,9 @@ class GuestLog {
       'destination': destination,
       'gate_position': gateId,
       'created_by': createdBy,
-      'generation_intent': action?.toUpperCase() == 'EXIT' ? 'EXIT' : 'ENTRY',
-      'entry_time': action?.toUpperCase() != 'EXIT' ? (clientTimestamp ?? now) : null,
-      'exit_time': action?.toUpperCase() == 'EXIT' ? (clientTimestamp ?? now) : null,
+      'generation_intent': action.toUpperCase() == 'EXIT' ? 'EXIT' : 'ENTRY',
+      'entry_time': action.toUpperCase() != 'EXIT' ? (clientTimestamp ?? now) : null,
+      'exit_time': action.toUpperCase() == 'EXIT' ? (clientTimestamp ?? now) : null,
       'notes': notes,
       'qr_code_data': qrToken,
       'created_at': clientTimestamp ?? now,

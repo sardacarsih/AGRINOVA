@@ -4,7 +4,6 @@ import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/env_config.dart';
-import '../config/environment.dart';
 import '../constants/api_constants.dart';
 import 'config_service.dart';
 

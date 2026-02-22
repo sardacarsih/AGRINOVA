@@ -59,7 +59,7 @@ class ManagerTheme {
     borderRadius: BorderRadius.circular(16),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(0.05),
+        color: Colors.black.withValues(alpha: 0.05),
         blurRadius: 10,
         offset: const Offset(0, 2),
       ),
@@ -69,10 +69,10 @@ class ManagerTheme {
   static BoxDecoration coloredCardDecoration(Color color) => BoxDecoration(
     color: cardBackground,
     borderRadius: BorderRadius.circular(16),
-    border: Border.all(color: color.withOpacity(0.1), width: 1),
+    border: Border.all(color: color.withValues(alpha: 0.1), width: 1),
     boxShadow: [
       BoxShadow(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         blurRadius: 8,
         offset: const Offset(0, 2),
       ),
@@ -82,15 +82,15 @@ class ManagerTheme {
   // Glassmorphism (for welcome card)
   static BoxDecoration glassDecoration({Color? color, double opacity = 0.15}) {
     return BoxDecoration(
-      color: (color ?? primaryPurple).withOpacity(opacity),
+      color: (color ?? primaryPurple).withValues(alpha: opacity),
       borderRadius: BorderRadius.circular(16),
       border: Border.all(
-        color: (color ?? primaryPurple).withOpacity(0.4),
+        color: (color ?? primaryPurple).withValues(alpha: 0.4),
         width: 1,
       ),
       boxShadow: [
         BoxShadow(
-          color: (color ?? primaryPurple).withOpacity(0.15),
+          color: (color ?? primaryPurple).withValues(alpha: 0.15),
           blurRadius: 16,
           spreadRadius: -4,
         ),
@@ -138,12 +138,12 @@ class ManagerTheme {
   );
 
   static TextStyle get bodyWhite => TextStyle(
-    color: Colors.white.withOpacity(0.9),
+    color: Colors.white.withValues(alpha: 0.9),
     fontSize: 14,
   );
 
   static TextStyle get bodyWhiteSmall => TextStyle(
-    color: Colors.white.withOpacity(0.7),
+    color: Colors.white.withValues(alpha: 0.7),
     fontSize: 12,
   );
 
@@ -169,7 +169,7 @@ class ManagerTheme {
   );
   
   static BoxDecoration get statsDecoration => BoxDecoration(
-    color: Colors.white.withOpacity(0.15),
+    color: Colors.white.withValues(alpha: 0.15),
     borderRadius: BorderRadius.circular(12),
   );
 
@@ -192,8 +192,9 @@ class ManagerTheme {
 
   // Status Badge Decoration
   static BoxDecoration statusBadgeDecoration(Color color) => BoxDecoration(
-    color: color.withOpacity(0.1),
+    color: color.withValues(alpha: 0.1),
     borderRadius: BorderRadius.circular(20),
-    border: Border.all(color: color.withOpacity(0.3)),
+    border: Border.all(color: color.withValues(alpha: 0.3)),
   );
 }
+

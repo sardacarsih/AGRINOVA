@@ -8,10 +8,10 @@ class AsistenBottomNav extends StatelessWidget {
   final Function(int) onTap;
 
   const AsistenBottomNav({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +20,7 @@ class AsistenBottomNav extends StatelessWidget {
         color: AsistenTheme.cardBackground,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -61,3 +61,4 @@ class AsistenBottomNav extends StatelessWidget {
     );
   }
 }
+

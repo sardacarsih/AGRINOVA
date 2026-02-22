@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import 'package:flutter_bluetooth_serial_plus/flutter_bluetooth_serial_plus.dart';
 import 'package:logger/logger.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -22,7 +22,7 @@ class BluetoothPrinterService {
   StreamSubscription<BluetoothDiscoveryResult>? _scanSubscription;
   final StreamController<List<BluetoothDevice>> _scanController = StreamController<List<BluetoothDevice>>.broadcast();
   Stream<List<BluetoothDevice>> get scanResults => _scanController.stream;
-  List<BluetoothDevice> _devices = [];
+  final List<BluetoothDevice> _devices = [];
 
   BluetoothPrinterService._internal();
 

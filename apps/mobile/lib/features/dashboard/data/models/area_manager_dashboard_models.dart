@@ -2,6 +2,7 @@
 ///
 /// These are plain Dart classes that parse GraphQL JSON responses.
 /// They do not extend any framework class to keep them lightweight.
+library;
 
 class AreaManagerStats {
   final int totalCompanies;

@@ -14,7 +14,7 @@ class ManagerMetricCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const ManagerMetricCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.value,
     this.change,
@@ -22,7 +22,7 @@ class ManagerMetricCard extends StatelessWidget {
     required this.color,
     this.isPositive = true,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +40,7 @@ class ManagerMetricCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
+                    color: color.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(icon, color: color, size: 22),
@@ -49,7 +49,7 @@ class ManagerMetricCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: (isPositive ? ManagerTheme.approvedGreen : ManagerTheme.rejectedRed).withOpacity(0.1),
+                      color: (isPositive ? ManagerTheme.approvedGreen : ManagerTheme.rejectedRed).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -99,3 +99,4 @@ class ManagerMetricCard extends StatelessWidget {
     );
   }
 }
+

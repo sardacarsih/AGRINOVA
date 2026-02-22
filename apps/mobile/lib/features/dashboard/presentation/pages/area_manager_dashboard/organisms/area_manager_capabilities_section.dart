@@ -57,7 +57,7 @@ class AreaManagerCapabilitiesSection extends StatelessWidget {
                       color: AreaManagerTheme.scaffoldBackground,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: AreaManagerTheme.textMuted.withOpacity(0.3),
+                        color: AreaManagerTheme.textMuted.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Text(
@@ -88,10 +88,10 @@ class AreaManagerCapabilitiesSection extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: AreaManagerTheme.primaryTeal.withOpacity(0.1),
+                      color: AreaManagerTheme.primaryTeal.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: AreaManagerTheme.primaryTeal.withOpacity(0.3),
+                        color: AreaManagerTheme.primaryTeal.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Text(
@@ -112,3 +112,4 @@ class AreaManagerCapabilitiesSection extends StatelessWidget {
     );
   }
 }
+

@@ -8,13 +8,13 @@ class EstateSelectors extends StatelessWidget {
   final VoidCallback onApply;
 
   const EstateSelectors({
-    Key? key,
+    super.key,
     this.selectedEstateId,
     required this.selectedDate,
     required this.onEstateChanged,
     required this.onDateChanged,
     required this.onApply,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

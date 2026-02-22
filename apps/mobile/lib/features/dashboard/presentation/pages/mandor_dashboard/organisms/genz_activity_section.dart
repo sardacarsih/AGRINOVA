@@ -39,11 +39,11 @@ class GenZActivitySection extends StatelessWidget {
   final int maxItems;
 
   const GenZActivitySection({
-    Key? key,
+    super.key,
     this.items = const [],
     this.onViewAll,
     this.maxItems = 5,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -97,9 +97,9 @@ class GenZActivitySection extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: MandorTheme.gray700.withOpacity(0.3),
+        color: MandorTheme.gray700.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: MandorTheme.gray600.withOpacity(0.3)),
+        border: Border.all(color: MandorTheme.gray600.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -146,9 +146,8 @@ class _ActivityItemCard extends StatelessWidget {
   final ActivityItem item;
 
   const _ActivityItemCard({
-    Key? key,
     required this.item,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -157,10 +156,10 @@ class _ActivityItemCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: MandorTheme.gray800.withOpacity(0.6),
+        color: MandorTheme.gray800.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: MandorTheme.gray700.withOpacity(0.5),
+          color: MandorTheme.gray700.withValues(alpha: 0.5),
         ),
       ),
       child: Row(
@@ -178,7 +177,7 @@ class _ActivityItemCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: config.color.withOpacity(0.15),
+        color: config.color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(
@@ -259,3 +258,4 @@ class _ActivityConfig {
     required this.icon,
   });
 }
+

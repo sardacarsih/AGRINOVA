@@ -1,11 +1,17 @@
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import '../di/service_locator.dart';
 import '../services/auth_service.dart';
 import '../services/device_service.dart';
 
+void _debugLog(Object? message) {
+  developer.log(message?.toString() ?? 'null');
+}
+
+
 /// Simple test widget to verify GraphQL integration
 class GraphQLTestWidget extends StatefulWidget {
-  const GraphQLTestWidget({Key? key}) : super(key: key);
+  const GraphQLTestWidget({super.key});
 
   @override
   State<GraphQLTestWidget> createState() => _GraphQLTestWidgetState();
@@ -184,27 +190,28 @@ class _GraphQLTestWidgetState extends State<GraphQLTestWidget> {
 /// Test function to verify GraphQL connectivity
 Future<void> testGraphQLConnection() async {
   try {
-    print('🧪 Testing GraphQL Integration...');
+    _debugLog('🧪 Testing GraphQL Integration...');
     
     // Initialize services
     await ServiceLocator.initialize();
-    print('✅ Services initialized');
+    _debugLog('✅ Services initialized');
     
     // Test device info
     final deviceInfo = await DeviceService.getDeviceInfo();
-    print('✅ Device info: ${deviceInfo.deviceId}');
+    _debugLog('✅ Device info: ${deviceInfo.deviceId}');
     
     // Test auth service
     final authService = ServiceLocator.get<AuthService>();
-    print('✅ Auth service retrieved');
+    _debugLog('✅ Auth service retrieved');
     
     // Test connectivity
     final status = await authService.getAuthStatus();
-    print('✅ Auth status: ${status['isOnline']}');
+    _debugLog('✅ Auth status: ${status['isOnline']}');
     
-    print('🎉 GraphQL integration test completed successfully!');
+    _debugLog('🎉 GraphQL integration test completed successfully!');
   } catch (e) {
-    print('❌ GraphQL integration test failed: $e');
+    _debugLog('❌ GraphQL integration test failed: $e');
     rethrow;
   }
 }
+

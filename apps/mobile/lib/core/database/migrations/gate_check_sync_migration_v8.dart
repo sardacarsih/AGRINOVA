@@ -3,7 +3,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:logger/logger.dart';
 import 'package:uuid/uuid.dart';
 
-/**
+/*
  * ====================================================================
  * FLUTTER GATE CHECK SYNC MIGRATION V8
  * ====================================================================
@@ -25,56 +25,55 @@ import 'package:uuid/uuid.dart';
 class GateCheckSyncMigrationV8 {
   static final Logger _logger = Logger();
   static final Uuid _uuid = const Uuid();
-  
+
   static const int fromVersion = 7;
   static const int toVersion = 8;
-  
+
   /// Instance method to call the static migration
   Future<void> migrate(Database db) async {
     await executeMigration(db);
   }
-  
+
   /// Execute the complete migration from version 7 to 8
   static Future<void> executeMigration(Database db) async {
     try {
       _logger.i('Starting Gate Check Sync Migration V8');
-      
+
       await db.transaction((txn) async {
         // Step 1: Backup existing data
         await _backupExistingData(txn);
-        
+
         // Step 2: Create new enhanced tables
         await _createEnhancedTables(txn);
-        
+
         // Step 3: Migrate existing data to new structure
         await _migrateExistingData(txn);
-        
+
         // Step 4: Create performance indexes
         await _createPerformanceIndexes(txn);
-        
+
         // Step 5: Setup triggers and constraints
         await _setupTriggersAndConstraints(txn);
-        
+
         // Step 6: Cleanup old tables (optional - can be kept for safety)
         // await _cleanupOldTables(txn);
-        
+
         // Step 7: Verify migration integrity
         await _verifyMigrationIntegrity(txn);
-        
+
         _logger.i('Gate Check Sync Migration V8 completed successfully');
       });
-      
     } catch (e) {
       _logger.e('Error during Gate Check Sync Migration V8', error: e);
       rethrow;
     }
   }
-  
+
   /// Backup existing data before migration
   static Future<void> _backupExistingData(Transaction txn) async {
     try {
       _logger.d('Creating backup tables for existing data');
-      
+
       // Backup guest_logs (if exists)
       try {
         await txn.execute('''
@@ -85,7 +84,7 @@ class GateCheckSyncMigrationV8 {
       } catch (e) {
         _logger.w('guest_logs table may not exist, skipping backup');
       }
-      
+
       // Backup gate_check_records (if exists)
       try {
         await txn.execute('''
@@ -96,7 +95,7 @@ class GateCheckSyncMigrationV8 {
       } catch (e) {
         _logger.w('gate_check_records table may not exist, skipping backup');
       }
-      
+
       // Backup gate_check_photos (if exists)
       try {
         await txn.execute('''
@@ -107,24 +106,23 @@ class GateCheckSyncMigrationV8 {
       } catch (e) {
         _logger.w('gate_check_photos table may not exist, skipping backup');
       }
-      
     } catch (e) {
       _logger.e('Error backing up existing data', error: e);
       rethrow;
     }
   }
-  
+
   /// Create new enhanced tables with full sync support
   static Future<void> _createEnhancedTables(Transaction txn) async {
     try {
       _logger.d('Creating enhanced gate check tables');
-      
+
       // Drop existing tables to recreate with new structure
       await txn.execute('DROP TABLE IF EXISTS guest_logs');
       await txn.execute('DROP TABLE IF EXISTS gate_guest_logs');
       await txn.execute('DROP TABLE IF EXISTS gate_check_records');
       await txn.execute('DROP TABLE IF EXISTS gate_check_photos');
-      
+
       // Create enhanced guest_logs table
       await txn.execute('''
         CREATE TABLE gate_guest_logs (
@@ -182,7 +180,7 @@ class GateCheckSyncMigrationV8 {
           FOREIGN KEY (created_by) REFERENCES users (user_id) ON DELETE RESTRICT
         )
       ''');
-      
+
       // Create guest_qr_tokens table
       await txn.execute('''
         CREATE TABLE guest_qr_tokens (
@@ -228,7 +226,7 @@ class GateCheckSyncMigrationV8 {
           FOREIGN KEY (guest_log_id) REFERENCES gate_guest_logs (id) ON DELETE CASCADE
         )
       ''');
-      
+
       // Create enhanced gate_check_records table
       await txn.execute('''
         CREATE TABLE gate_check_records (
@@ -305,7 +303,7 @@ class GateCheckSyncMigrationV8 {
           FOREIGN KEY (company_id) REFERENCES companies (company_id) ON DELETE CASCADE
         )
       ''');
-      
+
       // Create enhanced gate_check_photos table
       await txn.execute('''
         CREATE TABLE gate_check_photos (
@@ -382,119 +380,123 @@ class GateCheckSyncMigrationV8 {
           FOREIGN KEY (created_by) REFERENCES users (user_id) ON DELETE RESTRICT
         )
       ''');
-      
+
       _logger.d('Enhanced tables created successfully');
-      
     } catch (e) {
       _logger.e('Error creating enhanced tables', error: e);
       rethrow;
     }
   }
-  
+
   /// Migrate existing data to new enhanced structure
   static Future<void> _migrateExistingData(Transaction txn) async {
     try {
       _logger.d('Migrating existing data to new structure');
-      
+
       // Migrate guest_logs data
       await _migrateGuestLogsData(txn);
-      
+
       // Migrate gate_check_records data
       await _migrateGateCheckRecordsData(txn);
-      
+
       // Migrate gate_check_photos data
       await _migrateGateCheckPhotosData(txn);
-      
+
       _logger.d('Data migration completed successfully');
-      
     } catch (e) {
       _logger.e('Error migrating existing data', error: e);
       rethrow;
     }
   }
-  
+
   /// Migrate guest logs with enhanced fields
   static Future<void> _migrateGuestLogsData(Transaction txn) async {
     try {
       // Check if backup table exists
       final backupTables = await txn.query(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='guest_logs_backup_v7'"
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='guest_logs_backup_v7'",
       );
-      
+
       if (backupTables.isEmpty) {
         _logger.w('No guest_logs backup found, skipping migration');
         return;
       }
-      
+
       // Get all records from backup
-      final backupRecords = await txn.query('SELECT * FROM guest_logs_backup_v7');
-      
+      final backupRecords = await txn.query(
+        'SELECT * FROM guest_logs_backup_v7',
+      );
+
       for (final record in backupRecords) {
         // Map old fields to new structure with enhancements
         final newRecord = <String, dynamic>{
           'guest_id': record['guest_id'] ?? _uuid.v4(),
-          'driver_name': record['driver_name'] ?? record['guest_name'] ?? 'Unknown',
+          'driver_name':
+              record['driver_name'] ?? record['guest_name'] ?? 'Unknown',
           'guest_purpose': record['guest_purpose'] ?? 'Business Visit',
           'vehicle_plate': record['vehicle_plate'],
           'destination': record['destination'],
           'username': record['username'],
-          
+
           // Set default generation intent based on status
           'generation_intent': _deriveGenerationIntent(record['status']),
           'status': _normalizeGuestStatus(record['status']),
-          
+
           'entry_time': record['entry_time'],
           'exit_time': record['exit_time'],
           'gate_position': record['gate_position'] ?? 'MAIN_GATE',
           'notes': record['notes'],
           'photo_path': record['photo_path'],
           'qr_code_data': record['qr_code_data'],
-          
+
           'created_by': record['created_by'] ?? 'system',
           'device_id': record['device_id'],
           'device_name': record['device_name'],
-          
+
           // Enhanced sync fields with defaults
           'sync_status': record['sync_status'] ?? 'PENDING',
           'sync_priority': 'HIGH',
           'sync_retry_count': record['sync_retry_count'] ?? 0,
           'sync_version': 1,
-          
+
           // Timestamps
-          'created_at': record['created_at'] ?? DateTime.now().millisecondsSinceEpoch,
-          'updated_at': record['updated_at'] ?? DateTime.now().millisecondsSinceEpoch,
+          'created_at':
+              record['created_at'] ?? DateTime.now().millisecondsSinceEpoch,
+          'updated_at':
+              record['updated_at'] ?? DateTime.now().millisecondsSinceEpoch,
           'synced_at': record['synced_at'],
-          
+
           // Conflict resolution defaults
           'local_version': 1,
           'needs_manual_resolution': 0,
         };
-        
+
         await txn.insert('gate_guest_logs', newRecord);
       }
-      
+
       _logger.d('Migrated ${backupRecords.length} guest log records');
-      
     } catch (e) {
       _logger.e('Error migrating guest logs data', error: e);
       rethrow;
     }
   }
-  
+
   /// Migrate gate check records with enhanced fields
   static Future<void> _migrateGateCheckRecordsData(Transaction txn) async {
     try {
       final backupTables = await txn.query(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='gate_check_records_backup_v7'"
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='gate_check_records_backup_v7'",
       );
-      
+
       if (backupTables.isEmpty) {
         _logger.w('No gate_check_records backup found, skipping migration');
         return;
       }
-      
-      final backupRecords = await txn.query('SELECT * FROM gate_check_records_backup_v7');
-      
+
+      final backupRecords = await txn.query(
+        'SELECT * FROM gate_check_records_backup_v7',
+      );
+
       for (final record in backupRecords) {
         final newRecord = <String, dynamic>{
           'gate_check_id': record['gate_check_id'] ?? _uuid.v4(),
@@ -505,7 +507,7 @@ class GateCheckSyncMigrationV8 {
           'vehicle_type': record['vehicle_type'] ?? 'TRUCK',
           'vehicle_characteristics': record['vehicle_characteristics'],
           'username': record['username'],
-          
+
           'destination_location': record['destination_location'] ?? 'Estate',
           'load_type': record['load_type'] ?? 'TBS',
           'load_volume': record['load_volume'] ?? 0.0,
@@ -513,138 +515,145 @@ class GateCheckSyncMigrationV8 {
           'estimated_weight': record['estimated_weight'],
           'actual_weight': record['actual_weight'],
           'do_number': record['do_number'],
-          
+
           'qr_code_data': record['qr_code_data'],
           'linked_guest_log_id': record['linked_guest_log_id'],
-          
-          'entry_time': record['entry_time'] ?? DateTime.now().millisecondsSinceEpoch,
+
+          'entry_time':
+              record['entry_time'] ?? DateTime.now().millisecondsSinceEpoch,
           'exit_time': record['exit_time'],
           'status': _normalizeVehicleStatus(record['status']),
           'passed': record['passed'] ?? 0,
-          
+
           'validation_notes': record['validation_notes'],
           'security_notes': record['security_notes'],
           'emergency_flag': record['emergency_flag'] ?? 0,
-          
+
           'created_by': record['created_by'] ?? 'system',
           'device_id': record['device_id'],
           'device_name': record['device_name'],
-          
+
           'gate_position': record['gate_position'] ?? 'MAIN_GATE',
           'weather_conditions': record['weather_conditions'],
           'latitude': record['latitude'],
           'longitude': record['longitude'],
-          
+
           // Enhanced sync fields
           'sync_status': record['sync_status'] ?? 'PENDING',
           'sync_priority': 'HIGH',
           'sync_retry_count': record['sync_retry_count'] ?? 0,
           'sync_version': 1,
-          
-          'created_at': record['created_at'] ?? DateTime.now().millisecondsSinceEpoch,
-          'updated_at': record['updated_at'] ?? DateTime.now().millisecondsSinceEpoch,
+
+          'created_at':
+              record['created_at'] ?? DateTime.now().millisecondsSinceEpoch,
+          'updated_at':
+              record['updated_at'] ?? DateTime.now().millisecondsSinceEpoch,
           'synced_at': record['synced_at'],
-          
+
           'local_version': 1,
           'needs_manual_resolution': 0,
         };
-        
+
         await txn.insert('gate_check_records', newRecord);
       }
-      
+
       _logger.d('Migrated ${backupRecords.length} gate check records');
-      
     } catch (e) {
       _logger.e('Error migrating gate check records', error: e);
       rethrow;
     }
   }
-  
+
   /// Migrate gate check photos with enhanced fields
   static Future<void> _migrateGateCheckPhotosData(Transaction txn) async {
     try {
       final backupTables = await txn.query(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='gate_check_photos_backup_v7'"
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='gate_check_photos_backup_v7'",
       );
-      
+
       if (backupTables.isEmpty) {
         _logger.w('No gate_check_photos backup found, skipping migration');
         return;
       }
-      
-      final backupRecords = await txn.query('SELECT * FROM gate_check_photos_backup_v7');
-      
+
+      final backupRecords = await txn.query(
+        'SELECT * FROM gate_check_photos_backup_v7',
+      );
+
       for (final record in backupRecords) {
         final newRecord = <String, dynamic>{
           'photo_id': record['photo_id'] ?? _uuid.v4(),
-          'related_record_type': record['related_record_type'] ?? 'GATE_CHECK_RECORD',
+          'related_record_type':
+              record['related_record_type'] ?? 'GATE_CHECK_RECORD',
           'related_record_id': record['related_record_id'] ?? 'unknown',
-          
+
           'file_path': record['file_path'] ?? '',
           'file_name': record['file_name'] ?? 'unknown.jpg',
           'original_file_name': record['original_file_name'],
           'file_size': record['file_size'] ?? 0,
           'file_extension': record['file_extension'] ?? '.jpg',
           'mime_type': record['mime_type'] ?? 'image/jpeg',
-          
+
           'photo_type': record['photo_type'] ?? 'VEHICLE',
           'photo_quality': record['photo_quality'] ?? 'MEDIUM',
           'compression_applied': record['compression_applied'] ?? 0,
           'original_file_size': record['original_file_size'],
-          
+
           'latitude': record['latitude'],
           'longitude': record['longitude'],
-          'taken_at': record['taken_at'] ?? DateTime.now().millisecondsSinceEpoch,
+          'taken_at':
+              record['taken_at'] ?? DateTime.now().millisecondsSinceEpoch,
           'camera_used': record['camera_used'],
-          
+
           'metadata': record['metadata'],
           'description': record['description'],
           'tags': record['tags'] ?? '[]',
-          
+
           'created_by': record['created_by'] ?? 'system',
           'device_id': record['device_id'],
           'device_model': record['device_model'],
-          
+
           // Enhanced sync and upload management
           'sync_status': record['sync_status'] ?? 'PENDING',
           'sync_priority': 'MEDIUM',
           'upload_progress': record['upload_progress'] ?? 0.0,
           'upload_retry_count': record['upload_retry_count'] ?? 0,
-          
+
           'local_path': record['local_path'] ?? record['file_path'],
           'cloud_path': record['cloud_path'],
           'thumbnail_path': record['thumbnail_path'],
           'is_compressed': record['is_compressed'] ?? 0,
           'compression_ratio': record['compression_ratio'],
-          
+
           'upload_attempts': record['upload_attempts'] ?? 0,
           'max_upload_attempts': 5,
           'upload_batch_id': record['upload_batch_id'],
-          
-          'created_at': record['created_at'] ?? DateTime.now().millisecondsSinceEpoch,
-          'updated_at': record['updated_at'] ?? DateTime.now().millisecondsSinceEpoch,
+
+          'created_at':
+              record['created_at'] ?? DateTime.now().millisecondsSinceEpoch,
+          'updated_at':
+              record['updated_at'] ?? DateTime.now().millisecondsSinceEpoch,
           'synced_at': record['synced_at'],
-          
+
           'local_version': 1,
           'needs_manual_resolution': 0,
         };
-        
+
         await txn.insert('gate_check_photos', newRecord);
       }
-      
+
       _logger.d('Migrated ${backupRecords.length} photo records');
-      
     } catch (e) {
       _logger.e('Error migrating gate check photos', error: e);
       rethrow;
     }
   }
-  
+
   /// Create performance-optimized indexes
   static Future<void> _createPerformanceIndexes(Transaction txn) async {
     try {
       _logger.d('Creating performance indexes');
-      
+
       // Guest Logs Indexes
       final guestLogIndexes = [
         'CREATE INDEX idx_gate_guest_logs_guest_id ON gate_guest_logs (guest_id)',
@@ -661,7 +670,7 @@ class GateCheckSyncMigrationV8 {
         'CREATE INDEX idx_gate_guest_logs_device_id ON gate_guest_logs (device_id)',
         'CREATE INDEX idx_gate_guest_logs_conflict_resolution ON gate_guest_logs (needs_manual_resolution, conflict_data)',
       ];
-      
+
       // QR Tokens Indexes
       final qrTokenIndexes = [
         'CREATE INDEX idx_guest_qr_tokens_jti ON guest_qr_tokens (jti)',
@@ -674,7 +683,7 @@ class GateCheckSyncMigrationV8 {
         'CREATE INDEX idx_guest_qr_tokens_sync_status ON guest_qr_tokens (sync_status, sync_priority)',
         'CREATE INDEX idx_guest_qr_tokens_usage ON guest_qr_tokens (current_usage, max_usage, status)',
       ];
-      
+
       // Gate Check Records Indexes
       final gateCheckIndexes = [
         'CREATE INDEX idx_gate_check_records_gate_check_id ON gate_check_records (gate_check_id)',
@@ -689,7 +698,7 @@ class GateCheckSyncMigrationV8 {
         'CREATE INDEX idx_gate_check_records_linked_guest ON gate_check_records (linked_guest_log_id)',
         'CREATE INDEX idx_gate_check_records_conflict_resolution ON gate_check_records (needs_manual_resolution, conflict_data)',
       ];
-      
+
       // Photos Indexes
       final photoIndexes = [
         'CREATE INDEX idx_gate_check_photos_photo_id ON gate_check_photos (photo_id)',
@@ -703,7 +712,7 @@ class GateCheckSyncMigrationV8 {
         'CREATE INDEX idx_gate_check_photos_upload_batch ON gate_check_photos (upload_batch_id)',
         'CREATE INDEX idx_gate_check_photos_upload_schedule ON gate_check_photos (upload_scheduled_at, upload_attempts)',
       ];
-      
+
       // Execute all index creation commands
       final allIndexes = [
         ...guestLogIndexes,
@@ -711,7 +720,7 @@ class GateCheckSyncMigrationV8 {
         ...gateCheckIndexes,
         ...photoIndexes,
       ];
-      
+
       for (final indexSql in allIndexes) {
         try {
           await txn.execute(indexSql);
@@ -719,20 +728,19 @@ class GateCheckSyncMigrationV8 {
           _logger.w('Index creation failed (may already exist): $indexSql');
         }
       }
-      
+
       _logger.d('Created ${allIndexes.length} performance indexes');
-      
     } catch (e) {
       _logger.e('Error creating performance indexes', error: e);
       rethrow;
     }
   }
-  
+
   /// Setup triggers and constraints for automatic updates
   static Future<void> _setupTriggersAndConstraints(Transaction txn) async {
     try {
       _logger.d('Setting up triggers and constraints');
-      
+
       // Updated timestamp triggers
       await txn.execute('''
         CREATE TRIGGER gate_guest_logs_update_timestamp 
@@ -741,7 +749,7 @@ class GateCheckSyncMigrationV8 {
           UPDATE gate_guest_logs SET updated_at = (strftime('%s', 'now') * 1000) WHERE id = NEW.id;
         END
       ''');
-      
+
       await txn.execute('''
         CREATE TRIGGER gate_check_records_update_timestamp 
         AFTER UPDATE ON gate_check_records 
@@ -749,7 +757,7 @@ class GateCheckSyncMigrationV8 {
           UPDATE gate_check_records SET updated_at = (strftime('%s', 'now') * 1000) WHERE id = NEW.id;
         END
       ''');
-      
+
       await txn.execute('''
         CREATE TRIGGER gate_check_photos_update_timestamp 
         AFTER UPDATE ON gate_check_photos 
@@ -757,7 +765,7 @@ class GateCheckSyncMigrationV8 {
           UPDATE gate_check_photos SET updated_at = (strftime('%s', 'now') * 1000) WHERE id = NEW.id;
         END
       ''');
-      
+
       // Local version increment triggers
       await txn.execute('''
         CREATE TRIGGER gate_guest_logs_increment_version 
@@ -767,7 +775,7 @@ class GateCheckSyncMigrationV8 {
           UPDATE gate_guest_logs SET local_version = local_version + 1 WHERE id = NEW.id;
         END
       ''');
-      
+
       await txn.execute('''
         CREATE TRIGGER gate_check_records_increment_version 
         AFTER UPDATE ON gate_check_records 
@@ -776,7 +784,7 @@ class GateCheckSyncMigrationV8 {
           UPDATE gate_check_records SET local_version = local_version + 1 WHERE id = NEW.id;
         END
       ''');
-      
+
       // Sync status update triggers
       await txn.execute('''
         CREATE TRIGGER gate_guest_logs_mark_for_sync 
@@ -786,7 +794,7 @@ class GateCheckSyncMigrationV8 {
           UPDATE gate_guest_logs SET sync_status = 'PENDING', sync_retry_count = 0 WHERE id = NEW.id;
         END
       ''');
-      
+
       await txn.execute('''
         CREATE TRIGGER gate_check_records_mark_for_sync 
         AFTER UPDATE ON gate_check_records 
@@ -795,39 +803,44 @@ class GateCheckSyncMigrationV8 {
           UPDATE gate_check_records SET sync_status = 'PENDING', sync_retry_count = 0 WHERE id = NEW.id;
         END
       ''');
-      
+
       _logger.d('Setup triggers and constraints completed');
-      
     } catch (e) {
       _logger.e('Error setting up triggers and constraints', error: e);
       rethrow;
     }
   }
-  
+
   /// Verify migration integrity
   static Future<void> _verifyMigrationIntegrity(Transaction txn) async {
     try {
       _logger.d('Verifying migration integrity');
-      
+
       // Count records in new tables
-      final guestLogsCount = Sqflite.firstIntValue(
-        await txn.rawQuery('SELECT COUNT(*) FROM guest_logs')
-      ) ?? 0;
-      
-      final gateCheckRecordsCount = Sqflite.firstIntValue(
-        await txn.rawQuery('SELECT COUNT(*) FROM gate_check_records')
-      ) ?? 0;
-      
-      final photosCount = Sqflite.firstIntValue(
-        await txn.rawQuery('SELECT COUNT(*) FROM gate_check_photos')
-      ) ?? 0;
-      
+      final guestLogsCount =
+          Sqflite.firstIntValue(
+            await txn.rawQuery('SELECT COUNT(*) FROM guest_logs'),
+          ) ??
+          0;
+
+      final gateCheckRecordsCount =
+          Sqflite.firstIntValue(
+            await txn.rawQuery('SELECT COUNT(*) FROM gate_check_records'),
+          ) ??
+          0;
+
+      final photosCount =
+          Sqflite.firstIntValue(
+            await txn.rawQuery('SELECT COUNT(*) FROM gate_check_photos'),
+          ) ??
+          0;
+
       _logger.i(
         'Migration verification: $guestLogsCount guest logs, '
         '$gateCheckRecordsCount gate check records, '
-        '$photosCount photos migrated'
+        '$photosCount photos migrated',
       );
-      
+
       // Verify table structures
       final tableStructures = [
         'guest_logs',
@@ -835,34 +848,33 @@ class GateCheckSyncMigrationV8 {
         'gate_check_records',
         'gate_check_photos',
       ];
-      
+
       for (final tableName in tableStructures) {
         final tableInfo = await txn.rawQuery('PRAGMA table_info($tableName)');
         _logger.d('Table $tableName has ${tableInfo.length} columns');
       }
-      
+
       // Verify indexes
       final indexes = await txn.rawQuery(
-        "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_guest%' OR name LIKE 'idx_gate%'"
+        "SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_guest%' OR name LIKE 'idx_gate%'",
       );
       _logger.d('Created ${indexes.length} indexes for gate check tables');
-      
+
       _logger.d('Migration integrity verification completed successfully');
-      
     } catch (e) {
       _logger.e('Error verifying migration integrity', error: e);
       rethrow;
     }
   }
-  
+
   // ====================================================================
   // HELPER METHODS
   // ====================================================================
-  
+
   /// Derive generation intent from existing status
   static String? _deriveGenerationIntent(dynamic status) {
     if (status == null) return null;
-    
+
     switch (status.toString().toUpperCase()) {
       case 'REGISTERED_FOR_ENTRY':
         return 'ENTRY';
@@ -876,36 +888,36 @@ class GateCheckSyncMigrationV8 {
         return 'ENTRY'; // Default to ENTRY
     }
   }
-  
+
   /// Normalize guest status to ensure compatibility
   static String _normalizeGuestStatus(dynamic status) {
     if (status == null) return 'INSIDE';
-    
+
     final validStatuses = [
       'REGISTERED_FOR_ENTRY',
-      'INSIDE', 
+      'INSIDE',
       'REGISTERED_FOR_EXIT',
       'EXITED',
-      'CANCELLED'
+      'CANCELLED',
     ];
-    
+
     final statusStr = status.toString().toUpperCase();
     return validStatuses.contains(statusStr) ? statusStr : 'INSIDE';
   }
-  
+
   /// Normalize vehicle status to ensure compatibility
   static String _normalizeVehicleStatus(dynamic status) {
     if (status == null) return 'ENTERING';
-    
+
     final validStatuses = [
       'ENTERING',
       'INSIDE',
-      'EXITING', 
+      'EXITING',
       'EXITED',
       'CANCELLED',
-      'ERROR'
+      'ERROR',
     ];
-    
+
     final statusStr = status.toString().toUpperCase();
     return validStatuses.contains(statusStr) ? statusStr : 'ENTERING';
   }

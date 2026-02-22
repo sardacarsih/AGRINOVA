@@ -72,7 +72,7 @@ class ErrorHandler {
 
   /// Handle Flutter framework errors
   void _handleFlutterError(FlutterErrorDetails details) {
-    final appError = handleError(details.exception, stackTrace: details.stack);
+    handleError(details.exception, stackTrace: details.stack);
     
     if (kDebugMode) {
       FlutterError.presentError(details);

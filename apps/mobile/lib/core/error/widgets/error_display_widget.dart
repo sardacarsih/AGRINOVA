@@ -15,14 +15,14 @@ class ErrorDisplayWidget extends StatelessWidget {
   final bool showTechnicalDetails;
 
   const ErrorDisplayWidget({
-    Key? key,
+    super.key,
     required this.error,
     this.onRetry,
     this.onReportError,
     this.onGoHome,
     this.errorContext,
     this.showTechnicalDetails = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -161,10 +161,10 @@ class ErrorDisplayWidget extends StatelessWidget {
       width: 100,
       height: 100,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         shape: BoxShape.circle,
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withValues(alpha: 0.3),
           width: 2,
         ),
       ),
@@ -268,7 +268,7 @@ class ErrorDisplayWidget extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: () {
               // Open app settings
-              _openAppSettings();
+              _openAppSettings(context);
             },
             icon: const Icon(Icons.settings),
             label: const Text('Buka Pengaturan'),
@@ -540,7 +540,7 @@ class ErrorDisplayWidget extends StatelessWidget {
     }
   }
 
-  Future<void> _openAppSettings() async {
+  Future<void> _openAppSettings(BuildContext context) async {
     try {
       // In a real app, you would use the app_settings package
       // For now, just show a message
@@ -555,3 +555,4 @@ class ErrorDisplayWidget extends StatelessWidget {
     }
   }
 }
+

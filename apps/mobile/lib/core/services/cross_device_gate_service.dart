@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:logger/logger.dart';
 import '../database/enhanced_database_service.dart';
 import '../services/device_service.dart';
@@ -170,6 +169,7 @@ class CrossDeviceGateService {
     }
   }
 
+  // ignore: unused_element
   Future<String> _getCurrentDeviceId() async {
     return await DeviceService.getDeviceId();
   }

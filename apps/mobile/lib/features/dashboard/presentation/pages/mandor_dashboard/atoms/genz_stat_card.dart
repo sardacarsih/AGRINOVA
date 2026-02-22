@@ -15,14 +15,14 @@ class GenZStatCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const GenZStatCard({
-    Key? key,
+    super.key,
     required this.value,
     required this.label,
     required this.icon,
     required this.color,
     this.subtitle,
     this.onTap,
-  }) : super(key: key);
+  });
 
   /// Green theme stat card - for harvest/panen data
   factory GenZStatCard.green({
@@ -160,7 +160,7 @@ class GenZStatCard extends StatelessWidget {
     return Text(
       subtitle!,
       style: MandorTheme.bodySmall.copyWith(
-        color: color.withOpacity(0.6),
+        color: color.withValues(alpha: 0.6),
       ),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
@@ -186,3 +186,4 @@ class StatCardData {
     this.onTap,
   });
 }
+

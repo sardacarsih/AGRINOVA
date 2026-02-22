@@ -185,9 +185,9 @@ class SatpamQueries {
         'input': {
           'deviceId': deviceId,
           'guestLogs': guestLogs,
-          if (qrTokens != null) 'qrTokens': qrTokens,
+          'qrTokens': ?qrTokens,
           'clientTimestamp': clientTimestamp.toIso8601String(),
-          if (batchId != null) 'batchId': batchId,
+          'batchId': ?batchId,
           'conflictResolution': conflictResolution,
         },
       },
@@ -207,7 +207,7 @@ class SatpamQueries {
         'input': {
           'deviceId': deviceId,
           'photos': photos,
-          if (batchId != null) 'batchId': batchId,
+          'batchId': ?batchId,
         },
       },
       fetchPolicy: FetchPolicy.networkOnly,

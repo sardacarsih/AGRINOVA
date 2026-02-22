@@ -19,7 +19,7 @@ class FieldOptimizedTextField extends StatefulWidget {
   final FocusNode? focusNode;
 
   const FieldOptimizedTextField({
-    Key? key,
+    super.key,
     required this.controller,
     this.labelText,
     this.hintText,
@@ -34,7 +34,7 @@ class FieldOptimizedTextField extends StatefulWidget {
     this.onTap,
     this.enabled = true,
     this.focusNode,
-  }) : super(key: key);
+  });
 
   @override
   State<FieldOptimizedTextField> createState() => _FieldOptimizedTextFieldState();
@@ -164,7 +164,7 @@ class FieldOptimizedButton extends StatelessWidget {
   final bool isSecondary;
 
   const FieldOptimizedButton({
-    Key? key,
+    super.key,
     required this.text,
     this.icon,
     required this.onPressed,
@@ -172,7 +172,7 @@ class FieldOptimizedButton extends StatelessWidget {
     this.textColor,
     this.isLoading = false,
     this.isSecondary = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -244,14 +244,14 @@ class FieldOptimizedCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const FieldOptimizedCard({
-    Key? key,
+    super.key,
     required this.child,
     this.padding,
     this.margin,
     this.backgroundColor,
     this.elevation,
     this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -260,7 +260,7 @@ class FieldOptimizedCard extends StatelessWidget {
       child: Material(
         elevation: elevation ?? 3,
         borderRadius: BorderRadius.circular(16),
-        shadowColor: Colors.black.withOpacity(0.2),
+        shadowColor: Colors.black.withValues(alpha: 0.2),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
@@ -294,7 +294,7 @@ class FieldOptimizedSelector<T> extends StatelessWidget {
   final bool enabled;
 
   const FieldOptimizedSelector({
-    Key? key,
+    super.key,
     required this.label,
     required this.selectedValue,
     required this.items,
@@ -303,7 +303,7 @@ class FieldOptimizedSelector<T> extends StatelessWidget {
     this.icon,
     required this.onChanged,
     this.enabled = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -443,7 +443,7 @@ class FieldOptimizedSelector<T> extends StatelessWidget {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: Material(
-                      color: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.1) : null,
+                      color: isSelected ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1) : null,
                       borderRadius: BorderRadius.circular(12),
                       child: InkWell(
                         onTap: () {
@@ -509,11 +509,11 @@ class HighContrastText extends StatelessWidget {
 
   const HighContrastText(
     this.text, {
-    Key? key,
+    super.key,
     this.style,
     this.textAlign,
     this.maxLines,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -527,7 +527,7 @@ class HighContrastText extends StatelessWidget {
         color: style?.color ?? Colors.black87,
         shadows: [
           Shadow(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             offset: const Offset(1, 1),
             blurRadius: 1,
           ),

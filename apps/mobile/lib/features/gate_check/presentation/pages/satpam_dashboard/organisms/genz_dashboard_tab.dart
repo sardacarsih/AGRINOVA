@@ -24,7 +24,7 @@ class GenZDashboardTab extends StatelessWidget {
   final bool isLoading;
 
   const GenZDashboardTab({
-    Key? key,
+    super.key,
     required this.userName,
     required this.userRole,
     this.companyName,
@@ -38,7 +38,7 @@ class GenZDashboardTab extends StatelessWidget {
     this.onRefresh,
     this.onViewAllHistory,
     this.isLoading = false,
-  }) : super(key: key);
+  });
 
   // Neon colors
   static const Color neonPurple = Color(0xFF8B5CF6);
@@ -54,7 +54,7 @@ class GenZDashboardTab extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: const CircularProgressIndicator(color: neonPurple),
@@ -84,7 +84,7 @@ class GenZDashboardTab extends StatelessWidget {
         boxShadow: [
           // Purple neon glow
           BoxShadow(
-            color: neonPurple.withOpacity(0.4),
+            color: neonPurple.withValues(alpha: 0.4),
             blurRadius: 30,
             spreadRadius: -5,
             offset: const Offset(0, 10),
@@ -102,14 +102,14 @@ class GenZDashboardTab extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  const Color(0xFF7C3AED).withOpacity(0.9),
-                  const Color(0xFF6D28D9).withOpacity(0.85),
-                  const Color(0xFF5B21B6).withOpacity(0.8),
+                  const Color(0xFF7C3AED).withValues(alpha: 0.9),
+                  const Color(0xFF6D28D9).withValues(alpha: 0.85),
+                  const Color(0xFF5B21B6).withValues(alpha: 0.8),
                 ],
               ),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 width: 1,
               ),
             ),
@@ -124,15 +124,15 @@ class GenZDashboardTab extends StatelessWidget {
                       width: 56,
                       height: 56,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                           width: 1,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
+                            color: Colors.black.withValues(alpha: 0.1),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -164,7 +164,7 @@ class GenZDashboardTab extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w500,
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                           ),
                         ),
                       ],
@@ -220,18 +220,18 @@ class GenZDashboardTab extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            roleAccent.withOpacity(0.28),
-            roleAccent.withOpacity(0.12),
+            roleAccent.withValues(alpha: 0.28),
+            roleAccent.withValues(alpha: 0.12),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: roleAccent.withOpacity(0.55),
+          color: roleAccent.withValues(alpha: 0.55),
           width: 1.2,
         ),
         boxShadow: [
           BoxShadow(
-            color: roleAccent.withOpacity(0.35),
+            color: roleAccent.withValues(alpha: 0.35),
             blurRadius: 16,
             spreadRadius: -2,
             offset: const Offset(0, 6),
@@ -244,9 +244,9 @@ class GenZDashboardTab extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.18),
+              color: Colors.black.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: roleAccent.withOpacity(0.45)),
+              border: Border.all(color: roleAccent.withValues(alpha: 0.45)),
             ),
             child: Icon(
               isSatpamRole ? Icons.verified_user_rounded : Icons.badge_rounded,
@@ -287,7 +287,7 @@ class GenZDashboardTab extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white.withOpacity(0.82),
+                    color: Colors.white.withValues(alpha: 0.82),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -308,15 +308,15 @@ class GenZDashboardTab extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: Colors.white.withOpacity(0.25),
+          color: Colors.white.withValues(alpha: 0.25),
           width: 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: glowColor.withOpacity(0.2),
+            color: glowColor.withValues(alpha: 0.2),
             blurRadius: 8,
             spreadRadius: -2,
           ),
@@ -472,7 +472,7 @@ class GenZDashboardTab extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: glowColor.withOpacity(isNeutral ? 0.15 : 0.35),
+            color: glowColor.withValues(alpha: isNeutral ? 0.15 : 0.35),
             blurRadius: 20,
             spreadRadius: -3,
             offset: const Offset(0, 8),
@@ -491,19 +491,19 @@ class GenZDashboardTab extends StatelessWidget {
                 end: Alignment.bottomRight,
                 colors: isNeutral
                     ? [
-                        const Color(0xFF1F2937).withOpacity(0.9),
-                        const Color(0xFF374151).withOpacity(0.7),
+                        const Color(0xFF1F2937).withValues(alpha: 0.9),
+                        const Color(0xFF374151).withValues(alpha: 0.7),
                       ]
                     : [
-                        glowColor.withOpacity(0.25),
-                        glowColor.withOpacity(0.1),
+                        glowColor.withValues(alpha: 0.25),
+                        glowColor.withValues(alpha: 0.1),
                       ],
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: isNeutral
-                    ? Colors.white.withOpacity(0.1)
-                    : glowColor.withOpacity(0.4),
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : glowColor.withValues(alpha: 0.4),
                 width: 1.5,
               ),
             ),
@@ -517,7 +517,7 @@ class GenZDashboardTab extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
                     ),
                     if (icon != null) ...[
@@ -537,7 +537,7 @@ class GenZDashboardTab extends StatelessWidget {
                         ? null
                         : [
                             Shadow(
-                              color: glowColor.withOpacity(0.5),
+                              color: glowColor.withValues(alpha: 0.5),
                               blurRadius: 10,
                             ),
                           ],
@@ -575,10 +575,10 @@ class GenZDashboardTab extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: neonPurple.withOpacity(0.15),
+                    color: neonPurple.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: neonPurple.withOpacity(0.3),
+                      color: neonPurple.withValues(alpha: 0.3),
                     ),
                   ),
                   child: const Text(
@@ -619,7 +619,7 @@ class GenZDashboardTab extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: accentColor.withOpacity(0.1),
+            color: accentColor.withValues(alpha: 0.1),
             blurRadius: 15,
             spreadRadius: -5,
             offset: const Offset(0, 5),
@@ -637,13 +637,13 @@ class GenZDashboardTab extends StatelessWidget {
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
                 colors: [
-                  const Color(0xFF1F2937).withOpacity(0.9),
-                  const Color(0xFF1F2937).withOpacity(0.7),
+                  const Color(0xFF1F2937).withValues(alpha: 0.9),
+                  const Color(0xFF1F2937).withValues(alpha: 0.7),
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: Colors.white.withOpacity(0.08),
+                color: Colors.white.withValues(alpha: 0.08),
               ),
             ),
             child: Row(
@@ -653,14 +653,14 @@ class GenZDashboardTab extends StatelessWidget {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: accentColor.withOpacity(0.15),
+                    color: accentColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: accentColor.withOpacity(0.3),
+                      color: accentColor.withValues(alpha: 0.3),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: accentColor.withOpacity(0.3),
+                        color: accentColor.withValues(alpha: 0.3),
                         blurRadius: 12,
                         spreadRadius: -4,
                       ),
@@ -699,7 +699,7 @@ class GenZDashboardTab extends StatelessWidget {
                                     : 'Keluar Kendaraan'),
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.white.withOpacity(0.5),
+                              color: Colors.white.withValues(alpha: 0.5),
                             ),
                           ),
                           if (activity.registrationSource != null) ...[
@@ -711,14 +711,14 @@ class GenZDashboardTab extends StatelessWidget {
                                 color: (activity.registrationSource == 'QR_SCAN'
                                         ? neonBlue
                                         : Colors.orange)
-                                    .withOpacity(0.2),
+                                    .withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(4),
                                 border: Border.all(
                                   color:
                                       (activity.registrationSource == 'QR_SCAN'
                                               ? neonBlue
                                               : Colors.orange)
-                                          .withOpacity(0.4),
+                                          .withValues(alpha: 0.4),
                                   width: 0.5,
                                 ),
                               ),
@@ -765,7 +765,7 @@ class GenZDashboardTab extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                   ),
                 ),
 
@@ -780,7 +780,7 @@ class GenZDashboardTab extends StatelessWidget {
                     color: Colors.white,
                     shadows: [
                       Shadow(
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                         blurRadius: 6,
                       ),
                     ],
@@ -802,10 +802,10 @@ class GenZDashboardTab extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(48),
           decoration: BoxDecoration(
-            color: const Color(0xFF1F2937).withOpacity(0.6),
+            color: const Color(0xFF1F2937).withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: Colors.white.withOpacity(0.1),
+              color: Colors.white.withValues(alpha: 0.1),
             ),
           ),
           child: Center(
@@ -814,14 +814,14 @@ class GenZDashboardTab extends StatelessWidget {
                 Icon(
                   Icons.inbox_rounded,
                   size: 56,
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withValues(alpha: 0.3),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Belum ada aktivitas hari ini',
                   style: TextStyle(
                     fontSize: 15,
-                    color: Colors.white.withOpacity(0.5),
+                    color: Colors.white.withValues(alpha: 0.5),
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -883,3 +883,4 @@ class ActivityData {
     this.registrationSource,
   });
 }
+

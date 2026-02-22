@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -16,14 +19,14 @@ class ErrorBoundary extends StatefulWidget {
   final Map<String, dynamic>? errorContext;
 
   const ErrorBoundary({
-    Key? key,
+    super.key,
     required this.child,
     this.errorBuilder,
     this.fallbackRoute,
     this.enableRetry = true,
     this.enableLogging = true,
     this.errorContext,
-  }) : super(key: key);
+  });
 
   @override
   State<ErrorBoundary> createState() => _ErrorBoundaryState();
@@ -76,7 +79,7 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
           _buildDefaultErrorWidget(_error!);
     }
 
-    return child;
+    return widget.child;
   }
 
   Widget _buildDefaultErrorWidget(AppError error) {
@@ -114,7 +117,6 @@ class _ErrorBoundaryState extends State<ErrorBoundary> {
   }
 
   void _reportError() {
-    // Navigate to error reporting screen
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => ErrorReportingScreen(
@@ -143,12 +145,12 @@ class BlocErrorBoundary<B extends BlocBase<dynamic>> extends StatelessWidget {
   final bool enableRetry;
 
   const BlocErrorBoundary({
-    Key? key,
+    super.key,
     required this.child,
     this.errorBuilder,
     this.bloc,
     this.enableRetry = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -175,8 +177,9 @@ class BlocErrorBoundary<B extends BlocBase<dynamic>> extends StatelessWidget {
 
   void _handleBlocError(BuildContext context, AppError error) {
     final errorResult = ErrorHandler().handleError(error);
+    final shouldRetry = enableRetry && ErrorHandler().isRecoverable(error);
 
-    if (errorResult.shouldRetry) {
+    if (shouldRetry) {
       _showRetryDialog(context, error, errorResult);
     } else {
       _showErrorDialog(context, error, errorResult);
@@ -285,14 +288,14 @@ class AsyncErrorBoundary<T> extends StatefulWidget {
   final Map<String, dynamic>? errorContext;
 
   const AsyncErrorBoundary({
-    Key? key,
+    super.key,
     required this.future,
     required this.builder,
     this.errorBuilder,
     this.loadingBuilder,
     this.enableRetry = true,
     this.errorContext,
-  }) : super(key: key);
+  });
 
   @override
   State<AsyncErrorBoundary<T>> createState() => _AsyncErrorBoundaryState<T>();
@@ -355,7 +358,7 @@ class _AsyncErrorBoundaryState<T> extends State<AsyncErrorBoundary<T>> {
     }
 
     if (_data != null) {
-      return widget.builder(_data!);
+      return widget.builder(_data as T);
     }
 
     return const SizedBox.shrink();
@@ -370,12 +373,12 @@ class GracefulDegradationWrapper extends StatelessWidget {
   final String? featureName;
 
   const GracefulDegradationWrapper({
-    Key? key,
+    super.key,
     required this.child,
     required this.fallback,
     required this.isFeatureAvailable,
     this.featureName,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -398,12 +401,12 @@ class NetworkErrorBoundary extends StatefulWidget {
   final Duration retryDelay;
 
   const NetworkErrorBoundary({
-    Key? key,
+    super.key,
     required this.child,
     this.onNetworkUnavailable,
     this.enableRetry = true,
     this.retryDelay = const Duration(seconds: 5),
-  }) : super(key: key);
+  });
 
   @override
   State<NetworkErrorBoundary> createState() => _NetworkErrorBoundaryState();
@@ -448,7 +451,7 @@ class _NetworkErrorBoundaryState extends State<NetworkErrorBoundary> {
   @override
   Widget build(BuildContext context) {
     if (_isNetworkAvailable) {
-      return child;
+      return widget.child;
     }
 
     return widget.onNetworkUnavailable?.call() ??
@@ -466,7 +469,7 @@ class BlocError {
 
 /// Network unavailable widget
 class NetworkUnavailableWidget extends StatelessWidget {
-  const NetworkUnavailableWidget({Key? key}) : super(key: key);
+  const NetworkUnavailableWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -532,5 +535,32 @@ class _ErrorListener implements ErrorListener {
   @override
   void onError(AppError error, StackTrace? stackTrace) {
     onErrorCallback(error);
+  }
+}
+
+class ErrorReportingScreen extends StatelessWidget {
+  final AppError error;
+  final Map<String, dynamic>? errorContext;
+
+  const ErrorReportingScreen({
+    super.key,
+    required this.error,
+    this.errorContext,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Laporan Error')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: SelectableText(
+          'Code: ${error.code}\n'
+          'Message: ${error.message}\n'
+          'Type: ${error.runtimeType}\n'
+          'Context: ${errorContext ?? {}}',
+        ),
+      ),
+    );
   }
 }

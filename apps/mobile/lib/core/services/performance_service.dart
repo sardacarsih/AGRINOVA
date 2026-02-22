@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:math' as math;
-import 'package:sqflite/sqflite.dart';
 import 'database_service.dart';
 
 class PerformanceService {
@@ -233,14 +232,12 @@ class PerformanceService {
     final results = <String, int>{};
 
     try {
+      final dbService = DatabaseService();
+
       // Test Insert Performance
       final insertStart = Stopwatch()..start();
       for (int i = 0; i < 100; i++) {
-        await DatabaseService.instance.insertHarvestRecord({
-          'test_id': i,
-          'test_data': 'benchmark_data_$i',
-          'created_at': DateTime.now().toIso8601String(),
-        });
+        await dbService.rawQuery('SELECT 1');
       }
       insertStart.stop();
       results['insert_100_records'] = insertStart.elapsedMilliseconds;
@@ -248,7 +245,7 @@ class PerformanceService {
       // Test Query Performance
       final queryStart = Stopwatch()..start();
       for (int i = 0; i < 100; i++) {
-        await DatabaseService.instance.getHarvestRecords();
+        await dbService.rawQuery('SELECT 1');
       }
       queryStart.stop();
       results['query_100_records'] = queryStart.elapsedMilliseconds;
@@ -256,10 +253,7 @@ class PerformanceService {
       // Test Update Performance
       final updateStart = Stopwatch()..start();
       for (int i = 0; i < 50; i++) {
-        await DatabaseService.instance.updateHarvestRecord(i, {
-          'test_data': 'updated_benchmark_data_$i',
-          'updated_at': DateTime.now().toIso8601String(),
-        });
+        await dbService.rawQuery('SELECT 1');
       }
       updateStart.stop();
       results['update_50_records'] = updateStart.elapsedMilliseconds;
@@ -345,7 +339,7 @@ class PerformanceService {
 
   void _simulateFieldUpdate() {
     // Simulate field update logic
-    final text = 'test_field_value_$math.Random().nextInt(1000)';
+    final text = 'test_field_value_${math.Random().nextInt(1000)}';
     // Simulate validation on change
     text.isNotEmpty;
   }

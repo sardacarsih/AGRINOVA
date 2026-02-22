@@ -21,7 +21,7 @@ import 'satpam_dashboard/satpam_dashboard_helpers.dart';
 /// - Search and filter functionality
 /// - Export and reporting features
 class GateCheckHistoryPage extends StatefulWidget {
-  const GateCheckHistoryPage({Key? key}) : super(key: key);
+  const GateCheckHistoryPage({super.key});
 
   @override
   State<GateCheckHistoryPage> createState() => _GateCheckHistoryPageState();
@@ -38,7 +38,9 @@ class _GateCheckHistoryPageState extends State<GateCheckHistoryPage> {
   String? _errorMessage;
   
   // Data state
+  // ignore: unused_field
   List<GuestLog> _recentLogs = [];
+  // ignore: unused_field
   List<AccessLog> _recentAccessLogs = [];
   List<Map<String, dynamic>> _historyData = [];
   
@@ -300,9 +302,9 @@ class _GateCheckHistoryPageState extends State<GateCheckHistoryPage> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -387,7 +389,7 @@ class _GateCheckHistoryPageState extends State<GateCheckHistoryPage> {
                 
                 // Action Status filter (Entry/Exit)
                 DropdownButtonFormField<String>(
-                  value: _selectedStatus,
+                  initialValue: _selectedStatus,
                   decoration: const InputDecoration(
                     labelText: 'Status Aksi',
                     border: OutlineInputBorder(),
@@ -410,7 +412,7 @@ class _GateCheckHistoryPageState extends State<GateCheckHistoryPage> {
                 
                 // Sync Status filter
                 DropdownButtonFormField<String>(
-                  value: _selectedSyncStatus,
+                  initialValue: _selectedSyncStatus,
                   decoration: const InputDecoration(
                     labelText: 'Status Sync',
                     border: OutlineInputBorder(),
@@ -494,7 +496,7 @@ class _GateCheckHistoryPageState extends State<GateCheckHistoryPage> {
                 const SizedBox(height: 4),
                 Text(
                   selectedDate != null 
-                    ? '${selectedDate!.day}/${selectedDate!.month}/${selectedDate!.year}'
+                    ? '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}'
                     : 'Pilih tanggal',
                   style: const TextStyle(fontSize: 16),
                 ),
@@ -654,7 +656,7 @@ class _GateCheckHistoryPageState extends State<GateCheckHistoryPage> {
         border: Border.all(color: Colors.grey[200]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 1),
@@ -679,8 +681,8 @@ class _GateCheckHistoryPageState extends State<GateCheckHistoryPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: isEntry 
-                    ? Colors.green.withOpacity(0.1) 
-                    : Colors.blue.withOpacity(0.1),
+                    ? Colors.green.withValues(alpha: 0.1) 
+                    : Colors.blue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -795,9 +797,9 @@ class _GateCheckHistoryPageState extends State<GateCheckHistoryPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: syncStatusColor.withOpacity(0.1),
+                  color: syncStatusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: syncStatusColor.withOpacity(0.3)),
+                  border: Border.all(color: syncStatusColor.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -825,7 +827,7 @@ class _GateCheckHistoryPageState extends State<GateCheckHistoryPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.grey.withOpacity(0.1),
+                    color: Colors.grey.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -855,9 +857,9 @@ class _GateCheckHistoryPageState extends State<GateCheckHistoryPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.05),
+                  color: Colors.blue.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                  border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -956,6 +958,7 @@ class _GateCheckHistoryPageState extends State<GateCheckHistoryPage> {
   }
 
   /// Convert logs to history data format (legacy method for compatibility)
+  // ignore: unused_element
   List<Map<String, dynamic>> _convertLogsToHistoryData(
     List<GuestLog> guestLogs,
     List<AccessLog> accessLogs,
@@ -1090,3 +1093,4 @@ class _GateCheckHistoryPageState extends State<GateCheckHistoryPage> {
     return 'all'; // Default filter
   }
 }
+

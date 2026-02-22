@@ -8,13 +8,13 @@ class StatsCardWidget extends StatelessWidget {
   final String? trend;
 
   const StatsCardWidget({
-    Key? key,
+    super.key,
     required this.title,
     required this.value,
     required this.icon,
     required this.color,
     this.trend,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -57,7 +57,7 @@ class AsistenTheme {
     borderRadius: BorderRadius.circular(16),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(0.05),
+        color: Colors.black.withValues(alpha: 0.05),
         blurRadius: 10,
         offset: const Offset(0, 2),
       ),
@@ -67,10 +67,10 @@ class AsistenTheme {
   static BoxDecoration coloredCardDecoration(Color color) => BoxDecoration(
     color: cardBackground,
     borderRadius: BorderRadius.circular(16),
-    border: Border.all(color: color.withOpacity(0.1), width: 1),
+    border: Border.all(color: color.withValues(alpha: 0.1), width: 1),
     boxShadow: [
       BoxShadow(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         blurRadius: 8,
         offset: const Offset(0, 2),
       ),
@@ -80,10 +80,10 @@ class AsistenTheme {
   // Glassmorphism (for welcome card)
   static BoxDecoration glassDecoration({Color? color, double opacity = 0.15}) {
     return BoxDecoration(
-      color: (color ?? primaryBlue).withOpacity(opacity),
+      color: (color ?? primaryBlue).withValues(alpha: opacity),
       borderRadius: BorderRadius.circular(16),
       border: Border.all(
-        color: (color ?? primaryBlue).withOpacity(0.4),
+        color: (color ?? primaryBlue).withValues(alpha: 0.4),
         width: 1,
       ),
     );
@@ -129,7 +129,7 @@ class AsistenTheme {
   );
 
   static TextStyle get bodyWhite => TextStyle(
-    color: Colors.white.withOpacity(0.9),
+    color: Colors.white.withValues(alpha: 0.9),
     fontSize: 14,
   );
 
@@ -155,16 +155,16 @@ class AsistenTheme {
   );
 
   static BoxDecoration get pendingItemDecoration => BoxDecoration(
-    color: pendingOrange.withOpacity(0.1),
+    color: pendingOrange.withValues(alpha: 0.1),
     borderRadius: BorderRadius.circular(12),
-    border: Border.all(color: pendingOrange.withOpacity(0.3)),
+    border: Border.all(color: pendingOrange.withValues(alpha: 0.3)),
   );
 
   // Status Badge Decoration
   static BoxDecoration statusBadgeDecoration(Color color) => BoxDecoration(
-    color: color.withOpacity(0.1),
+    color: color.withValues(alpha: 0.1),
     borderRadius: BorderRadius.circular(20),
-    border: Border.all(color: color.withOpacity(0.3)),
+    border: Border.all(color: color.withValues(alpha: 0.3)),
   );
   
   // Text Style Helpers
@@ -184,3 +184,4 @@ class AsistenTheme {
     );
   }
 }
+

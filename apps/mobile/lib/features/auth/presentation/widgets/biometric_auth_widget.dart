@@ -15,7 +15,7 @@ class BiometricAuthWidget extends StatefulWidget {
   final Function(String)? onError;
 
   const BiometricAuthWidget({
-    Key? key,
+    super.key,
     this.title,
     this.subtitle,
     this.reason,
@@ -24,7 +24,7 @@ class BiometricAuthWidget extends StatefulWidget {
     this.onSuccess,
     this.onCancel,
     this.onError,
-  }) : super(key: key);
+  });
 
   @override
   State<BiometricAuthWidget> createState() => _BiometricAuthWidgetState();
@@ -137,7 +137,7 @@ class _BiometricAuthWidgetState extends State<BiometricAuthWidget>
         ),
         boxShadow: [
           BoxShadow(
-            color: _getPrimaryColor(state).withOpacity(0.3),
+            color: _getPrimaryColor(state).withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -265,9 +265,9 @@ class _BiometricAuthWidgetState extends State<BiometricAuthWidget>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         message,
@@ -285,9 +285,9 @@ class _BiometricAuthWidgetState extends State<BiometricAuthWidget>
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
+        color: Colors.red.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.red.withOpacity(0.3)),
+        border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -358,10 +358,10 @@ class BiometricSetupWidget extends StatelessWidget {
   final VoidCallback? onSkip;
 
   const BiometricSetupWidget({
-    Key? key,
+    super.key,
     this.onSetupComplete,
     this.onSkip,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -565,9 +565,9 @@ class BiometricSetupWidget extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.blue.withOpacity(0.1),
+        color: Colors.blue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue.withOpacity(0.3)),
+        border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -597,7 +597,7 @@ class BiometricSetupWidget extends StatelessWidget {
                       ],
                     ),
                   ))
-              .toList(),
+              ,
         ],
       ),
     );
@@ -616,3 +616,4 @@ class BiometricSetupWidget extends StatelessWidget {
     }
   }
 }
+

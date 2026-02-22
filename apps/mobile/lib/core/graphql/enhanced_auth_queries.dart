@@ -164,7 +164,7 @@ class EnhancedAuthQueries {
       'deviceId': deviceId,
       'deviceFingerprint': deviceFingerprint,
       'platform': platform,
-      if (deviceInfo != null) 'deviceInfo': deviceInfo,
+      'deviceInfo': ?deviceInfo,
     };
   }
 
@@ -175,7 +175,7 @@ class EnhancedAuthQueries {
   }) {
     return {
       'refreshToken': refreshToken,
-      if (deviceId != null) 'deviceId': deviceId,
+      'deviceId': ?deviceId,
     };
   }
 
@@ -185,13 +185,13 @@ class EnhancedAuthQueries {
       return 'Unknown error occurred';
     }
 
-    if (error is GraphQLException) {
-      final graphQLError = error as GraphQLException;
+    if (error is OperationException) {
+      final graphQLError = error;
       if (graphQLError.graphqlErrors.isNotEmpty) {
         return graphQLError.graphqlErrors.first.message;
       }
-      if (graphQLError.linkedException != null) {
-        return graphQLError.linkedException.toString();
+      if (graphQLError.linkException != null) {
+        return graphQLError.linkException.toString();
       }
     }
 

@@ -1,5 +1,11 @@
+import 'dart:developer' as developer;
 import '../database/enhanced_database_service.dart';
 import '../models/jwt_models.dart';
+
+void _debugLog(Object? message) {
+  developer.log(message?.toString() ?? 'null');
+}
+
 
 /// Service to sync user data from login response to local SQLite database
 /// This ensures that user data is available for foreign key relationships
@@ -15,7 +21,7 @@ class UserSyncService {
   Future<void> syncUserDataToLocal(
       User user, Session? session, String companyId) async {
     try {
-      print(
+      _debugLog(
           '📱 UserSyncService: Starting user data sync for user: ${user.username}');
 
       // Start transaction to ensure data consistency
@@ -31,11 +37,11 @@ class UserSyncService {
           await _upsertUserDevice(txn, user.id, session);
         }
 
-        print(
+        _debugLog(
             '✅ UserSyncService: User data sync completed successfully for: ${user.username}');
       });
     } catch (e) {
-      print(
+      _debugLog(
           '❌ UserSyncService: Failed to sync user data to local database: $e');
       throw Exception('User data sync failed: $e');
     }
@@ -66,7 +72,7 @@ class UserSyncService {
         'local_version': 1,
         'server_version': 1,
       });
-      print('🏢 UserSyncService: Created company: $companyName ($companyId)');
+      _debugLog('🏢 UserSyncService: Created company: $companyName ($companyId)');
     }
   }
 
@@ -84,24 +90,22 @@ class UserSyncService {
     final now = DateTime.now().millisecondsSinceEpoch;
 
     // Debug logging to understand the data being inserted
-    print('📱 UserSyncService: Syncing user data:');
-    print('   - ID: ${user.id}');
-    print('   - Username: ${user.username}');
-    print('   - Full Name: ${user.fullName}');
-    print('   - Email: ${user.email}');
-    print('   - Role: ${user.role}');
-    print('   - Company ID: $companyId');
+    _debugLog('📱 UserSyncService: Syncing user data:');
+    _debugLog('   - ID: ${user.id}');
+    _debugLog('   - Username: ${user.username}');
+    _debugLog('   - Full Name: ${user.fullName}');
+    _debugLog('   - Email: ${user.email}');
+    _debugLog('   - Role: ${user.role}');
+    _debugLog('   - Company ID: $companyId');
 
     final userData = {
-      'user_id': user.id ?? '', // Ensure non-null
-      'username': user.username ?? 'unknown', // Ensure non-null
-      'email': user.email ?? 'no-email@local.local', // Ensure non-null
+      'user_id': user.id,
+      'username': user.username,
+      'email': user.email,
       'phone': null, // Phone not available in current User model
-      'full_name': user.fullName ??
-          user.username ??
-          'Unknown User', // Multiple fallbacks for safety
-      'role': user.role ?? 'unknown', // Ensure non-null
-      'company_id': companyId ?? '', // Ensure non-null
+      'full_name': user.fullName,
+      'role': user.role,
+      'company_id': companyId,
       'employee_id': null, // Employee ID not available in current User model
       'is_active': user.isActive ? 1 : 0,
       'last_login_at': now,
@@ -130,19 +134,19 @@ class UserSyncService {
     }
 
     // Debug logging to verify final userData before insertion
-    print('📱 UserSyncService: Final userData prepared for insertion:');
-    print('   - user_id: ${userData['user_id']}');
-    print('   - username: ${userData['username']}');
-    print('   - email: ${userData['email']}');
-    print('   - full_name: ${userData['full_name']}');
-    print('   - role: ${userData['role']}');
-    print('   - company_id: ${userData['company_id']}');
+    _debugLog('📱 UserSyncService: Final userData prepared for insertion:');
+    _debugLog('   - user_id: ${userData['user_id']}');
+    _debugLog('   - username: ${userData['username']}');
+    _debugLog('   - email: ${userData['email']}');
+    _debugLog('   - full_name: ${userData['full_name']}');
+    _debugLog('   - role: ${userData['role']}');
+    _debugLog('   - company_id: ${userData['company_id']}');
 
     if (existing.isEmpty) {
       // Insert new user
       userData['created_at'] = now;
       await txn.insert('users', userData);
-      print('👤 UserSyncService: Created user in local DB: ${user.username}');
+      _debugLog('👤 UserSyncService: Created user in local DB: ${user.username}');
     } else {
       // Update existing user
       await txn.update(
@@ -151,7 +155,7 @@ class UserSyncService {
         where: 'user_id = ?',
         whereArgs: [user.id],
       );
-      print('🔄 UserSyncService: Updated user in local DB: ${user.username}');
+      _debugLog('🔄 UserSyncService: Updated user in local DB: ${user.username}');
     }
   }
 
@@ -201,7 +205,7 @@ class UserSyncService {
       deviceData['registered_at'] = now;
       deviceData['created_at'] = now;
       await txn.insert('user_devices', deviceData);
-      print(
+      _debugLog(
           '📱 UserSyncService: Created user device in local DB: ${session.deviceId}');
     } else {
       // Update existing device
@@ -211,7 +215,7 @@ class UserSyncService {
         where: 'user_id = ? AND device_id = ?',
         whereArgs: [userId, session.deviceId],
       );
-      print(
+      _debugLog(
           '🔄 UserSyncService: Updated user device in local DB: ${session.deviceId}');
     }
   }
@@ -227,7 +231,7 @@ class UserSyncService {
       );
       return result.isNotEmpty;
     } catch (e) {
-      print('❌ UserSyncService: Error checking if user exists locally: $e');
+      _debugLog('❌ UserSyncService: Error checking if user exists locally: $e');
       return false;
     }
   }
@@ -243,7 +247,7 @@ class UserSyncService {
       );
       return result.isNotEmpty ? result.first : null;
     } catch (e) {
-      print('❌ UserSyncService: Error getting local user data: $e');
+      _debugLog('❌ UserSyncService: Error getting local user data: $e');
       return null;
     }
   }
@@ -275,9 +279,11 @@ class UserSyncService {
         );
       });
 
-      print('🧹 UserSyncService: User data cleanup completed');
+      _debugLog('🧹 UserSyncService: User data cleanup completed');
     } catch (e) {
-      print('❌ UserSyncService: Error during user data cleanup: $e');
+      _debugLog('❌ UserSyncService: Error during user data cleanup: $e');
     }
   }
 }
+
+

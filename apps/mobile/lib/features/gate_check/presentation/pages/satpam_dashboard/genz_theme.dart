@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:ui';
 
 /// Gen Z Theme for Satpam Dashboard
 /// Modern, vibrant, glassmorphic design with neon accents
@@ -78,15 +77,15 @@ class GenZTheme {
     double blurStrength = 10,
   }) {
     return BoxDecoration(
-      color: Colors.white.withOpacity(0.1),
+      color: Colors.white.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(borderRadius),
       border: Border.all(
-        color: borderColor ?? Colors.white.withOpacity(0.2),
+        color: borderColor ?? Colors.white.withValues(alpha: 0.2),
         width: 1.5,
       ),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.1),
+          color: Colors.black.withValues(alpha: 0.1),
           blurRadius: blurStrength,
           spreadRadius: 0,
         ),
@@ -101,20 +100,20 @@ class GenZTheme {
     return BoxDecoration(
       gradient: LinearGradient(
         colors: [
-          gray800.withOpacity(0.8),
-          gray900.withOpacity(0.9),
+          gray800.withValues(alpha: 0.8),
+          gray900.withValues(alpha: 0.9),
         ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
       borderRadius: BorderRadius.circular(borderRadius),
       border: Border.all(
-        color: (accentColor ?? electricPurple).withOpacity(0.3),
+        color: (accentColor ?? electricPurple).withValues(alpha: 0.3),
         width: 1.5,
       ),
       boxShadow: [
         BoxShadow(
-          color: (accentColor ?? electricPurple).withOpacity(0.15),
+          color: (accentColor ?? electricPurple).withValues(alpha: 0.15),
           blurRadius: 20,
           spreadRadius: -5,
         ),
@@ -130,20 +129,20 @@ class GenZTheme {
     return BoxDecoration(
       gradient: LinearGradient(
         colors: [
-          color.withOpacity(0.15),
-          color.withOpacity(0.05),
+          color.withValues(alpha: 0.15),
+          color.withValues(alpha: 0.05),
         ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
       borderRadius: BorderRadius.circular(borderRadius),
       border: Border.all(
-        color: color.withOpacity(0.3),
+        color: color.withValues(alpha: 0.3),
         width: 1.5,
       ),
       boxShadow: [
         BoxShadow(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.2),
           blurRadius: 12,
           spreadRadius: -2,
         ),
@@ -217,14 +216,14 @@ class GenZTheme {
   }) {
     return BoxDecoration(
       gradient: LinearGradient(
-        colors: [color, color.withOpacity(0.7)],
+        colors: [color, color.withValues(alpha: 0.7)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
       borderRadius: BorderRadius.circular(14),
       boxShadow: [
         BoxShadow(
-          color: color.withOpacity(0.4),
+          color: color.withValues(alpha: 0.4),
           blurRadius: 12,
           spreadRadius: -2,
         ),
@@ -249,31 +248,31 @@ class GenZTheme {
     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(14),
-      side: BorderSide(color: electricPurple.withOpacity(0.5), width: 1.5),
+      side: BorderSide(color: electricPurple.withValues(alpha: 0.5), width: 1.5),
     ),
     elevation: 0,
   );
 
   // === ACTIVITY CARD STYLES ===
   static BoxDecoration activityCard = BoxDecoration(
-    color: gray800.withOpacity(0.6),
+    color: gray800.withValues(alpha: 0.6),
     borderRadius: BorderRadius.circular(14),
     border: Border.all(
-      color: gray700.withOpacity(0.5),
+      color: gray700.withValues(alpha: 0.5),
       width: 1,
     ),
   );
 
   // === BOTTOM NAV STYLES ===
   static BoxDecoration bottomNavDecoration = BoxDecoration(
-    color: gray900.withOpacity(0.95),
+    color: gray900.withValues(alpha: 0.95),
     borderRadius: const BorderRadius.only(
       topLeft: Radius.circular(24),
       topRight: Radius.circular(24),
     ),
     boxShadow: [
       BoxShadow(
-        color: electricPurple.withOpacity(0.1),
+        color: electricPurple.withValues(alpha: 0.1),
         blurRadius: 20,
         spreadRadius: 0,
         offset: const Offset(0, -5),
@@ -310,7 +309,7 @@ class GenZWidgets {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: GenZTheme.electricPurple.withOpacity(0.3),
+            color: GenZTheme.electricPurple.withValues(alpha: 0.3),
             blurRadius: 20,
             spreadRadius: -5,
             offset: const Offset(0, 10),
@@ -322,7 +321,7 @@ class GenZWidgets {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(icon, color: Colors.white, size: 28),
@@ -335,7 +334,7 @@ class GenZWidgets {
                 Text(title, style: GenZTheme.headingMedium),
                 const SizedBox(height: 4),
                 Text(subtitle, style: GenZTheme.bodyMedium.copyWith(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                 )),
               ],
             ),
@@ -397,7 +396,7 @@ class GenZWidgets {
             const SizedBox(height: 2),
             Text(
               subtitle,
-              style: GenZTheme.bodySmall.copyWith(color: color.withOpacity(0.6)),
+              style: GenZTheme.bodySmall.copyWith(color: color.withValues(alpha: 0.6)),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -426,7 +425,7 @@ class GenZWidgets {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -455,7 +454,7 @@ class GenZWidgets {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -518,7 +517,7 @@ class GenZWidgets {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? GenZTheme.electricPurple.withOpacity(0.15) : Colors.transparent,
+          color: isSelected ? GenZTheme.electricPurple.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -552,7 +551,7 @@ class GenZWidgets {
         color: GenZTheme.gray800,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: GenZTheme.electricPurple.withOpacity(0.3),
+          color: GenZTheme.electricPurple.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -580,10 +579,10 @@ class GenZWidgets {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: GenZTheme.mintGreen.withOpacity(0.1),
+        color: GenZTheme.mintGreen.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: GenZTheme.mintGreen.withOpacity(0.3),
+          color: GenZTheme.mintGreen.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -614,10 +613,10 @@ class GenZWidgets {
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.orange.withOpacity(0.1),
+        color: Colors.orange.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: Colors.orange.withOpacity(0.3),
+          color: Colors.orange.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -637,3 +636,4 @@ class GenZWidgets {
     );
   }
 }
+

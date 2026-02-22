@@ -9,10 +9,10 @@ class ManagerReportsSection extends StatelessWidget {
   final ManagerTodayHighlightsModel? highlights;
 
   const ManagerReportsSection({
-    Key? key,
+    super.key,
     this.onViewAll,
     this.highlights,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -66,7 +66,7 @@ class ManagerReportsSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -87,3 +87,4 @@ class ManagerReportsSection extends StatelessWidget {
     );
   }
 }
+

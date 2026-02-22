@@ -51,7 +51,6 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
   static const Color neonPurple = Color(0xFF8B5CF6);
   static const Color neonGreen = Color(0xFF10B981);
   static const Color neonRed = Color(0xFFEF4444);
-  static const Color neonBlue = Color(0xFF3B82F6);
   static const Color darkBg = Color(0xFF111827);
   static const Color darkCard = Color(0xFF1F2937);
 

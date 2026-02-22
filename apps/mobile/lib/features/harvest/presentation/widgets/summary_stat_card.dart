@@ -7,12 +7,12 @@ class SummaryStatCard extends StatelessWidget {
   final List<Color> gradientColors;
 
   const SummaryStatCard({
-    Key? key,
+    super.key,
     required this.title,
     required this.value,
     required this.icon,
     required this.gradientColors,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +53,7 @@ class SummaryStatCard extends StatelessWidget {
                 ),
                 Icon(
                   icon,
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                   size: 24,
                 ),
               ],
@@ -64,3 +64,4 @@ class SummaryStatCard extends StatelessWidget {
     );
   }
 }
+

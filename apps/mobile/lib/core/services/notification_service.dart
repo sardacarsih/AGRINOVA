@@ -6,7 +6,6 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:logger/logger.dart';
 
-import '../config/app_config.dart';
 
 // Notification types for different features
 enum NotificationType {
@@ -82,7 +81,7 @@ class NotificationService {
         );
 
     await _localNotifications.initialize(
-      initializationSettings,
+      settings: initializationSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
@@ -245,10 +244,10 @@ class NotificationService {
       final payload = data != null ? jsonEncode(data) : null;
 
       await _localNotifications.show(
-        notificationId,
-        title,
-        body,
-        notificationDetails,
+        id: notificationId,
+        title: title,
+        body: body,
+        notificationDetails: notificationDetails,
         payload: payload,
       );
 
@@ -355,11 +354,11 @@ class NotificationService {
       final payload = data != null ? jsonEncode(data) : null;
 
       await _localNotifications.zonedSchedule(
-        notificationId,
-        title,
-        body,
-        tz.TZDateTime.from(scheduledTime, tz.local),
-        notificationDetails,
+        id: notificationId,
+        title: title,
+        body: body,
+        scheduledDate: tz.TZDateTime.from(scheduledTime, tz.local),
+        notificationDetails: notificationDetails,
         androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
         payload: payload,
       );
@@ -373,7 +372,8 @@ class NotificationService {
   // Cancel notification
   Future<void> cancelNotification(int id) async {
     try {
-      await _localNotifications.cancel(id);
+      await _localNotifications.cancel(id: id);
+      
       _logger.d('Notification cancelled: $id');
     } catch (e) {
       _logger.e('Error cancelling notification: $e');

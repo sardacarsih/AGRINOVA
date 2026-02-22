@@ -14,12 +14,12 @@ class GenZWelcomeHeader extends StatelessWidget {
   final String? currentTime;
 
   const GenZWelcomeHeader({
-    Key? key,
+    super.key,
     required this.userName,
     this.division,
     this.isOffline = false,
     this.currentTime,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +30,7 @@ class GenZWelcomeHeader extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: MandorTheme.forestGreen.withOpacity(0.3),
+            color: MandorTheme.forestGreen.withValues(alpha: 0.3),
             blurRadius: 20,
             spreadRadius: -5,
             offset: const Offset(0, 10),
@@ -65,7 +65,7 @@ class GenZWelcomeHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(16),
       ),
       child: const CurrentUserAvatar(
@@ -83,7 +83,7 @@ class GenZWelcomeHeader extends StatelessWidget {
         Text(
           'Selamat Datang,',
           style: MandorTheme.bodyMedium.copyWith(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
           ),
         ),
         const SizedBox(height: 2),
@@ -98,13 +98,13 @@ class GenZWelcomeHeader extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
               'Mandor - $division',
               style: MandorTheme.bodySmall.copyWith(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -118,10 +118,10 @@ class GenZWelcomeHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withOpacity(0.2),
+          color: Colors.white.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -151,11 +151,11 @@ class GenZWelcomeHeaderCompact extends StatelessWidget {
   final IconData? icon;
 
   const GenZWelcomeHeaderCompact({
-    Key? key,
+    super.key,
     required this.userName,
     required this.subtitle,
     this.icon,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -190,3 +190,4 @@ class GenZWelcomeHeaderCompact extends StatelessWidget {
     );
   }
 }
+

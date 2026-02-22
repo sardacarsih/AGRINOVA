@@ -17,7 +17,7 @@ import 'area_manager_monitor_tab.dart';
 /// - Scrollable manager cards list with medals for top performers
 /// - Bottom performance summary with batch evaluation FAB
 class AreaManagerManagersTab extends StatefulWidget {
-  const AreaManagerManagersTab({Key? key}) : super(key: key);
+  const AreaManagerManagersTab({super.key});
 
   @override
   State<AreaManagerManagersTab> createState() => _AreaManagerManagersTabState();
@@ -273,7 +273,7 @@ class _AreaManagerManagersTabState extends State<AreaManagerManagersTab> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -490,3 +490,4 @@ class _AreaManagerManagersTabState extends State<AreaManagerManagersTab> {
     );
   }
 }
+

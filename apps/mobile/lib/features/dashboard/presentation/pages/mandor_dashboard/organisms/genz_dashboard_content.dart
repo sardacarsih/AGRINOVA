@@ -38,7 +38,7 @@ class GenZDashboardContent extends StatelessWidget {
   final List<ActivityItem> activityItems;
 
   const GenZDashboardContent({
-    Key? key,
+    super.key,
     required this.userName,
     this.division,
     this.isOffline = false,
@@ -57,7 +57,7 @@ class GenZDashboardContent extends StatelessWidget {
     required this.onViewAllActivity,
     this.pendingItems = const [],
     this.activityItems = const [],
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -134,7 +134,7 @@ class GenZDashboardContentCompact extends StatelessWidget {
   final VoidCallback onSettings;
 
   const GenZDashboardContentCompact({
-    Key? key,
+    super.key,
     required this.userName,
     this.division,
     this.isOffline = false,
@@ -148,7 +148,7 @@ class GenZDashboardContentCompact extends StatelessWidget {
     required this.onHistory,
     required this.onReports,
     required this.onSettings,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

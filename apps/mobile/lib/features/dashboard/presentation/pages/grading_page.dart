@@ -10,7 +10,7 @@ import '../../../../shared/widgets/auth_listener_wrapper.dart';
 class GradingPage extends StatelessWidget {
   static final Logger _logger = Logger();
 
-  const GradingPage({Key? key}) : super(key: key);
+  const GradingPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +103,7 @@ class GradingPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Selamat Datang, ${state.user.fullName ?? state.user.username}!',
+                      'Selamat Datang, ${state.user.fullName}!',
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -112,7 +112,7 @@ class GradingPage extends StatelessWidget {
                     Text(
                       'Grading - ${state.user.estate ?? 'Estate'}',
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                       ),
                     ),
                   ],
@@ -188,9 +188,9 @@ class GradingPage extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,3 +321,4 @@ class GradingPage extends StatelessWidget {
     Navigator.pushNamed(context, '/grading/inspection');
   }
 }
+

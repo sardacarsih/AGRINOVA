@@ -2,12 +2,9 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:logger/logger.dart';
 import 'package:path/path.dart' as path;
-import 'package:graphql_flutter/graphql_flutter.dart';
 
-import '../models/api_models.dart';
 import '../database/enhanced_database_service.dart';
 import 'photo_compression_service.dart';
-import 'graphql_sync_service.dart';
 
 /// Advanced Photo Sync Service with Compression
 /// 
@@ -89,7 +86,7 @@ class PhotoSyncService {
       final localId = 'photo_${DateTime.now().millisecondsSinceEpoch}_${tokenId.substring(0, 8)}';
 
       // Store compressed photo in sync queue
-      final syncQueueId = await _db.insert('photo_sync_queue', {
+      await _db.insert('photo_sync_queue', {
         'local_id': localId,
         'token_id': tokenId,
         'photo_type': photoType,
@@ -176,12 +173,10 @@ class PhotoSyncService {
         }
 
         // Log compression errors
-        if (batchResult.errors != null) {
-          for (final error in batchResult.errors!) {
-            _logger.e('Photo compression failed in batch: ${error.fileName} - ${error.error}');
-          }
+        for (final error in batchResult.errors) {
+          _logger.e('Photo compression failed in batch: ${error.fileName} - ${error.error}');
         }
-      } else {
+            } else {
         // Sequential compression and queueing
         for (final photo in photos) {
           try {

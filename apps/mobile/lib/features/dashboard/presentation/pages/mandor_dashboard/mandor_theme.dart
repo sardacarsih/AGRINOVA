@@ -72,15 +72,15 @@ class MandorTheme {
     double blurStrength = 10,
   }) {
     return BoxDecoration(
-      color: Colors.white.withOpacity(0.1),
+      color: Colors.white.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(borderRadius),
       border: Border.all(
-        color: borderColor ?? Colors.white.withOpacity(0.2),
+        color: borderColor ?? Colors.white.withValues(alpha: 0.2),
         width: 1.5,
       ),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.1),
+          color: Colors.black.withValues(alpha: 0.1),
           blurRadius: blurStrength,
           spreadRadius: 0,
         ),
@@ -95,20 +95,20 @@ class MandorTheme {
     return BoxDecoration(
       gradient: LinearGradient(
         colors: [
-          gray800.withOpacity(0.8),
-          gray900.withOpacity(0.9),
+          gray800.withValues(alpha: 0.8),
+          gray900.withValues(alpha: 0.9),
         ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
       borderRadius: BorderRadius.circular(borderRadius),
       border: Border.all(
-        color: (accentColor ?? forestGreen).withOpacity(0.3),
+        color: (accentColor ?? forestGreen).withValues(alpha: 0.3),
         width: 1.5,
       ),
       boxShadow: [
         BoxShadow(
-          color: (accentColor ?? forestGreen).withOpacity(0.15),
+          color: (accentColor ?? forestGreen).withValues(alpha: 0.15),
           blurRadius: 20,
           spreadRadius: -5,
         ),
@@ -124,20 +124,20 @@ class MandorTheme {
     return BoxDecoration(
       gradient: LinearGradient(
         colors: [
-          color.withOpacity(0.15),
-          color.withOpacity(0.05),
+          color.withValues(alpha: 0.15),
+          color.withValues(alpha: 0.05),
         ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
       borderRadius: BorderRadius.circular(borderRadius),
       border: Border.all(
-        color: color.withOpacity(0.3),
+        color: color.withValues(alpha: 0.3),
         width: 1.5,
       ),
       boxShadow: [
         BoxShadow(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.2),
           blurRadius: 12,
           spreadRadius: -2,
         ),
@@ -232,14 +232,14 @@ class MandorTheme {
   }) {
     return BoxDecoration(
       gradient: LinearGradient(
-        colors: [color, color.withOpacity(0.7)],
+        colors: [color, color.withValues(alpha: 0.7)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
       borderRadius: BorderRadius.circular(14),
       boxShadow: [
         BoxShadow(
-          color: color.withOpacity(0.4),
+          color: color.withValues(alpha: 0.4),
           blurRadius: 12,
           spreadRadius: -2,
         ),
@@ -264,31 +264,31 @@ class MandorTheme {
     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(14),
-      side: BorderSide(color: forestGreen.withOpacity(0.5), width: 1.5),
+      side: BorderSide(color: forestGreen.withValues(alpha: 0.5), width: 1.5),
     ),
     elevation: 0,
   );
 
   // === ACTIVITY CARD STYLES ===
   static BoxDecoration activityCard = BoxDecoration(
-    color: gray800.withOpacity(0.6),
+    color: gray800.withValues(alpha: 0.6),
     borderRadius: BorderRadius.circular(14),
     border: Border.all(
-      color: gray700.withOpacity(0.5),
+      color: gray700.withValues(alpha: 0.5),
       width: 1,
     ),
   );
 
   // === BOTTOM NAV STYLES ===
   static BoxDecoration bottomNavDecoration = BoxDecoration(
-    color: gray900.withOpacity(0.95),
+    color: gray900.withValues(alpha: 0.95),
     borderRadius: const BorderRadius.only(
       topLeft: Radius.circular(24),
       topRight: Radius.circular(24),
     ),
     boxShadow: [
       BoxShadow(
-        color: forestGreen.withOpacity(0.1),
+        color: forestGreen.withValues(alpha: 0.1),
         blurRadius: 20,
         spreadRadius: 0,
         offset: const Offset(0, -5),
@@ -335,7 +335,7 @@ class MandorWidgets {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: MandorTheme.forestGreen.withOpacity(0.3),
+            color: MandorTheme.forestGreen.withValues(alpha: 0.3),
             blurRadius: 20,
             spreadRadius: -5,
             offset: const Offset(0, 10),
@@ -350,7 +350,7 @@ class MandorWidgets {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(icon, color: Colors.white, size: 28),
@@ -363,7 +363,7 @@ class MandorWidgets {
                     Text(title, style: MandorTheme.headingMedium),
                     const SizedBox(height: 4),
                     Text(subtitle, style: MandorTheme.bodyMedium.copyWith(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                     )),
                   ],
                 ),
@@ -398,10 +398,10 @@ class MandorWidgets {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: MandorTheme.amberOrange.withOpacity(0.15),
+        color: MandorTheme.amberOrange.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: MandorTheme.amberOrange.withOpacity(0.3),
+          color: MandorTheme.amberOrange.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -457,7 +457,7 @@ class MandorWidgets {
             const SizedBox(height: 2),
             Text(
               subtitle,
-              style: MandorTheme.bodySmall.copyWith(color: color.withOpacity(0.6)),
+              style: MandorTheme.bodySmall.copyWith(color: color.withValues(alpha: 0.6)),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -521,13 +521,13 @@ class MandorWidgets {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: stateColor.withOpacity(0.08),
+        color: stateColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: stateColor.withOpacity(0.2)),
+        border: Border.all(color: stateColor.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 48, color: stateColor.withOpacity(0.5)),
+          Icon(icon, size: 48, color: stateColor.withValues(alpha: 0.5)),
           const SizedBox(height: 12),
           Text(
             title,
@@ -537,7 +537,7 @@ class MandorWidgets {
           const SizedBox(height: 6),
           Text(
             subtitle,
-            style: MandorTheme.bodySmall.copyWith(color: stateColor.withOpacity(0.7)),
+            style: MandorTheme.bodySmall.copyWith(color: stateColor.withValues(alpha: 0.7)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -558,7 +558,7 @@ class MandorWidgets {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? MandorTheme.forestGreen.withOpacity(0.15) : Colors.transparent,
+          color: isSelected ? MandorTheme.forestGreen.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -584,3 +584,4 @@ class MandorWidgets {
     );
   }
 }
+

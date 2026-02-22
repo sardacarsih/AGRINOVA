@@ -5,10 +5,10 @@ class HarvestQuantityInput extends StatelessWidget {
   final ValueChanged<int> onChanged;
 
   const HarvestQuantityInput({
-    Key? key,
+    super.key,
     required this.quantity,
     required this.onChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +30,7 @@ class HarvestQuantityInput extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
+                color: Colors.grey.withValues(alpha: 0.1),
                 spreadRadius: 1,
                 blurRadius: 4,
                 offset: const Offset(0, 2),
@@ -88,7 +88,7 @@ class HarvestQuantityInput extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              color.withOpacity(0.8),
+              color.withValues(alpha: 0.8),
               color,
             ],
             begin: Alignment.topLeft,
@@ -97,7 +97,7 @@ class HarvestQuantityInput extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.3),
+              color: color.withValues(alpha: 0.3),
               spreadRadius: 1,
               blurRadius: 4,
               offset: const Offset(0, 2),
@@ -113,3 +113,4 @@ class HarvestQuantityInput extends StatelessWidget {
     );
   }
 }
+

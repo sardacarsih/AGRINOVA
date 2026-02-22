@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../data/models/gate_check_models.dart';
-import '../widgets/truck_info_widget.dart';
 
 class QRScanResultPage extends StatefulWidget {
   final Map<String, dynamic> guestData;
@@ -8,11 +7,11 @@ class QRScanResultPage extends StatefulWidget {
   final GateCheckDirection detectedDirection;
 
   const QRScanResultPage({
-    Key? key,
+    super.key,
     required this.guestData,
     required this.scannedToken,
     required this.detectedDirection,
-  }) : super(key: key);
+  });
 
   @override
   State<QRScanResultPage> createState() => _QRScanResultPageState();
@@ -90,7 +89,7 @@ class _QRScanResultPageState extends State<QRScanResultPage> {
         gradient: LinearGradient(
           colors: [
             directionColor,
-            directionColor.withOpacity(0.8),
+            directionColor.withValues(alpha: 0.8),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -98,7 +97,7 @@ class _QRScanResultPageState extends State<QRScanResultPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: directionColor.withOpacity(0.3),
+            color: directionColor.withValues(alpha: 0.3),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -125,7 +124,7 @@ class _QRScanResultPageState extends State<QRScanResultPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -396,3 +395,4 @@ class _QRScanResultPageState extends State<QRScanResultPage> {
     });
   }
 }
+

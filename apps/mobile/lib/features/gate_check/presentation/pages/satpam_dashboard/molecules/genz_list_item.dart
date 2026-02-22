@@ -16,7 +16,7 @@ class GenZListItem extends StatelessWidget {
   final VoidCallback? onTap;
 
   const GenZListItem({
-    Key? key,
+    super.key,
     required this.title,
     required this.subtitle,
     this.detail,
@@ -25,7 +25,7 @@ class GenZListItem extends StatelessWidget {
     this.badge,
     this.trailing,
     this.onTap,
-  }) : super(key: key);
+  });
 
   /// Entry (MASUK) list item
   factory GenZListItem.entry({
@@ -77,10 +77,10 @@ class GenZListItem extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF1F2937),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF374151).withOpacity(0.5)),
+          border: Border.all(color: const Color(0xFF374151).withValues(alpha: 0.5)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 8,
               spreadRadius: -4,
               offset: const Offset(0, 4),
@@ -160,7 +160,7 @@ class GenZListItem extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: iconColor.withOpacity(0.15),
+                      color: iconColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -191,6 +191,7 @@ class GenZListItem extends StatelessWidget {
     );
   }
 }
+
 
 
 

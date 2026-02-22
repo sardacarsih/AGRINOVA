@@ -15,9 +15,10 @@ class NetworkService {
   }
   
   void _initializeConnectivityListener() {
-    _connectivity.onConnectivityChanged.listen((ConnectivityResult result) {
-      _logger.d('Network connectivity changed: $result');
-      _connectivityController.add(result);
+    _connectivity.onConnectivityChanged.listen((List<ConnectivityResult> result) {
+      final status = result.isNotEmpty ? result.first : ConnectivityResult.none;
+      _logger.d('Network connectivity changed: $status');
+      _connectivityController.add(status);
     }).onError((error) {
       _logger.e('Error in connectivity listener', error: error);
     });
@@ -28,8 +29,9 @@ class NetworkService {
   Future<ConnectivityResult> getNetworkStatus() async {
     try {
       final result = await _connectivity.checkConnectivity();
-      _logger.d('Current network status: $result');
-      return result;
+      final status = result.isNotEmpty ? result.first : ConnectivityResult.none;
+      _logger.d('Current network status: $status');
+      return status;
     } catch (e) {
       _logger.e('Error checking network status', error: e);
       return ConnectivityResult.none;
@@ -39,9 +41,10 @@ class NetworkService {
   Future<Map<String, dynamic>> getNetworkInfo() async {
     try {
       final result = await _connectivity.checkConnectivity();
+      final status = result.isNotEmpty ? result.first : ConnectivityResult.none;
       return {
-        'status': result,
-        'isConnected': result != ConnectivityResult.none,
+        'status': status,
+        'isConnected': status != ConnectivityResult.none,
         'timestamp': DateTime.now().toIso8601String(),
       };
     } catch (e) {

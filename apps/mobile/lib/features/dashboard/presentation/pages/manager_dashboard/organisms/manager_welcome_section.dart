@@ -34,7 +34,7 @@ class ManagerWelcomeSection extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: ManagerTheme.primaryPurple.withOpacity(0.3),
+            color: ManagerTheme.primaryPurple.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -48,7 +48,7 @@ class ManagerWelcomeSection extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: const CurrentUserAvatar(
@@ -74,14 +74,14 @@ class ManagerWelcomeSection extends StatelessWidget {
                     Text(
                       'Manager - Estate Operations',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.85),
+                        color: Colors.white.withValues(alpha: 0.85),
                         fontSize: 14,
                       ),
                     ),
                     Text(
                       'Estate: ${state.user.estate ?? 'Kebun Utara'}',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.75),
+                        color: Colors.white.withValues(alpha: 0.75),
                         fontSize: 13,
                       ),
                     ),
@@ -97,7 +97,7 @@ class ManagerWelcomeSection extends StatelessWidget {
               vertical: 12,
             ),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -136,7 +136,7 @@ class ManagerWelcomeSection extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.75),
+            color: Colors.white.withValues(alpha: 0.75),
             fontSize: 11,
           ),
         ),
@@ -148,7 +148,8 @@ class ManagerWelcomeSection extends StatelessWidget {
     return Container(
       height: 30,
       width: 1,
-      color: Colors.white.withOpacity(0.3),
+      color: Colors.white.withValues(alpha: 0.3),
     );
   }
 }
+

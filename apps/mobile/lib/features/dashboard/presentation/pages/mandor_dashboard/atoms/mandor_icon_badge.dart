@@ -10,12 +10,12 @@ class MandorIconBadge extends StatelessWidget {
   final double size;
 
   const MandorIconBadge({
-    Key? key,
+    super.key,
     required this.icon,
     this.badgeCount = 0,
     this.iconColor,
     this.size = 24,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

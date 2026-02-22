@@ -5,9 +5,9 @@ class HarvestListItem extends StatelessWidget {
   final Harvest harvest;
 
   const HarvestListItem({
-    Key? key,
+    super.key,
     required this.harvest,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +18,7 @@ class HarvestListItem extends StatelessWidget {
         color: const Color(0xFF1E1E1E), // Dark card background
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -127,3 +127,4 @@ class HarvestListItem extends StatelessWidget {
     );
   }
 }
+

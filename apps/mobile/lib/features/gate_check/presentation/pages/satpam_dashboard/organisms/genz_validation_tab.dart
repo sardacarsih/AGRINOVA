@@ -36,7 +36,7 @@ class GenZValidationTab extends StatefulWidget {
   final List<RecentScanData> recentScans;
 
   const GenZValidationTab({
-    Key? key,
+    super.key,
     this.onScanQR,
     this.onManualEntry,
     this.onFlashToggle,
@@ -45,7 +45,7 @@ class GenZValidationTab extends StatefulWidget {
     this.isProcessing = false,
     this.scannerWidget,
     this.recentScans = const [],
-  }) : super(key: key);
+  });
 
   @override
   State<GenZValidationTab> createState() => _GenZValidationTabState();
@@ -117,14 +117,14 @@ class _GenZValidationTabState extends State<GenZValidationTab>
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: widget.isScanning 
-                  ? const Color(0xFF3B82F6).withOpacity(0.5) 
+                  ? const Color(0xFF3B82F6).withValues(alpha: 0.5) 
                   : const Color(0xFF374151),
               width: widget.isScanning ? 2 : 1,
             ),
             boxShadow: widget.isScanning
                 ? [
                     BoxShadow(
-                      color: const Color(0xFF3B82F6).withOpacity(0.2),
+                      color: const Color(0xFF3B82F6).withValues(alpha: 0.2),
                       blurRadius: 20,
                       spreadRadius: 2,
                     ),
@@ -165,13 +165,13 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                                 colors: [
-                                  const Color(0xFF8B5CF6).withOpacity(0.2),
-                                  const Color(0xFF3B82F6).withOpacity(0.2),
+                                  const Color(0xFF8B5CF6).withValues(alpha: 0.2),
+                                  const Color(0xFF3B82F6).withValues(alpha: 0.2),
                                 ],
                               ),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                                 width: 2,
                               ),
                             ),
@@ -195,7 +195,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                             'Arahkan kamera ke kode QR',
                             style: TextStyle(
                               fontSize: 12,
-                              color: const Color(0xFF6B7280).withOpacity(0.8),
+                              color: const Color(0xFF6B7280).withValues(alpha: 0.8),
                             ),
                           ),
                         ],
@@ -222,8 +222,8 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                             ? const Color(0xFFFBBF24) 
                             : Colors.white,
                         backgroundColor: widget.isFlashOn
-                            ? const Color(0xFFFBBF24).withOpacity(0.2)
-                            : Colors.black.withOpacity(0.5),
+                            ? const Color(0xFFFBBF24).withValues(alpha: 0.2)
+                            : Colors.black.withValues(alpha: 0.5),
                         onTap: () {
                           _triggerHapticFeedback();
                           widget.onFlashToggle?.call();
@@ -233,7 +233,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                       _buildCircleButton(
                         icon: Icons.close_rounded,
                         color: Colors.white,
-                        backgroundColor: Colors.black.withOpacity(0.5),
+                        backgroundColor: Colors.black.withValues(alpha: 0.5),
                         onTap: () {
                           _triggerHapticFeedback();
                           widget.onScanQR?.call();
@@ -256,7 +256,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
+                        color: Colors.black.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -268,7 +268,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               valueColor: AlwaysStoppedAnimation<Color>(
-                                const Color(0xFF3B82F6).withOpacity(0.8),
+                                const Color(0xFF3B82F6).withValues(alpha: 0.8),
                               ),
                             ),
                           ),
@@ -298,7 +298,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.7),
+                color: Colors.black.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Center(
@@ -312,7 +312,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF3B82F6).withOpacity(0.3),
+                            color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
                             blurRadius: 20,
                           ),
                         ],
@@ -342,7 +342,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                           Text(
                             'Mohon tunggu sebentar',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
+                              color: Colors.white.withValues(alpha: 0.6),
                               fontSize: 12,
                             ),
                           ),
@@ -432,7 +432,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
             color: isActive 
-                ? activeColor.withOpacity(0.15) 
+                ? activeColor.withValues(alpha: 0.15) 
                 : const Color(0xFF1F2937),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
@@ -568,7 +568,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
               '${widget.recentScans.length} item',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
               ),
             ),
           ],
@@ -600,7 +600,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
         border: Border.all(
           color: scan.isSuccess 
               ? const Color(0xFF374151) 
-              : const Color(0xFFEF4444).withOpacity(0.3),
+              : const Color(0xFFEF4444).withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -609,7 +609,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: actionColor.withOpacity(0.15),
+              color: actionColor.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(actionIcon, color: actionColor, size: 20),
@@ -633,7 +633,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                   scan.driverName,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                   ),
                 ),
               ],
@@ -646,7 +646,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: actionColor.withOpacity(0.15),
+                  color: actionColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -663,7 +663,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                 timeAgo,
                 style: TextStyle(
                   fontSize: 11,
-                  color: Colors.white.withOpacity(0.4),
+                  color: Colors.white.withValues(alpha: 0.4),
                 ),
               ),
             ],
@@ -737,3 +737,4 @@ class _CornerPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+

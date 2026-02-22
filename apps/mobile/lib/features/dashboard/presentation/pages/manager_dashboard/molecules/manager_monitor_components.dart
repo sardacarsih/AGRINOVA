@@ -10,13 +10,13 @@ class MonitorSummaryCard extends StatelessWidget {
   final double efficiency;
 
   const MonitorSummaryCard({
-    Key? key,
+    super.key,
     required this.totalTeam,
     required this.totalMandor,
     required this.totalAsisten,
     required this.totalPemanen,
     required this.efficiency,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +27,7 @@ class MonitorSummaryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: ManagerTheme.primaryPurple.withOpacity(0.3),
+            color: ManagerTheme.primaryPurple.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -41,7 +41,7 @@ class MonitorSummaryCard extends StatelessWidget {
             top: -20,
             child: CircleAvatar(
               radius: 60,
-              backgroundColor: Colors.white.withOpacity(0.1),
+              backgroundColor: Colors.white.withValues(alpha: 0.1),
             ),
           ),
           Positioned(
@@ -49,7 +49,7 @@ class MonitorSummaryCard extends StatelessWidget {
             bottom: -30,
             child: CircleAvatar(
               radius: 50,
-              backgroundColor: Colors.white.withOpacity(0.1),
+              backgroundColor: Colors.white.withValues(alpha: 0.1),
             ),
           ),
 
@@ -85,7 +85,7 @@ class MonitorSummaryCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -137,7 +137,7 @@ class MonitorSummaryCard extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withValues(alpha: 0.8),
             fontSize: 12,
           ),
         ),
@@ -149,7 +149,7 @@ class MonitorSummaryCard extends StatelessWidget {
     return Container(
       height: 30,
       width: 1,
-      color: Colors.white.withOpacity(0.3),
+      color: Colors.white.withValues(alpha: 0.3),
     );
   }
 }
@@ -161,11 +161,11 @@ class MonitorFilterTabs extends StatelessWidget {
   final ValueChanged<int> onFilterSelected;
 
   const MonitorFilterTabs({
-    Key? key,
+    super.key,
     required this.filters,
     required this.selectedIndex,
     required this.onFilterSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -214,10 +214,10 @@ class MonitorSortBar extends StatelessWidget {
   final bool isGridView;
 
   const MonitorSortBar({
-    Key? key,
+    super.key,
     required this.onToggleView,
     required this.isGridView,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -295,7 +295,7 @@ class MonitorEmployeeCard extends StatelessWidget {
   final VoidCallback? onEvaluate;
 
   const MonitorEmployeeCard({
-    Key? key,
+    super.key,
     required this.name,
     required this.role,
     required this.division,
@@ -306,7 +306,7 @@ class MonitorEmployeeCard extends StatelessWidget {
     required this.avatarColor,
     this.onDetail,
     this.onEvaluate,
-  }) : super(key: key);
+  });
 
   Color _getRoleColor(String role) {
     switch (role.toLowerCase()) {
@@ -340,7 +340,7 @@ class MonitorEmployeeCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -492,3 +492,4 @@ class MonitorEmployeeCard extends StatelessWidget {
     );
   }
 }
+

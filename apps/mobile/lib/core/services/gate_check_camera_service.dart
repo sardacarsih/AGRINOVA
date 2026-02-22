@@ -39,7 +39,6 @@ class GateCheckCameraService {
   static const ResolutionPreset _defaultResolution = ResolutionPreset.medium;
   static const int _defaultQuality = 85;
   static const int _maxImageDimension = 1600;
-  static const int _maxPhotosPerSession = 50;
 
   GateCheckCameraService({
     required PermissionService permissionService,

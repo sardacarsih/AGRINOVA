@@ -7,7 +7,7 @@ import 'package:uuid/uuid.dart';
 import 'enhanced_database_service.dart';
 
 /// Comprehensive Migration Scripts for Agrinova Sync System Enhancement
-/// 
+///
 /// Features:
 /// - Safe migration from existing sync_queue to enhanced sync_transactions
 /// - Backward compatibility preservation during migration
@@ -16,40 +16,43 @@ import 'enhanced_database_service.dart';
 /// - Performance-optimized batch migration processing
 /// - Cross-device sync data migration support
 class SyncMigrationManager {
-  static final SyncMigrationManager _instance = SyncMigrationManager._internal();
-  
+  static final SyncMigrationManager _instance =
+      SyncMigrationManager._internal();
+
   factory SyncMigrationManager() => _instance;
   SyncMigrationManager._internal();
-  
+
   final Logger _logger = Logger();
   final Uuid _uuid = const Uuid();
   late EnhancedDatabaseService _databaseService;
-  
+
   // Migration configuration
   static const int _migrationBatchSize = 100;
   static const String _backupTableSuffix = '_migration_backup';
   static const String _migrationLogTable = 'migration_logs';
-  
+
   /// Initialize migration manager
   Future<void> initialize() async {
     _databaseService = EnhancedDatabaseService();
     await _createMigrationLogTable();
     _logger.i('Sync Migration Manager initialized');
   }
-  
+
   /// Check if migration is needed
   Future<MigrationStatus> checkMigrationStatus() async {
     try {
       final db = await _databaseService.database;
-      
+
       // Check if old tables exist
-      final oldTablesExist = await _checkTableExists(db, 'sync_queue') ||
-                           await _checkTableExists(db, 'sync_conflicts');
-      
+      final oldTablesExist =
+          await _checkTableExists(db, 'sync_queue') ||
+          await _checkTableExists(db, 'sync_conflicts');
+
       // Check if new tables exist
-      final newTablesExist = await _checkTableExists(db, 'sync_transactions') &&
-                           await _checkTableExists(db, 'sync_conflicts_enhanced');
-      
+      final newTablesExist =
+          await _checkTableExists(db, 'sync_transactions') &&
+          await _checkTableExists(db, 'sync_conflicts_enhanced');
+
       // Check for existing migration logs
       final migrationLogs = await db.query(
         _migrationLogTable,
@@ -57,41 +60,41 @@ class SyncMigrationManager {
         orderBy: 'started_at DESC',
         limit: 1,
       );
-      
+
       MigrationStatusType status;
       String? lastMigrationId;
       DateTime? lastMigrationDate;
-      
+
       if (migrationLogs.isNotEmpty) {
         final lastLog = migrationLogs.first;
         lastMigrationId = lastLog['migration_id'] as String;
         lastMigrationDate = DateTime.fromMillisecondsSinceEpoch(
           lastLog['started_at'] as int,
         );
-        
+
         final migrationStatus = lastLog['status'] as String;
-        
+
         if (migrationStatus == 'COMPLETED') {
-          status = MigrationStatusType.COMPLETED;
+          status = MigrationStatusType.completed;
         } else if (migrationStatus == 'FAILED') {
-          status = MigrationStatusType.FAILED;
+          status = MigrationStatusType.failed;
         } else {
-          status = MigrationStatusType.IN_PROGRESS;
+          status = MigrationStatusType.inProgress;
         }
       } else if (oldTablesExist && !newTablesExist) {
-        status = MigrationStatusType.REQUIRED;
+        status = MigrationStatusType.required;
       } else if (newTablesExist && !oldTablesExist) {
-        status = MigrationStatusType.COMPLETED;
+        status = MigrationStatusType.completed;
       } else if (oldTablesExist && newTablesExist) {
-        status = MigrationStatusType.PARTIAL;
+        status = MigrationStatusType.partial;
       } else {
-        status = MigrationStatusType.NOT_REQUIRED;
+        status = MigrationStatusType.notRequired;
       }
-      
+
       // Get data counts for analysis
       final oldDataCounts = await _getOldDataCounts(db);
       final newDataCounts = await _getNewDataCounts(db);
-      
+
       return MigrationStatus(
         status: status,
         oldTablesExist: oldTablesExist,
@@ -101,18 +104,17 @@ class SyncMigrationManager {
         oldDataCounts: oldDataCounts,
         newDataCounts: newDataCounts,
       );
-      
     } catch (e) {
       _logger.e('Error checking migration status', error: e);
       return MigrationStatus(
-        status: MigrationStatusType.ERROR,
+        status: MigrationStatusType.error,
         oldTablesExist: false,
         newTablesExist: false,
         errorMessage: e.toString(),
       );
     }
   }
-  
+
   /// Execute complete migration from old sync system to enhanced system
   Future<MigrationResult> executeFullMigration({
     bool createBackup = true,
@@ -122,66 +124,79 @@ class SyncMigrationManager {
   }) async {
     final migrationId = _uuid.v4();
     final startTime = DateTime.now();
-    
+
     try {
       _logger.i('Starting full sync system migration: $migrationId');
-      
+
       // Log migration start
       await _logMigrationStart(
         migrationId: migrationId,
         migrationType: 'FULL_MIGRATION',
-        description: 'Complete migration from legacy sync system to enhanced system',
+        description:
+            'Complete migration from legacy sync system to enhanced system',
       );
-      
+
       final db = await _databaseService.database;
       final result = MigrationResult(migrationId: migrationId);
-      
+
       // Phase 1: Pre-migration validation
-      progressCallback?.call(MigrationProgress(
-        phase: 'PRE_VALIDATION',
-        percentage: 5,
-        message: 'Validating existing data',
-      ));
-      
+      progressCallback?.call(
+        MigrationProgress(
+          phase: 'PRE_VALIDATION',
+          percentage: 5,
+          message: 'Validating existing data',
+        ),
+      );
+
       final validationResult = await _validateExistingData(db);
       if (!validationResult.isValid) {
-        throw Exception('Pre-migration validation failed: ${validationResult.errors.join(', ')}');
+        throw Exception(
+          'Pre-migration validation failed: ${validationResult.errors.join(', ')}',
+        );
       }
-      
+
       result.preValidationResult = validationResult;
-      
+
       // Phase 2: Create backup if requested
       if (createBackup) {
-        progressCallback?.call(MigrationProgress(
-          phase: 'BACKUP',
-          percentage: 15,
-          message: 'Creating backup of existing data',
-        ));
-        
+        progressCallback?.call(
+          MigrationProgress(
+            phase: 'BACKUP',
+            percentage: 15,
+            message: 'Creating backup of existing data',
+          ),
+        );
+
         final backupResult = await _createBackup(db);
         result.backupResult = backupResult;
-        
+
         if (!backupResult.success) {
-          throw Exception('Backup creation failed: ${backupResult.errorMessage}');
+          throw Exception(
+            'Backup creation failed: ${backupResult.errorMessage}',
+          );
         }
       }
-      
+
       // Phase 3: Create new tables
-      progressCallback?.call(MigrationProgress(
-        phase: 'SCHEMA_CREATION',
-        percentage: 25,
-        message: 'Creating enhanced sync tables',
-      ));
-      
+      progressCallback?.call(
+        MigrationProgress(
+          phase: 'SCHEMA_CREATION',
+          percentage: 25,
+          message: 'Creating enhanced sync tables',
+        ),
+      );
+
       await _createEnhancedSyncTables(db);
-      
+
       // Phase 4: Migrate sync_queue data
-      progressCallback?.call(MigrationProgress(
-        phase: 'DATA_MIGRATION_QUEUE',
-        percentage: 35,
-        message: 'Migrating sync queue data',
-      ));
-      
+      progressCallback?.call(
+        MigrationProgress(
+          phase: 'DATA_MIGRATION_QUEUE',
+          percentage: 35,
+          message: 'Migrating sync queue data',
+        ),
+      );
+
       final queueMigrationResult = await _migrateSyncQueueData(
         db: db,
         progressCallback: (progress) => progressCallback?.call(
@@ -192,16 +207,18 @@ class SyncMigrationManager {
           ),
         ),
       );
-      
+
       result.queueMigrationResult = queueMigrationResult;
-      
+
       // Phase 5: Migrate sync_conflicts data
-      progressCallback?.call(MigrationProgress(
-        phase: 'DATA_MIGRATION_CONFLICTS',
-        percentage: 60,
-        message: 'Migrating conflict data',
-      ));
-      
+      progressCallback?.call(
+        MigrationProgress(
+          phase: 'DATA_MIGRATION_CONFLICTS',
+          percentage: 60,
+          message: 'Migrating conflict data',
+        ),
+      );
+
       final conflictMigrationResult = await _migrateSyncConflictsData(
         db: db,
         progressCallback: (progress) => progressCallback?.call(
@@ -212,76 +229,87 @@ class SyncMigrationManager {
           ),
         ),
       );
-      
+
       result.conflictMigrationResult = conflictMigrationResult;
-      
+
       // Phase 6: Create compatibility views
-      progressCallback?.call(MigrationProgress(
-        phase: 'COMPATIBILITY_VIEWS',
-        percentage: 80,
-        message: 'Creating compatibility views',
-      ));
-      
+      progressCallback?.call(
+        MigrationProgress(
+          phase: 'COMPATIBILITY_VIEWS',
+          percentage: 80,
+          message: 'Creating compatibility views',
+        ),
+      );
+
       await _createCompatibilityViews(db);
-      
+
       // Phase 7: Post-migration validation
       if (validateData) {
-        progressCallback?.call(MigrationProgress(
-          phase: 'POST_VALIDATION',
-          percentage: 90,
-          message: 'Validating migrated data',
-        ));
-        
+        progressCallback?.call(
+          MigrationProgress(
+            phase: 'POST_VALIDATION',
+            percentage: 90,
+            message: 'Validating migrated data',
+          ),
+        );
+
         final postValidationResult = await _validateMigratedData(db);
         result.postValidationResult = postValidationResult;
-        
+
         if (!postValidationResult.isValid) {
-          _logger.w('Post-migration validation found issues: ${postValidationResult.warnings.join(', ')}');
+          _logger.w(
+            'Post-migration validation found issues: ${postValidationResult.warnings.join(', ')}',
+          );
         }
       }
-      
+
       // Phase 8: Cleanup (optional)
       if (!preserveOldTables) {
-        progressCallback?.call(MigrationProgress(
-          phase: 'CLEANUP',
-          percentage: 95,
-          message: 'Cleaning up old tables',
-        ));
-        
+        progressCallback?.call(
+          MigrationProgress(
+            phase: 'CLEANUP',
+            percentage: 95,
+            message: 'Cleaning up old tables',
+          ),
+        );
+
         await _cleanupOldTables(db);
         result.cleanupCompleted = true;
       }
-      
+
       // Complete migration
       final duration = DateTime.now().difference(startTime);
       result.success = true;
       result.duration = duration;
-      
+
       await _logMigrationComplete(
         migrationId: migrationId,
         duration: duration,
         result: result,
       );
-      
-      progressCallback?.call(MigrationProgress(
-        phase: 'COMPLETED',
-        percentage: 100,
-        message: 'Migration completed successfully',
-      ));
-      
-      _logger.i('Full migration completed successfully in ${duration.inSeconds}s');
-      
+
+      progressCallback?.call(
+        MigrationProgress(
+          phase: 'COMPLETED',
+          percentage: 100,
+          message: 'Migration completed successfully',
+        ),
+      );
+
+      _logger.i(
+        'Full migration completed successfully in ${duration.inSeconds}s',
+      );
+
       return result;
-      
     } catch (e) {
       _logger.e('Migration failed', error: e);
-      
+
       await _logMigrationError(
         migrationId: migrationId,
         error: e.toString(),
         phase: 'EXECUTION',
       );
-      
+
       return MigrationResult(
         migrationId: migrationId,
         success: false,
@@ -290,7 +318,7 @@ class SyncMigrationManager {
       );
     }
   }
-  
+
   /// Execute selective migration for specific data types
   Future<MigrationResult> executeSelectiveMigration({
     bool migrateSyncQueue = true,
@@ -301,70 +329,79 @@ class SyncMigrationManager {
   }) async {
     final migrationId = _uuid.v4();
     final startTime = DateTime.now();
-    
+
     try {
       _logger.i('Starting selective migration: $migrationId');
-      
+
       final db = await _databaseService.database;
       final result = MigrationResult(migrationId: migrationId);
-      
+
       int completedPhases = 0;
       int totalPhases = 0;
-      
+
       if (migrateSyncQueue) totalPhases++;
       if (migrateConflicts) totalPhases++;
       if (migrateSessions) totalPhases++;
-      
+
       // Migrate sync queue
       if (migrateSyncQueue) {
-        progressCallback?.call(MigrationProgress(
-          phase: 'SELECTIVE_QUEUE',
-          percentage: (completedPhases / totalPhases) * 100,
-          message: 'Migrating sync queue data',
-        ));
-        
+        progressCallback?.call(
+          MigrationProgress(
+            phase: 'SELECTIVE_QUEUE',
+            percentage: (completedPhases / totalPhases) * 100,
+            message: 'Migrating sync queue data',
+          ),
+        );
+
         result.queueMigrationResult = await _migrateSyncQueueData(db: db);
         completedPhases++;
       }
-      
+
       // Migrate conflicts
       if (migrateConflicts) {
-        progressCallback?.call(MigrationProgress(
-          phase: 'SELECTIVE_CONFLICTS',
-          percentage: (completedPhases / totalPhases) * 100,
-          message: 'Migrating conflict data',
-        ));
-        
-        result.conflictMigrationResult = await _migrateSyncConflictsData(db: db);
+        progressCallback?.call(
+          MigrationProgress(
+            phase: 'SELECTIVE_CONFLICTS',
+            percentage: (completedPhases / totalPhases) * 100,
+            message: 'Migrating conflict data',
+          ),
+        );
+
+        result.conflictMigrationResult = await _migrateSyncConflictsData(
+          db: db,
+        );
         completedPhases++;
       }
-      
+
       // Migrate sessions if requested
       if (migrateSessions) {
-        progressCallback?.call(MigrationProgress(
-          phase: 'SELECTIVE_SESSIONS',
-          percentage: (completedPhases / totalPhases) * 100,
-          message: 'Migrating session data',
-        ));
-        
+        progressCallback?.call(
+          MigrationProgress(
+            phase: 'SELECTIVE_SESSIONS',
+            percentage: (completedPhases / totalPhases) * 100,
+            message: 'Migrating session data',
+          ),
+        );
+
         // Implementation for session migration would go here
         completedPhases++;
       }
-      
+
       result.success = true;
       result.duration = DateTime.now().difference(startTime);
-      
-      progressCallback?.call(MigrationProgress(
-        phase: 'COMPLETED',
-        percentage: 100,
-        message: 'Selective migration completed',
-      ));
-      
+
+      progressCallback?.call(
+        MigrationProgress(
+          phase: 'COMPLETED',
+          percentage: 100,
+          message: 'Selective migration completed',
+        ),
+      );
+
       return result;
-      
     } catch (e) {
       _logger.e('Selective migration failed', error: e);
-      
+
       return MigrationResult(
         migrationId: migrationId,
         success: false,
@@ -373,7 +410,7 @@ class SyncMigrationManager {
       );
     }
   }
-  
+
   /// Rollback migration to previous state
   Future<RollbackResult> rollbackMigration({
     required String migrationId,
@@ -383,70 +420,79 @@ class SyncMigrationManager {
   }) async {
     try {
       _logger.i('Starting migration rollback: $migrationId');
-      
+
       final db = await _databaseService.database;
       final result = RollbackResult(migrationId: migrationId);
-      
+
       // Phase 1: Validate rollback request
-      progressCallback?.call(MigrationProgress(
-        phase: 'ROLLBACK_VALIDATION',
-        percentage: 10,
-        message: 'Validating rollback request',
-      ));
-      
+      progressCallback?.call(
+        MigrationProgress(
+          phase: 'ROLLBACK_VALIDATION',
+          percentage: 10,
+          message: 'Validating rollback request',
+        ),
+      );
+
       final migrationLog = await _getMigrationLog(migrationId);
       if (migrationLog == null) {
         throw Exception('Migration log not found for ID: $migrationId');
       }
-      
+
       // Phase 2: Restore from backup
       if (restoreFromBackup) {
-        progressCallback?.call(MigrationProgress(
-          phase: 'RESTORE_BACKUP',
-          percentage: 30,
-          message: 'Restoring data from backup',
-        ));
-        
+        progressCallback?.call(
+          MigrationProgress(
+            phase: 'RESTORE_BACKUP',
+            percentage: 30,
+            message: 'Restoring data from backup',
+          ),
+        );
+
         final restoreResult = await _restoreFromBackup(db, migrationId);
         result.backupRestored = restoreResult;
       }
-      
+
       // Phase 3: Remove new tables if requested
       if (removeNewTables) {
-        progressCallback?.call(MigrationProgress(
-          phase: 'REMOVE_NEW_TABLES',
-          percentage: 70,
-          message: 'Removing enhanced tables',
-        ));
-        
+        progressCallback?.call(
+          MigrationProgress(
+            phase: 'REMOVE_NEW_TABLES',
+            percentage: 70,
+            message: 'Removing enhanced tables',
+          ),
+        );
+
         await _removeEnhancedTables(db);
         result.newTablesRemoved = true;
       }
-      
+
       // Phase 4: Update migration log
-      progressCallback?.call(MigrationProgress(
-        phase: 'UPDATE_LOG',
-        percentage: 90,
-        message: 'Updating migration log',
-      ));
-      
+      progressCallback?.call(
+        MigrationProgress(
+          phase: 'UPDATE_LOG',
+          percentage: 90,
+          message: 'Updating migration log',
+        ),
+      );
+
       await _logMigrationRollback(migrationId: migrationId);
-      
+
       result.success = true;
-      
-      progressCallback?.call(MigrationProgress(
-        phase: 'COMPLETED',
-        percentage: 100,
-        message: 'Rollback completed successfully',
-      ));
-      
+
+      progressCallback?.call(
+        MigrationProgress(
+          phase: 'COMPLETED',
+          percentage: 100,
+          message: 'Rollback completed successfully',
+        ),
+      );
+
       _logger.i('Migration rollback completed: $migrationId');
-      
+
       return result;
-      
     } catch (e) {
       _logger.e('Migration rollback failed', error: e);
-      
+
       return RollbackResult(
         migrationId: migrationId,
         success: false,
@@ -454,7 +500,7 @@ class SyncMigrationManager {
       );
     }
   }
-  
+
   /// Get migration history
   Future<List<MigrationLogEntry>> getMigrationHistory({
     int limit = 50,
@@ -462,15 +508,15 @@ class SyncMigrationManager {
   }) async {
     try {
       final db = await _databaseService.database;
-      
+
       String whereClause = "1=1";
       List<dynamic> whereArgs = [];
-      
+
       if (migrationType != null) {
         whereClause += " AND migration_type = ?";
         whereArgs.add(migrationType);
       }
-      
+
       final logs = await db.query(
         _migrationLogTable,
         where: whereClause,
@@ -478,20 +524,19 @@ class SyncMigrationManager {
         orderBy: 'started_at DESC',
         limit: limit,
       );
-      
+
       return logs.map((log) => MigrationLogEntry.fromMap(log)).toList();
-      
     } catch (e) {
       _logger.e('Error getting migration history', error: e);
       return [];
     }
   }
-  
+
   // Private helper methods
-  
+
   Future<void> _createMigrationLogTable() async {
     final db = await _databaseService.database;
-    
+
     await db.execute('''
       CREATE TABLE IF NOT EXISTS $_migrationLogTable (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -510,18 +555,18 @@ class SyncMigrationManager {
         updated_at INTEGER NOT NULL
       )
     ''');
-    
+
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_migration_logs_migration_id 
       ON $_migrationLogTable (migration_id)
     ''');
-    
+
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_migration_logs_type_status 
       ON $_migrationLogTable (migration_type, status)
     ''');
   }
-  
+
   Future<bool> _checkTableExists(Database db, String tableName) async {
     try {
       final result = await db.rawQuery(
@@ -533,60 +578,73 @@ class SyncMigrationManager {
       return false;
     }
   }
-  
+
   Future<Map<String, int>> _getOldDataCounts(Database db) async {
     final counts = <String, int>{};
-    
+
     try {
       if (await _checkTableExists(db, 'sync_queue')) {
-        final result = await db.rawQuery('SELECT COUNT(*) as count FROM sync_queue');
+        final result = await db.rawQuery(
+          'SELECT COUNT(*) as count FROM sync_queue',
+        );
         counts['sync_queue'] = (result.first['count'] as int?) ?? 0;
       }
-      
+
       if (await _checkTableExists(db, 'sync_conflicts')) {
-        final result = await db.rawQuery('SELECT COUNT(*) as count FROM sync_conflicts');
+        final result = await db.rawQuery(
+          'SELECT COUNT(*) as count FROM sync_conflicts',
+        );
         counts['sync_conflicts'] = (result.first['count'] as int?) ?? 0;
       }
-      
+
       if (await _checkTableExists(db, 'sync_logs')) {
-        final result = await db.rawQuery('SELECT COUNT(*) as count FROM sync_logs');
+        final result = await db.rawQuery(
+          'SELECT COUNT(*) as count FROM sync_logs',
+        );
         counts['sync_logs'] = (result.first['count'] as int?) ?? 0;
       }
     } catch (e) {
       _logger.w('Error getting old data counts', error: e);
     }
-    
+
     return counts;
   }
-  
+
   Future<Map<String, int>> _getNewDataCounts(Database db) async {
     final counts = <String, int>{};
-    
+
     try {
       if (await _checkTableExists(db, 'sync_transactions')) {
-        final result = await db.rawQuery('SELECT COUNT(*) as count FROM sync_transactions');
+        final result = await db.rawQuery(
+          'SELECT COUNT(*) as count FROM sync_transactions',
+        );
         counts['sync_transactions'] = (result.first['count'] as int?) ?? 0;
       }
-      
+
       if (await _checkTableExists(db, 'sync_conflicts_enhanced')) {
-        final result = await db.rawQuery('SELECT COUNT(*) as count FROM sync_conflicts_enhanced');
-        counts['sync_conflicts_enhanced'] = (result.first['count'] as int?) ?? 0;
+        final result = await db.rawQuery(
+          'SELECT COUNT(*) as count FROM sync_conflicts_enhanced',
+        );
+        counts['sync_conflicts_enhanced'] =
+            (result.first['count'] as int?) ?? 0;
       }
-      
+
       if (await _checkTableExists(db, 'sync_sessions')) {
-        final result = await db.rawQuery('SELECT COUNT(*) as count FROM sync_sessions');
+        final result = await db.rawQuery(
+          'SELECT COUNT(*) as count FROM sync_sessions',
+        );
         counts['sync_sessions'] = (result.first['count'] as int?) ?? 0;
       }
     } catch (e) {
       _logger.w('Error getting new data counts', error: e);
     }
-    
+
     return counts;
   }
-  
+
   Future<DataValidationResult> _validateExistingData(Database db) async {
     final result = DataValidationResult();
-    
+
     try {
       // Validate sync_queue data integrity
       if (await _checkTableExists(db, 'sync_queue')) {
@@ -596,24 +654,28 @@ class SyncMigrationManager {
           GROUP BY operation_id 
           HAVING COUNT(*) > 1
         ''');
-        
+
         if (duplicateOperations.isNotEmpty) {
-          result.warnings.add('Found ${duplicateOperations.length} duplicate operation IDs in sync_queue');
+          result.warnings.add(
+            'Found ${duplicateOperations.length} duplicate operation IDs in sync_queue',
+          );
         }
-        
+
         // Check for orphaned records
         final orphanedRecords = await db.rawQuery('''
           SELECT COUNT(*) as count 
           FROM sync_queue 
           WHERE user_id NOT IN (SELECT user_id FROM users)
         ''');
-        
+
         final orphanedCount = (orphanedRecords.first['count'] as int?) ?? 0;
         if (orphanedCount > 0) {
-          result.warnings.add('Found $orphanedCount orphaned records in sync_queue');
+          result.warnings.add(
+            'Found $orphanedCount orphaned records in sync_queue',
+          );
         }
       }
-      
+
       // Validate sync_conflicts data
       if (await _checkTableExists(db, 'sync_conflicts')) {
         final invalidConflicts = await db.rawQuery('''
@@ -621,61 +683,62 @@ class SyncMigrationManager {
           FROM sync_conflicts 
           WHERE local_data IS NULL OR server_data IS NULL
         ''');
-        
+
         final invalidCount = (invalidConflicts.first['count'] as int?) ?? 0;
         if (invalidCount > 0) {
           result.errors.add('Found $invalidCount conflicts with null data');
         }
       }
-      
+
       result.isValid = result.errors.isEmpty;
-      
     } catch (e) {
       result.errors.add('Validation error: ${e.toString()}');
       result.isValid = false;
     }
-    
+
     return result;
   }
-  
+
   Future<BackupResult> _createBackup(Database db) async {
     try {
       final backupTimestamp = DateTime.now().millisecondsSinceEpoch;
-      
+
       // Create backup tables with timestamp suffix
       final backupSuffix = '${_backupTableSuffix}_$backupTimestamp';
-      
+
       if (await _checkTableExists(db, 'sync_queue')) {
-        await db.execute('CREATE TABLE sync_queue$backupSuffix AS SELECT * FROM sync_queue');
+        await db.execute(
+          'CREATE TABLE sync_queue$backupSuffix AS SELECT * FROM sync_queue',
+        );
       }
-      
+
       if (await _checkTableExists(db, 'sync_conflicts')) {
-        await db.execute('CREATE TABLE sync_conflicts$backupSuffix AS SELECT * FROM sync_conflicts');
+        await db.execute(
+          'CREATE TABLE sync_conflicts$backupSuffix AS SELECT * FROM sync_conflicts',
+        );
       }
-      
+
       if (await _checkTableExists(db, 'sync_logs')) {
-        await db.execute('CREATE TABLE sync_logs$backupSuffix AS SELECT * FROM sync_logs');
+        await db.execute(
+          'CREATE TABLE sync_logs$backupSuffix AS SELECT * FROM sync_logs',
+        );
       }
-      
+
       return BackupResult(
         success: true,
         backupTimestamp: backupTimestamp,
         tablesBackedUp: ['sync_queue', 'sync_conflicts', 'sync_logs'],
       );
-      
     } catch (e) {
-      return BackupResult(
-        success: false,
-        errorMessage: e.toString(),
-      );
+      return BackupResult(success: false, errorMessage: e.toString());
     }
   }
-  
+
   Future<void> _createEnhancedSyncTables(Database db) async {
     // Read and execute the enhanced sync schema
     // This would typically read from the enhanced_sync_schema.sql file
     // For now, we'll create the key tables programmatically
-    
+
     await db.execute('''
       CREATE TABLE IF NOT EXISTS sync_transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -748,7 +811,7 @@ class SyncMigrationManager {
         FOREIGN KEY (parent_transaction_id) REFERENCES sync_transactions (transaction_id) ON DELETE SET NULL
       )
     ''');
-    
+
     await db.execute('''
       CREATE TABLE IF NOT EXISTS sync_conflicts_enhanced (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -801,15 +864,25 @@ class SyncMigrationManager {
         FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
       )
     ''');
-    
+
     // Create indexes for performance
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_sync_transactions_status ON sync_transactions (status)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_sync_transactions_priority ON sync_transactions (priority DESC, created_at ASC)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_sync_transactions_user_device ON sync_transactions (user_id, device_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_sync_conflicts_transaction ON sync_conflicts_enhanced (transaction_id)');
-    await db.execute('CREATE INDEX IF NOT EXISTS idx_sync_conflicts_status ON sync_conflicts_enhanced (status)');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_sync_transactions_status ON sync_transactions (status)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_sync_transactions_priority ON sync_transactions (priority DESC, created_at ASC)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_sync_transactions_user_device ON sync_transactions (user_id, device_id)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_sync_conflicts_transaction ON sync_conflicts_enhanced (transaction_id)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_sync_conflicts_status ON sync_conflicts_enhanced (status)',
+    );
   }
-  
+
   Future<DataMigrationResult> _migrateSyncQueueData({
     required Database db,
     Function(double)? progressCallback,
@@ -823,11 +896,13 @@ class SyncMigrationManager {
           message: 'No sync_queue table to migrate',
         );
       }
-      
+
       // Get total count for progress tracking
-      final countResult = await db.rawQuery('SELECT COUNT(*) as count FROM sync_queue');
+      final countResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM sync_queue',
+      );
       final totalRecords = (countResult.first['count'] as int?) ?? 0;
-      
+
       if (totalRecords == 0) {
         return DataMigrationResult(
           success: true,
@@ -836,49 +911,51 @@ class SyncMigrationManager {
           message: 'No records to migrate from sync_queue',
         );
       }
-      
+
       int recordsProcessed = 0;
       int recordsMigrated = 0;
       int offset = 0;
-      
+
       while (offset < totalRecords) {
         final batch = await db.query(
           'sync_queue',
           limit: _migrationBatchSize,
           offset: offset,
         );
-        
+
         for (final record in batch) {
           try {
             // Transform old record to new format
             final transformedRecord = _transformSyncQueueRecord(record);
-            
+
             // Insert into new table
             await db.insert('sync_transactions', transformedRecord);
             recordsMigrated++;
-            
           } catch (e) {
-            _logger.w('Failed to migrate sync_queue record ${record['id']}', error: e);
+            _logger.w(
+              'Failed to migrate sync_queue record ${record['id']}',
+              error: e,
+            );
           }
-          
+
           recordsProcessed++;
-          
+
           // Update progress
           if (progressCallback != null && recordsProcessed % 10 == 0) {
             progressCallback(recordsProcessed / totalRecords);
           }
         }
-        
+
         offset += _migrationBatchSize;
       }
-      
+
       return DataMigrationResult(
         success: true,
         recordsProcessed: recordsProcessed,
         recordsMigrated: recordsMigrated,
-        message: 'Migrated $recordsMigrated of $recordsProcessed sync_queue records',
+        message:
+            'Migrated $recordsMigrated of $recordsProcessed sync_queue records',
       );
-      
     } catch (e) {
       return DataMigrationResult(
         success: false,
@@ -888,7 +965,7 @@ class SyncMigrationManager {
       );
     }
   }
-  
+
   Future<DataMigrationResult> _migrateSyncConflictsData({
     required Database db,
     Function(double)? progressCallback,
@@ -902,11 +979,13 @@ class SyncMigrationManager {
           message: 'No sync_conflicts table to migrate',
         );
       }
-      
+
       // Get total count for progress tracking
-      final countResult = await db.rawQuery('SELECT COUNT(*) as count FROM sync_conflicts');
+      final countResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM sync_conflicts',
+      );
       final totalRecords = (countResult.first['count'] as int?) ?? 0;
-      
+
       if (totalRecords == 0) {
         return DataMigrationResult(
           success: true,
@@ -915,49 +994,51 @@ class SyncMigrationManager {
           message: 'No records to migrate from sync_conflicts',
         );
       }
-      
+
       int recordsProcessed = 0;
       int recordsMigrated = 0;
       int offset = 0;
-      
+
       while (offset < totalRecords) {
         final batch = await db.query(
           'sync_conflicts',
           limit: _migrationBatchSize,
           offset: offset,
         );
-        
+
         for (final record in batch) {
           try {
             // Transform old conflict record to new format
             final transformedRecord = _transformSyncConflictRecord(record);
-            
+
             // Insert into new table
             await db.insert('sync_conflicts_enhanced', transformedRecord);
             recordsMigrated++;
-            
           } catch (e) {
-            _logger.w('Failed to migrate sync_conflicts record ${record['id']}', error: e);
+            _logger.w(
+              'Failed to migrate sync_conflicts record ${record['id']}',
+              error: e,
+            );
           }
-          
+
           recordsProcessed++;
-          
+
           // Update progress
           if (progressCallback != null && recordsProcessed % 5 == 0) {
             progressCallback(recordsProcessed / totalRecords);
           }
         }
-        
+
         offset += _migrationBatchSize;
       }
-      
+
       return DataMigrationResult(
         success: true,
         recordsProcessed: recordsProcessed,
         recordsMigrated: recordsMigrated,
-        message: 'Migrated $recordsMigrated of $recordsProcessed sync_conflicts records',
+        message:
+            'Migrated $recordsMigrated of $recordsProcessed sync_conflicts records',
       );
-      
     } catch (e) {
       return DataMigrationResult(
         success: false,
@@ -967,10 +1048,12 @@ class SyncMigrationManager {
       );
     }
   }
-  
-  Map<String, dynamic> _transformSyncQueueRecord(Map<String, dynamic> oldRecord) {
+
+  Map<String, dynamic> _transformSyncQueueRecord(
+    Map<String, dynamic> oldRecord,
+  ) {
     final now = DateTime.now().millisecondsSinceEpoch;
-    
+
     return {
       'transaction_id': oldRecord['operation_id'] ?? _uuid.v4(),
       'operation_id': oldRecord['operation_id'],
@@ -999,13 +1082,18 @@ class SyncMigrationManager {
       'version': 1,
     };
   }
-  
-  Map<String, dynamic> _transformSyncConflictRecord(Map<String, dynamic> oldRecord) {
+
+  Map<String, dynamic> _transformSyncConflictRecord(
+    Map<String, dynamic> oldRecord,
+  ) {
     final now = DateTime.now().millisecondsSinceEpoch;
-    
+
     return {
       'conflict_id': oldRecord['conflict_id'] ?? _uuid.v4(),
-      'transaction_id': oldRecord['conflict_id'] ?? _uuid.v4(), // Use conflict_id as transaction_id for backward compatibility
+      'transaction_id':
+          oldRecord['conflict_id'] ??
+          _uuid
+              .v4(), // Use conflict_id as transaction_id for backward compatibility
       'conflict_type': oldRecord['conflict_type'] ?? 'DATA_CONFLICT',
       'severity': 'MEDIUM', // Default severity for migrated conflicts
       'table_name': oldRecord['table_name'],
@@ -1031,7 +1119,7 @@ class SyncMigrationManager {
       'version': 1,
     };
   }
-  
+
   Future<void> _createCompatibilityViews(Database db) async {
     // Create views that maintain backward compatibility with old table names
     await db.execute('''
@@ -1062,7 +1150,7 @@ class SyncMigrationManager {
         END as status
       FROM sync_transactions
     ''');
-    
+
     await db.execute('''
       CREATE VIEW IF NOT EXISTS sync_conflicts AS
       SELECT 
@@ -1087,62 +1175,73 @@ class SyncMigrationManager {
       FROM sync_conflicts_enhanced
     ''');
   }
-  
+
   Future<DataValidationResult> _validateMigratedData(Database db) async {
     final result = DataValidationResult();
-    
+
     try {
       // Validate record counts match
       final oldQueueCount = await _getTableCount(db, 'sync_queue');
-      final newTransactionsCount = await _getTableCount(db, 'sync_transactions');
-      
+      final newTransactionsCount = await _getTableCount(
+        db,
+        'sync_transactions',
+      );
+
       if (oldQueueCount != newTransactionsCount) {
-        result.warnings.add('Record count mismatch: sync_queue($oldQueueCount) vs sync_transactions($newTransactionsCount)');
+        result.warnings.add(
+          'Record count mismatch: sync_queue($oldQueueCount) vs sync_transactions($newTransactionsCount)',
+        );
       }
-      
+
       final oldConflictsCount = await _getTableCount(db, 'sync_conflicts');
-      final newConflictsCount = await _getTableCount(db, 'sync_conflicts_enhanced');
-      
+      final newConflictsCount = await _getTableCount(
+        db,
+        'sync_conflicts_enhanced',
+      );
+
       if (oldConflictsCount != newConflictsCount) {
-        result.warnings.add('Record count mismatch: sync_conflicts($oldConflictsCount) vs sync_conflicts_enhanced($newConflictsCount)');
+        result.warnings.add(
+          'Record count mismatch: sync_conflicts($oldConflictsCount) vs sync_conflicts_enhanced($newConflictsCount)',
+        );
       }
-      
+
       // Validate data integrity
       final invalidTransactions = await db.rawQuery('''
         SELECT COUNT(*) as count 
         FROM sync_transactions 
         WHERE transaction_id IS NULL OR operation_id IS NULL
       ''');
-      
+
       final invalidCount = (invalidTransactions.first['count'] as int?) ?? 0;
       if (invalidCount > 0) {
         result.errors.add('Found $invalidCount transactions with null IDs');
       }
-      
+
       result.isValid = result.errors.isEmpty;
-      
     } catch (e) {
       result.errors.add('Post-migration validation error: ${e.toString()}');
       result.isValid = false;
     }
-    
+
     return result;
   }
-  
+
   Future<int> _getTableCount(Database db, String tableName) async {
     try {
       if (!await _checkTableExists(db, tableName)) return 0;
-      
-      final result = await db.rawQuery('SELECT COUNT(*) as count FROM $tableName');
+
+      final result = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM $tableName',
+      );
       return (result.first['count'] as int?) ?? 0;
     } catch (e) {
       return 0;
     }
   }
-  
+
   Future<void> _cleanupOldTables(Database db) async {
     final tablesToDrop = ['sync_queue', 'sync_conflicts', 'sync_logs'];
-    
+
     for (final tableName in tablesToDrop) {
       try {
         if (await _checkTableExists(db, tableName)) {
@@ -1154,16 +1253,16 @@ class SyncMigrationManager {
       }
     }
   }
-  
+
   // Migration logging methods
-  
+
   Future<void> _logMigrationStart({
     required String migrationId,
     required String migrationType,
     String? description,
   }) async {
     final db = await _databaseService.database;
-    
+
     await db.insert(_migrationLogTable, {
       'migration_id': migrationId,
       'migration_type': migrationType,
@@ -1174,22 +1273,23 @@ class SyncMigrationManager {
       'updated_at': DateTime.now().millisecondsSinceEpoch,
     });
   }
-  
+
   Future<void> _logMigrationComplete({
     required String migrationId,
     required Duration duration,
     required MigrationResult result,
   }) async {
     final db = await _databaseService.database;
-    
+
     await db.update(
       _migrationLogTable,
       {
         'status': 'COMPLETED',
         'completed_at': DateTime.now().millisecondsSinceEpoch,
         'duration_ms': duration.inMilliseconds,
-        'records_migrated': (result.queueMigrationResult?.recordsMigrated ?? 0) + 
-                           (result.conflictMigrationResult?.recordsMigrated ?? 0),
+        'records_migrated':
+            (result.queueMigrationResult?.recordsMigrated ?? 0) +
+            (result.conflictMigrationResult?.recordsMigrated ?? 0),
         'metadata': jsonEncode(result.toMap()),
         'updated_at': DateTime.now().millisecondsSinceEpoch,
       },
@@ -1197,14 +1297,14 @@ class SyncMigrationManager {
       whereArgs: [migrationId],
     );
   }
-  
+
   Future<void> _logMigrationError({
     required String migrationId,
     required String error,
     required String phase,
   }) async {
     final db = await _databaseService.database;
-    
+
     await db.update(
       _migrationLogTable,
       {
@@ -1217,10 +1317,10 @@ class SyncMigrationManager {
       whereArgs: [migrationId],
     );
   }
-  
+
   Future<void> _logMigrationRollback({required String migrationId}) async {
     final db = await _databaseService.database;
-    
+
     await db.update(
       _migrationLogTable,
       {
@@ -1231,25 +1331,25 @@ class SyncMigrationManager {
       whereArgs: [migrationId],
     );
   }
-  
+
   Future<Map<String, dynamic>?> _getMigrationLog(String migrationId) async {
     final db = await _databaseService.database;
-    
+
     final results = await db.query(
       _migrationLogTable,
       where: 'migration_id = ?',
       whereArgs: [migrationId],
     );
-    
+
     return results.isNotEmpty ? results.first : null;
   }
-  
+
   Future<bool> _restoreFromBackup(Database db, String migrationId) async {
     // Implementation for restoring from backup would go here
     // This would involve finding the backup tables and restoring data
     return true;
   }
-  
+
   Future<void> _removeEnhancedTables(Database db) async {
     final tablesToRemove = [
       'sync_transactions',
@@ -1257,9 +1357,9 @@ class SyncMigrationManager {
       'sync_sessions',
       'sync_dependencies',
       'sync_performance_metrics',
-      'sync_event_log'
+      'sync_event_log',
     ];
-    
+
     for (final tableName in tablesToRemove) {
       try {
         await db.execute('DROP TABLE IF EXISTS $tableName');
@@ -1273,13 +1373,13 @@ class SyncMigrationManager {
 // Data classes for migration operations
 
 enum MigrationStatusType {
-  NOT_REQUIRED,
-  REQUIRED,
-  IN_PROGRESS,
-  COMPLETED,
-  FAILED,
-  PARTIAL,
-  ERROR,
+  notRequired,
+  required,
+  inProgress,
+  completed,
+  failed,
+  partial,
+  error,
 }
 
 class MigrationStatus {
@@ -1291,7 +1391,7 @@ class MigrationStatus {
   final Map<String, int>? oldDataCounts;
   final Map<String, int>? newDataCounts;
   final String? errorMessage;
-  
+
   MigrationStatus({
     required this.status,
     required this.oldTablesExist,
@@ -1315,14 +1415,14 @@ class MigrationResult {
   DataMigrationResult? conflictMigrationResult;
   DataValidationResult? postValidationResult;
   bool cleanupCompleted = false;
-  
+
   MigrationResult({
     required this.migrationId,
     this.success = false,
     this.duration,
     this.errorMessage,
   });
-  
+
   Map<String, dynamic> toMap() {
     return {
       'migration_id': migrationId,
@@ -1331,7 +1431,8 @@ class MigrationResult {
       'error_message': errorMessage,
       'cleanup_completed': cleanupCompleted,
       'queue_records_migrated': queueMigrationResult?.recordsMigrated ?? 0,
-      'conflict_records_migrated': conflictMigrationResult?.recordsMigrated ?? 0,
+      'conflict_records_migrated':
+          conflictMigrationResult?.recordsMigrated ?? 0,
     };
   }
 }
@@ -1342,7 +1443,7 @@ class RollbackResult {
   String? errorMessage;
   bool backupRestored = false;
   bool newTablesRemoved = false;
-  
+
   RollbackResult({
     required this.migrationId,
     this.success = false,
@@ -1361,7 +1462,7 @@ class BackupResult {
   final int? backupTimestamp;
   final List<String>? tablesBackedUp;
   final String? errorMessage;
-  
+
   BackupResult({
     required this.success,
     this.backupTimestamp,
@@ -1376,7 +1477,7 @@ class DataMigrationResult {
   final int recordsMigrated;
   final String? message;
   final String? errorMessage;
-  
+
   DataMigrationResult({
     required this.success,
     required this.recordsProcessed,
@@ -1390,7 +1491,7 @@ class MigrationProgress {
   final String phase;
   final double percentage;
   final String message;
-  
+
   MigrationProgress({
     required this.phase,
     required this.percentage,
@@ -1408,7 +1509,7 @@ class MigrationLogEntry {
   final Duration? duration;
   final int recordsMigrated;
   final String? errorDetails;
-  
+
   MigrationLogEntry({
     required this.migrationId,
     required this.migrationType,
@@ -1420,7 +1521,7 @@ class MigrationLogEntry {
     required this.recordsMigrated,
     this.errorDetails,
   });
-  
+
   factory MigrationLogEntry.fromMap(Map<String, dynamic> map) {
     return MigrationLogEntry(
       migrationId: map['migration_id'] as String,

@@ -7,7 +7,7 @@ import '../widgets/harvest_list_item.dart';
 import '../widgets/summary_stat_card.dart';
 
 class HarvestSummaryScreen extends StatefulWidget {
-  const HarvestSummaryScreen({Key? key}) : super(key: key);
+  const HarvestSummaryScreen({super.key});
 
   @override
   State<HarvestSummaryScreen> createState() => _HarvestSummaryScreenState();
@@ -153,7 +153,7 @@ class _HarvestSummaryScreenState extends State<HarvestSummaryScreen> {
           decoration: BoxDecoration(
             color: const Color(0xFF1E1E1E),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.withOpacity(0.3)),
+            border: Border.all(color: Colors.grey.withValues(alpha: 0.3)),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
@@ -270,3 +270,4 @@ class _HarvestSummaryScreenState extends State<HarvestSummaryScreen> {
     );
   }
 }
+

@@ -11,18 +11,16 @@ class UnauthorizedPage extends StatelessWidget {
   final String userRole;
 
   const UnauthorizedPage({
-    Key? key,
+    super.key,
     required this.attemptedRoute,
     required this.userRole,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     _logger.w('Unauthorized access attempt: Route=$attemptedRoute, Role=$userRole');
     
     final roleName = RoleService.getRoleDisplayName(userRole);
-    final allowedRoute = AppRoutes.getDashboardRoute(userRole);
-    
     return Scaffold(
       appBar: AppBar(
         title: const Text('Access Denied'),
@@ -152,7 +150,6 @@ class UnauthorizedPage extends StatelessWidget {
   }
   
   Widget _buildAvailableFeaturesInfo(BuildContext context) {
-    final permissions = RoleService.getRolePermissions(userRole);
     final features = RoleService.getDashboardFeatures(userRole);
     
     if (features.isEmpty) {

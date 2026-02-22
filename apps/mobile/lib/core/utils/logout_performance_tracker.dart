@@ -1,5 +1,10 @@
-import 'dart:async';
+import 'dart:developer' as developer;
 import '../config/logout_config.dart';
+
+void _debugLog(Object? message) {
+  developer.log(message?.toString() ?? 'null');
+}
+
 
 /// Performance tracker for measuring logout operations
 class LogoutPerformanceTracker {
@@ -29,7 +34,7 @@ class LogoutPerformanceTracker {
     final entry = '[$elapsed ms] $operation${type != null ? ' ($type)' : ''}';
     _operationLog.add(entry);
     if (LogoutConfig.logCleanupProgress) {
-      print('🔍 $entry');
+      _debugLog('🔍 $entry');
     }
   }
   
@@ -67,33 +72,33 @@ class LogoutPerformanceTracker {
   void _printSummary(LogoutResult result) {
     if (!LogoutConfig.showDetailedLogoutMessages) return;
     
-    print('\n📊 LOGOUT PERFORMANCE SUMMARY');
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    print('Type: ${result.type.name.toUpperCase()}');
-    print('Duration: ${result.duration.inMilliseconds}ms');
-    print('Warnings: ${result.warnings.length}');
-    print('Errors: ${result.errors.length}');
-    print('Status: ${result.isClean ? '✅ CLEAN' : result.hasErrors ? '❌ WITH ERRORS' : '⚠️ WITH WARNINGS'}');
+    _debugLog('\n📊 LOGOUT PERFORMANCE SUMMARY');
+    _debugLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    _debugLog('Type: ${result.type.name.toUpperCase()}');
+    _debugLog('Duration: ${result.duration.inMilliseconds}ms');
+    _debugLog('Warnings: ${result.warnings.length}');
+    _debugLog('Errors: ${result.errors.length}');
+    _debugLog('Status: ${result.isClean ? '✅ CLEAN' : result.hasErrors ? '❌ WITH ERRORS' : '⚠️ WITH WARNINGS'}');
     
     if (result.hasWarnings) {
-      print('\n⚠️ Warnings:');
+      _debugLog('\n⚠️ Warnings:');
       for (final warning in result.warnings) {
-        print('  • $warning');
+        _debugLog('  • $warning');
       }
     }
     
     if (result.hasErrors) {
-      print('\n❌ Errors:');
+      _debugLog('\n❌ Errors:');
       for (final error in result.errors) {
-        print('  • $error');
+        _debugLog('  • $error');
       }
     }
     
-    print('\n📝 Operation Log:');
+    _debugLog('\n📝 Operation Log:');
     for (final operation in _operationLog) {
-      print('  $operation');
+      _debugLog('  $operation');
     }
-    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+    _debugLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
   }
   
   /// Get current elapsed time
@@ -105,3 +110,4 @@ class LogoutPerformanceTracker {
 
 /// Global logout performance tracker instance
 final logoutPerformanceTracker = LogoutPerformanceTracker();
+

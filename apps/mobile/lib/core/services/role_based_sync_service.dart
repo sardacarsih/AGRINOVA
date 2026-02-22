@@ -19,13 +19,11 @@ import 'jwt_storage_service.dart';
 class RoleBasedSyncService {
   static final Logger _logger = Logger();
   final EnhancedDatabaseService _db;
-  final JWTStorageService _jwtStorage;
 
   RoleBasedSyncService({
     required EnhancedDatabaseService database,
     required JWTStorageService jwtStorage,
-  }) : _db = database,
-       _jwtStorage = jwtStorage;
+  }) : _db = database;
 
   /// Log role-specific sync operation
   Future<String> logRoleSync({
@@ -69,7 +67,7 @@ class RoleBasedSyncService {
     };
 
     await _db.insert('sync_logs', syncLog);
-    _logger.d('Started ${userRole} sync for ${syncContext}: ${syncLog['log_id']}');
+    _logger.d('Started $userRole sync for $syncContext: ${syncLog['log_id']}');
     
     return syncLog['log_id'] as String;
   }
@@ -350,3 +348,5 @@ class RoleSyncMetrics {
     };
   }
 }
+
+

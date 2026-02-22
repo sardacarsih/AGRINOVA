@@ -587,6 +587,21 @@ flutter doctor --android-licenses
 # Open Android Studio > AVD Manager > Create Virtual Device
 ```
 
+#### Android Build Toolchain Compatibility
+
+Use the following Android build tool versions for `apps/mobile`:
+
+- AGP: `8.9.1` (`apps/mobile/android/settings.gradle`)
+- Gradle wrapper: `8.11.1` (`apps/mobile/android/gradle/wrapper/gradle-wrapper.properties`)
+- Kotlin Android plugin: `2.1.0` (`apps/mobile/android/settings.gradle`)
+
+After changing Android dependencies, validate metadata compatibility:
+
+```bash
+cd apps/mobile/android
+./gradlew :app:checkReleaseAarMetadata
+```
+
 #### Run on Android
 ```bash
 cd apps/mobile
@@ -948,6 +963,28 @@ flutter upgrade
 
 # Clear Flutter cache
 flutter pub cache repair
+```
+
+#### Android AAR Metadata / AGP Mismatch
+
+If build fails at `:app:checkReleaseAarMetadata` with messages like:
+- `requires Android Gradle plugin 8.9.1 or higher`
+
+Fix by aligning both values together:
+
+```bash
+# apps/mobile/android/settings.gradle
+# id "com.android.application" version "8.9.1" apply false
+
+# apps/mobile/android/gradle/wrapper/gradle-wrapper.properties
+# distributionUrl=https\://services.gradle.org/distributions/gradle-8.11.1-all.zip
+```
+
+Then re-run:
+
+```bash
+cd apps/mobile/android
+./gradlew :app:checkReleaseAarMetadata
 ```
 
 ### 11.2 Performance Issues

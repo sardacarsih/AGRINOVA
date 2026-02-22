@@ -251,8 +251,8 @@ class MandorMasterSyncService {
       final QueryOptions options = QueryOptions(
         document: gql(MandorMasterSyncQueries.getEmployees),
         variables: {
-          if (divisionId != null) 'divisionId': divisionId,
-          if (search != null) 'search': search,
+          'divisionId': ?divisionId,
+          'search': ?search,
         },
         fetchPolicy: FetchPolicy.networkOnly,
       );
@@ -313,7 +313,7 @@ class MandorMasterSyncService {
       final QueryOptions options = QueryOptions(
         document: gql(MandorMasterSyncQueries.getBlocks),
         variables: {
-          if (divisionId != null) 'divisionId': divisionId,
+          'divisionId': ?divisionId,
         },
         fetchPolicy: FetchPolicy.networkOnly,
       );

@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +9,11 @@ import '../constants/api_constants.dart';
 import '../di/service_locator.dart';
 import '../services/config_service.dart';
 import '../services/fcm_service.dart';
+
+void _debugLog(Object? message) {
+  developer.log(message?.toString() ?? 'null');
+}
+
 
 /// Handles the initialization of the application.
 class AppInitializer {
@@ -22,25 +28,25 @@ class AppInitializer {
     if (_initialized) return;
 
     try {
-      print('🚀 AppInitializer: Starting initialization...');
+      _debugLog('🚀 AppInitializer: Starting initialization...');
       
       // Register background message handler BEFORE Firebase.initializeApp
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
       
       // Initialize Firebase
       await Firebase.initializeApp();
-      print('✅ AppInitializer: Firebase initialized');
+      _debugLog('✅ AppInitializer: Firebase initialized');
       
       // Initialize Hive for local storage
       await Hive.initFlutter();
-      print('✅ AppInitializer: Hive initialized');
+      _debugLog('✅ AppInitializer: Hive initialized');
       
       // Initialize configuration service
       await _initializeConfiguration();
       
       // Initialize dependency injection
       await ServiceLocator.initialize();
-      print('✅ AppInitializer: ServiceLocator initialized');
+      _debugLog('✅ AppInitializer: ServiceLocator initialized');
       
       // Set preferred orientations
       await SystemChrome.setPreferredOrientations([
@@ -49,10 +55,10 @@ class AppInitializer {
       ]);
       
       _initialized = true;
-      print('🚀 AppInitializer: Initialization completed successfully');
+      _debugLog('🚀 AppInitializer: Initialization completed successfully');
     } catch (e, stackTrace) {
-      print('❌ AppInitializer: Initialization failed: $e');
-      print(stackTrace);
+      _debugLog('❌ AppInitializer: Initialization failed: $e');
+      _debugLog(stackTrace);
       // Re-throw to let the caller handle it (e.g., show error screen)
       rethrow;
     }
@@ -61,31 +67,33 @@ class AppInitializer {
   /// Initialize configuration service
   static Future<void> _initializeConfiguration() async {
     try {
-      print('🔧 AppInitializer: Starting configuration initialization...');
-      print('📋 Compile-time env: ${EnvConfig.toMap()}');
+      _debugLog('🔧 AppInitializer: Starting configuration initialization...');
+      _debugLog('📋 Compile-time env: ${EnvConfig.toMap()}');
 
       // Initialize ConfigService
       final config = await ConfigService.initialize();
       
       // Update ApiConstants with configuration
-      print('📡 Setting ApiConstants base URL from: ${ApiConstants.baseUrl}');
+      _debugLog('📡 Setting ApiConstants base URL from: ${ApiConstants.baseUrl}');
       ApiConstants.setBaseUrl(config.baseUrl);
-      print('📡 ApiConstants base URL updated to: ${ApiConstants.baseUrl}');
+      _debugLog('📡 ApiConstants base URL updated to: ${ApiConstants.baseUrl}');
       
-      print('✅ Configuration initialization completed');
-      print('   Environment: ${config.environment.name}');
-      print('   Base URL: ${config.baseUrl}');
+      _debugLog('✅ Configuration initialization completed');
+      _debugLog('   Environment: ${config.environment.name}');
+      _debugLog('   Base URL: ${config.baseUrl}');
       
       // Add a small delay to ensure config is fully propagated
       await Future.delayed(const Duration(milliseconds: 100));
       
     } catch (e) {
-      print('❌ Configuration initialization failed: $e');
-      print('🔄 Using fallback configuration...');
+      _debugLog('❌ Configuration initialization failed: $e');
+      _debugLog('🔄 Using fallback configuration...');
       
       // Fallback to default configuration
       ApiConstants.resetBaseUrl();
-      print('📡 ApiConstants reset to fallback: ${ApiConstants.baseUrl}');
+      _debugLog('📡 ApiConstants reset to fallback: ${ApiConstants.baseUrl}');
     }
   }
 }
+
+

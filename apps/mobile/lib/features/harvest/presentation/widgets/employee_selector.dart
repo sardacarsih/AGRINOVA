@@ -8,11 +8,11 @@ class EmployeeSelector extends StatelessWidget {
   final ValueChanged<Employee?> onEmployeeSelected;
 
   const EmployeeSelector({
-    Key? key,
+    super.key,
     required this.employees,
     required this.selectedEmployee,
     required this.onEmployeeSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

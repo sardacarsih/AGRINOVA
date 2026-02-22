@@ -9,10 +9,10 @@ class GenZTabContainer extends StatelessWidget {
   final EdgeInsets? padding;
 
   const GenZTabContainer({
-    Key? key,
+    super.key,
     required this.child,
     this.padding,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -40,10 +40,10 @@ class GenZScrollableTab extends StatelessWidget {
   final EdgeInsets padding;
 
   const GenZScrollableTab({
-    Key? key,
+    super.key,
     required this.children,
     this.padding = const EdgeInsets.all(16),
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -67,9 +67,9 @@ class GenZSliverTab extends StatelessWidget {
   final List<Widget> slivers;
 
   const GenZSliverTab({
-    Key? key,
+    super.key,
     required this.slivers,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

@@ -11,12 +11,12 @@ class AppErrorWidget extends StatelessWidget {
   final bool showDetails;
 
   const AppErrorWidget({
-    Key? key,
+    super.key,
     required this.error,
     this.onRetry,
     this.onDismiss,
     this.showDetails = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -55,23 +55,23 @@ class AppErrorWidget extends StatelessWidget {
     Color color;
 
     switch (error.runtimeType) {
-      case NetworkError:
+      case NetworkError _:
         icon = Icons.wifi_off;
         color = Colors.orange;
         break;
-      case AuthError:
+      case AuthError _:
         icon = Icons.lock_outline;
         color = Colors.red;
         break;
-      case ValidationError:
+      case ValidationError _:
         icon = Icons.warning_outlined;
         color = Colors.amber;
         break;
-      case DeviceError:
+      case DeviceError _:
         icon = Icons.phone_android;
         color = Colors.blue;
         break;
-      case SyncError:
+      case SyncError _:
         icon = Icons.sync_problem;
         color = Colors.purple;
         break;
@@ -98,25 +98,25 @@ class AppErrorWidget extends StatelessWidget {
     String title;
 
     switch (error.runtimeType) {
-      case NetworkError:
+      case NetworkError _:
         title = 'Masalah Koneksi';
         break;
-      case AuthError:
+      case AuthError _:
         title = 'Masalah Autentikasi';
         break;
-      case ValidationError:
+      case ValidationError _:
         title = 'Data Tidak Valid';
         break;
-      case DeviceError:
+      case DeviceError _:
         title = 'Masalah Perangkat';
         break;
-      case SyncError:
+      case SyncError _:
         title = 'Masalah Sync';
         break;
-      case DatabaseError:
+      case DatabaseError _:
         title = 'Masalah Database';
         break;
-      case BusinessError:
+      case BusinessError _:
         title = 'Operasi Tidak Dapat Dilakukan';
         break;
       default:
@@ -311,11 +311,11 @@ class ErrorBanner extends StatelessWidget {
   final VoidCallback? onDismiss;
 
   const ErrorBanner({
-    Key? key,
+    super.key,
     required this.error,
     this.onRetry,
     this.onDismiss,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -373,11 +373,11 @@ class ErrorBanner extends StatelessWidget {
 
   Color _getErrorColor() {
     switch (error.runtimeType) {
-      case NetworkError:
+      case NetworkError _:
         return Colors.orange;
-      case ValidationError:
+      case ValidationError _:
         return Colors.amber;
-      case AuthError:
+      case AuthError _:
         return Colors.red;
       default:
         return Colors.red;
@@ -386,11 +386,11 @@ class ErrorBanner extends StatelessWidget {
 
   IconData _getErrorIcon() {
     switch (error.runtimeType) {
-      case NetworkError:
+      case NetworkError _:
         return Icons.wifi_off;
-      case ValidationError:
+      case ValidationError _:
         return Icons.warning;
-      case AuthError:
+      case AuthError _:
         return Icons.lock;
       default:
         return Icons.error;
@@ -424,11 +424,11 @@ class ErrorSnackBar {
 
   static Color _getErrorColor(AppError error) {
     switch (error.runtimeType) {
-      case NetworkError:
+      case NetworkError _:
         return Colors.orange;
-      case ValidationError:
+      case ValidationError _:
         return Colors.amber[700]!;
-      case AuthError:
+      case AuthError _:
         return Colors.red;
       default:
         return Colors.red;

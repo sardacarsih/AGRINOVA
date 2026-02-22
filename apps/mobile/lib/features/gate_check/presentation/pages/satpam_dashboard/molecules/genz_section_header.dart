@@ -14,14 +14,14 @@ class GenZSectionHeader extends StatelessWidget {
   final Widget? trailing;
 
   const GenZSectionHeader({
-    Key? key,
+    super.key,
     required this.icon,
     required this.title,
     this.subtitle,
     required this.iconColor,
     this.iconSecondaryColor,
     this.trailing,
-  }) : super(key: key);
+  });
 
   /// Purple themed header
   factory GenZSectionHeader.purple({
@@ -107,7 +107,7 @@ class GenZSectionHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (trailing != null) trailing!,
+        ?trailing,
       ],
     );
   }

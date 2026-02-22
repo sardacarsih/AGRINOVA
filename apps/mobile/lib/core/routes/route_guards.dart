@@ -8,6 +8,7 @@ import 'app_routes.dart';
 
 class RouteGuard {
   static final Logger _logger = Logger();
+  static const String _profileRoute = '/profile';
   
   // Check if user can access a specific route
   static bool canAccessRoute(String route, String? userRole) {
@@ -39,7 +40,7 @@ class RouteGuard {
     switch (route) {
       // Auth routes - public
       case AppRoutes.login:
-      case AppRoutes.initial:
+      case AppRoutes.authWrapper:
         return [];
         
       // Dashboard routes - role-specific
@@ -87,7 +88,7 @@ class RouteGuard {
         return ['system_configuration', 'system_administration'];
         
       // Profile routes - accessible to all authenticated users
-      case AppRoutes.profile:
+      case _profileRoute:
       case AppRoutes.dashboard:
         return [];
         
@@ -130,7 +131,21 @@ class RouteGuard {
   
   // Check if route exists and user has access
   static bool isRouteAccessible(String routeName, String? userRole) {
-    if (!AppRoutes.routeExists(routeName)) {
+    final knownRoutes = <String>{
+      ...AppRoutes.allRoutes,
+      AppRoutes.login,
+      AppRoutes.authWrapper,
+      AppRoutes.dashboard,
+      '/harvest',
+      '/gate-check',
+      '/approvals',
+      '/monitoring',
+      '/reports',
+      '/users',
+      '/settings',
+      _profileRoute,
+    };
+    if (!knownRoutes.contains(routeName)) {
       return false;
     }
     
@@ -139,7 +154,7 @@ class RouteGuard {
   
   // Get accessible routes for a user role
   static List<String> getAccessibleRoutes(String userRole) {
-    final allRoutes = AppRoutes.getAllDashboardRoutes();
+    final allRoutes = AppRoutes.allRoutes;
     final accessibleRoutes = <String>[];
     
     for (final route in allRoutes) {
@@ -193,7 +208,7 @@ class RouteGuard {
       navigationItems.add(NavigationItem(
         route: '/monitoring',
         title: 'Monitoring',
-        icon: Icons.monitoring,
+        icon: Icons.monitor,
       ));
     }
     
@@ -215,7 +230,7 @@ class RouteGuard {
     
     // Profile - always accessible
     navigationItems.add(NavigationItem(
-      route: AppRoutes.profile,
+      route: _profileRoute,
       title: 'Profile',
       icon: Icons.person,
     ));

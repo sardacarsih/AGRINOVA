@@ -10,11 +10,11 @@ class BiometricLoginButton extends StatefulWidget {
   final String? reason;
 
   const BiometricLoginButton({
-    Key? key,
+    super.key,
     this.isEnabled = true,
     this.onPressed,
     this.reason,
-  }) : super(key: key);
+  });
 
   @override
   State<BiometricLoginButton> createState() => _BiometricLoginButtonState();
@@ -84,7 +84,7 @@ class _BiometricLoginButtonState extends State<BiometricLoginButton>
                   boxShadow: widget.isEnabled
                       ? [
                           BoxShadow(
-                            color: Colors.green.withOpacity(0.3),
+                            color: Colors.green.withValues(alpha: 0.3),
                             blurRadius: 8,
                             offset: const Offset(0, 4),
                           ),
@@ -149,10 +149,10 @@ class BiometricSetupPrompt extends StatelessWidget {
   final VoidCallback onSkip;
 
   const BiometricSetupPrompt({
-    Key? key,
+    super.key,
     required this.onEnableBiometric,
     required this.onSkip,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -224,9 +224,9 @@ class BiometricCapabilityChecker extends StatefulWidget {
   final Widget Function(BuildContext context, bool isAvailable, bool isEnabled) builder;
 
   const BiometricCapabilityChecker({
-    Key? key,
+    super.key,
     required this.builder,
-  }) : super(key: key);
+  });
 
   @override
   State<BiometricCapabilityChecker> createState() => _BiometricCapabilityCheckerState();

@@ -179,17 +179,17 @@ class ApprovalRepositoryImpl implements ApprovalRepository {
     int? pageSize,
   }) {
     return {
-      if (divisionId != null) 'divisionId': divisionId,
-      if (blockId != null) 'blockId': blockId,
-      if (mandorId != null) 'mandorId': mandorId,
+      'divisionId': ?divisionId,
+      'blockId': ?blockId,
+      'mandorId': ?mandorId,
       if (dateFrom != null) 'dateFrom': dateFrom.toUtc().toIso8601String(),
       if (dateTo != null) 'dateTo': dateTo.toUtc().toIso8601String(),
-      if (priority != null) 'priority': priority,
-      if (search != null) 'search': search,
-      if (sortBy != null) 'sortBy': sortBy,
-      if (sortDirection != null) 'sortDirection': sortDirection,
-      if (page != null) 'page': page,
-      if (pageSize != null) 'pageSize': pageSize,
+      'priority': ?priority,
+      'search': ?search,
+      'sortBy': ?sortBy,
+      'sortDirection': ?sortDirection,
+      'page': ?page,
+      'pageSize': ?pageSize,
     };
   }
 

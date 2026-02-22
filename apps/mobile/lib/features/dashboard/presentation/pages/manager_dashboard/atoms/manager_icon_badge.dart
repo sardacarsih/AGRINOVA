@@ -10,12 +10,12 @@ class ManagerIconBadge extends StatelessWidget {
   final double size;
 
   const ManagerIconBadge({
-    Key? key,
+    super.key,
     required this.icon,
     this.badgeCount,
     this.iconColor,
     this.size = ManagerTheme.iconMedium,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

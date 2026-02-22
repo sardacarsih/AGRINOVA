@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -9,6 +10,7 @@ import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/services/unified_secure_storage_service.dart';
 import '../../../../core/di/dependency_injection.dart';
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/services/server_status_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,13 +20,14 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _rememberDevice = false;
-  bool _isOnline = true;
+  AppStatus _appStatus = AppStatus.online;
+  bool _isOnline = true; // derived: _appStatus == AppStatus.online
   bool _hasOfflineAuth = false;
   bool _biometricAvailable = false;
   bool _biometricEnabled = false;
@@ -51,6 +54,7 @@ class _LoginPageState extends State<LoginPage>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _connectivityService = locate<ConnectivityService>();
     _biometricAuthBloc = locate<BiometricAuthBloc>();
 
@@ -76,6 +80,7 @@ class _LoginPageState extends State<LoginPage>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _usernameController.removeListener(_handleUsernameChanged);
     _usernameController.dispose();
     _passwordController.dispose();
@@ -105,38 +110,70 @@ class _LoginPageState extends State<LoginPage>
     }
   }
 
+  /// Runs a fresh server reachability check and updates [_appStatus] + [_isOnline].
+  /// NEVER throws – ServerStatusService swallows all exceptions internally.
+  Future<void> _refreshServerStatus() async {
+    final status = await ServerStatusService().checkStatus();
+    if (!mounted) return;
+    setState(() {
+      _appStatus = status;
+      _isOnline = status == AppStatus.online;
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_refreshServerStatus());
+    }
+  }
+
   Future<void> _initializeLoginState() async {
+    // Fire server status check immediately, independently of biometric operations.
+    // unawaited ensures it never propagates into the outer catch.
+    unawaited(_refreshServerStatus());
+
     try {
       await _connectivityService.initialize();
-      await Future.delayed(const Duration(milliseconds: 100));
-      _isOnline = _connectivityService.isOnline;
-      _hasOfflineAuth = await UnifiedSecureStorageService.hasValidOfflineAuth();
-      _hasBiometricSession =
-          (await UnifiedSecureStorageService.isAuthenticated()) ||
-              _hasOfflineAuth;
-      _biometricOwnerUsername =
-          await UnifiedSecureStorageService.getBiometricOwnerUsername();
 
-      final userInfo = await UnifiedSecureStorageService.getUserInfo();
-      if (userInfo != null && mounted) {
-        _usernameController.text = userInfo.username;
+      // Biometric storage calls isolated in their own try/catch.
+      // Keystore/BiometricPrompt exceptions must NOT affect _isOnline or _appStatus.
+      try {
+        _hasOfflineAuth =
+            await UnifiedSecureStorageService.hasValidOfflineAuth();
+        _hasBiometricSession =
+            (await UnifiedSecureStorageService.isAuthenticated()) ||
+                _hasOfflineAuth;
+        _biometricOwnerUsername =
+            await UnifiedSecureStorageService.getBiometricOwnerUsername();
+
+        final userInfo = await UnifiedSecureStorageService.getUserInfo();
+        if (userInfo != null && mounted) {
+          _usernameController.text = userInfo.username;
+        }
+      } catch (_) {
+        // Biometric storage error – degrade gracefully, do NOT touch _isOnline.
+        _hasOfflineAuth = false;
+        _hasBiometricSession = false;
+        _biometricEnabled = false;
+        _biometricRawEnabled = false;
       }
 
       _biometricAuthBloc.add(const BiometricStatusRequested());
 
       _connectivityService.networkStatusStream.listen((status) {
         if (mounted) {
-          setState(() {
-            _isOnline = status == NetworkStatus.online;
-          });
+          // Re-probe the server on every network-layer change.
+          unawaited(_refreshServerStatus());
         }
       });
 
       if (mounted) setState(() {});
     } catch (e) {
+      // Do NOT set _isOnline = false here. Status is managed exclusively
+      // by _refreshServerStatus() which is already running.
       if (mounted) {
         setState(() {
-          _isOnline = false;
           _hasOfflineAuth = false;
           _hasBiometricSession = false;
           _biometricEnabled = false;
@@ -384,47 +421,80 @@ class _LoginPageState extends State<LoginPage>
   }
 
   Widget _buildConnectionPill() {
+    final Color pillColor;
+    final String label;
+    final String? subtext;
+
+    switch (_appStatus) {
+      case AppStatus.online:
+        pillColor = _accentNeon;
+        label = 'Online';
+        subtext = null;
+        break;
+      case AppStatus.noInternet:
+        pillColor = Colors.orange;
+        label = 'Offline Mode';
+        subtext = 'No Internet';
+        break;
+      case AppStatus.serverDown:
+        pillColor = Colors.orange;
+        label = 'Offline Mode';
+        subtext = 'Server Down';
+        break;
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: _isOnline
-            ? _accentNeon.withValues(alpha: 0.15)
-            : Colors.orange.withValues(alpha: 0.15),
+        color: pillColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: _isOnline
-              ? _accentNeon.withValues(alpha: 0.3)
-              : Colors.orange.withValues(alpha: 0.3),
+          color: pillColor.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
-      child: Row(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: _isOnline ? _accentNeon : Colors.orange,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: (_isOnline ? _accentNeon : Colors.orange)
-                      .withValues(alpha: 0.5),
-                  blurRadius: 6,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: pillColor,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: pillColor.withValues(alpha: 0.5),
+                      blurRadius: 6,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: pillColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          Text(
-            _isOnline ? 'Online' : 'Offline Mode',
-            style: TextStyle(
-              color: _isOnline ? _accentNeon : Colors.orange,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+          if (subtext != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              subtext,
+              style: TextStyle(
+                color: pillColor.withValues(alpha: 0.7),
+                fontSize: 11,
+                fontWeight: FontWeight.w400,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

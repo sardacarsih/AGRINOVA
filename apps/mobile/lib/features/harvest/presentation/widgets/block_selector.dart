@@ -8,11 +8,11 @@ class BlockSelector extends StatelessWidget {
   final ValueChanged<Block?> onBlockSelected;
 
   const BlockSelector({
-    Key? key,
+    super.key,
     required this.blocks,
     required this.selectedBlock,
     required this.onBlockSelected,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

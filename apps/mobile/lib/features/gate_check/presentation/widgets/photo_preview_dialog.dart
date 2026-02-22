@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 
-import '../../data/models/gate_check_models.dart';
+import '../../../../core/services/gate_check_camera_service.dart';
 
 /// Photo Preview Dialog Widget
 /// 
@@ -22,13 +22,13 @@ class PhotoPreviewDialog extends StatelessWidget {
   static final Logger _logger = Logger();
 
   const PhotoPreviewDialog({
-    Key? key,
+    super.key,
     required this.photo,
     required this.vehiclePlate,
     required this.onRetake,
     required this.onConfirm,
     this.onCancel,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +48,7 @@ class PhotoPreviewDialog extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               spreadRadius: 2,
               blurRadius: 10,
               offset: const Offset(0, 4),
@@ -113,7 +113,7 @@ class PhotoPreviewDialog extends StatelessWidget {
                 Text(
                   'Plat: $vehiclePlate',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -139,7 +139,7 @@ class PhotoPreviewDialog extends StatelessWidget {
         border: Border.all(color: Colors.grey[300]!),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -213,12 +213,11 @@ class PhotoPreviewDialog extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          _buildMetadataRow('Waktu Diambil', _formatDateTime(photo.capturedAt)),
-          if (photo.coordinates != null)
-            _buildMetadataRow('Koordinat', photo.coordinates!),
-          if (photo.fileSize != null)
-            _buildMetadataRow('Ukuran File', _formatFileSize(photo.fileSize!)),
-          _buildMetadataRow('Kategori', photo.category),
+          _buildMetadataRow('Waktu Diambil', _formatDateTime(photo.timestamp)),
+          if (_formatCoordinates(photo.location) != null)
+            _buildMetadataRow('Koordinat', _formatCoordinates(photo.location)!),
+          _buildMetadataRow('Ukuran File', _formatFileSize(photo.compressedSize)),
+          _buildMetadataRow('Kategori', photo.category ?? '-'),
         ],
       ),
     );
@@ -345,6 +344,13 @@ class PhotoPreviewDialog extends StatelessWidget {
            '${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
+  String? _formatCoordinates(LocationData? location) {
+    final lat = location?.latitude;
+    final lng = location?.longitude;
+    if (lat == null || lng == null) return null;
+    return '${lat.toStringAsFixed(6)}, ${lng.toStringAsFixed(6)}';
+  }
+
   String _formatFileSize(int bytes) {
     if (bytes < 1024) return '${bytes}B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
@@ -375,3 +381,4 @@ Future<void> showPhotoPreviewDialog({
     },
   );
 }
+

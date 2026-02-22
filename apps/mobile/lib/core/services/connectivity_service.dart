@@ -17,7 +17,7 @@ class ConnectivityService {
   final InternetConnectionChecker _internetChecker = InternetConnectionChecker.instance;
   
   // For USB debugging: check local server as fallback
-  bool _useLocalServerFallback = true;
+  final bool _useLocalServerFallback = true;
   
   final StreamController<NetworkStatus> _networkStatusController = 
       StreamController<NetworkStatus>.broadcast();

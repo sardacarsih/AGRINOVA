@@ -11,13 +11,13 @@ class GracefulDegradationWidget extends StatelessWidget {
   final Color? iconColor;
 
   const GracefulDegradationWidget({
-    Key? key,
+    super.key,
     required this.featureName,
     required this.fallback,
     this.message,
     this.icon,
     this.iconColor,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -31,7 +31,7 @@ class GracefulDegradationWidget extends StatelessWidget {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: (iconColor ?? Colors.grey).withOpacity(0.1),
+              color: (iconColor ?? Colors.grey).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -83,20 +83,16 @@ class NetworkAwareWidget extends StatelessWidget {
   final String? featureName;
 
   const NetworkAwareWidget({
-    Key? key,
+    super.key,
     required this.onlineChild,
     required this.offlineChild,
     this.loadingChild,
     required this.isConnected,
     this.featureName,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (loadingChild != null && isConnected == null) {
-      return loadingChild!;
-    }
-
     return isConnected ? onlineChild : offlineChild;
   }
 }
@@ -110,13 +106,13 @@ class PermissionAwareWidget extends StatelessWidget {
   final VoidCallback? onRequestPermission;
 
   const PermissionAwareWidget({
-    Key? key,
+    super.key,
     required this.permissionGrantedChild,
     required this.permissionDeniedChild,
     required this.permissionName,
     this.permissionDescription,
     this.onRequestPermission,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -134,12 +130,12 @@ class StorageAwareWidget extends StatelessWidget {
   final String? requiredSpace;
 
   const StorageAwareWidget({
-    Key? key,
+    super.key,
     required this.storageAvailableChild,
     required this.storageUnavailableChild,
     required this.storageType,
     this.requiredSpace,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -157,12 +153,12 @@ class FeatureFlagWidget extends StatelessWidget {
   final String? featureDescription;
 
   const FeatureFlagWidget({
-    Key? key,
+    super.key,
     required this.enabledChild,
     required this.disabledChild,
     required this.featureFlag,
     this.featureDescription,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -180,12 +176,12 @@ class PerformanceAwareWidget extends StatelessWidget {
   final String? performanceReason;
 
   const PerformanceAwareWidget({
-    Key? key,
+    super.key,
     required this.highPerformanceChild,
     required this.lowPerformanceChild,
     required this.isHighPerformance,
     this.performanceReason,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -201,12 +197,12 @@ class ResponsiveWidget extends StatelessWidget {
   final Widget fallbackChild;
 
   const ResponsiveWidget({
-    Key? key,
+    super.key,
     required this.mobileChild,
     this.tabletChild,
     this.desktopChild,
     required this.fallbackChild,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -231,11 +227,11 @@ class ThemeAwareWidget extends StatelessWidget {
   final Widget? highContrastChild;
 
   const ThemeAwareWidget({
-    Key? key,
+    super.key,
     required this.lightChild,
     required this.darkChild,
     this.highContrastChild,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -264,14 +260,14 @@ class LoadingAwareWidget extends StatelessWidget {
   final AppError? error;
 
   const LoadingAwareWidget({
-    Key? key,
+    super.key,
     required this.child,
     this.loadingChild,
     this.errorChild,
     required this.isLoading,
     required this.hasError,
     this.error,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -322,13 +318,13 @@ class ConnectivityAwareWidget extends StatelessWidget {
   final bool isConnecting;
 
   const ConnectivityAwareWidget({
-    Key? key,
+    super.key,
     required this.onlineChild,
     required this.offlineChild,
     this.connectingChild,
     required this.isOnline,
     this.isConnecting = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -348,12 +344,12 @@ class BatteryAwareWidget extends StatelessWidget {
   final String? powerReason;
 
   const BatteryAwareWidget({
-    Key? key,
+    super.key,
     required this.normalPowerChild,
     required this.lowPowerChild,
     required this.isLowPowerMode,
     this.powerReason,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -369,15 +365,16 @@ class MemoryAwareWidget extends StatelessWidget {
   final int? availableMemoryMB;
 
   const MemoryAwareWidget({
-    Key? key,
+    super.key,
     required this.normalMemoryChild,
     required this.lowMemoryChild,
     required this.isLowMemory,
     this.availableMemoryMB,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return isLowMemory ? lowMemoryChild : normalMemoryChild;
   }
 }
+

@@ -600,7 +600,7 @@ class _GuestRegistrationFormState extends State<GuestRegistrationForm> with Auto
           child: Opacity(
             opacity: _selectedLoadType == 'Kosong' ? 0.5 : 1.0,
             child: DropdownButtonFormField<String>(
-              value: _selectedLoadVolume,
+              initialValue: _selectedLoadVolume,
               decoration: InputDecoration(
                 labelText: _selectedLoadType == 'Kosong' ? 'Volume Muatan (Opsional)' : 'Volume Muatan *',
                 helperText: _selectedLoadType == 'Kosong' ? 'Tidak diperlukan untuk muatan kosong' : null,
@@ -757,7 +757,6 @@ class _GuestRegistrationFormState extends State<GuestRegistrationForm> with Auto
     
     // Neon colors
     const neonGreen = Color(0xFF10B981);
-    const neonPurple = Color(0xFF8B5CF6);
     const neonBlue = Color(0xFF3B82F6);  // Untuk mode cetak ulang
 
     // Check if form is already registered (for regenerate mode)

@@ -443,9 +443,9 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -462,7 +462,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
             label,
             style: TextStyle(
               fontSize: 10,
-              color: color.withOpacity(0.8),
+              color: color.withValues(alpha: 0.8),
             ),
           ),
         ],
@@ -504,7 +504,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
         decoration: BoxDecoration(
           color: isHighlighted
               ? MandorTheme.electricBlue.withValues(alpha: 0.18)
-              : MandorTheme.gray800.withOpacity(0.6),
+              : MandorTheme.gray800.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color:
@@ -517,7 +517,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: statusColor.withOpacity(0.15),
+                color: statusColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(statusIcon, color: statusColor, size: 20),
@@ -548,7 +548,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: statusColor.withOpacity(0.15),
+                              color: statusColor.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -566,7 +566,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: MandorTheme.electricBlue.withOpacity(
+                                color: MandorTheme.electricBlue.withValues(alpha: 
                                   0.15,
                                 ),
                                 borderRadius: BorderRadius.circular(6),
@@ -1164,9 +1164,9 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
     return Container(
       padding: const EdgeInsets.all(40),
       decoration: BoxDecoration(
-        color: MandorTheme.gray800.withOpacity(0.6),
+        color: MandorTheme.gray800.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: MandorTheme.gray700.withOpacity(0.5)),
+        border: Border.all(color: MandorTheme.gray700.withValues(alpha: 0.5)),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1174,7 +1174,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: MandorTheme.gray700.withOpacity(0.3),
+              color: MandorTheme.gray700.withValues(alpha: 0.3),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -1212,3 +1212,4 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
     );
   }
 }
+

@@ -10,7 +10,7 @@ import '../widgets/recent_activities_widget.dart';
 import '../widgets/estate_selector_widget.dart';
 
 class MonitoringDashboardScreen extends StatefulWidget {
-  const MonitoringDashboardScreen({Key? key}) : super(key: key);
+  const MonitoringDashboardScreen({super.key});
 
   @override
   State<MonitoringDashboardScreen> createState() =>
@@ -125,7 +125,7 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 3,
             offset: const Offset(0, 1),
@@ -156,7 +156,7 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
                       selectedColor: Theme.of(context)
                           .colorScheme
                           .primary
-                          .withOpacity(0.2),
+                          .withValues(alpha: 0.2),
                       checkmarkColor: Theme.of(context).colorScheme.primary,
                     ),
                   );
@@ -418,7 +418,7 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -567,7 +567,7 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
                   ],
                 ),
               );
-            }).toList(),
+            }),
           ],
         ),
       ),
@@ -620,3 +620,4 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
     );
   }
 }
+

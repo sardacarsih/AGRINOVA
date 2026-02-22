@@ -1,9 +1,5 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:stop_watch_timer/stop_watch_timer.dart';
-import '../../../../core/services/database_service.dart';
 
 class PerformanceMonitor extends StatefulWidget {
   final Widget child;
@@ -22,7 +18,7 @@ class PerformanceMonitor extends StatefulWidget {
 }
 
 class _PerformanceMonitorState extends State<PerformanceMonitor> {
-  final StopWatchTimer _renderTimer = StopWatchTimer();
+  final _StopWatchTimerCompat _renderTimer = _StopWatchTimerCompat();
   final List<RenderMetric> _renderMetrics = [];
   Timer? _performanceCheckTimer;
   int _lastFrameTime = 0;
@@ -74,7 +70,7 @@ class _PerformanceMonitorState extends State<PerformanceMonitor> {
   void _addRenderMetric(int frameTime) {
     final metric = RenderMetric(
       timestamp: DateTime.now(),
-      frameTimeMs: frameTime,
+      frameTimeMs: frameTime.toDouble(),
       fps: (1000 / frameTime).round(),
     );
 
@@ -131,7 +127,7 @@ class _PerformanceMonitorState extends State<PerformanceMonitor> {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
+          color: Colors.black.withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -162,7 +158,7 @@ class _PerformanceMonitorState extends State<PerformanceMonitor> {
       width: 250,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.8),
+        color: Colors.black.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -184,7 +180,7 @@ class _PerformanceMonitorState extends State<PerformanceMonitor> {
           _buildMetricRow('Network', _getNetworkStatus(), _getNetworkColor()),
           const SizedBox(height: 8),
           if (_renderMetrics.isNotEmpty)
-            Container(
+            SizedBox(
               height: 50,
               child: _buildFpsChart(),
             ),
@@ -257,6 +253,15 @@ class _PerformanceMonitorState extends State<PerformanceMonitor> {
   }
 }
 
+class _StopWatchTimerCompat {
+  final Stopwatch _stopwatch = Stopwatch();
+
+  void onStart() => _stopwatch.start();
+  void onStop() => _stopwatch.stop();
+  void onReset() => _stopwatch.reset();
+  void dispose() => _stopwatch.stop();
+}
+
 class RenderMetric {
   final DateTime timestamp;
   final double frameTimeMs;
@@ -303,7 +308,7 @@ class FpsChartPainter extends CustomPainter {
 
     // Draw 60 FPS baseline
     final baselinePaint = Paint()
-      ..color = Colors.white.withOpacity(0.3)
+      ..color = Colors.white.withValues(alpha: 0.3)
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
 
@@ -531,3 +536,4 @@ class _PerformanceTextFieldState extends State<PerformanceTextField> {
     );
   }
 }
+

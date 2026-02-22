@@ -12,7 +12,7 @@
 /// )
 /// ```
 
-library intro_animation;
+library;
 
 export 'agrinova_intro_animation.dart';
 export 'agrinova_intro_theme.dart';

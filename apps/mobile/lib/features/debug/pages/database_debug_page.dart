@@ -10,7 +10,7 @@ import '../../../core/services/database_debug_service.dart';
 /// Provides a comprehensive interface for testing and debugging SQLite database
 /// functionality to ensure proper operation across different Android devices.
 class DatabaseDebugPage extends StatefulWidget {
-  const DatabaseDebugPage({Key? key}) : super(key: key);
+  const DatabaseDebugPage({super.key});
 
   @override
   State<DatabaseDebugPage> createState() => _DatabaseDebugPageState();

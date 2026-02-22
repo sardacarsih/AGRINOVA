@@ -320,8 +320,8 @@ class GateCheckQueries {
           'vehiclePlate': vehiclePlate,
           'vehicleType': vehicleType,
           'purpose': purpose,
-          if (notes != null) 'notes': notes,
-          if (deviceId != null) 'deviceId': deviceId,
+          'notes': ?notes,
+          'deviceId': ?deviceId,
         },
       },
       errorPolicy: ErrorPolicy.all,
@@ -342,8 +342,8 @@ class GateCheckQueries {
         'input': {
           'qrToken': qrToken,
           'scanIntent': scanIntent,
-          if (deviceId != null) 'deviceId': deviceId,
-          if (scannerLocation != null) 'scannerLocation': scannerLocation,
+          'deviceId': ?deviceId,
+          'scannerLocation': ?scannerLocation,
         },
       },
       errorPolicy: ErrorPolicy.all,
@@ -366,9 +366,8 @@ class GateCheckQueries {
           'tokenId': tokenId,
           'photoData': photoData,
           'photoType': photoType,
-          if (fileName != null) 'fileName': fileName,
-          if (compressionQuality != null)
-            'compressionQuality': compressionQuality,
+          'fileName': ?fileName,
+          'compressionQuality': ?compressionQuality,
         },
       },
       errorPolicy: ErrorPolicy.all,
@@ -417,8 +416,8 @@ class GateCheckQueries {
           'guestCompany': guestCompany,
           'vehiclePlate': vehiclePlate,
           'entryAt': entryAt,
-          if (exitAt != null) 'exitAt': exitAt,
-          if (photos != null) 'photos': photos,
+          'exitAt': ?exitAt,
+          'photos': ?photos,
           if (metadata != null) 'metadata': jsonEncode(metadata),
           'companyId': companyId,
         },
@@ -440,7 +439,7 @@ class GateCheckQueries {
         'input': {
           'conflictId': conflictId,
           'resolutionStrategy': resolutionStrategy,
-          if (mergedData != null) 'mergedData': mergedData,
+          'mergedData': ?mergedData,
         },
       },
       errorPolicy: ErrorPolicy.all,
@@ -480,10 +479,10 @@ class GateCheckQueries {
       document: gql(getQRTokensQuery),
       variables: {
         'input': {
-          if (limit != null) 'limit': limit,
-          if (deviceId != null) 'deviceId': deviceId,
-          if (status != null) 'status': status,
-          if (intent != null) 'intent': intent,
+          'limit': ?limit,
+          'deviceId': ?deviceId,
+          'status': ?status,
+          'intent': ?intent,
           'includeExpired': includeExpired,
         },
       },
@@ -497,8 +496,8 @@ class GateCheckQueries {
     return QueryOptions(
       document: gql(getSyncTransactionsQuery),
       variables: {
-        if (limit != null) 'limit': limit,
-        if (offset != null) 'offset': offset,
+        'limit': ?limit,
+        'offset': ?offset,
       },
       errorPolicy: ErrorPolicy.all,
       fetchPolicy: FetchPolicy.cacheAndNetwork,
@@ -510,8 +509,8 @@ class GateCheckQueries {
     return QueryOptions(
       document: gql(getSyncConflictsQuery),
       variables: {
-        if (limit != null) 'limit': limit,
-        if (offset != null) 'offset': offset,
+        'limit': ?limit,
+        'offset': ?offset,
       },
       errorPolicy: ErrorPolicy.all,
       fetchPolicy: FetchPolicy.cacheAndNetwork,
@@ -781,7 +780,7 @@ class GateCheckQueries {
     return QueryOptions(
       document: gql(gateCheckStatisticsQuery),
       variables: {
-        if (gateId != null) 'gateId': gateId,
+        'gateId': ?gateId,
         if (fromDate != null) 'fromDate': fromDate.toIso8601String(),
         if (toDate != null) 'toDate': toDate.toIso8601String(),
       },
@@ -806,9 +805,9 @@ class GateCheckQueries {
         'filters': {
           if (fromDate != null) 'fromDate': fromDate.toIso8601String(),
           if (toDate != null) 'toDate': toDate.toIso8601String(),
-          if (vehiclePlate != null) 'vehiclePlate': vehiclePlate,
-          if (guestName != null) 'guestName': guestName,
-          if (status != null) 'status': status,
+          'vehiclePlate': ?vehiclePlate,
+          'guestName': ?guestName,
+          'status': ?status,
         },
         'pagination': {
           'limit': limit,

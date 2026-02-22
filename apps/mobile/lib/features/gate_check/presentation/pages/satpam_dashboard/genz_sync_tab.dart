@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'satpam_dashboard_constants.dart';
 
 /// Gen Z Sync Tab - Full Page Sync Dashboard
 /// 
@@ -12,11 +11,11 @@ class GenZSyncTab extends StatelessWidget {
   final Function() onManualSync;
 
   const GenZSyncTab({
-    Key? key,
+    super.key,
     required this.repositoryStats,
     required this.isLoading,
     required this.onManualSync,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +40,6 @@ class GenZSyncTab extends StatelessWidget {
         : 'Belum pernah';
     
     final dbSize = repositoryStats['database_storage']?['size_mb'] ?? '0.00';
-    final dbStatus = repositoryStats['database_storage']?['health_status'] ?? 'Unknown';
 
     return Container(
       color: darkBg,
@@ -72,7 +70,7 @@ class GenZSyncTab extends StatelessWidget {
             Text(
               'Statistik Database',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withValues(alpha: 0.9),
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
@@ -161,9 +159,9 @@ class GenZSyncTab extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: neonRed.withOpacity(0.1),
+                  color: neonRed.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: neonRed.withOpacity(0.3)),
+                  border: Border.all(color: neonRed.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -204,7 +202,7 @@ class GenZSyncTab extends StatelessWidget {
             Text(
               'Kelola data lokal dan cloud',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
+                color: Colors.white.withValues(alpha: 0.6),
                 fontSize: 14,
               ),
             ),
@@ -213,10 +211,10 @@ class GenZSyncTab extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: (isOnline ? neonGreen : neonRed).withOpacity(0.15),
+            color: (isOnline ? neonGreen : neonRed).withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: (isOnline ? neonGreen : neonRed).withOpacity(0.3),
+              color: (isOnline ? neonGreen : neonRed).withValues(alpha: 0.3),
             ),
           ),
           child: Row(
@@ -256,19 +254,19 @@ class GenZSyncTab extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            neonPurple.withOpacity(0.2),
-            neonPurple.withOpacity(0.05),
+            neonPurple.withValues(alpha: 0.2),
+            neonPurple.withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: neonPurple.withOpacity(0.3),
+          color: neonPurple.withValues(alpha: 0.3),
         ),
         boxShadow: [
           BoxShadow(
-            color: neonPurple.withOpacity(0.1),
+            color: neonPurple.withValues(alpha: 0.1),
             blurRadius: 20,
             spreadRadius: -5,
           ),
@@ -282,7 +280,7 @@ class GenZSyncTab extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: neonPurple.withOpacity(0.2),
+                  color: neonPurple.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -308,7 +306,7 @@ class GenZSyncTab extends StatelessWidget {
                     Text(
                       'Terakhir sync: $lastSyncTime',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withValues(alpha: 0.6),
                         fontSize: 13,
                       ),
                     ),
@@ -382,7 +380,7 @@ class GenZSyncTab extends StatelessWidget {
         color: cardBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -391,7 +389,7 @@ class GenZSyncTab extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -410,7 +408,7 @@ class GenZSyncTab extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.6),
+              color: Colors.white.withValues(alpha: 0.6),
               fontSize: 12,
             ),
           ),
@@ -421,3 +419,4 @@ class GenZSyncTab extends StatelessWidget {
 
 
 }
+

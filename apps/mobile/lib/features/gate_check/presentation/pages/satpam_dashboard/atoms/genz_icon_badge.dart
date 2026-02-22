@@ -14,14 +14,14 @@ class GenZIconBadge extends StatelessWidget {
   final bool showGlow;
 
   const GenZIconBadge({
-    Key? key,
+    super.key,
     required this.icon,
     required this.primaryColor,
     this.secondaryColor,
     this.size = 42,
     this.iconSize = 22,
     this.showGlow = true,
-  }) : super(key: key);
+  });
 
   /// Purple theme badge
   factory GenZIconBadge.purple({
@@ -90,7 +90,7 @@ class GenZIconBadge extends StatelessWidget {
         boxShadow: showGlow
             ? [
                 BoxShadow(
-                  color: primaryColor.withOpacity(0.3),
+                  color: primaryColor.withValues(alpha: 0.3),
                   blurRadius: 8,
                   spreadRadius: -2,
                 ),
@@ -109,23 +109,23 @@ class GenZIconBadgeSmall extends StatelessWidget {
   final bool showGlow;
 
   const GenZIconBadgeSmall({
-    Key? key,
+    super.key,
     required this.icon,
     required this.color,
     this.showGlow = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(14),
         boxShadow: showGlow
             ? [
                 BoxShadow(
-                  color: color.withOpacity(0.2),
+                  color: color.withValues(alpha: 0.2),
                   blurRadius: 8,
                   spreadRadius: -2,
                 ),
@@ -136,3 +136,4 @@ class GenZIconBadgeSmall extends StatelessWidget {
     );
   }
 }
+

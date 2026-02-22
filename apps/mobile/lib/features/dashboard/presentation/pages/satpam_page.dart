@@ -10,7 +10,7 @@ import '../../../../shared/widgets/auth_listener_wrapper.dart';
 class SatpamPage extends StatelessWidget {
   static final Logger _logger = Logger();
 
-  const SatpamPage({Key? key}) : super(key: key);
+  const SatpamPage({super.key});
 
   @override
   Widget build(BuildContext context) {

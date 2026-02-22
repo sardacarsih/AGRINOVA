@@ -8,13 +8,13 @@ class HarvestSearchInput extends StatelessWidget {
   final IconData icon;
 
   const HarvestSearchInput({
-    Key? key,
+    super.key,
     required this.label,
     required this.hint,
     this.value,
     required this.onTap,
     this.icon = Icons.search,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +39,7 @@ class HarvestSearchInput extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha: 0.1),
                   spreadRadius: 1,
                   blurRadius: 4,
                   offset: const Offset(0, 2),
@@ -51,7 +51,7 @@ class HarvestSearchInput extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: Colors.blue.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -78,3 +78,4 @@ class HarvestSearchInput extends StatelessWidget {
     );
   }
 }
+

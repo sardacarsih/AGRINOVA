@@ -198,7 +198,7 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
@@ -408,3 +408,4 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
     );
   }
 }
+

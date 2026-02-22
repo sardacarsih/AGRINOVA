@@ -1,7 +1,12 @@
+import 'dart:developer' as developer;
 import 'package:json_annotation/json_annotation.dart';
 import 'package:equatable/equatable.dart';
 
 part 'jwt_models.g.dart';
+
+void _debugLog(Object? message) {
+  developer.log(message?.toString() ?? 'null');
+}
 
 // JWT Login Request Model
 @JsonSerializable()
@@ -247,7 +252,7 @@ class User extends Equatable {
         assignmentScope = AssignmentScope.fromJson(
             json['assignmentScope'] as Map<String, dynamic>);
       } catch (e) {
-        print('⚠️ Failed to parse assignmentScope: $e');
+        _debugLog('⚠️ Failed to parse assignmentScope: $e');
       }
     }
 
@@ -256,7 +261,7 @@ class User extends Equatable {
       try {
         roleInfo = RoleInfo.fromJson(json['roleInfo'] as Map<String, dynamic>);
       } catch (e) {
-        print('⚠️ Failed to parse roleInfo: $e');
+        _debugLog('⚠️ Failed to parse roleInfo: $e');
       }
     }
 
@@ -786,7 +791,7 @@ class JWTLoginResponse extends Equatable {
       try {
         session = Session.fromJson(json['session'] as Map<String, dynamic>);
       } catch (e) {
-        print('⚠️ Failed to parse session: $e');
+        _debugLog('⚠️ Failed to parse session: $e');
       }
     }
 
@@ -977,7 +982,7 @@ class JWTRefreshResponse extends Equatable {
       try {
         session = Session.fromJson(json['session'] as Map<String, dynamic>);
       } catch (e) {
-        print('⚠️ Failed to parse session: $e');
+        _debugLog('⚠️ Failed to parse session: $e');
       }
     }
 
@@ -1209,3 +1214,5 @@ class DeviceInfo extends Equatable {
         deviceName,
       ];
 }
+
+

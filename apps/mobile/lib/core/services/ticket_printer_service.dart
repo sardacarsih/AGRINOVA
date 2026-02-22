@@ -1,8 +1,6 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'dart:ui' as ui;
 import 'bluetooth_printer_service.dart';
 
 /// ESC/POS Commands for thermal printer

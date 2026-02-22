@@ -12,7 +12,7 @@ import '../widgets/harvest_photo_widget.dart';
 import '../widgets/harvest_quantity_input.dart';
 
 class HarvestInputScreen extends StatefulWidget {
-  const HarvestInputScreen({Key? key}) : super(key: key);
+  const HarvestInputScreen({super.key});
 
   @override
   State<HarvestInputScreen> createState() => _HarvestInputScreenState();
@@ -366,7 +366,7 @@ class _HarvestInputScreenState extends State<HarvestInputScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 4,
             offset: const Offset(0, 2),
@@ -928,3 +928,4 @@ class _HarvestInputScreenState extends State<HarvestInputScreen> {
     _jjgMatang = (_quantity - others).clamp(0, 2147483647).toInt();
   }
 }
+

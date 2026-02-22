@@ -105,7 +105,8 @@ dependencies:
   # Printing & PDF (removed pdf dependency to avoid conflicts)
   printing: ^5.10.0
   pdf: ^3.10.0
-  flutter_bluetooth_serial: ^0.4.0
+  flutter_bluetooth_serial_plus:
+    path: packages/flutter_bluetooth_serial_plus
   esc_pos_utils_plus: ^2.0.4
   
   # Sharing

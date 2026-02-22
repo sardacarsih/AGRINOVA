@@ -1,14 +1,9 @@
-import 'dart:convert';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 
 import '../models/jwt_models.dart';
-import '../constants/api_constants.dart';
 import 'unified_secure_storage_service.dart';
 
 /// Legacy wrapper around UnifiedSecureStorageService for backward compatibility.
-///
-/// @deprecated Use [UnifiedSecureStorageService] directly in new code.
-/// This class will be removed in version 2.0.
 ///
 /// Migration guide:
 /// ```dart
@@ -22,7 +17,6 @@ import 'unified_secure_storage_service.dart';
 /// await UnifiedSecureStorageService.storeAuthResponse(response);
 /// await UnifiedSecureStorageService.clearAuthData();
 /// ```
-@Deprecated('Use UnifiedSecureStorageService directly. Will be removed in v2.0.')
 class JWTStorageService {
   
   /// Store JWT tokens from AuthPayload response
@@ -103,8 +97,7 @@ class JWTStorageService {
     // But since it's private in there? No, `getAuthStatus` reads it.
     // Let's implement this helper on UnifiedStorage or just return null if not critical.
     // Actually, `UnifiedSecureStorageService` exposes `getAuthStatus()['tokenExpiryTime']`.
-    final status = await UnifiedSecureStorageService.getAuthStatus();
-    final expiry = status.lastAuthTime; // Wait, lastAuthTime != tokenExpiryTime
+    await UnifiedSecureStorageService.getAuthStatus();
     // The previous implementation read 'token_expires_at' directly.
     // UnifiedSecureStorageService ALSO writes 'token_expires_at'.
     // Since we are wrapping, we can't access `_secureStorage` of UnifiedService if private.

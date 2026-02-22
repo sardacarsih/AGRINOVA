@@ -24,12 +24,12 @@ class SyncStatusWidget extends StatefulWidget {
   final Function()? onSyncComplete;
   
   const SyncStatusWidget({
-    Key? key,
+    super.key,
     this.showDetailed = false,
     this.allowManualSync = true,
     this.onSyncError,
     this.onSyncComplete,
-  }) : super(key: key);
+  });
 
   @override
   State<SyncStatusWidget> createState() => _SyncStatusWidgetState();
@@ -64,8 +64,9 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget>
   String _lastErrorMessage = '';
   bool _isNetworkAvailable = false;
   DateTime? _lastSyncTime;
+  // ignore: unused_field
   BatchSyncEvent? _currentSyncReport;
-  List<PhotoUploadProgress> _activePhotoUploads = [];
+  final List<PhotoUploadProgress> _activePhotoUploads = [];
   
   @override
   void initState() {
@@ -208,19 +209,19 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget>
         _currentPhase = event.message;
         
         switch (event.type) {
-          case BatchSyncEventType.BATCH_QUEUED:
-          case BatchSyncEventType.BATCH_STARTED:
-          case BatchSyncEventType.BATCH_PROGRESS:
+          case BatchSyncEventType.batchQueued:
+          case BatchSyncEventType.batchStarted:
+          case BatchSyncEventType.batchProgress:
             _currentState = SyncStatusState.syncing;
             break;
-          case BatchSyncEventType.BATCH_COMPLETED:
+          case BatchSyncEventType.batchCompleted:
             _currentState = SyncStatusState.idle;
             widget.onSyncComplete?.call();
             break;
-          case BatchSyncEventType.BATCH_CANCELLED:
+          case BatchSyncEventType.batchCancelled:
             _currentState = SyncStatusState.warning;
             break;
-          case BatchSyncEventType.BATCH_FAILED:
+          case BatchSyncEventType.batchFailed:
             _currentState = SyncStatusState.error;
             _lastErrorMessage = event.error ?? 'Unknown sync error';
             widget.onSyncError?.call(_lastErrorMessage);
@@ -305,10 +306,10 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: _getStatusColor().withOpacity(0.1),
+        color: _getStatusColor().withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: _getStatusColor().withOpacity(0.3),
+          color: _getStatusColor().withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -719,7 +720,7 @@ class _SyncStatusWidgetState extends State<SyncStatusWidget>
 class SyncStatusIndicator extends StatefulWidget {
   final Function()? onTap;
   
-  const SyncStatusIndicator({Key? key, this.onTap}) : super(key: key);
+  const SyncStatusIndicator({super.key, this.onTap});
 
   @override
   State<SyncStatusIndicator> createState() => _SyncStatusIndicatorState();
@@ -729,8 +730,8 @@ class _SyncStatusIndicatorState extends State<SyncStatusIndicator>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   Timer? _statusTimer;
-  SyncStatusState _status = SyncStatusState.idle;
-  int _pendingCount = 0;
+  final SyncStatusState _status = SyncStatusState.idle;
+  final int _pendingCount = 0;
   
   @override
   void initState() {
@@ -891,3 +892,4 @@ enum NetworkStatus { online, offline }
 
 // Mock classes for the services that need to be properly imported
 // These are just placeholders for the missing import dependencies
+

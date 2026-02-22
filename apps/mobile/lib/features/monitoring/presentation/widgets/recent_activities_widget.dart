@@ -5,10 +5,10 @@ class RecentActivitiesWidget extends StatelessWidget {
   final String? estateId;
 
   const RecentActivitiesWidget({
-    Key? key,
+    super.key,
     required this.activities,
     this.estateId,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

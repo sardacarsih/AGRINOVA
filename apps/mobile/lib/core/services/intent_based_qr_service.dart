@@ -1,14 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:logger/logger.dart';
-import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:crypto/crypto.dart';
 
 import '../database/enhanced_database_service.dart';
 import '../graphql/graphql_client.dart';
 import '../graphql/gate_check_queries.dart';
-import '../models/gate_check_models.dart';
 import 'jwt_storage_service.dart';
 import 'connectivity_service.dart';
 import 'device_service.dart';
@@ -32,7 +30,6 @@ class IntentBasedQRService {
 
   // Intent-based QR configuration
   static const Duration _qrTokenExpiry = Duration(hours: 24);
-  static const Duration _qrScanWindow = Duration(minutes: 15);
   static const String _qrIssuer = 'agrinova-gate-system';
 
   // QR token state management
@@ -939,3 +936,5 @@ enum QRTokenStatus {
   expired,
   revoked,
 }
+
+

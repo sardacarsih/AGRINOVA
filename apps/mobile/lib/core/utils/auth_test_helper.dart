@@ -91,9 +91,6 @@ class AuthTestHelper {
       // This is a placeholder for secure storage testing
       // In a real implementation, this would test actual secure storage operations
       
-      const testKey = 'auth_test_key';
-      const testValue = 'auth_test_value';
-
       // Simulate storage test
       await Future.delayed(const Duration(milliseconds: 100));
       

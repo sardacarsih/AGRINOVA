@@ -884,7 +884,7 @@ class HarvestSyncService {
           'jjgTangkaiPanjang': record['jjgTangkaiPanjang'],
         if (record['totalBrondolan'] != null)
           'totalBrondolan': record['totalBrondolan'],
-        if (photoSummary != null) 'photoUrl': photoSummary,
+        'photoUrl': ?photoSummary,
       };
     }).toList();
 

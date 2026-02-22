@@ -24,11 +24,11 @@ class GenZBottomNav extends StatelessWidget {
   final List<BottomNavItem> items;
 
   const GenZBottomNav({
-    Key? key,
+    super.key,
     required this.currentIndex,
     required this.onTap,
     required this.items,
-  }) : super(key: key);
+  });
 
   /// Default navigation items for Mandor
   factory GenZBottomNav.mandor({
@@ -99,12 +99,11 @@ class _NavItem extends StatelessWidget {
   final VoidCallback onTap;
 
   const _NavItem({
-    Key? key,
     required this.icon,
     required this.label,
     required this.isSelected,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +115,7 @@ class _NavItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected 
-              ? MandorTheme.forestGreen.withOpacity(0.15) 
+              ? MandorTheme.forestGreen.withValues(alpha: 0.15) 
               : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
@@ -159,11 +158,11 @@ class GenZFloatingActionButton extends StatelessWidget {
   final String label;
 
   const GenZFloatingActionButton({
-    Key? key,
+    super.key,
     required this.onPressed,
     this.icon = Icons.add_rounded,
     this.label = 'Input Panen',
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -173,7 +172,7 @@ class GenZFloatingActionButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: MandorTheme.forestGreen.withOpacity(0.4),
+            color: MandorTheme.forestGreen.withValues(alpha: 0.4),
             blurRadius: 16,
             spreadRadius: -4,
             offset: const Offset(0, 6),
@@ -206,3 +205,4 @@ class GenZFloatingActionButton extends StatelessWidget {
     );
   }
 }
+

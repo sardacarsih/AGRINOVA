@@ -32,12 +32,12 @@ class AsistenPendingSection extends StatelessWidget {
   final VoidCallback? onViewAll;
 
   const AsistenPendingSection({
-    Key? key,
+    super.key,
     required this.items,
     this.onApprove,
     this.onReject,
     this.onViewAll,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -72,7 +72,7 @@ class AsistenPendingSection extends StatelessWidget {
                   Icon(
                     Icons.check_circle_outline,
                     size: 48,
-                    color: AsistenTheme.approvedGreen.withOpacity(0.5),
+                    color: AsistenTheme.approvedGreen.withValues(alpha: 0.5),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -88,7 +88,7 @@ class AsistenPendingSection extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: items.length > 3 ? 3 : items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final item = items[index];
               return AsistenApprovalItem(
@@ -108,3 +108,4 @@ class AsistenPendingSection extends StatelessWidget {
     );
   }
 }
+
