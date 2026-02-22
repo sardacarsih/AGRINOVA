@@ -59,8 +59,40 @@ env:
   JAVA_VERSION: "17"
 
 jobs:
+  # ── Gate: same checks as Mobile CI ────────────────────────────────────────
+  # build-and-deploy will NOT run if this job fails.
+  validate:
+    name: Validate Flutter (analyze + test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        working-directory: apps/mobile
+        run: flutter pub get
+
+      - name: Analyze
+        working-directory: apps/mobile
+        run: flutter analyze
+
+      - name: Run smoke tests
+        working-directory: apps/mobile
+        run: flutter test test/widget_test.dart
+
+  # ── Release: only runs if validate succeeds ───────────────────────────────
   build-and-deploy:
     name: Build & Deploy to Play Store
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
