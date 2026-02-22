@@ -9,12 +9,13 @@ REM   scripts\release-android.bat          (interaktif, minta input versi)
 REM   scripts\release-android.bat 1.2.3    (langsung beri versi)
 REM
 REM Alur lengkap:
-REM   1. Tampilkan status git dan commit terakhir
-REM   2. Commit semua perubahan pending (jika ada)
-REM   3. Push commits ke GitHub (main)
-REM   4. Minta versi dan catatan rilis
-REM   5. Buat annotated git tag (v1.2.3)
-REM   6. Push tag → memicu GitHub Actions android-release.yml
+REM   1. flutter analyze apps/mobile/ — blokir jika ada error
+REM   2. Tampilkan status git dan commit terakhir
+REM   3. Commit semua perubahan pending (jika ada)
+REM   4. Push commits ke GitHub (main)
+REM   5. Minta versi dan catatan rilis
+REM   6. Buat annotated git tag (v1.2.3)
+REM   7. Push tag → memicu GitHub Actions android-release.yml
 REM ──────────────────────────────────────────────────────────────────────────────
 
 set "SCRIPT_DIR=%~dp0"
@@ -55,6 +56,25 @@ if not "!CURRENT_BRANCH!"=="main" (
     pause & exit /b 0
   )
 )
+
+REM ── Flutter analyze ───────────────────────────────────────────────────────
+echo ── Flutter analyze apps/mobile/ ───────────────────────────────────────
+where flutter >nul 2>&1
+if errorlevel 1 (
+  echo [ERROR] flutter tidak ditemukan. Pastikan Flutter SDK ada di PATH.
+  pause & exit /b 1
+)
+pushd "%ROOT_DIR%\apps\mobile"
+flutter analyze
+set "ANALYZE_RESULT=%ERRORLEVEL%"
+popd
+if not "%ANALYZE_RESULT%"=="0" (
+  echo.
+  echo [ERROR] flutter analyze gagal. Perbaiki error di atas sebelum release.
+  pause & exit /b 1
+)
+echo   OK: flutter analyze lulus.
+echo.
 
 REM ── Tampilkan commit terakhir ──────────────────────────────────────────────
 echo ── Commit terakhir ─────────────────────────────────────────────────────
