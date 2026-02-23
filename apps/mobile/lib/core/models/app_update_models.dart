@@ -99,7 +99,7 @@ class AppUpdateInfo extends Equatable {
 
   /// Get formatted file size
   String get formattedFileSize {
-    if (fileSizeBytes == null) return 'Unknown size';
+    if (fileSizeBytes == null) return 'Ukuran tidak diketahui';
     
     final bytes = fileSizeBytes!;
     if (bytes < 1024) return '$bytes B';
@@ -166,7 +166,7 @@ class AppUpdateProgress extends Equatable {
       AppUpdateProgress(
         status: UpdateProgressStatus.checking,
         updateInfo: updateInfo,
-        message: 'Checking for updates...',
+        message: 'Memeriksa pembaruan...',
         timestamp: DateTime.now(),
       );
 
@@ -174,7 +174,7 @@ class AppUpdateProgress extends Equatable {
       AppUpdateProgress(
         status: UpdateProgressStatus.available,
         updateInfo: updateInfo,
-        message: 'Update available',
+        message: 'Pembaruan tersedia',
         timestamp: DateTime.now(),
       );
 
@@ -183,7 +183,7 @@ class AppUpdateProgress extends Equatable {
         status: UpdateProgressStatus.downloading,
         updateInfo: updateInfo,
         progress: 0.0,
-        message: 'Starting update...',
+        message: 'Memulai pembaruan...',
         timestamp: DateTime.now(),
       );
 
@@ -192,7 +192,7 @@ class AppUpdateProgress extends Equatable {
         status: UpdateProgressStatus.downloading,
         updateInfo: updateInfo,
         progress: progress,
-        message: 'Downloading update... ${(progress * 100).toInt()}%',
+        message: 'Mengunduh pembaruan... ${(progress * 100).toInt()}%',
         timestamp: DateTime.now(),
       );
 
@@ -200,7 +200,7 @@ class AppUpdateProgress extends Equatable {
       AppUpdateProgress(
         status: UpdateProgressStatus.installing,
         updateInfo: updateInfo,
-        message: 'Installing update...',
+        message: 'Memasang pembaruan...',
         timestamp: DateTime.now(),
       );
 
@@ -208,7 +208,7 @@ class AppUpdateProgress extends Equatable {
       AppUpdateProgress(
         status: UpdateProgressStatus.readyToInstall,
         updateInfo: updateInfo,
-        message: 'Update ready to install',
+        message: 'Pembaruan siap dipasang',
         timestamp: DateTime.now(),
       );
 
@@ -216,7 +216,7 @@ class AppUpdateProgress extends Equatable {
       AppUpdateProgress(
         status: UpdateProgressStatus.completed,
         updateInfo: updateInfo,
-        message: 'Update completed successfully',
+        message: 'Pembaruan berhasil',
         timestamp: DateTime.now(),
       );
 
@@ -225,7 +225,7 @@ class AppUpdateProgress extends Equatable {
         status: UpdateProgressStatus.failed,
         updateInfo: updateInfo,
         error: error,
-        message: 'Update failed: $error',
+        message: 'Pembaruan gagal: $error',
         timestamp: DateTime.now(),
       );
 
@@ -233,7 +233,7 @@ class AppUpdateProgress extends Equatable {
       AppUpdateProgress(
         status: UpdateProgressStatus.cancelled,
         updateInfo: updateInfo,
-        message: 'Update cancelled',
+        message: 'Pembaruan dibatalkan',
         timestamp: DateTime.now(),
       );
 

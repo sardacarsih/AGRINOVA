@@ -97,7 +97,7 @@ class _SettingsPageState extends State<SettingsPage> {
           // Show no updates available message
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('You have the latest version of Agrinova'),
+              content: Text('Aplikasi Agrinova Anda sudah versi terbaru'),
               backgroundColor: Colors.green,
             ),
           );
@@ -109,7 +109,7 @@ class _SettingsPageState extends State<SettingsPage> {
       setState(() => _isCheckingForUpdates = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to check for updates: $e'),
+          content: Text('Gagal memeriksa pembaruan: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -124,7 +124,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to start update: $e'),
+          content: Text('Gagal memulai pembaruan: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -139,7 +139,7 @@ class _SettingsPageState extends State<SettingsPage> {
     });
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('Version $version will be skipped')));
+    ).showSnackBar(SnackBar(content: Text('Versi $version akan dilewati')));
   }
 
   void _onPolicyChanged(AppUpdatePolicy newPolicy) {
@@ -152,7 +152,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Update settings saved'),
+        content: Text('Pengaturan pembaruan tersimpan'),
         backgroundColor: Colors.green,
       ),
     );
@@ -163,7 +163,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Settings'),
+          title: const Text('Pengaturan'),
           backgroundColor: Colors.green[600],
           foregroundColor: Colors.white,
         ),
@@ -173,7 +173,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text('Pengaturan'),
         backgroundColor: Colors.green[600],
         foregroundColor: Colors.white,
       ),
@@ -210,7 +210,7 @@ class _SettingsPageState extends State<SettingsPage> {
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Text(
-            'App Updates',
+            'Pembaruan Aplikasi',
             style: Theme.of(
               context,
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
@@ -229,7 +229,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Current Version',
+                      'Versi Saat Ini',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -246,7 +246,9 @@ class _SettingsPageState extends State<SettingsPage> {
                             )
                           : const Icon(Icons.refresh, size: 18),
                       label: Text(
-                        _isCheckingForUpdates ? 'Checking...' : 'Check Now',
+                        _isCheckingForUpdates
+                            ? 'Memeriksa...'
+                            : 'Periksa Sekarang',
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue,
@@ -268,7 +270,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   builder: (context, snapshot) {
                     if (snapshot.hasData) {
                       return Text(
-                        'v${snapshot.data!.version} (build ${snapshot.data!.buildNumber})',
+                        'v${snapshot.data!.version} (tag git), build ${snapshot.data!.buildNumber}',
                         style: Theme.of(context).textTheme.bodyMedium,
                       );
                     } else if (snapshot.hasError) {
@@ -280,7 +282,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       );
                     } else {
                       return const Text(
-                        'Loading version info...',
+                        'Memuat info versi...',
                         style: TextStyle(color: Colors.grey),
                       );
                     }
@@ -307,8 +309,8 @@ class _SettingsPageState extends State<SettingsPage> {
                       children: [
                         Text(
                           _pendingUpdate!.isCritical
-                              ? 'Critical Update Available'
-                              : 'Update Available',
+                              ? 'Pembaruan Kritis Tersedia'
+                              : 'Pembaruan Tersedia',
                           style: Theme.of(context).textTheme.titleSmall
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,
@@ -319,7 +321,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Version ${_pendingUpdate!.latestVersion} is ready to install',
+                          'Versi ${_pendingUpdate!.latestVersion} siap dipasang',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(height: 8),
@@ -334,7 +336,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                         _pendingUpdate = null;
                                       });
                                     },
-                              child: const Text('Dismiss'),
+                              child: const Text('Tutup'),
                             ),
                             const SizedBox(width: 8),
                             ElevatedButton(
@@ -347,8 +349,8 @@ class _SettingsPageState extends State<SettingsPage> {
                               ),
                               child: Text(
                                 _pendingUpdate!.isCritical
-                                    ? 'Update Now'
-                                    : 'Update',
+                                    ? 'Perbarui Sekarang'
+                                    : 'Perbarui',
                               ),
                             ),
                           ],

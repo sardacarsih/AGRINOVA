@@ -131,10 +131,16 @@ echo.
 
 REM ── Update whatsnew files ─────────────────────────────────────────────────
 echo ── Catatan Rilis (whatsnew/) ────────────────────────────────────────────
-set "WHATSNEW_ID=%ROOT_DIR%\apps\mobile\whatsnew\whatsnew-id"
+set "WHATSNEW_ID=%ROOT_DIR%\apps\mobile\whatsnew\whatsnew-id-ID"
+set "WHATSNEW_ID_LEGACY=%ROOT_DIR%\apps\mobile\whatsnew\whatsnew-id"
 set "WHATSNEW_EN=%ROOT_DIR%\apps\mobile\whatsnew\whatsnew-en-US"
+if not exist "%WHATSNEW_ID%" (
+  if exist "%WHATSNEW_ID_LEGACY%" (
+    copy /Y "%WHATSNEW_ID_LEGACY%" "%WHATSNEW_ID%" >nul
+  )
+)
 echo.
-echo Isi saat ini dari whatsnew-id:
+echo Isi saat ini dari whatsnew-id-ID:
 echo ─────────────────────────────────────────
 type "%WHATSNEW_ID%" 2>nul || echo   (file belum ada)
 echo ─────────────────────────────────────────
@@ -142,7 +148,7 @@ echo.
 set /p "EDIT_NOTES=Update catatan rilis di whatsnew/ sebelum tag? (y/N): "
 if /i "!EDIT_NOTES!"=="y" (
   echo.
-  echo Membuka whatsnew-id di Notepad. Simpan dan tutup untuk melanjutkan...
+  echo Membuka whatsnew-id-ID di Notepad. Simpan dan tutup untuk melanjutkan...
   notepad "%WHATSNEW_ID%"
   echo Membuka whatsnew-en-US di Notepad. Simpan dan tutup untuk melanjutkan...
   notepad "%WHATSNEW_EN%"

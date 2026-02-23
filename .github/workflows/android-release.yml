@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # Android Release — Build AAB & Deploy to Google Play Store (alpha track)
 #
-# Dipicu oleh: git tag mobile/v*.*.*  (push tag → build + deploy otomatis)
+# Dipicu oleh: git tag mobile/v*.*.* atau v*.*.* (push tag → build + deploy otomatis)
 # Manual:      workflow_dispatch dengan input version
 #
 # Required GitHub Secrets (Settings → Secrets → Actions):
@@ -23,13 +23,15 @@
 #
 # Release flow:
 #   git tag -a mobile/v1.2.3 -m "Catatan rilis di sini" && git push origin mobile/v1.2.3
+#   atau:
+#   git tag -a v1.2.3 -m "Catatan rilis di sini" && git push origin v1.2.3
 #   → workflow terpicu otomatis
 #   → AAB dibangun, diunggah ke Play Store alpha track
 #   → What's New diambil dari anotasi tag (maks 500 karakter)
 #   → Promosikan ke alpha/beta/production secara manual di Play Console
 #
 # What's New / Release Notes:
-#   Prioritas 1: apps/mobile/whatsnew/whatsnew-id  (file statis, opsional)
+#   Prioritas 1: apps/mobile/whatsnew/whatsnew-id-ID  (file statis, opsional)
 #   Prioritas 2: anotasi git tag  (git tag -a v1.2.3 -m "...")
 #   Prioritas 3: fallback otomatis "Bug fixes and improvements for v1.2.3"
 #   Maks 500 karakter per locale (batas Play Store).
@@ -41,6 +43,7 @@ on:
   push:
     tags:
       - 'mobile/v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
     inputs:
       version:
@@ -127,9 +130,10 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             version_name="${{ github.event.inputs.version }}"
           else
-            # Tag push: github.ref_name = "mobile/v1.2.3", strip prefix "mobile/v"
+            # Tag push: github.ref_name = "mobile/v1.2.3" or "v1.2.3"
             version_name="${{ github.ref_name }}"
             version_name="${version_name#mobile/v}"
+            version_name="${version_name#v}"
           fi
           if [ -n "${{ github.event.inputs.version_code }}" ]; then
             version_code="${{ github.event.inputs.version_code }}"
@@ -219,12 +223,16 @@ jobs:
           mkdir -p "$WHATSNEW_DIR"
 
           # Priority 1: static file committed in repo
-          STATIC_ID="apps/mobile/whatsnew/whatsnew-id"
+          STATIC_ID="apps/mobile/whatsnew/whatsnew-id-ID"
+          STATIC_ID_LEGACY="apps/mobile/whatsnew/whatsnew-id"
           STATIC_EN="apps/mobile/whatsnew/whatsnew-en-US"
 
           if [ -f "$STATIC_ID" ]; then
-            cp "$STATIC_ID" "$WHATSNEW_DIR/whatsnew-id"
-            echo "Release notes: using static whatsnew-id"
+            cp "$STATIC_ID" "$WHATSNEW_DIR/whatsnew-id-ID"
+            echo "Release notes: using static whatsnew-id-ID"
+          elif [ -f "$STATIC_ID_LEGACY" ]; then
+            cp "$STATIC_ID_LEGACY" "$WHATSNEW_DIR/whatsnew-id-ID"
+            echo "Release notes: using static legacy whatsnew-id"
           else
             # Priority 2: git tag annotation (only available on push tags)
             TAG_BODY=""
@@ -234,12 +242,12 @@ jobs:
             fi
 
             if [ -n "$TAG_BODY" ]; then
-              echo "$TAG_BODY" | head -c 500 > "$WHATSNEW_DIR/whatsnew-id"
+              echo "$TAG_BODY" | head -c 500 > "$WHATSNEW_DIR/whatsnew-id-ID"
               echo "Release notes: using tag annotation"
             else
               # Priority 3: default fallback
               echo "Perbaikan bug dan peningkatan performa untuk versi ${{ steps.version.outputs.name }}." \
-                > "$WHATSNEW_DIR/whatsnew-id"
+                > "$WHATSNEW_DIR/whatsnew-id-ID"
               echo "Release notes: using default fallback"
             fi
           fi
@@ -253,8 +261,8 @@ jobs:
           fi
 
           echo "dir=$WHATSNEW_DIR" >> "$GITHUB_OUTPUT"
-          echo "── whatsnew-id ──"
-          cat "$WHATSNEW_DIR/whatsnew-id"
+          echo "── whatsnew-id-ID ──"
+          cat "$WHATSNEW_DIR/whatsnew-id-ID"
           echo "── whatsnew-en-US ──"
           cat "$WHATSNEW_DIR/whatsnew-en-US"
 

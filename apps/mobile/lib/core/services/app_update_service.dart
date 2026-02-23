@@ -74,6 +74,7 @@ class AppUpdateService {
 
       // Load pending updates from storage
       await _loadPendingUpdate();
+      _reconcilePendingUpdateWithInstalledVersion();
 
       // Start periodic version checks (every 6 hours)
       _startPeriodicVersionCheck();
@@ -114,6 +115,7 @@ class AppUpdateService {
 
     try {
       final currentVersion = getCurrentVersion();
+      _reconcilePendingUpdateWithInstalledVersion();
       final now = DateTime.now();
       final lastCheck = _getLastVersionCheck();
 
@@ -137,26 +139,76 @@ class AppUpdateService {
       _logger.i('$_tag: Checking for app updates');
       _setLastVersionCheck(now);
 
+      final serverUpdate = await _checkForServerUpdate(currentVersion);
+
       // Primary source for Android app updates.
       final playStoreUpdate = await _checkForPlayStoreUpdate(currentVersion);
       if (playStoreUpdate != null) {
-        if (_isSkippedUpdate(playStoreUpdate)) {
+        final resolvedUpdate = _mergePlayStoreAndServerUpdate(
+          playStoreUpdate: playStoreUpdate,
+          serverUpdate: serverUpdate,
+        );
+
+        if (_isSkippedUpdate(resolvedUpdate)) {
           _logger.i(
-            '$_tag: Skipping Play Store update ${playStoreUpdate.latestVersion} based on user preference',
+            '$_tag: Skipping Play Store update ${resolvedUpdate.latestVersion} based on user preference',
           );
           _clearPendingUpdate();
           return null;
         }
 
-        _pendingUpdate = playStoreUpdate;
-        await _savePendingUpdate(playStoreUpdate);
+        _pendingUpdate = resolvedUpdate;
+        await _savePendingUpdate(resolvedUpdate);
         _logger.i(
           '$_tag: Play Store update available: '
-          '${playStoreUpdate.latestVersion} (${playStoreUpdate.updateType})',
+          '${resolvedUpdate.latestVersion} (${resolvedUpdate.updateType})',
         );
-        return playStoreUpdate;
+        return resolvedUpdate;
       }
 
+      if (serverUpdate != null) {
+        if (_isSkippedUpdate(serverUpdate)) {
+          _logger.i(
+            '$_tag: Skipping update ${serverUpdate.latestVersion} based on user preference',
+          );
+          _clearPendingUpdate();
+          return null;
+        }
+
+        _pendingUpdate = serverUpdate;
+        await _savePendingUpdate(serverUpdate);
+
+        _logger.i(
+          '$_tag: Update available: ${serverUpdate.latestVersion} (${serverUpdate.updateType})',
+        );
+
+        // Show notification if update is critical
+        if (serverUpdate.updateType == UpdateType.critical) {
+          await _showUpdateNotification(serverUpdate);
+        }
+
+        return serverUpdate;
+      }
+
+      _logger.i('$_tag: App is up to date');
+      _clearPendingUpdate();
+      return null;
+    } catch (e, stackTrace) {
+      _logger.e(
+        '$_tag: Failed to check for updates',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
+      // Return cached update info if available
+      return _pendingUpdate;
+    }
+  }
+
+  Future<AppUpdateInfo?> _checkForServerUpdate(
+    AppVersionInfo currentVersion,
+  ) async {
+    try {
       final response = await _dioClient.dio.get(
         '/app/version-check',
         queryParameters: {
@@ -168,44 +220,18 @@ class AppUpdateService {
       );
 
       final updateInfo = AppUpdateInfo.fromJson(response.data);
-
-      // Check if update is available
-      if (_isUpdateAvailable(currentVersion, updateInfo)) {
-        if (_isSkippedUpdate(updateInfo)) {
-          _logger.i(
-            '$_tag: Skipping update ${updateInfo.latestVersion} based on user preference',
-          );
-          _clearPendingUpdate();
-          return null;
-        }
-
-        _pendingUpdate = updateInfo;
-        await _savePendingUpdate(updateInfo);
-
-        _logger.i(
-          '$_tag: Update available: ${updateInfo.latestVersion} (${updateInfo.updateType})',
-        );
-
-        // Show notification if update is critical
-        if (updateInfo.updateType == UpdateType.critical) {
-          await _showUpdateNotification(updateInfo);
-        }
-
-        return updateInfo;
-      } else {
-        _logger.i('$_tag: App is up to date');
-        _clearPendingUpdate();
+      if (!_isUpdateAvailable(currentVersion, updateInfo)) {
         return null;
       }
+
+      return _normalizeUpdateInfoVersionLabel(updateInfo);
     } catch (e, stackTrace) {
-      _logger.e(
-        '$_tag: Failed to check for updates',
+      _logger.w(
+        '$_tag: Server version check failed',
         error: e,
         stackTrace: stackTrace,
       );
-
-      // Return cached update info if available
-      return _pendingUpdate;
+      return null;
     }
   }
 
@@ -240,7 +266,7 @@ class AppUpdateService {
         updateType: isCritical ? UpdateType.critical : UpdateType.recommended,
         deliveryMethod: UpdateDeliveryMethod.playStore,
         releaseNotes:
-            'Update is available from Google Play. Please install the latest version.',
+            'Pembaruan tersedia di Google Play. Silakan instal versi terbaru.',
         metadata: {
           'source': 'play_store',
           'updatePriority': playStoreInfo.updatePriority,
@@ -339,6 +365,8 @@ class AppUpdateService {
             'Immediate Play Store update was cancelled or failed',
           );
         }
+        _clearPendingUpdate();
+        _setLastVersionCheck(DateTime.now());
         _emitProgress(AppUpdateProgress.completed(updateInfo));
         return;
       }
@@ -351,6 +379,8 @@ class AppUpdateService {
           );
         }
         await in_app_update.InAppUpdate.completeFlexibleUpdate();
+        _clearPendingUpdate();
+        _setLastVersionCheck(DateTime.now());
         _emitProgress(AppUpdateProgress.completed(updateInfo));
         return;
       }
@@ -362,6 +392,8 @@ class AppUpdateService {
             'Immediate Play Store update was cancelled or failed',
           );
         }
+        _clearPendingUpdate();
+        _setLastVersionCheck(DateTime.now());
         _emitProgress(AppUpdateProgress.completed(updateInfo));
         return;
       }
@@ -485,9 +517,16 @@ class AppUpdateService {
 
   /// Check if update is available
   bool _isUpdateAvailable(AppVersionInfo current, AppUpdateInfo available) {
+    if (available.latestBuildNumber > current.buildNumber) {
+      return true;
+    }
+
     try {
-      final currentVersion = Version.parse(current.version);
-      final availableVersion = Version.parse(available.latestVersion);
+      final currentVersion = _parseSemanticVersion(current.version);
+      final availableVersion = _parseSemanticVersion(available.latestVersion);
+      if (currentVersion == null || availableVersion == null) {
+        return false;
+      }
 
       return availableVersion > currentVersion;
     } catch (e) {
@@ -502,7 +541,22 @@ class AppUpdateService {
     }
 
     final skippedVersions = getSkippedVersions();
-    return skippedVersions.contains(updateInfo.latestVersion);
+    final latestVersion = updateInfo.latestVersion.trim();
+    if (skippedVersions.contains(latestVersion)) {
+      return true;
+    }
+
+    final normalizedTag = _formatVersionLabel(latestVersion);
+    if (skippedVersions.contains(normalizedTag)) {
+      return true;
+    }
+
+    final semver = _parseSemanticVersion(latestVersion);
+    if (semver == null) {
+      return false;
+    }
+
+    return skippedVersions.contains(semver.toString());
   }
 
   /// Get update policy settings
@@ -531,14 +585,22 @@ class AppUpdateService {
   /// Skip a specific version
   Future<void> skipVersion(String version) async {
     final skippedVersions = getSkippedVersions();
-    skippedVersions.add(version);
+    final rawVersion = version.trim();
+    skippedVersions.add(rawVersion);
+
+    final semver = _parseSemanticVersion(rawVersion);
+    if (semver != null) {
+      skippedVersions.add(semver.toString());
+      skippedVersions.add('v$semver');
+    }
 
     await _prefs?.setStringList(_kSkippedVersionsKey, skippedVersions.toList());
-    if (_pendingUpdate?.latestVersion == version &&
-        !(_pendingUpdate?.isCritical ?? false)) {
+    if (_pendingUpdate != null &&
+        !(_pendingUpdate?.isCritical ?? false) &&
+        _isSkippedUpdate(_pendingUpdate!)) {
       _clearPendingUpdate();
     }
-    _logger.i('$_tag: Version $version added to skip list');
+    _logger.i('$_tag: Version $rawVersion added to skip list');
   }
 
   /// Get list of skipped versions
@@ -614,6 +676,111 @@ class AppUpdateService {
       _kPendingUpdateKey,
       jsonEncode(updateInfo.toJson()),
     );
+  }
+
+  void _reconcilePendingUpdateWithInstalledVersion() {
+    if (_pendingUpdate == null || _packageInfo == null) {
+      return;
+    }
+
+    final currentBuild = int.tryParse(_packageInfo!.buildNumber);
+    if (currentBuild != null && currentBuild >= _pendingUpdate!.latestBuildNumber) {
+      _logger.i(
+        '$_tag: Clearing pending update because installed build '
+        '($currentBuild) >= pending build (${_pendingUpdate!.latestBuildNumber})',
+      );
+      _clearPendingUpdate();
+      return;
+    }
+
+    final currentSemver = _parseSemanticVersion(_packageInfo!.version);
+    final pendingSemver = _parseSemanticVersion(_pendingUpdate!.latestVersion);
+    if (currentSemver != null &&
+        pendingSemver != null &&
+        currentSemver >= pendingSemver) {
+      _logger.i(
+        '$_tag: Clearing pending update because installed version '
+        '(${_packageInfo!.version}) >= pending version (${_pendingUpdate!.latestVersion})',
+      );
+      _clearPendingUpdate();
+    }
+  }
+
+  AppUpdateInfo _mergePlayStoreAndServerUpdate({
+    required AppUpdateInfo playStoreUpdate,
+    required AppUpdateInfo? serverUpdate,
+  }) {
+    final mergedVersion = serverUpdate != null
+        ? serverUpdate.latestVersion
+        : _derivePlayStoreVersionLabel(
+            playStoreUpdate: playStoreUpdate,
+          );
+
+    final mergedNotes =
+        (serverUpdate?.releaseNotes?.trim().isNotEmpty ?? false)
+        ? serverUpdate!.releaseNotes
+        : playStoreUpdate.releaseNotes;
+
+    return AppUpdateInfo(
+      latestVersion: _formatVersionLabel(mergedVersion),
+      latestBuildNumber: playStoreUpdate.latestBuildNumber,
+      updateType: playStoreUpdate.updateType,
+      deliveryMethod: UpdateDeliveryMethod.playStore,
+      releaseNotes: mergedNotes,
+      metadata: {
+        ...?serverUpdate?.metadata,
+        ...?playStoreUpdate.metadata,
+        'versionLabelSource': serverUpdate != null ? 'server' : 'play_store',
+      },
+    );
+  }
+
+  AppUpdateInfo _normalizeUpdateInfoVersionLabel(AppUpdateInfo updateInfo) {
+    return AppUpdateInfo(
+      latestVersion: _formatVersionLabel(updateInfo.latestVersion),
+      latestBuildNumber: updateInfo.latestBuildNumber,
+      updateType: updateInfo.updateType,
+      deliveryMethod: updateInfo.deliveryMethod,
+      releaseNotes: updateInfo.releaseNotes,
+      downloadUrl: updateInfo.downloadUrl,
+      apkDownloadUrl: updateInfo.apkDownloadUrl,
+      otaPatchUrl: updateInfo.otaPatchUrl,
+      fileSizeBytes: updateInfo.fileSizeBytes,
+      releaseDate: updateInfo.releaseDate,
+      supportedPlatforms: updateInfo.supportedPlatforms,
+      metadata: updateInfo.metadata,
+    );
+  }
+
+  String _derivePlayStoreVersionLabel({
+    required AppUpdateInfo playStoreUpdate,
+  }) {
+    return 'build ${playStoreUpdate.latestBuildNumber}';
+  }
+
+  Version? _parseSemanticVersion(String rawVersion) {
+    final value = rawVersion.trim();
+    final match = RegExp(
+      r'v?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?)',
+    ).firstMatch(value);
+    if (match == null) {
+      return null;
+    }
+
+    try {
+      return Version.parse(match.group(1)!);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _formatVersionLabel(String rawVersion) {
+    final trimmed = rawVersion.trim();
+    final parsed = _parseSemanticVersion(trimmed);
+    if (parsed == null) {
+      return trimmed;
+    }
+    return 'v$parsed';
   }
 
   void _clearPendingUpdate() {

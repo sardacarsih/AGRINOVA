@@ -154,8 +154,8 @@ class AppUpdateManager {
       messenger.showMaterialBanner(
         MaterialBanner(
           content: Text(
-            'Agrinova ${updateInfo.latestVersion} is available. '
-            'Update now for the latest fixes.',
+            'Agrinova ${updateInfo.latestVersion} tersedia. '
+            'Perbarui sekarang untuk mendapatkan perbaikan terbaru.',
           ),
           leading: const Icon(Icons.system_update),
           backgroundColor: Colors.blue.shade50,
@@ -164,14 +164,14 @@ class AppUpdateManager {
               onPressed: () {
                 messenger.hideCurrentMaterialBanner();
               },
-              child: const Text('Later'),
+              child: const Text('Nanti'),
             ),
             FilledButton(
               onPressed: () {
                 messenger.hideCurrentMaterialBanner();
                 unawaited(_startUpdate(updateInfo));
               },
-              child: const Text('Update'),
+              child: const Text('Perbarui'),
             ),
           ],
         ),
@@ -364,27 +364,10 @@ class AppUpdateManager {
 
   /// Validate connectivity requirements for update
   Future<bool> _validateConnectivityForUpdate(AppUpdateInfo updateInfo) async {
-    final policy = _updateService.getUpdatePolicy();
     final status = await _connectivityHelper.getCurrentConnectivityStatus();
 
-    if (!status.hasInternet) {
-      return false;
-    }
-
-    if (updateInfo.isCritical ||
-        updateInfo.deliveryMethod == UpdateDeliveryMethod.playStore) {
-      return true;
-    }
-
-    if (policy.wifiOnlyDownload && status.isMetered) {
-      return false;
-    }
-
-    if (!policy.allowMeteredConnection && status.isMetered) {
-      return false;
-    }
-
-    return true;
+    // User requested direct update flow without network policy restrictions.
+    return status.hasInternet;
   }
 
   /// Validate update policy requirements
@@ -392,24 +375,8 @@ class AppUpdateManager {
     AppUpdateInfo updateInfo,
     AppUpdatePolicy policy,
   ) async {
-    // Critical updates bypass policy restrictions
-    if (updateInfo.isCritical) {
-      return true;
-    }
-
-    // Check quiet hours
-    if (!policy.isDownloadAllowedNow) {
-      return false;
-    }
-
-    // Check file size limits
-    if (policy.maxDownloadSizeMB != null && updateInfo.fileSizeBytes != null) {
-      final sizeMB = updateInfo.fileSizeBytes! / (1024 * 1024);
-      if (sizeMB > policy.maxDownloadSizeMB!) {
-        return false;
-      }
-    }
-
+    // Keep policy persisted for future use, but do not block manual update.
+    final _ = (updateInfo, policy);
     return true;
   }
 
@@ -426,17 +393,15 @@ class AppUpdateManager {
   void _showConnectivityError(AppUpdateInfo updateInfo) {
     if (_currentContext == null) return;
 
-    final isPlayStoreFlow =
-        updateInfo.deliveryMethod == UpdateDeliveryMethod.playStore;
-    final message = isPlayStoreFlow
-        ? 'Internet connection required to start Play Store update'
-        : 'Wi-Fi connection required for update download';
+    final _ = updateInfo;
+    const message =
+        'Koneksi internet diperlukan untuk memulai pembaruan aplikasi';
 
     ScaffoldMessenger.of(_currentContext!).showSnackBar(
       SnackBar(
         content: Text(message),
         action: SnackBarAction(
-          label: 'Settings',
+          label: 'Pengaturan',
           onPressed: () {
             // Open update settings
           },
@@ -448,9 +413,9 @@ class AppUpdateManager {
   void _showPolicyError(AppUpdatePolicy policy) {
     if (_currentContext == null) return;
 
-    String message = 'Update not allowed by current policy';
+    String message = 'Pembaruan tidak diizinkan oleh kebijakan saat ini';
     if (policy.quietHours != null && !policy.isDownloadAllowedNow) {
-      message = 'Updates not allowed during quiet hours';
+      message = 'Pembaruan tidak diizinkan saat jam tenang';
     }
 
     ScaffoldMessenger.of(
@@ -463,7 +428,9 @@ class AppUpdateManager {
 
     ScaffoldMessenger.of(_currentContext!).showSnackBar(
       const SnackBar(
-        content: Text('Critical update is still pending. Please update soon.'),
+        content: Text(
+          'Pembaruan kritis masih tertunda. Mohon lakukan pembaruan segera.',
+        ),
         backgroundColor: Colors.orange,
       ),
     );
@@ -474,10 +441,10 @@ class AppUpdateManager {
 
     ScaffoldMessenger.of(_currentContext!).showSnackBar(
       SnackBar(
-        content: Text('Update failed: $error'),
+        content: Text('Pembaruan gagal: $error'),
         backgroundColor: Colors.red,
         action: SnackBarAction(
-          label: 'Retry',
+          label: 'Coba lagi',
           onPressed: () {
             if (_currentUpdateInfo != null) {
               _startUpdate(_currentUpdateInfo!);
@@ -493,7 +460,7 @@ class AppUpdateManager {
 
     ScaffoldMessenger.of(_currentContext!).showSnackBar(
       const SnackBar(
-        content: Text('Internet connection required to check for updates'),
+        content: Text('Koneksi internet diperlukan untuk memeriksa pembaruan'),
       ),
     );
   }
@@ -503,7 +470,7 @@ class AppUpdateManager {
 
     ScaffoldMessenger.of(_currentContext!).showSnackBar(
       const SnackBar(
-        content: Text('You have the latest version of Agrinova'),
+        content: Text('Aplikasi Agrinova Anda sudah versi terbaru'),
         backgroundColor: Colors.green,
       ),
     );
@@ -514,7 +481,7 @@ class AppUpdateManager {
 
     ScaffoldMessenger.of(_currentContext!).showSnackBar(
       SnackBar(
-        content: Text('Failed to check for updates: $error'),
+        content: Text('Gagal memeriksa pembaruan: $error'),
         backgroundColor: Colors.orange,
       ),
     );
@@ -525,7 +492,9 @@ class AppUpdateManager {
 
     ScaffoldMessenger.of(
       _currentContext!,
-    ).showSnackBar(SnackBar(content: Text('Version $version will be skipped')));
+    ).showSnackBar(
+      SnackBar(content: Text('Versi $version akan dilewati')),
+    );
   }
 
   void _showUpdateCompleted(AppUpdateInfo updateInfo) {
@@ -534,7 +503,7 @@ class AppUpdateManager {
     ScaffoldMessenger.of(_currentContext!).showSnackBar(
       SnackBar(
         content: Text(
-          'Successfully updated to version ${updateInfo.latestVersion}',
+          'Pembaruan berhasil ke versi ${updateInfo.latestVersion}',
         ),
         backgroundColor: Colors.green,
         duration: const Duration(seconds: 5),

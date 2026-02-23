@@ -46,7 +46,9 @@ class AppUpdateBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isCritical ? 'Critical Update Required' : 'Update Available',
+                  isCritical
+                      ? 'Pembaruan Kritis Diperlukan'
+                      : 'Pembaruan Tersedia',
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: isCritical
@@ -56,7 +58,7 @@ class AppUpdateBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Agrinova ${updateInfo.latestVersion} is ready to install',
+                  'Agrinova ${updateInfo.latestVersion} siap dipasang',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: isCritical
                         ? Colors.red.shade600
@@ -66,7 +68,7 @@ class AppUpdateBanner extends StatelessWidget {
                 if (updateInfo.fileSizeBytes != null) ...[
                   const SizedBox(height: 2),
                   Text(
-                    'Size: ${updateInfo.formattedFileSize}',
+                    'Ukuran: ${updateInfo.formattedFileSize}',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: Colors.grey.shade600,
                       fontSize: 11,
@@ -91,7 +93,7 @@ class AppUpdateBanner extends StatelessWidget {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             ),
-            child: Text(isCritical ? 'Update Now' : 'Update'),
+            child: Text(isCritical ? 'Perbarui Sekarang' : 'Perbarui'),
           ),
         ],
       ),
@@ -130,7 +132,7 @@ class AppUpdateDialog extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            isCritical ? 'Critical Update' : 'App Update',
+            isCritical ? 'Pembaruan Kritis' : 'Pembaruan Aplikasi',
             style: TextStyle(color: isCritical ? Colors.red : Colors.blue),
           ),
         ],
@@ -141,7 +143,7 @@ class AppUpdateDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Version ${updateInfo.latestVersion} is available',
+              'Versi ${updateInfo.latestVersion} tersedia',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -169,27 +171,27 @@ class AppUpdateDialog extends StatelessWidget {
           children: [
             _buildInfoRow(
               context,
-              'Version',
+              'Versi',
               updateInfo.latestVersion,
               Icons.info_outline,
             ),
             _buildInfoRow(
               context,
-              'Type',
+              'Tipe',
               _getUpdateTypeDisplay(),
               Icons.category_outlined,
             ),
             if (updateInfo.fileSizeBytes != null)
               _buildInfoRow(
                 context,
-                'Size',
+                'Ukuran',
                 updateInfo.formattedFileSize,
                 Icons.file_download_outlined,
               ),
             if (updateInfo.releaseDate != null)
               _buildInfoRow(
                 context,
-                'Released',
+                'Rilis',
                 DateFormat.yMMMd().format(updateInfo.releaseDate!),
                 Icons.calendar_today_outlined,
               ),
@@ -241,7 +243,7 @@ class AppUpdateDialog extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'What\'s New',
+          'Yang Baru',
           style: theme.textTheme.titleSmall?.copyWith(
             fontWeight: FontWeight.w600,
           ),
@@ -269,7 +271,7 @@ class AppUpdateDialog extends StatelessWidget {
 
     if (!isCritical && onSkipTap != null) {
       actions.add(
-        TextButton(onPressed: onSkipTap, child: const Text('Skip Version')),
+        TextButton(onPressed: onSkipTap, child: const Text('Lewati Versi')),
       );
     }
 
@@ -277,7 +279,7 @@ class AppUpdateDialog extends StatelessWidget {
       actions.add(
         TextButton(
           onPressed: onLaterTap,
-          child: Text(isCritical ? 'Close' : 'Later'),
+          child: Text(isCritical ? 'Tutup' : 'Nanti'),
         ),
       );
     }
@@ -289,7 +291,7 @@ class AppUpdateDialog extends StatelessWidget {
           backgroundColor: isCritical ? Colors.red : Colors.blue,
           foregroundColor: Colors.white,
         ),
-        child: Text(isCritical ? 'Update Now' : 'Update'),
+        child: Text(isCritical ? 'Perbarui Sekarang' : 'Perbarui'),
       ),
     );
 
@@ -299,11 +301,11 @@ class AppUpdateDialog extends StatelessWidget {
   String _getUpdateTypeDisplay() {
     switch (updateInfo.updateType) {
       case UpdateType.critical:
-        return 'Critical';
+        return 'Kritis';
       case UpdateType.recommended:
-        return 'Recommended';
+        return 'Disarankan';
       case UpdateType.optional:
-        return 'Optional';
+        return 'Opsional';
     }
   }
 }
@@ -338,7 +340,7 @@ class AppUpdateProgressWidget extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Updating Agrinova',
+                    'Memperbarui Agrinova',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -474,34 +476,28 @@ class _AppUpdateSettingsWidgetState extends State<AppUpdateSettingsWidget> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionHeader('Automatic Updates'),
+        _buildSectionHeader('Pembaruan Otomatis'),
         _buildSwitchTile(
-          'Check for updates automatically',
-          'Periodically check for app updates in the background',
+          'Periksa pembaruan otomatis',
+          'Periksa pembaruan aplikasi secara berkala di latar belakang',
           _policy.autoCheckEnabled,
           (value) => _updatePolicy(_policy.copyWith(autoCheckEnabled: value)),
         ),
         _buildSwitchTile(
-          'Download updates automatically',
-          'Download updates when available (requires Wi-Fi)',
+          'Unduh pembaruan otomatis',
+          'Unduh pembaruan saat tersedia ketika perangkat online',
           _policy.autoDownloadEnabled,
           (value) =>
               _updatePolicy(_policy.copyWith(autoDownloadEnabled: value)),
         ),
-        const Divider(),
-        _buildSectionHeader('Network Settings'),
-        _buildSwitchTile(
-          'Wi-Fi only downloads',
-          'Only download updates when connected to Wi-Fi',
-          _policy.wifiOnlyDownload,
-          (value) => _updatePolicy(_policy.copyWith(wifiOnlyDownload: value)),
-        ),
-        _buildSwitchTile(
-          'Allow metered connections',
-          'Download updates even on mobile data (may incur charges)',
-          _policy.allowMeteredConnection,
-          (value) =>
-              _updatePolicy(_policy.copyWith(allowMeteredConnection: value)),
+        const SizedBox(height: 8),
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          leading: const Icon(Icons.info_outline, color: Colors.blue),
+          title: const Text('Info Koneksi'),
+          subtitle: const Text(
+            'Pembaruan dapat diunduh langsung dari koneksi internet yang tersedia.',
+          ),
         ),
       ],
     );
