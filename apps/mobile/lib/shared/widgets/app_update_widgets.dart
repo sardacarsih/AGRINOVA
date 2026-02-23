@@ -58,7 +58,7 @@ class AppUpdateBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Agrinova ${updateInfo.latestVersion} siap dipasang',
+                  'Rilis terbaru: ${updateInfo.displayVersion}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: isCritical
                         ? Colors.red.shade600
@@ -143,7 +143,7 @@ class AppUpdateDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Versi ${updateInfo.latestVersion} tersedia',
+              'Rilis terbaru: ${updateInfo.displayVersion}',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -172,7 +172,7 @@ class AppUpdateDialog extends StatelessWidget {
             _buildInfoRow(
               context,
               'Versi',
-              updateInfo.latestVersion,
+              updateInfo.displayVersion,
               Icons.info_outline,
             ),
             _buildInfoRow(

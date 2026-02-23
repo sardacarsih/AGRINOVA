@@ -165,12 +165,64 @@ class _ApprovalViewState extends State<ApprovalView>
       return const Center(child: CircularProgressIndicator());
     }
     if (state is ApprovalError) {
-      return Center(child: Text('Error: ${state.message}'));
+      return _buildErrorState(state.message);
     }
     if (state is ApprovalLoaded) {
       return _buildContent(state);
     }
     return const SizedBox.shrink();
+  }
+
+  Widget _buildErrorState(String message) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.error_outline,
+              size: 52,
+              color: AsistenTheme.rejectedRed,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Gagal memuat data',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: AsistenTheme.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              style: const TextStyle(
+                fontSize: 14,
+                color: AsistenTheme.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton(
+              onPressed: () {
+                context.read<ApprovalBloc>().add(
+                  ApprovalLoadRequested(
+                    status: _getStatusFromIndex(_tabController.index),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AsistenTheme.primaryBlue,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildContent(ApprovalLoaded state) {
@@ -219,6 +271,14 @@ class _ApprovalViewState extends State<ApprovalView>
               ),
             ),
           ),
+          if (state.warningMessage != null &&
+              state.warningMessage!.trim().isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: _buildWarningBanner(state.warningMessage!),
+              ),
+            ),
           if (groupedApprovals.isEmpty)
             SliverFillRemaining(
               child: Center(
@@ -246,6 +306,41 @@ class _ApprovalViewState extends State<ApprovalView>
               ),
             ),
           const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWarningBanner(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AsistenTheme.pendingOrange.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AsistenTheme.pendingOrange.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.warning_amber_rounded,
+            size: 18,
+            color: AsistenTheme.pendingOrange,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: AsistenTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -1,14 +1,17 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:logger/logger.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../data/repositories/manager_monitor_repository.dart';
 import '../../../../../../core/di/service_locator.dart';
 import '../../../../../../core/network/graphql_client_service.dart';
 import '../../../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../../../../core/services/fcm_service.dart';
+import '../../../../../../core/utils/sync_error_message_helper.dart';
 import '../../../blocs/manager_dashboard_bloc.dart';
 import '../manager_theme.dart';
 import '../molecules/manager_monitor_components.dart';
@@ -23,6 +26,8 @@ class ManagerMonitorTab extends StatefulWidget {
 }
 
 class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
+  static const String _cacheKey = 'manager_monitor_snapshot_v1';
+
   int _selectedFilterIndex = 0;
   bool _isGridView = false;
   bool _isLoading = true;
@@ -51,6 +56,7 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
     );
     _harvestNotificationSubscription = FCMService.harvestNotificationStream
         .listen(_handleHarvestNotification);
+    _restoreCachedSnapshot();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _loadMonitorData();
@@ -84,13 +90,64 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
         _isLoading = false;
         _errorMessage = null;
       });
+      unawaited(_saveSnapshotCache(snapshot));
     } catch (error) {
       _logger.e('Failed to load manager monitor data: $error');
+      final fallbackMessage = SyncErrorMessageHelper.toUserMessage(
+        error,
+        action: 'memuat data monitor',
+      );
+      final cachedSnapshot = await _readCachedSnapshot();
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Gagal memuat data monitor: $error';
+        if (cachedSnapshot != null && cachedSnapshot.members.isNotEmpty) {
+          _snapshot = cachedSnapshot;
+          _errorMessage =
+              'Menampilkan data terakhir tersimpan. $fallbackMessage';
+        } else {
+          _errorMessage = fallbackMessage;
+        }
       });
+    }
+  }
+
+  Future<void> _restoreCachedSnapshot() async {
+    final cachedSnapshot = await _readCachedSnapshot();
+    if (!mounted || cachedSnapshot == null || cachedSnapshot.members.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _snapshot = cachedSnapshot;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _saveSnapshotCache(ManagerMonitorSnapshot snapshot) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_cacheKey, jsonEncode(snapshot.toJson()));
+    } catch (error) {
+      _logger.w('Failed to save manager monitor cache: $error');
+    }
+  }
+
+  Future<ManagerMonitorSnapshot?> _readCachedSnapshot() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_cacheKey);
+      if (raw == null || raw.trim().isEmpty) {
+        return null;
+      }
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        return null;
+      }
+      return ManagerMonitorSnapshot.fromJson(decoded);
+    } catch (error) {
+      _logger.w('Failed to read manager monitor cache: $error');
+      return null;
     }
   }
 

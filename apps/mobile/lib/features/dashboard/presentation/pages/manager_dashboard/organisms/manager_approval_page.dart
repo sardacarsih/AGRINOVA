@@ -1,12 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../../data/repositories/manager_harvest_approval_repository.dart';
 import '../../../../../../core/di/service_locator.dart';
 import '../../../../../../core/network/graphql_client_service.dart';
 import '../../../../../../core/services/fcm_service.dart';
+import '../../../../../../core/utils/sync_error_message_helper.dart';
 import '../../../../../auth/presentation/blocs/auth_bloc.dart';
 import '../manager_theme.dart';
 
@@ -18,6 +21,8 @@ class ManagerApprovalPage extends StatefulWidget {
 }
 
 class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
+  static const String _cacheKey = 'manager_pending_approvals_v1';
+
   late final ManagerHarvestApprovalRepository _repository;
 
   bool _isLoading = true;
@@ -36,6 +41,7 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
     _harvestNotificationSub = FCMService.harvestNotificationStream.listen(
       _handleNotification,
     );
+    _restoreCachedApprovals();
     _loadPendingApprovals();
   }
 
@@ -64,14 +70,74 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
         _isLoading = false;
         _errorMessage = null;
       });
+      unawaited(_saveApprovalsCache(items));
     } catch (e) {
+      final fallbackMessage = SyncErrorMessageHelper.toUserMessage(
+        e,
+        action: 'memuat daftar approval panen',
+      );
+      final cachedItems = await _readCachedApprovals();
       if (!mounted) {
         return;
       }
       setState(() {
         _isLoading = false;
-        _errorMessage = e.toString();
+        if (cachedItems != null && cachedItems.isNotEmpty) {
+          _items = cachedItems;
+          _errorMessage =
+              'Menampilkan data terakhir tersimpan. $fallbackMessage';
+        } else {
+          _errorMessage = fallbackMessage;
+        }
       });
+    }
+  }
+
+  Future<void> _restoreCachedApprovals() async {
+    final cachedItems = await _readCachedApprovals();
+    if (!mounted || cachedItems == null || cachedItems.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _items = cachedItems;
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _saveApprovalsCache(
+    List<ManagerHarvestApprovalItem> items,
+  ) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _cacheKey,
+        jsonEncode(items.map((item) => item.toJson()).toList()),
+      );
+    } catch (_) {
+      // Ignore cache write failures.
+    }
+  }
+
+  Future<List<ManagerHarvestApprovalItem>?> _readCachedApprovals() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_cacheKey);
+      if (raw == null || raw.trim().isEmpty) {
+        return null;
+      }
+
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) {
+        return null;
+      }
+
+      return decoded
+          .whereType<Map<String, dynamic>>()
+          .map(ManagerHarvestApprovalItem.fromJson)
+          .toList(growable: false);
+    } catch (_) {
+      return null;
     }
   }
 
@@ -133,7 +199,12 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString()),
+          content: Text(
+            SyncErrorMessageHelper.toUserMessage(
+              e,
+              action: 'menyetujui data panen',
+            ),
+          ),
           backgroundColor: ManagerTheme.rejectedRed,
           behavior: SnackBarBehavior.floating,
         ),
@@ -172,7 +243,12 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString()),
+          content: Text(
+            SyncErrorMessageHelper.toUserMessage(
+              e,
+              action: 'menolak data panen',
+            ),
+          ),
           backgroundColor: ManagerTheme.rejectedRed,
           behavior: SnackBarBehavior.floating,
         ),
