@@ -39,7 +39,9 @@
       "mcp__ide__getDiagnostics",
       "Bash(go test:*)",
       "Bash(xargs:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(flutter pub deps:*)",
+      "Bash(flutter pub add:*)"
     ],
     "deny": [],
     "ask": []
