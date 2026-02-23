@@ -12,6 +12,8 @@ import {
   ShieldCheck,
   ShieldX,
   TimerReset,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useGraphQLMutation } from "@/hooks/use-graphql-mutation";
@@ -67,6 +69,7 @@ type TrendEvent = {
 };
 
 const URGENT_HOURS = 24;
+const QUEUE_PAGE_SIZE = 8;
 const REJECT_REASON_OPTIONS: Array<{
   key: RejectReasonKey;
   label: string;
@@ -160,6 +163,7 @@ function AsistenDashboard({ role }: RoleDashboardProps) {
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [queueFilter, setQueueFilter] = useState<QueueFilter>("ALL");
   const [queueSearch, setQueueSearch] = useState("");
+  const [queuePage, setQueuePage] = useState(1);
   const [rejectOpenFor, setRejectOpenFor] = useState<string | null>(null);
   const [rejectReasonKeyById, setRejectReasonKeyById] = useState<
     Record<string, RejectReasonKey>
@@ -454,6 +458,7 @@ function AsistenDashboard({ role }: RoleDashboardProps) {
       const searchable = [
         record.mandor?.name,
         record.mandor?.username,
+        record.block?.name,
         record.block?.blockCode,
         record.block?.division?.name,
       ]
@@ -462,6 +467,28 @@ function AsistenDashboard({ role }: RoleDashboardProps) {
       return searchable.includes(keyword);
     });
   }, [pendingRecords, queueFilter, queueSearch]);
+  const totalQueuePages = useMemo(
+    () => Math.max(1, Math.ceil(queueRecords.length / QUEUE_PAGE_SIZE)),
+    [queueRecords.length],
+  );
+  const visibleQueueRecords = useMemo(
+    () => {
+      const normalizedPage = Math.min(queuePage, totalQueuePages);
+      const start = (normalizedPage - 1) * QUEUE_PAGE_SIZE;
+      return queueRecords.slice(start, start + QUEUE_PAGE_SIZE);
+    },
+    [queuePage, queueRecords, totalQueuePages],
+  );
+
+  useEffect(() => {
+    setQueuePage(1);
+  }, [queueFilter, queueSearch]);
+
+  useEffect(() => {
+    if (queuePage > totalQueuePages) {
+      setQueuePage(totalQueuePages);
+    }
+  }, [queuePage, totalQueuePages]);
 
   const rejectionReasons = useMemo(() => {
     const map = new Map<string, number>();
@@ -554,7 +581,7 @@ function AsistenDashboard({ role }: RoleDashboardProps) {
                 {role} Monitoring
               </Badge>
               <h1 className="text-2xl font-semibold md:text-3xl">
-                Dashboard Approval / Rejected
+                Dashboard
               </h1>
               <p className="text-sm text-slate-700 dark:text-slate-200">
                 Prioritas untuk memonitor antrean approval, kualitas reject, dan
@@ -668,7 +695,8 @@ function AsistenDashboard({ role }: RoleDashboardProps) {
                 <div>
                   <CardTitle>Approval Queue</CardTitle>
                   <CardDescription>
-                    Antrian kerja utama untuk approval/reject
+                    Antrian kerja utama untuk approval/reject dengan navigasi
+                    halaman kiri/kanan
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
@@ -720,11 +748,21 @@ function AsistenDashboard({ role }: RoleDashboardProps) {
                   </p>
                 </div>
               ) : (
-                queueRecords.slice(0, 8).map((record) => {
+                visibleQueueRecords.map((record) => {
                   const isUrgent =
                     getHoursSince(record.createdAt) >= URGENT_HOURS;
                   const isProcessingRow = processingId === record.id;
                   const photoUrl = getHarvestPhotoUrl(record.photoUrl);
+                  const blockLabel =
+                    record.block?.name || record.block?.blockCode || "-";
+                  const fruitQuality = [
+                    `Matang ${record.jjgMatang ?? 0}`,
+                    `Mentah ${record.jjgMentah ?? 0}`,
+                    `Lewat ${record.jjgLewatMatang ?? 0}`,
+                    `Busuk ${record.jjgBusukAbnormal ?? 0}`,
+                    `Tangkai ${record.jjgTangkaiPanjang ?? 0}`,
+                    `Brondolan ${Number(record.totalBrondolan ?? 0).toFixed(1)}`,
+                  ].join(" | ");
                   return (
                     <div
                       key={record.id}
@@ -746,7 +784,7 @@ function AsistenDashboard({ role }: RoleDashboardProps) {
                                   setPhotoPreview({
                                     url: photoUrl,
                                     title: `Foto panen ${
-                                      record.block?.blockCode || record.id
+                                      blockLabel || record.id
                                     }`,
                                   })
                                 }
@@ -786,8 +824,11 @@ function AsistenDashboard({ role }: RoleDashboardProps) {
                             </div>
                             <p className="text-sm text-muted-foreground">
                               Divisi {record.block?.division?.name || "-"} -
-                              Blok {record.block?.blockCode || "-"} -{" "}
+                              Blok {blockLabel} -{" "}
                               {record.beratTbs} kg - {record.karyawan} pekerja
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Kualitas buah: {fruitQuality}
                             </p>
                             <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                               <TimerReset className="h-3.5 w-3.5" />
@@ -905,6 +946,42 @@ function AsistenDashboard({ role }: RoleDashboardProps) {
                     </div>
                   );
                 })
+              )}
+              {!pendingLoading && queueRecords.length > 0 && (
+                <div className="flex items-center justify-between border-t pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Halaman {Math.min(queuePage, totalQueuePages)} dari{" "}
+                    {totalQueuePages} (maks {QUEUE_PAGE_SIZE} data per halaman)
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setQueuePage((prev) => Math.max(1, prev - 1))
+                      }
+                      disabled={queuePage <= 1}
+                    >
+                      <ChevronLeft className="mr-1 h-4 w-4" />
+                      Kiri
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setQueuePage((prev) =>
+                          Math.min(totalQueuePages, prev + 1),
+                        )
+                      }
+                      disabled={queuePage >= totalQueuePages}
+                    >
+                      Kanan
+                      <ChevronRight className="ml-1 h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               )}
             </CardContent>
           </Card>

@@ -209,6 +209,21 @@ func (b *PayloadBuilder) ForHarvestApprovalNeeded(panenID, mandorName, blockName
 	}
 }
 
+// ForManagerHarvestApprovalNeeded creates payload for manager notification when a new harvest is submitted.
+func (b *PayloadBuilder) ForManagerHarvestApprovalNeeded(panenID, mandorName, blockName string, bunchCount int32) FCMPayload {
+	return FCMPayload{
+		Type:        "HARVEST_APPROVAL_NEEDED",
+		PanenID:     panenID,
+		Action:      "CREATED",
+		Title:       "Notifikasi Panen Baru",
+		Body:        fmt.Sprintf("Mandor %s submit panen di Blok %s (%d jjg)", mandorName, normalizeBlockName(blockName), bunchCount),
+		MandorName:  mandorName,
+		BlockName:   blockName,
+		Weight:      fmt.Sprintf("%d", bunchCount),
+		ClickAction: "/manager",
+	}
+}
+
 // ForHarvestApproved creates payload for approved harvest notification
 func (b *PayloadBuilder) ForHarvestApproved(panenID, asistenName, blockName string, harvestDate string, bunchCount int32) FCMPayload {
 	return FCMPayload{

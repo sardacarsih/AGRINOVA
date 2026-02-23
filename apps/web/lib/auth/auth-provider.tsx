@@ -324,12 +324,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await graphQLAuthService.updateProfile(input);
       if (result.success && result.user) {
-        const userData = result.user as any;
-        const normalizedUser = {
+        const userData = result.user as unknown as Partial<User>;
+        const sessionUser = graphQLAuthService.getCurrentSession()?.user as unknown as Partial<User> | undefined;
+
+        const normalizedUser = normalizeUser({
+          ...(user ?? {}),
+          ...(sessionUser ?? {}),
           ...userData,
-          permissions: userData.permissions || [],
-          createdAt: userData.createdAt || new Date(),
-        } as User;
+          permissions:
+            userData.permissions ||
+            sessionUser?.permissions ||
+            user?.permissions ||
+            [],
+          createdAt:
+            userData.createdAt ||
+            sessionUser?.createdAt ||
+            user?.createdAt ||
+            new Date(),
+        }) as User;
+
         setUser(normalizedUser);
         return { ...result, user: normalizedUser };
       }
@@ -341,7 +354,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         message: error.message || 'Gagal memperbarui profil'
       };
     }
-  }, [graphQLAuthService]);
+  }, [graphQLAuthService, user]);
 
   const changePassword = useCallback(async (input: ChangePasswordInput): Promise<{ success: boolean; message: string }> => {
     try {

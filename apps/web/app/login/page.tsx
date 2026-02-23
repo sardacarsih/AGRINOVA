@@ -433,8 +433,6 @@ function LoginPageContent() {
                 <div className="flex items-center gap-3">
                   <a
                     href="/privacy-policy"
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                   >
                     Kebijakan Privasi
@@ -623,8 +621,6 @@ function LoginPageContent() {
                     {/* Android Download */}
                     <a
                       href="https://play.google.com/store/apps/details?id=com.agrinova.android"
-                      target="_blank"
-                      rel="noopener noreferrer"
                       className="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-xl border border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 group"
                       aria-label="Download di Google Play Store"
                     >
@@ -749,8 +745,6 @@ function LoginPageContent() {
                     <div className="flex items-center gap-3">
                       <a
                         href="/privacy-policy"
-                        target="_blank"
-                        rel="noopener noreferrer"
                         className="text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                       >
                         Kebijakan Privasi

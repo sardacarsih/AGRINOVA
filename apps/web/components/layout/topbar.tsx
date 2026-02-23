@@ -50,6 +50,7 @@ import { NotificationCenter } from '../notifications/notification-center';
 import { TopbarLanguageSwitcher } from '@/components/language/header-language-switcher';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ALL_COMPANIES_SCOPE, useCompanyScope } from '@/contexts/company-scope-context';
+import { resolveMediaUrl } from '@/lib/utils/media-url';
 
 interface TopbarProps {
   title?: string;
@@ -199,6 +200,29 @@ export function Topbar({
     .map(n => n[0])
     .join('')
     .toUpperCase() || 'U';
+  const avatarSrc = React.useMemo(() => {
+    const resolvedAvatar = resolveMediaUrl(user?.avatar);
+    if (!resolvedAvatar) {
+      return '';
+    }
+
+    if (resolvedAvatar.startsWith('data:image/') || resolvedAvatar.startsWith('blob:')) {
+      return resolvedAvatar;
+    }
+
+    const userWithTimestamps = user as { updatedAt?: string | Date; createdAt?: string | Date } | null;
+    const timestampValue = userWithTimestamps?.updatedAt || userWithTimestamps?.createdAt;
+    if (!timestampValue) {
+      return resolvedAvatar;
+    }
+
+    const cacheVersion = new Date(timestampValue).getTime();
+    if (!Number.isFinite(cacheVersion) || cacheVersion <= 0) {
+      return resolvedAvatar;
+    }
+
+    return `${resolvedAvatar}${resolvedAvatar.includes('?') ? '&' : '?'}v=${cacheVersion}`;
+  }, [user]);
 
   const getCurrentTime = () => {
     return new Date().toLocaleTimeString('id-ID', {
@@ -358,7 +382,7 @@ export function Topbar({
                   className="flex h-10 shrink-0 items-center space-x-3 rounded-xl px-3 transition-colors duration-200"
                 >
                   <Avatar className="h-8 w-8 ring-2 ring-border">
-                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarImage src={avatarSrc || undefined} alt={user.name} />
                     <AvatarFallback className="text-xs font-semibold bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
                       {userInitials}
                     </AvatarFallback>
@@ -382,7 +406,7 @@ export function Topbar({
                 {/* User info header */}
                 <div className="flex items-center space-x-3 p-3 bg-muted/50 rounded-lg border mb-3">
                   <Avatar className="h-12 w-12 ring-2 ring-primary/20">
-                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarImage src={avatarSrc || undefined} alt={user.name} />
                     <AvatarFallback className="text-sm font-bold bg-gradient-to-br from-primary to-primary/80 text-primary-foreground">
                       {userInitials}
                     </AvatarFallback>

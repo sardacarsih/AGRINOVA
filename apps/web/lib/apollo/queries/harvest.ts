@@ -26,6 +26,12 @@ export const HARVEST_RECORD_FRAGMENT = gql`
     karyawan
     beratTbs
     jumlahJanjang
+    jjgMatang
+    jjgMentah
+    jjgLewatMatang
+    jjgBusukAbnormal
+    jjgTangkaiPanjang
+    totalBrondolan
     status
     approvedBy
     approvedAt
@@ -234,6 +240,12 @@ export interface HarvestRecord {
   karyawan: string;
   beratTbs: number;
   jumlahJanjang: number;
+  jjgMatang?: number;
+  jjgMentah?: number;
+  jjgLewatMatang?: number;
+  jjgBusukAbnormal?: number;
+  jjgTangkaiPanjang?: number;
+  totalBrondolan?: number;
   status: "PENDING" | "APPROVED" | "REJECTED";
   approvedBy?: string;
   approvedAt?: string;

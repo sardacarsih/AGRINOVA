@@ -503,14 +503,6 @@ export default function VehicleManagementPage({ user }: VehicleManagementPagePro
 @page{size:90mm 125mm;margin:4mm;}html,body{margin:0;padding:0;background:#fff;color:#0f172a;font-family:Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:4mm 0}.wrap{width:78mm;border:1px solid #cbd5e1;border-radius:12px;padding:10px;box-sizing:border-box}.title{font-size:15px;margin:0 0 4px;font-weight:700;text-align:center}.sub{font-size:10px;margin:0 0 10px;color:#475569;text-align:center}.qr{display:flex;justify-content:center;margin-bottom:10px}.qr img{width:54mm;height:54mm;display:block;border:1px solid #e2e8f0;padding:3mm;background:#fff;box-sizing:border-box;image-rendering:pixelated}.meta{font-size:10px;line-height:1.45}.meta .k{color:#475569;display:inline-block;width:58px}.plate{font-family:monospace;font-size:11px;font-weight:700}
 </style></head><body><div class="page"><div class="wrap"><p class="title">QR Kendaraan</p><p class="sub">Agrinova Vehicle Registry</p><div class="qr"><img id="qr-image" src="${qrPngDataUrl}" alt="QR ${safePlate}"/></div><div class="meta"><div><span class="k">Company</span>: ${safeCompany}</div><div><span class="k">Plat</span>: <span class="plate">${safePlate}</span></div><div><span class="k">Driver</span>: ${safeDriver}</div><div><span class="k">Kategori</span>: ${safeCategory}</div><div><span class="k">Tipe</span>: ${safeType}</div><div><span class="k">Unit</span>: ${safeUnit}</div></div></div></div><script>(function(){var img=document.getElementById('qr-image');if(!img)return;var printed=false;function p(){if(printed)return;printed=true;setTimeout(function(){window.focus();window.print();},120);}if(img.complete)p();else{img.onload=p;img.onerror=p;}})();</script></body></html>`;
 
-      const popup = window.open("", "_blank", "noopener,noreferrer,width=620,height=780");
-      if (popup && popup.document) {
-        popup.document.open();
-        popup.document.write(printHtml);
-        popup.document.close();
-        return;
-      }
-
       const iframe = document.createElement("iframe");
       iframe.setAttribute("aria-hidden", "true");
       iframe.style.position = "fixed";

@@ -153,128 +153,8 @@ export class ApprovalAPI {
       const response = await cookieApiClient.get<ApprovalsResponse>(`/approvals/pending?${params.toString()}`);
       return (response.data || response) as ApprovalsResponse;
     } catch (error) {
-      console.warn('Approval API not available, using fallback data');
-      
-      // Fallback: Generate mock approvals data
-      const mockApprovals: PendingApproval[] = [
-        {
-          id: '1',
-          type: 'user_registration',
-          requesterName: 'John Doe',
-          requestedRole: 'Manager',
-          company: 'PT Kelapa Sawit Kencana',
-          estate: 'Estate Sawit Jaya',
-          submittedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          status: 'pending',
-          priority: 'high',
-          description: 'New manager registration for Estate Sawit Jaya',
-          metadata: {
-            requestData: {
-              username: 'john.doe',
-              email: 'john.doe@ksk.com',
-              fullName: 'John Doe',
-              role: 'manager',
-              estateId: 'estate_001'
-            }
-          }
-        },
-        {
-          id: '2',
-          type: 'role_change',
-          requesterName: 'Jane Smith',
-          currentRole: 'Asisten',
-          requestedRole: 'Manager',
-          company: 'PT Flores Sawit Lestari',
-          submittedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          status: 'pending',
-          priority: 'medium',
-          description: 'Role elevation from Asisten to Manager',
-          metadata: {
-            userId: 'user_456',
-            targetUserId: 'user_456',
-            changes: {
-              role: { old: 'asisten', new: 'manager' }
-            }
-          }
-        },
-        {
-          id: '3',
-          type: 'multi_assignment',
-          requesterName: 'Area Manager Atong',
-          requestedAssignment: '2 additional companies',
-          currentCompanies: 'KSK, FSL',
-          requestedCompanies: 'KSK, FSL, MSL',
-          submittedAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-          status: 'pending',
-          priority: 'medium',
-          description: 'Multi-assignment request for PT Mitra Sawit Lestari',
-          metadata: {
-            userId: 'user_789',
-            requestData: {
-              assignedCompanies: ['ksk_001', 'fsl_001', 'msl_001']
-            },
-            originalData: {
-              assignedCompanies: ['ksk_001', 'fsl_001']
-            }
-          }
-        },
-        {
-          id: '4',
-          type: 'permission_change',
-          requesterName: 'Company Admin - FSL',
-          requestedPermissions: 'ESTATE_CREATE, DIVISION_MANAGE',
-          company: 'PT Flores Sawit Lestari',
-          submittedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-          status: 'pending',
-          priority: 'low',
-          description: 'Additional permissions for estate management',
-          metadata: {
-            userId: 'user_101',
-            requestData: {
-              permissions: ['ESTATE_CREATE', 'DIVISION_MANAGE', 'USER_READ', 'USER_UPDATE']
-            },
-            originalData: {
-              permissions: ['USER_READ', 'USER_UPDATE']
-            }
-          }
-        }
-      ];
-
-      // Apply client-side filtering
-      let filteredApprovals = mockApprovals;
-      
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        filteredApprovals = filteredApprovals.filter(approval => 
-          approval.requesterName.toLowerCase().includes(searchLower) ||
-          approval.description.toLowerCase().includes(searchLower) ||
-          (approval.company && approval.company.toLowerCase().includes(searchLower))
-        );
-      }
-      
-      if (filters.type && filters.type !== 'all') {
-        filteredApprovals = filteredApprovals.filter(approval => approval.type === filters.type);
-      }
-      
-      if (filters.priority && filters.priority !== 'all') {
-        filteredApprovals = filteredApprovals.filter(approval => approval.priority === filters.priority);
-      }
-
-      if (filters.status && filters.status !== 'all') {
-        filteredApprovals = filteredApprovals.filter(approval => approval.status === filters.status);
-      }
-
-      const page = filters.page || 1;
-      const limit = filters.limit || 10;
-      const total = filteredApprovals.length;
-      const pages = Math.ceil(total / limit);
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-      
-      return {
-        data: filteredApprovals.slice(startIndex, endIndex),
-        pagination: { page, limit, total, pages }
-      };
+      console.error('Failed to fetch pending approvals with server-side pagination:', error);
+      throw error instanceof Error ? error : new Error('Failed to fetch pending approvals');
     }
   }
 
@@ -471,45 +351,8 @@ export class ApprovalAPI {
       const response = await cookieApiClient.get<HistoryResponse>(`/approvals/history?${params.toString()}`);
       return (response.data || response) as HistoryResponse;
     } catch (error) {
-      console.warn('Approval history API not available, using fallback data');
-      
-      // Fallback: Generate mock history
-      const mockHistory: PendingApproval[] = [
-        {
-          id: 'hist_1',
-          type: 'user_registration',
-          requesterName: 'Alice Johnson',
-          requestedRole: 'Asisten',
-          company: 'PT Mitra Sawit Lestari',
-          submittedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'approved',
-          priority: 'medium',
-          description: 'New assistant registration',
-          reviewedBy: 'super_admin_001',
-          reviewedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000).toISOString(),
-          reviewNotes: 'Approved - meets requirements'
-        },
-        {
-          id: 'hist_2',
-          type: 'role_change',
-          requesterName: 'Bob Wilson',
-          currentRole: 'Mandor',
-          requestedRole: 'Asisten',
-          company: 'PT Kelapa Sawit Kencana',
-          submittedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-          status: 'rejected',
-          priority: 'low',
-          description: 'Role change request',
-          reviewedBy: 'super_admin_001',
-          reviewedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000).toISOString(),
-          reviewNotes: 'Rejected - insufficient experience'
-        }
-      ];
-
-      return {
-        data: mockHistory,
-        pagination: { page: 1, limit: 20, total: mockHistory.length, pages: 1 }
-      };
+      console.error('Failed to fetch approval history with server-side pagination:', error);
+      throw error instanceof Error ? error : new Error('Failed to fetch approval history');
     }
   }
 }

@@ -150,57 +150,6 @@ export class EmployeeAPI {
     };
   }
 
-  private static filterEmployees(employees: Employee[], filters?: EmployeeFilters): Employee[] {
-    let filtered = [...employees];
-
-    if (filters?.companyId) {
-      filtered = filtered.filter((employee) => employee.companyId === filters.companyId);
-    }
-
-    if (filters?.divisionId) {
-      filtered = filtered.filter((employee) => employee.divisionId === filters.divisionId);
-    }
-
-    if (filters?.search) {
-      const search = filters.search.toLowerCase();
-      filtered = filtered.filter((employee) =>
-        employee.fullName.toLowerCase().includes(search) ||
-        employee.employeeId.toLowerCase().includes(search) ||
-        (employee.position || '').toLowerCase().includes(search) ||
-        (employee.department || '').toLowerCase().includes(search)
-      );
-    }
-
-    if (filters?.employeeType) {
-      filtered = filtered.filter((employee) => employee.employeeType === filters.employeeType);
-    }
-
-    if (filters?.department) {
-      filtered = filtered.filter((employee) => employee.department === filters.department);
-    }
-
-    if (filters?.position) {
-      filtered = filtered.filter((employee) => employee.position === filters.position);
-    }
-
-    if (filters?.isActive !== undefined) {
-      filtered = filtered.filter((employee) => employee.isActive === filters.isActive);
-    }
-
-    const sortBy = filters?.sortBy || 'fullName';
-    const sortOrder = filters?.sortOrder || 'asc';
-
-    filtered.sort((a: Employee, b: Employee) => {
-      const aValue = String((a as any)[sortBy] || '').toLowerCase();
-      const bValue = String((b as any)[sortBy] || '').toLowerCase();
-      if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-      if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-      return 0;
-    });
-
-    return filtered;
-  }
-
   static async getEmployees(filters?: EmployeeFilters): Promise<EmployeesResponse> {
     const page = filters?.page || 1;
     const limit = filters?.limit || 20;
@@ -239,28 +188,9 @@ export class EmployeeAPI {
           totalPages,
         },
       };
-    } catch {
-      const { data } = await apolloClient.query({
-        query: GET_EMPLOYEES,
-        fetchPolicy: 'network-only',
-      });
-
-      const mappedEmployees: Employee[] = (data?.employees || []).map((employee: any) =>
-        this.mapGraphQLEmployee(employee)
-      );
-      const filtered = this.filterEmployees(mappedEmployees, filters);
-      const start = (page - 1) * limit;
-      const pagedData = filtered.slice(start, start + limit);
-
-      return {
-        data: pagedData,
-        pagination: {
-          page,
-          limit,
-          total: filtered.length,
-          totalPages: Math.max(1, Math.ceil(filtered.length / limit)),
-        },
-      };
+    } catch (error) {
+      console.error('Failed to fetch employees with server-side pagination:', error);
+      throw error instanceof Error ? error : new Error('Failed to fetch employees');
     }
   }
 

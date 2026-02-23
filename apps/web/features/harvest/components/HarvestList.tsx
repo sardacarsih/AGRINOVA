@@ -17,6 +17,7 @@ import {
   TableRow
 } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import {
   Loader2,
   Search,
@@ -33,7 +34,9 @@ import {
   Edit2,
   Trash2,
   Eye,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useHarvestSubscriptions } from '@/hooks/use-graphql-subscriptions';
@@ -119,6 +122,7 @@ interface HarvestListProps {
   defaultDateFrom?: string;
   defaultDateTo?: string;
   listTitle?: string;
+  pageSize?: number;
 }
 
 const statusColors = {
@@ -141,7 +145,8 @@ export function HarvestList({
   enableDateRangeFilter = false,
   defaultDateFrom = '',
   defaultDateTo = '',
-  listTitle
+  listTitle,
+  pageSize,
 }: HarvestListProps) {
   const { user } = useAuth();
   const userRole = (user?.role || '').toUpperCase();
@@ -152,8 +157,10 @@ export function HarvestList({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>(defaultStatus);
   const [sortBy, setSortBy] = useState<'tanggal' | 'createdAt' | 'beratTbs'>('createdAt');
+  const [page, setPage] = useState(1);
   const [dateFrom, setDateFrom] = useState(defaultDateFrom);
   const [dateTo, setDateTo] = useState(defaultDateTo);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
   const realtimeRefetchInFlightRef = React.useRef(false);
   const lastRealtimeRefetchAtRef = React.useRef(0);
 
@@ -296,6 +303,33 @@ export function HarvestList({
     return filteredRecords;
   }, [allData, statusData, searchTerm, statusFilter, sortBy, userRole, isMandor, currentUserId, enableDateRangeFilter, dateFrom, dateTo]);
 
+  const normalizedPageSize = React.useMemo(() => {
+    if (typeof pageSize !== 'number') return null;
+    const normalized = Math.floor(pageSize);
+    return normalized > 0 ? normalized : null;
+  }, [pageSize]);
+
+  const totalPages = React.useMemo(() => {
+    if (!normalizedPageSize) return 1;
+    return Math.max(1, Math.ceil(harvestRecords.length / normalizedPageSize));
+  }, [harvestRecords.length, normalizedPageSize]);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, sortBy, dateFrom, dateTo, normalizedPageSize]);
+
+  React.useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const displayedRecords = React.useMemo(() => {
+    if (!normalizedPageSize) return harvestRecords;
+    const start = (page - 1) * normalizedPageSize;
+    return harvestRecords.slice(start, start + normalizedPageSize);
+  }, [harvestRecords, normalizedPageSize, page]);
+
   // Check for authentication errors specifically
   const isAuthError = (error as any)?.graphQLErrors?.some((err: any) =>
     err.message?.includes('authentication required') ||
@@ -349,10 +383,17 @@ export function HarvestList({
     <Card>
       <CardHeader>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-green-600" />
-            {listTitle || (isMandorReadOnly ? 'Record Hasil Sync Mobile' : 'Data Panen')}
-          </CardTitle>
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-green-600" />
+              {listTitle || (isMandorReadOnly ? 'Record Hasil Sync Mobile' : 'Data Panen')}
+            </CardTitle>
+            {normalizedPageSize && (
+              <p className="text-xs text-muted-foreground">
+                Halaman {Math.min(page, totalPages)} dari {totalPages} (maks {normalizedPageSize} data per halaman)
+              </p>
+            )}
+          </div>
 
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-2">
@@ -417,7 +458,7 @@ export function HarvestList({
       </CardHeader>
 
       <CardContent>
-        {harvestRecords.length === 0 ? (
+        {displayedRecords.length === 0 ? (
           <div className="text-center py-12">
             <Package className="h-16 w-16 mx-auto mb-6 text-muted-foreground opacity-50" />
             <h3 className="text-lg font-semibold mb-3">Tidak Ada Data Panen</h3>
@@ -541,7 +582,7 @@ export function HarvestList({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {harvestRecords.map((record: any) => {
+                {displayedRecords.map((record: any) => {
                   const StatusIcon = statusIcons[record.status as keyof typeof statusIcons];
                   const harvestDate = toSafeDate(record.tanggal);
                   const createdAtDate = toSafeDate(record.createdAt ?? record.created_at);
@@ -620,9 +661,9 @@ export function HarvestList({
                         {photoUrl ? (
                           <button
                             type="button"
-                            onClick={() => window.open(photoUrl, '_blank', 'noopener,noreferrer')}
+                            onClick={() => setPreviewPhotoUrl(photoUrl)}
                             className="group relative block h-12 w-12 overflow-hidden rounded-md border border-border bg-muted/20"
-                            title="Buka foto panen"
+                            title="Lihat foto panen"
                           >
                             <img
                               src={photoUrl}
@@ -718,7 +759,53 @@ export function HarvestList({
             </Table>
           </div>
         )}
+
+        {normalizedPageSize && harvestRecords.length > 0 && (
+          <div className="mt-4 flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              Menampilkan {displayedRecords.length} dari {harvestRecords.length} data
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                disabled={page <= 1}
+              >
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Kiri
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={page >= totalPages}
+              >
+                Kanan
+                <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
+      <Dialog open={Boolean(previewPhotoUrl)} onOpenChange={(open) => {
+        if (!open) {
+          setPreviewPhotoUrl(null);
+        }
+      }}>
+        <DialogContent className="max-w-3xl p-2 sm:p-4">
+          <DialogTitle className="sr-only">Preview Foto Panen</DialogTitle>
+          {previewPhotoUrl && (
+            <img
+              src={previewPhotoUrl}
+              alt="Preview foto panen"
+              className="max-h-[75vh] w-full rounded-md object-contain"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

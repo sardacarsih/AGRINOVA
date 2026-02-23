@@ -733,7 +733,7 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
     if (!isSpreadsheetFile(file.name)) {
       toast({
         title: 'Format tidak didukung',
-        description: 'Gunakan file .xlsx atau .xls',
+        description: 'Gunakan file .xlsx',
         variant: 'destructive',
       });
       return;
@@ -1187,7 +1187,7 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
           <input
             ref={importInputRef}
             type="file"
-            accept=".xlsx,.xls"
+            accept=".xlsx"
             className="hidden"
             onChange={handleImportInputChange}
           />

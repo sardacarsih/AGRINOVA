@@ -157,11 +157,11 @@ export class WebErrorBoundary extends Component<WebErrorBoundaryProps, WebErrorB
   };
 
   handleSettings = () => {
-    // Open browser settings
+    // Open browser settings in the current tab/session
     if ((window as any).openSettings) {
       (window as any).openSettings();
     } else {
-      window.open('chrome://settings/', '_blank');
+      window.location.href = 'chrome://settings/';
     }
   };
 

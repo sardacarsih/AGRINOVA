@@ -4,6 +4,7 @@ import React from 'react';
 import { RoleDashboardProps } from '@/features/dashboard/types/dashboard';
 import { ManagerDashboardLayout } from '@/components/layouts/role-layouts/ManagerDashboardLayout';
 import { useDashboard } from '@/features/dashboard/hooks/useDashboard';
+import { HarvestList } from '@/features/harvest/components/HarvestList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,10 +19,10 @@ import {
   Target,
   FileText,
   AlertTriangle,
-  CheckCircle,
-  Clock,
-  PieChart
+  CheckCircle
 } from 'lucide-react';
+
+const DASHBOARD_PAGE_SIZE = 10;
 
 // Manager Dashboard Widgets
 function EstateOverviewWidget() {
@@ -213,8 +214,8 @@ function RecentActivitiesWidget() {
   );
 }
 
-function ManagerDashboard({ role }: RoleDashboardProps) {
-  const { config, metrics, loading, refreshMetrics } = useDashboard();
+function ManagerDashboard({ role: _role }: RoleDashboardProps) {
+  const { loading, refreshMetrics } = useDashboard();
 
   if (loading) {
     return (
@@ -255,6 +256,23 @@ function ManagerDashboard({ role }: RoleDashboardProps) {
           <HarvestPerformanceWidget />
           <WorkforceWidget />
           <ApprovalStatusWidget />
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">
+              Monitoring Data Panen
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Menampilkan kualitas buah dan nama blok (bukan kode blok) dengan
+              navigasi halaman kiri/kanan.
+            </p>
+          </div>
+          <HarvestList
+            showActions={false}
+            pageSize={DASHBOARD_PAGE_SIZE}
+            listTitle="Data Panen Asisten & Manager"
+          />
         </div>
 
         {/* Recent Activities & Quick Actions */}

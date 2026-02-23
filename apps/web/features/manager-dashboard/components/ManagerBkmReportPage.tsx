@@ -28,6 +28,7 @@ import { GET_BKM_POTONG_BUAH_FLAT, BkmPotongBuahFlatData, BkmPotongBuahFlatVars 
 import { GET_MY_ASSIGNMENTS, GetMyAssignmentsResponse } from '@/lib/apollo/queries/harvest';
 import { useAuth } from '@/hooks/use-auth';
 import { ALL_COMPANIES_SCOPE, useCompanyScope } from '@/contexts/company-scope-context';
+import { downloadXlsxTemplate } from '@/features/master-data/utils/xlsx-import';
 
 // Helper to format currency
 const formatCurrency = (amount: number) => {
@@ -215,7 +216,6 @@ export default function ManagerBkmReportPage() {
 
         try {
             setIsExporting(true);
-            const XLSX = await import('xlsx');
 
             // Fetch ALL data for export
             const result = await client.query<BkmPotongBuahFlatData, BkmPotongBuahFlatVars>({
@@ -252,15 +252,7 @@ export default function ManagerBkmReportPage() {
                 "Jumlah (Rp)": item.jumlah
             }));
 
-            // Generate Worksheet
-            const ws = XLSX.utils.json_to_sheet(exportData);
-
-            // Generate Workbook
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Laporan BKM");
-
-            // Save File
-            XLSX.writeFile(wb, `BKM_Report_${periode}_Full.xlsx`);
+            await downloadXlsxTemplate(`BKM_Report_${periode}_Full.xlsx`, exportData);
 
         } catch (err) {
             console.error("Export failed:", err);

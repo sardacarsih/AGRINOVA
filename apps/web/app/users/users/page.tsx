@@ -1,15 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation } from '@apollo/client/react';
 import {
-  GET_USERS_BY_COMPANY,
+  GET_USERS,
   TOGGLE_USER_STATUS,
   DELETE_USER,
   type User,
   type UserMutationResponse,
-  type GetUsersByCompanyResponse
+  type UserListResponse
 } from '@/lib/apollo/queries/user-management';
 import { useAuth } from '@/hooks/use-auth';
 import { CompanyAdminDashboardLayout } from '@/components/layouts/role-layouts/CompanyAdminDashboardLayout';
@@ -62,20 +62,42 @@ import {
   UserCog
 } from 'lucide-react';
 
+const PAGE_SIZE = 20;
+type RoleFilter = 'all' | User['role'];
+
 // User management page for Company Admin
 export default function UsersPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [page, setPage] = useState(1);
+
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const roleQuery = roleFilter === 'all' ? undefined : roleFilter;
+  const isActiveQuery = statusFilter === 'all' ? undefined : statusFilter === 'active';
+  const offset = (page - 1) * PAGE_SIZE;
+
+  useEffect(() => {
+    setPage(1);
+  }, [deferredSearchTerm, roleFilter, statusFilter]);
 
   // GraphQL queries and mutations
-  const { data, loading, error, refetch } = useQuery<GetUsersByCompanyResponse>(
-    GET_USERS_BY_COMPANY,
+  const { data, loading, error, refetch } = useQuery<{ users: UserListResponse }>(
+    GET_USERS,
     {
-      variables: { companyId: user?.companyId },
+      variables: {
+        companyId: user?.companyId,
+        role: roleQuery,
+        isActive: isActiveQuery,
+        search: deferredSearchTerm.trim() || undefined,
+        limit: PAGE_SIZE,
+        offset,
+      },
       skip: !user?.companyId,
+      notifyOnNetworkStatusChange: true,
+      fetchPolicy: 'cache-and-network',
     }
   );
 
@@ -113,27 +135,21 @@ export default function UsersPage() {
     }
   );
 
-  const users = data?.usersByCompany || [];
+  const users = data?.users?.users || [];
+  const totalCount = data?.users?.totalCount || 0;
+  const totalPages = data?.users?.pageInfo?.totalPages || 1;
+  const currentPage = data?.users?.pageInfo?.currentPage || page;
+  const showingFrom = totalCount === 0 ? 0 : offset + 1;
+  const showingTo = Math.min(offset + users.length, totalCount);
 
-  // Filter users based on search, role, and status
-  const filteredUsers = React.useMemo(() => {
-    return users.filter(u => {
-      const matchesSearch = u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.email?.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesRole = roleFilter === 'all' || u.role === roleFilter;
-
-      const matchesStatus = statusFilter === 'all' ||
-        (statusFilter === 'active' && u.isActive) ||
-        (statusFilter === 'inactive' && !u.isActive);
-
-      return matchesSearch && matchesRole && matchesStatus;
-    });
-  }, [users, searchTerm, roleFilter, statusFilter]);
+  useEffect(() => {
+    if (!loading && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [loading, page, totalPages]);
 
   // Get role counts for stats
-  const roleStats = React.useMemo(() => {
+  const roleStats = useMemo(() => {
     const stats = users.reduce((acc, u) => {
       acc[u.role] = (acc[u.role] || 0) + 1;
       return acc;
@@ -228,10 +244,10 @@ export default function UsersPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {loading ? <Skeleton className="h-8 w-16" /> : users.length}
+                {loading ? <Skeleton className="h-8 w-16" /> : totalCount}
               </div>
               <p className="text-xs text-muted-foreground">
-                All system users
+                Across all pages
               </p>
             </CardContent>
           </Card>
@@ -250,7 +266,7 @@ export default function UsersPage() {
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                Currently active
+                Active on current page
               </p>
             </CardContent>
           </Card>
@@ -269,7 +285,7 @@ export default function UsersPage() {
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                Management roles
+                Management roles on page
               </p>
             </CardContent>
           </Card>
@@ -288,7 +304,7 @@ export default function UsersPage() {
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                Operational roles
+                Operational roles on page
               </p>
             </CardContent>
           </Card>
@@ -318,7 +334,7 @@ export default function UsersPage() {
                   <Filter className="h-4 w-4 text-muted-foreground" />
                   <select
                     value={roleFilter}
-                    onChange={(e) => setRoleFilter(e.target.value)}
+                    onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
                     className="px-3 py-2 border border-input bg-background rounded-md text-sm"
                   >
                     <option value="all">All Roles</option>
@@ -358,122 +374,152 @@ export default function UsersPage() {
                 </div>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredUsers.length === 0 ? (
+              <div>
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                        {searchTerm || roleFilter !== 'all' || statusFilter !== 'all' ? 'No users match your filters' : 'No users found'}
-                      </TableCell>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Username</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ) : (
-                    filteredUsers.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell className="font-medium">{user.name}</TableCell>
-                        <TableCell>{user.username}</TableCell>
-                        <TableCell>{user.email || '-'}</TableCell>
-                        <TableCell>
-                          <Badge variant={getRoleBadgeVariant(user.role) as any}>
-                            {getRoleDisplayName(user.role)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={user.isActive ? 'default' : 'secondary'}>
-                            {user.isActive ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(user.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <span className="sr-only">Open menu</span>
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem
-                                onClick={() => router.push(`/users/${user.id}`)}
-                              >
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => router.push(`/users/${user.id}/edit`)}
-                              >
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit User
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => handleToggleStatus(user.id)}
-                                disabled={toggleLoading}
-                              >
-                                {user.isActive ? (
-                                  <>
-                                    <UserX className="mr-2 h-4 w-4" />
-                                    Deactivate
-                                  </>
-                                ) : (
-                                  <>
-                                    <UserCheck className="mr-2 h-4 w-4" />
-                                    Activate
-                                  </>
-                                )}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <DropdownMenuItem
-                                    className="text-red-600"
-                                    onSelect={(e) => e.preventDefault()}
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Delete User
-                                  </DropdownMenuItem>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete User</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to delete "{user.name}"?
-                                      This action cannot be undone and will remove all user data.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => handleDeleteUser(user.id)}
-                                      disabled={deleteLoading}
-                                      className="bg-red-600 hover:bg-red-700"
-                                    >
-                                      {deleteLoading ? 'Deleting...' : 'Delete User'}
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                  </TableHeader>
+                  <TableBody>
+                    {users.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                          {searchTerm || roleFilter !== 'all' || statusFilter !== 'all' ? 'No users match your filters' : 'No users found'}
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      users.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-medium">{user.name}</TableCell>
+                          <TableCell>{user.username}</TableCell>
+                          <TableCell>{user.email || '-'}</TableCell>
+                          <TableCell>
+                            <Badge variant={getRoleBadgeVariant(user.role) as any}>
+                              {getRoleDisplayName(user.role)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={user.isActive ? 'default' : 'secondary'}>
+                              {user.isActive ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {new Date(user.createdAt).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <span className="sr-only">Open menu</span>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  onClick={() => router.push(`/users/${user.id}`)}
+                                >
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => router.push(`/users/${user.id}/edit`)}
+                                >
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit User
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => handleToggleStatus(user.id)}
+                                  disabled={toggleLoading}
+                                >
+                                  {user.isActive ? (
+                                    <>
+                                      <UserX className="mr-2 h-4 w-4" />
+                                      Deactivate
+                                    </>
+                                  ) : (
+                                    <>
+                                      <UserCheck className="mr-2 h-4 w-4" />
+                                      Activate
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem
+                                      className="text-red-600"
+                                      onSelect={(e) => e.preventDefault()}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete User
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete User</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to delete "{user.name}"?
+                                        This action cannot be undone and will remove all user data.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeleteUser(user.id)}
+                                        disabled={deleteLoading}
+                                        className="bg-red-600 hover:bg-red-700"
+                                      >
+                                        {deleteLoading ? 'Deleting...' : 'Delete User'}
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+                <div className="flex flex-col gap-3 border-t px-4 py-3 md:flex-row md:items-center md:justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {showingFrom}-{showingTo} of {totalCount} users
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                      disabled={page <= 1 || loading}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+                      disabled={page >= totalPages || loading}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

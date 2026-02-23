@@ -1,4 +1,20 @@
+import readXlsxFile from 'read-excel-file';
+
 export type NormalizedImportRow = Record<string, unknown>;
+
+type ZipCell = {
+  type: 'string' | 'number';
+  value: string | number;
+};
+
+type ZipcelxConfig = {
+  filename: string;
+  sheet: {
+    data: ZipCell[][];
+  };
+};
+
+type ZipcelxFn = (config: ZipcelxConfig) => Promise<void>;
 
 function normalizeHeaderKey(header: string): string {
   return header
@@ -46,49 +62,65 @@ export function getRowString(row: NormalizedImportRow, candidateKeys: string[]):
 }
 
 export async function parseFirstWorksheetRows(file: File): Promise<NormalizedImportRow[]> {
-  const XLSX = await import('xlsx');
-  const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-  const worksheetName = workbook.SheetNames[0];
-  if (!worksheetName) {
+  const worksheetRows = await readXlsxFile(file, { sheet: 1 });
+  if (worksheetRows.length === 0) {
     return [];
   }
 
-  const worksheet = workbook.Sheets[worksheetName];
-  const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(worksheet, {
-    defval: '',
-    raw: false,
-  });
+  const [headerRow, ...dataRows] = worksheetRows;
+  const headers = headerRow.map((cell) => normalizeCellValue(cell));
 
-  return rawRows.map((row) => normalizeRow(row));
+  return dataRows
+    .map((rowValues) => {
+      const rawRow: Record<string, unknown> = {};
+      headers.forEach((header, index) => {
+        if (!header) {
+          return;
+        }
+        rawRow[header] = rowValues[index] ?? '';
+      });
+      return normalizeRow(rawRow);
+    })
+    .filter((row) => Object.values(row).some((value) => normalizeCellValue(value) !== ''));
 }
 
 export async function downloadXlsxTemplate(
   fileName: string,
   rows: Array<Record<string, unknown>>,
 ): Promise<void> {
-  const XLSX = await import('xlsx');
-  const worksheet = XLSX.utils.json_to_sheet(rows, { skipHeader: false });
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Template');
-
-  const workbookData = XLSX.write(workbook, {
-    bookType: 'xlsx',
-    type: 'array',
+  const headerSet = new Set<string>();
+  rows.forEach((row) => {
+    Object.keys(row).forEach((key) => headerSet.add(key));
   });
+  const headers = Array.from(headerSet);
+  if (headers.length === 0) {
+    throw new Error('Template tidak memiliki kolom untuk diekspor.');
+  }
 
-  const blob = new Blob([workbookData], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  const makeCell = (value: unknown): ZipCell => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return { type: 'number', value };
+    }
+    return { type: 'string', value: normalizeCellValue(value) };
+  };
+
+  const sheetData: ZipCell[][] = [
+    headers.map((header) => ({ type: 'string', value: header })),
+    ...rows.map((row) => headers.map((header) => makeCell(row[header]))),
+  ];
+
+  const zipcelxModule = await import('zipcelx');
+  const zipcelx = ((zipcelxModule as any).default || zipcelxModule) as ZipcelxFn;
+  const normalizedName = fileName.toLowerCase().endsWith('.xlsx')
+    ? fileName.slice(0, -5)
+    : fileName;
+
+  await zipcelx({
+    filename: normalizedName || 'template',
+    sheet: {
+      data: sheetData,
+    },
   });
-
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = fileName;
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
 }
 
 export function parseOptionalNumberValue(value: string): number | undefined {
@@ -125,5 +157,5 @@ export function parseOptionalIntegerValue(value: string): number | undefined {
 
 export function isSpreadsheetFile(fileName: string): boolean {
   const lower = fileName.toLowerCase();
-  return lower.endsWith('.xlsx') || lower.endsWith('.xls');
+  return lower.endsWith('.xlsx');
 }

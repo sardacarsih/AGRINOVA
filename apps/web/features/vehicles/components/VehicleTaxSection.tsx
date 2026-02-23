@@ -260,6 +260,19 @@ const formatCurrency = (value: number): string =>
 const formatDate = (value?: string | null): string =>
   value ? new Date(value).toLocaleDateString("id-ID") : "-";
 
+const getFileExtension = (filePath: string): string => {
+  const sanitizedPath = filePath.split("?")[0]?.split("#")[0] || "";
+  const extension = sanitizedPath.split(".").pop();
+  return (extension || "").toLowerCase();
+};
+
+const isImageDocument = (filePath: string): boolean => {
+  const extension = getFileExtension(filePath);
+  return ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg"].includes(extension);
+};
+
+const isPdfDocument = (filePath: string): boolean => getFileExtension(filePath) === "pdf";
+
 const toDateInput = (value?: string | null): string => (value ? value.slice(0, 10) : "");
 
 const toFloat = (value: string): number => {
@@ -290,6 +303,7 @@ export function VehicleTaxSection({ vehicles, companyMap }: VehicleTaxSectionPro
   const [documentType, setDocumentType] = useState<VehicleTaxDocumentType>("BUKTI_BAYAR");
   const [documentFile, setDocumentFile] = useState<File | null>(null);
   const [isUploadingDocument, setIsUploadingDocument] = useState(false);
+  const [previewDocument, setPreviewDocument] = useState<VehicleTaxDocumentRecord | null>(null);
 
   useEffect(() => {
     if (vehicles.length === 0) {
@@ -596,6 +610,7 @@ export function VehicleTaxSection({ vehicles, companyMap }: VehicleTaxSectionPro
             setDocumentTax(null);
             setDocumentFile(null);
             setDocumentType("BUKTI_BAYAR");
+            setPreviewDocument(null);
           }
         }}
       >
@@ -676,14 +691,13 @@ export function VehicleTaxSection({ vehicles, companyMap }: VehicleTaxSectionPro
                       <TableRow key={document.id}>
                         <TableCell>{document.documentType}</TableCell>
                         <TableCell>
-                          <a
-                            href={document.filePath}
-                            target="_blank"
-                            rel="noreferrer"
+                          <button
+                            type="button"
+                            onClick={() => setPreviewDocument(document)}
                             className="text-sm font-medium text-primary underline"
                           >
                             Lihat Dokumen
-                          </a>
+                          </button>
                         </TableCell>
                         <TableCell>{formatDate(document.uploadedAt)}</TableCell>
                         <TableCell className="text-right">
@@ -711,6 +725,44 @@ export function VehicleTaxSection({ vehicles, companyMap }: VehicleTaxSectionPro
               Tutup
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(previewDocument)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPreviewDocument(null);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Preview Dokumen Pajak</DialogTitle>
+            <DialogDescription>
+              {previewDocument ? `${previewDocument.documentType} - ${formatDate(previewDocument.uploadedAt)}` : "Preview dokumen"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {previewDocument && (isImageDocument(previewDocument.filePath) || isPdfDocument(previewDocument.filePath)) ? (
+            <iframe
+              src={previewDocument.filePath}
+              className="h-[70vh] w-full rounded-md border"
+              title={`Preview dokumen ${previewDocument.documentType}`}
+            />
+          ) : (
+            <div className="rounded-md border p-4 text-sm text-muted-foreground">
+              Format dokumen ini tidak bisa dipreview langsung.
+            </div>
+          )}
+
+          {previewDocument && (
+            <DialogFooter>
+              <a href={previewDocument.filePath} download className="inline-flex">
+                <Button variant="outline">Unduh Dokumen</Button>
+              </a>
+            </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
 

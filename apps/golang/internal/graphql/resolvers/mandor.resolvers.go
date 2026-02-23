@@ -11,6 +11,8 @@ import (
 	"agrinovagraphql/server/internal/graphql/domain/mandor"
 	"agrinovagraphql/server/internal/graphql/domain/master"
 	"agrinovagraphql/server/internal/middleware"
+	notificationModels "agrinovagraphql/server/internal/notifications/models"
+	notificationServices "agrinovagraphql/server/internal/notifications/services"
 
 	panenModels "agrinovagraphql/server/internal/panen/models"
 	"context"
@@ -601,7 +603,7 @@ func (r *mutationResolver) notifyAsistenHarvestCreated(ctx context.Context, reco
 
 	if r.NotificationService != nil {
 		go func() {
-			if err := r.NotificationService.NotifyHarvestCreated(
+			if err := r.notifyHarvestCreatedHierarchyNotifications(
 				context.Background(),
 				harvestID,
 				mandorID,
@@ -610,13 +612,140 @@ func (r *mutationResolver) notifyAsistenHarvestCreated(ctx context.Context, reco
 				record.BeratTbs,
 			); err != nil {
 				log.Printf(
-					"Failed to create harvest-created notification for harvest %s: %v",
+					"Failed to create hierarchical harvest-created notification for harvest %s: %v",
 					harvestID,
 					err,
 				)
 			}
 		}()
 	}
+}
+
+type harvestNotificationRecipient struct {
+	UserID string
+	Role   auth.UserRole
+}
+
+func (r *mutationResolver) notifyHarvestCreatedHierarchyNotifications(
+	ctx context.Context,
+	harvestID string,
+	mandorID string,
+	mandorName string,
+	blockName string,
+	weight float64,
+) error {
+	if r.NotificationService == nil {
+		return nil
+	}
+
+	recipients, err := r.resolveHarvestCreatedRecipients(ctx, mandorID)
+	if err != nil {
+		return err
+	}
+
+	// Fallback keeps old behavior if hierarchy mapping is unavailable.
+	if len(recipients) == 0 {
+		return r.NotificationService.NotifyHarvestCreated(
+			ctx,
+			harvestID,
+			mandorID,
+			mandorName,
+			blockName,
+			weight,
+		)
+	}
+
+	metadata := map[string]interface{}{
+		"harvestId":  harvestID,
+		"mandorId":   mandorID,
+		"mandorName": mandorName,
+		"block":      blockName,
+		"weight":     weight,
+	}
+
+	for _, recipient := range recipients {
+		actionURL := "/approvals"
+		actionLabel := "Review"
+		switch recipient.Role {
+		case auth.UserRoleAsisten:
+			actionURL = "/dashboard/asisten/approval"
+		case auth.UserRoleManager:
+			actionURL = "/dashboard/manager/approval"
+		}
+
+		input := &notificationServices.CreateNotificationInput{
+			Type:              notificationModels.NotificationTypeHarvestApprovalNeeded,
+			Priority:          notificationModels.NotificationPriorityHigh,
+			Title:             "Persetujuan Panen Diperlukan",
+			Message:           fmt.Sprintf("Data panen baru dari %s di blok %s (%.1f kg) memerlukan persetujuan", mandorName, blockName, weight),
+			RecipientID:       recipient.UserID,
+			RelatedEntityType: "HARVEST_RECORD",
+			RelatedEntityID:   harvestID,
+			ActionURL:         actionURL,
+			ActionLabel:       actionLabel,
+			Metadata:          metadata,
+			SenderID:          mandorID,
+			SenderRole:        string(auth.UserRoleMandor),
+			IdempotencyKey:    fmt.Sprintf("harvest-created:%s:%s", harvestID, recipient.UserID),
+		}
+
+		if _, createErr := r.NotificationService.CreateNotification(ctx, input); createErr != nil {
+			return createErr
+		}
+	}
+
+	return nil
+}
+
+func (r *mutationResolver) resolveHarvestCreatedRecipients(
+	ctx context.Context,
+	mandorID string,
+) ([]harvestNotificationRecipient, error) {
+	if r.HierarchyService == nil {
+		return nil, nil
+	}
+
+	asisten, err := r.HierarchyService.GetParent(ctx, mandorID)
+	if err != nil {
+		return nil, err
+	}
+	if asisten == nil {
+		return nil, nil
+	}
+
+	recipients := make([]harvestNotificationRecipient, 0, 2)
+	seen := make(map[string]struct{}, 2)
+	appendRecipient := func(userID string, role auth.UserRole) {
+		id := strings.TrimSpace(userID)
+		if id == "" {
+			return
+		}
+		if _, exists := seen[id]; exists {
+			return
+		}
+		seen[id] = struct{}{}
+		recipients = append(recipients, harvestNotificationRecipient{
+			UserID: id,
+			Role:   role,
+		})
+	}
+
+	// Primary target: direct supervisor of mandor.
+	switch asisten.Role {
+	case auth.UserRoleAsisten, auth.UserRoleManager:
+		appendRecipient(asisten.ID, asisten.Role)
+	}
+
+	// Secondary target: direct supervisor of asisten (manager).
+	manager, err := r.HierarchyService.GetParent(ctx, asisten.ID)
+	if err != nil {
+		return nil, err
+	}
+	if manager != nil && manager.Role == auth.UserRoleManager {
+		appendRecipient(manager.ID, manager.Role)
+	}
+
+	return recipients, nil
 }
 
 type harvestApprovalFCMNotifier interface {

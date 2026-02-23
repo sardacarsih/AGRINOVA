@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"agrinovagraphql/server/internal/auth/services"
+	authDomain "agrinovagraphql/server/internal/graphql/domain/auth"
 	"agrinovagraphql/server/pkg/fcm"
 )
 
@@ -51,6 +52,14 @@ func (s *FCMNotificationService) NotifyAsistenNewHarvest(
 		return nil
 	}
 
+	if parent.Role != authDomain.UserRoleAsisten {
+		log.Printf(
+			"Parent role for mandor %s is %s (expected ASISTEN), continuing with available hierarchy",
+			mandorID,
+			parent.Role,
+		)
+	}
+
 	// Get Asisten's FCM tokens
 	tokens, err := s.hierarchyService.GetUserTokens(ctx, parent.ID)
 	if err != nil {
@@ -79,6 +88,55 @@ func (s *FCMNotificationService) NotifyAsistenNewHarvest(
 
 	log.Printf("FCM sent to asisten %s for harvest %s: %d success, %d failed",
 		parent.ID, harvestID, result.SuccessCount, result.FailureCount)
+
+	// Also notify manager (parent of asisten) so manager icon badge updates.
+	manager, err := s.hierarchyService.GetParent(ctx, parent.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get manager parent: %w", err)
+	}
+	if manager == nil {
+		return nil
+	}
+
+	if manager.Role != authDomain.UserRoleManager {
+		log.Printf(
+			"Parent role for asisten %s is %s (expected MANAGER), skipping manager FCM",
+			parent.ID,
+			manager.Role,
+		)
+		return nil
+	}
+
+	managerTokens, err := s.hierarchyService.GetUserTokens(ctx, manager.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get manager FCM tokens: %w", err)
+	}
+	if len(managerTokens) == 0 {
+		log.Printf("No FCM tokens for manager %s (parent of asisten %s)", manager.ID, parent.ID)
+		return nil
+	}
+
+	managerPayload := s.payloadBuilder.ForManagerHarvestApprovalNeeded(
+		harvestID,
+		mandorName,
+		blockName,
+		bunchCount,
+	)
+	managerResult, err := s.fcmProvider.SendToTokens(ctx, managerTokens, managerPayload)
+	if err != nil {
+		return fmt.Errorf("failed to send manager FCM: %w", err)
+	}
+
+	if len(managerResult.FailedTokens) > 0 {
+		go func() {
+			if cleanupErr := s.hierarchyService.CleanupInvalidTokens(context.Background(), managerResult.FailedTokens); cleanupErr != nil {
+				log.Printf("Failed to cleanup invalid manager tokens: %v", cleanupErr)
+			}
+		}()
+	}
+
+	log.Printf("FCM sent to manager %s for harvest %s: %d success, %d failed",
+		manager.ID, harvestID, managerResult.SuccessCount, managerResult.FailureCount)
 
 	return nil
 }

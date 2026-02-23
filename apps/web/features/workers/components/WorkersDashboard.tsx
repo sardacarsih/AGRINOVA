@@ -464,7 +464,7 @@ export function WorkersDashboard() {
 
   const handleImportFile = useCallback(async (file: File) => {
     if (!isSpreadsheetFile(file.name)) {
-      toast.error('Format file tidak didukung. Gunakan .xlsx atau .xls');
+      toast.error('Format file tidak didukung. Gunakan file .xlsx');
       return;
     }
 
@@ -706,7 +706,7 @@ export function WorkersDashboard() {
             <input
               ref={importInputRef}
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx"
               className="hidden"
               onChange={handleImportInputChange}
             />

@@ -32,6 +32,49 @@ export function AsistenDashboardLayout({
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const { isSidebarCollapsed, toggleSidebarCollapsed } = useSidebarCollapse('role-asisten');
   const normalizedUserRole = user?.role?.toString().trim().toUpperCase().replace(/[\s-]+/g, '_') || 'ASISTEN';
+  const companyName = React.useMemo(() => {
+    const userCandidate = user as {
+      company?: { name?: string } | string;
+      companies?: Array<{ name?: string } | string>;
+      assignedCompanyNames?: string[];
+    } | null;
+
+    if (!userCandidate) return undefined;
+
+    if (typeof userCandidate.company === 'string' && userCandidate.company.trim()) {
+      return userCandidate.company.trim();
+    }
+
+    if (
+      userCandidate.company &&
+      typeof userCandidate.company === 'object' &&
+      typeof userCandidate.company.name === 'string' &&
+      userCandidate.company.name.trim()
+    ) {
+      return userCandidate.company.name.trim();
+    }
+
+    const firstCompany = userCandidate.companies?.[0];
+    if (typeof firstCompany === 'string' && firstCompany.trim()) {
+      return firstCompany.trim();
+    }
+
+    if (
+      firstCompany &&
+      typeof firstCompany === 'object' &&
+      typeof firstCompany.name === 'string' &&
+      firstCompany.name.trim()
+    ) {
+      return firstCompany.name.trim();
+    }
+
+    const firstAssignedCompanyName = userCandidate.assignedCompanyNames?.[0];
+    if (typeof firstAssignedCompanyName === 'string' && firstAssignedCompanyName.trim()) {
+      return firstAssignedCompanyName.trim();
+    }
+
+    return undefined;
+  }, [user]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -64,6 +107,7 @@ export function AsistenDashboardLayout({
       <UnifiedSidebar
         userRole={normalizedUserRole}
         userName={user.name || user.username}
+        companyName={companyName}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={toggleSidebarCollapsed}
       />

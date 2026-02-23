@@ -432,7 +432,7 @@ export default function CompanyAdminDivisionsPage({ user }: CompanyAdminDivision
     if (!isSpreadsheetFile(file.name)) {
       toast({
         title: 'Format tidak didukung',
-        description: 'Gunakan file .xlsx atau .xls',
+        description: 'Gunakan file .xlsx',
         variant: 'destructive',
       });
       return;
@@ -669,7 +669,7 @@ export default function CompanyAdminDivisionsPage({ user }: CompanyAdminDivision
           <input
             ref={importInputRef}
             type="file"
-            accept=".xlsx,.xls"
+            accept=".xlsx"
             className="hidden"
             onChange={handleImportInputChange}
           />
