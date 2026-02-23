@@ -7,7 +7,7 @@ on:
       - main
       - 'release/**'
     tags:
-      - 'v*.*.*'
+      - 'mobile/v*.*.*'
     paths:
       - 'apps/mobile/**'
       - '.github/workflows/android-release.yml'
@@ -72,13 +72,13 @@ jobs:
           version_name=""
 
           if [[ "$event_name" == "push" && "$ref_type" == "tag" ]]; then
-            if [[ "$ref_name" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            if [[ "$ref_name" =~ ^mobile/v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
               track="production"
               environment="mobile-production"
               is_production="true"
-              version_name="${ref_name#v}"
+              version_name="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
             else
-              echo "::error::Production release must use semantic tag format vX.Y.Z (example: v1.2.3)."
+              echo "::error::Production release must use mobile tag format mobile/vX.Y.Z (example: mobile/v1.2.3)."
               exit 1
             fi
           elif [[ "$event_name" == "push" && "$ref_type" == "branch" ]]; then
@@ -372,7 +372,7 @@ jobs:
                 fi
                 previous_tag="$tag"
                 break
-              done < <(git tag --list 'v*.*.*' --sort=-version:refname)
+              done < <(git tag --list 'mobile/v*.*.*' --sort=-version:refname)
 
               COMMITS_FILE="$(mktemp)"
               if [[ -n "$previous_tag" ]]; then
