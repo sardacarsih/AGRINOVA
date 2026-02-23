@@ -97,6 +97,21 @@ class AppUpdateInfo extends Equatable {
       updateType != UpdateType.critical || 
       deliveryMethod == UpdateDeliveryMethod.apkDownload;
 
+  /// Version label for UI; avoids exposing raw build number labels.
+  String get displayVersion {
+    final directVersion = _extractReadableVersion(latestVersion);
+    if (directVersion != null) {
+      return directVersion;
+    }
+
+    final metadataVersion = _extractVersionFromMetadata(metadata);
+    if (metadataVersion != null) {
+      return metadataVersion;
+    }
+
+    return 'versi terbaru';
+  }
+
   /// Get formatted file size
   String get formattedFileSize {
     if (fileSizeBytes == null) return 'Ukuran tidak diketahui';
@@ -123,6 +138,79 @@ class AppUpdateInfo extends Equatable {
         supportedPlatforms,
         metadata,
       ];
+
+  String? _extractVersionFromMetadata(Map<String, dynamic>? metadata) {
+    if (metadata == null || metadata.isEmpty) {
+      return null;
+    }
+
+    const preferredKeys = <String>[
+      'versionName',
+      'version_name',
+      'latestVersionName',
+      'latest_version_name',
+      'latestVersion',
+      'latest_version',
+      'releaseVersion',
+      'release_version',
+      'releaseName',
+      'release_name',
+      'releaseLabel',
+      'release_label',
+      'displayVersion',
+      'display_version',
+      'version',
+      'appVersion',
+      'app_version',
+    ];
+
+    for (final key in preferredKeys) {
+      final value = metadata[key];
+      if (value is String) {
+        final parsed = _extractReadableVersion(value);
+        if (parsed != null) {
+          return parsed;
+        }
+      }
+    }
+
+    for (final entry in metadata.entries) {
+      final key = entry.key.toLowerCase();
+      if (!key.contains('version')) {
+        continue;
+      }
+
+      final value = entry.value;
+      if (value is! String) {
+        continue;
+      }
+
+      final parsed = _extractReadableVersion(value);
+      if (parsed != null) {
+        return parsed;
+      }
+    }
+
+    return null;
+  }
+
+  String? _extractReadableVersion(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty || _isBuildOnlyLabel(trimmed)) {
+      return null;
+    }
+    return trimmed;
+  }
+
+  bool _isBuildOnlyLabel(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (RegExp(r'^(build|version[\s_-]?code)\s*[:#-]?\s*\d+$').hasMatch(normalized)) {
+      return true;
+    }
+
+    // Treat long numeric values (versionCode-style) as build numbers.
+    return RegExp(r'^\d{7,}$').hasMatch(normalized);
+  }
 }
 
 /// Update progress status enumeration

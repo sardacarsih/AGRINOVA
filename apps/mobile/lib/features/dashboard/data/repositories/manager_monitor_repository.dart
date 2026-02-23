@@ -31,6 +31,35 @@ class ManagerMonitorSnapshot {
       members: [],
     );
   }
+
+  factory ManagerMonitorSnapshot.fromJson(Map<String, dynamic> json) {
+    final membersRaw = json['members'] as List<dynamic>? ?? const [];
+
+    return ManagerMonitorSnapshot(
+      totalTeam: (json['totalTeam'] as num?)?.toInt() ?? 0,
+      totalMandor: (json['totalMandor'] as num?)?.toInt() ?? 0,
+      totalAsisten: (json['totalAsisten'] as num?)?.toInt() ?? 0,
+      totalPemanen: (json['totalPemanen'] as num?)?.toInt() ?? 0,
+      efficiency: (json['efficiency'] as num?)?.toDouble() ?? 0,
+      members: membersRaw
+          .whereType<Map<String, dynamic>>()
+          .map(ManagerMonitorMember.fromJson)
+          .toList(growable: false),
+      warningMessage: json['warningMessage'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'totalTeam': totalTeam,
+      'totalMandor': totalMandor,
+      'totalAsisten': totalAsisten,
+      'totalPemanen': totalPemanen,
+      'efficiency': efficiency,
+      'members': members.map((member) => member.toJson()).toList(),
+      'warningMessage': warningMessage,
+    };
+  }
 }
 
 class ManagerMonitorMember {
@@ -55,6 +84,34 @@ class ManagerMonitorMember {
     this.totalRecords = 0,
     this.approvedRecords = 0,
   });
+
+  factory ManagerMonitorMember.fromJson(Map<String, dynamic> json) {
+    return ManagerMonitorMember(
+      id: (json['id'] ?? '').toString(),
+      name: (json['name'] ?? '').toString(),
+      role: (json['role'] ?? '').toString(),
+      division: (json['division'] ?? '-').toString(),
+      performance: (json['performance'] as num?)?.toDouble() ?? 0,
+      productionTon: (json['productionTon'] as num?)?.toDouble() ?? 0,
+      isActive: json['isActive'] == true,
+      totalRecords: (json['totalRecords'] as num?)?.toInt() ?? 0,
+      approvedRecords: (json['approvedRecords'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'role': role,
+      'division': division,
+      'performance': performance,
+      'productionTon': productionTon,
+      'isActive': isActive,
+      'totalRecords': totalRecords,
+      'approvedRecords': approvedRecords,
+    };
+  }
 }
 
 class ManagerMonitorRepository {

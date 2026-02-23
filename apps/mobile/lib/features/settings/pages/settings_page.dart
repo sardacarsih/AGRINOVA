@@ -13,7 +13,6 @@ import '../../dashboard/presentation/pages/manager_dashboard/manager_theme.dart'
 import '../../dashboard/presentation/pages/area_manager_dashboard/area_manager_theme.dart';
 import '../../dashboard/presentation/pages/mandor_dashboard/mandor_theme.dart';
 import '../../gate_check/presentation/pages/satpam_dashboard/genz_theme.dart';
-import 'network_settings_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -209,11 +208,6 @@ class _SettingsPageState extends State<SettingsPage> {
 
             const Divider(),
 
-            // Network Settings
-            _buildNetworkSettingsSection(roleTheme),
-
-            const Divider(),
-
             // About Section
             _buildAboutSection(roleTheme),
 
@@ -342,7 +336,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Versi ${_pendingUpdate!.latestVersion} siap dipasang',
+                          'Rilis terbaru: ${_pendingUpdate!.displayVersion}',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(height: 8),
@@ -394,43 +388,6 @@ class _SettingsPageState extends State<SettingsPage> {
               policy: _updatePolicy,
               onPolicyChanged: _onPolicyChanged,
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildNetworkSettingsSection(_SettingsRoleTheme roleTheme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-          child: Text(
-            'Network',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-        ),
-
-        Card(
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: ListTile(
-            leading: Icon(Icons.wifi, color: roleTheme.primary),
-            title: const Text('Network Settings'),
-            subtitle: const Text(
-              'Configure server connection and API settings',
-            ),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NetworkSettingsPage(),
-                ),
-              );
-            },
           ),
         ),
       ],

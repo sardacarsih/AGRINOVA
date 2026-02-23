@@ -15,27 +15,39 @@ class ApprovalLoaded extends ApprovalState {
   final List<ApprovalItem> approvals;
   final ApprovalStats stats;
   final String activeFilterStatus; // 'ALL', 'PENDING', 'APPROVED', 'REJECTED'
+  final String? warningMessage;
 
   const ApprovalLoaded({
     required this.approvals,
     required this.stats,
     this.activeFilterStatus = 'PENDING',
+    this.warningMessage,
   });
 
   ApprovalLoaded copyWith({
     List<ApprovalItem>? approvals,
     ApprovalStats? stats,
     String? activeFilterStatus,
+    String? warningMessage,
+    bool clearWarningMessage = false,
   }) {
     return ApprovalLoaded(
       approvals: approvals ?? this.approvals,
       stats: stats ?? this.stats,
       activeFilterStatus: activeFilterStatus ?? this.activeFilterStatus,
+      warningMessage: clearWarningMessage
+          ? null
+          : warningMessage ?? this.warningMessage,
     );
   }
 
   @override
-  List<Object?> get props => [approvals, stats, activeFilterStatus];
+  List<Object?> get props => [
+    approvals,
+    stats,
+    activeFilterStatus,
+    warningMessage,
+  ];
 }
 
 class ApprovalError extends ApprovalState {
@@ -49,7 +61,7 @@ class ApprovalError extends ApprovalState {
 
 class ApprovalActionLoading extends ApprovalState {
   // We might want to keep the previous loaded state to show the list while acting
-  // But standard bloc usually replaces state. 
+  // But standard bloc usually replaces state.
   // For better UX, maybe we should have `isSubmitting` in `ApprovalLoaded`.
   // But for simplicity let's use a separate state or just handle it via a mixin or overlay.
   // Actually, let's keep it simple: ActionLoading -> ActionSuccess/Failure -> Reload
@@ -66,7 +78,7 @@ class ApprovalActionSuccess extends ApprovalState {
 class ApprovalActionFailure extends ApprovalState {
   final String message;
   const ApprovalActionFailure({required this.message});
-  
-    @override
+
+  @override
   List<Object?> get props => [message];
 }

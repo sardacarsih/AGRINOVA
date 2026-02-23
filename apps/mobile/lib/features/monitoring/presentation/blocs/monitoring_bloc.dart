@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/utils/sync_error_message_helper.dart';
 
 import '../../../approval/domain/entities/approval_item.dart';
 import '../../data/repositories/monitoring_repository.dart';
@@ -120,7 +121,14 @@ class MonitoringBloc extends Bloc<MonitoringEvent, MonitoringState> {
         ),
       );
     } catch (e) {
-      emit(MonitoringError(message: e.toString()));
+      emit(
+        MonitoringError(
+          message: SyncErrorMessageHelper.toUserMessage(
+            e,
+            action: 'memuat data monitoring',
+          ),
+        ),
+      );
     }
   }
 }

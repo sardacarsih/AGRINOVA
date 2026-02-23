@@ -36,6 +36,50 @@ class ManagerHarvestApprovalItem {
     required this.jjgTangkaiPanjang,
   });
 
+  factory ManagerHarvestApprovalItem.fromJson(Map<String, dynamic> json) {
+    return ManagerHarvestApprovalItem(
+      id: (json['id'] ?? '').toString(),
+      mandorName: (json['mandorName'] ?? '').toString(),
+      blockName: (json['blockName'] ?? '').toString(),
+      divisionName: (json['divisionName'] ?? '').toString(),
+      workerLabel: (json['workerLabel'] ?? '').toString(),
+      bunchCount: (json['bunchCount'] as num?)?.toInt() ?? 0,
+      weightKg: (json['weightKg'] as num?)?.toDouble() ?? 0,
+      harvestDate:
+          DateTime.tryParse((json['harvestDate'] ?? '').toString()) ??
+          DateTime.now(),
+      submittedAt:
+          DateTime.tryParse((json['submittedAt'] ?? '').toString()) ??
+          DateTime.now(),
+      status: (json['status'] ?? 'PENDING').toString(),
+      jjgMatang: (json['jjgMatang'] as num?)?.toInt() ?? 0,
+      jjgMentah: (json['jjgMentah'] as num?)?.toInt() ?? 0,
+      jjgLewatMatang: (json['jjgLewatMatang'] as num?)?.toInt() ?? 0,
+      jjgBusukAbnormal: (json['jjgBusukAbnormal'] as num?)?.toInt() ?? 0,
+      jjgTangkaiPanjang: (json['jjgTangkaiPanjang'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'mandorName': mandorName,
+      'blockName': blockName,
+      'divisionName': divisionName,
+      'workerLabel': workerLabel,
+      'bunchCount': bunchCount,
+      'weightKg': weightKg,
+      'harvestDate': harvestDate.toIso8601String(),
+      'submittedAt': submittedAt.toIso8601String(),
+      'status': status,
+      'jjgMatang': jjgMatang,
+      'jjgMentah': jjgMentah,
+      'jjgLewatMatang': jjgLewatMatang,
+      'jjgBusukAbnormal': jjgBusukAbnormal,
+      'jjgTangkaiPanjang': jjgTangkaiPanjang,
+    };
+  }
+
   int get qualityTotal =>
       jjgMatang +
       jjgMentah +

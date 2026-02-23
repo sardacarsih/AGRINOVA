@@ -154,7 +154,7 @@ class AppUpdateManager {
       messenger.showMaterialBanner(
         MaterialBanner(
           content: Text(
-            'Agrinova ${updateInfo.latestVersion} tersedia. '
+            'Rilis terbaru: ${updateInfo.displayVersion}. '
             'Perbarui sekarang untuk mendapatkan perbaikan terbaru.',
           ),
           leading: const Icon(Icons.system_update),
@@ -492,9 +492,7 @@ class AppUpdateManager {
 
     ScaffoldMessenger.of(
       _currentContext!,
-    ).showSnackBar(
-      SnackBar(content: Text('Versi $version akan dilewati')),
-    );
+    ).showSnackBar(SnackBar(content: Text('Versi $version akan dilewati')));
   }
 
   void _showUpdateCompleted(AppUpdateInfo updateInfo) {
@@ -503,7 +501,7 @@ class AppUpdateManager {
     ScaffoldMessenger.of(_currentContext!).showSnackBar(
       SnackBar(
         content: Text(
-          'Pembaruan berhasil ke versi ${updateInfo.latestVersion}',
+          'Pembaruan berhasil ke versi ${updateInfo.displayVersion}',
         ),
         backgroundColor: Colors.green,
         duration: const Duration(seconds: 5),

@@ -98,7 +98,7 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
     if (state is MonitoringError) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Gagal memuat data monitoring: ${state.message}';
+        _errorMessage = state.message;
       });
     }
   }
