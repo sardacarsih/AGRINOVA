@@ -18,7 +18,8 @@ class DashboardPage extends StatelessWidget {
       builder: (context, state) {
         if (state is AuthAuthenticated) {
           _logger.i(
-              'Loading dashboard for user: ${state.user.username} (${state.user.role})');
+            'Loading dashboard for user: ${state.user.username} (${state.user.role})',
+          );
 
           return Scaffold(
             appBar: AppBar(
@@ -135,24 +136,24 @@ class DashboardPage extends StatelessWidget {
                 Text(
                   'Welcome, ${user.fullName ?? user.username}!',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 SizedBox(height: 8),
                 Text(
                   'Role: $roleName',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
-                      ),
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
                 ),
                 if (user.company != null) ...[
                   SizedBox(height: 4),
                   Text(
                     'Company: ${user.company}',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.8),
-                        ),
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
                   ),
                 ],
               ],
@@ -184,9 +185,9 @@ class DashboardPage extends StatelessWidget {
       children: [
         Text(
           'Quick Stats',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         SizedBox(height: 12),
         GridView.count(
@@ -256,18 +257,18 @@ class DashboardPage extends StatelessWidget {
               Text(
                 value,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
           Text(
             title,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w500,
-                ),
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -286,9 +287,9 @@ class DashboardPage extends StatelessWidget {
       children: [
         Text(
           'Available Features',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         SizedBox(height: 12),
         Wrap(
@@ -307,9 +308,9 @@ class DashboardPage extends StatelessWidget {
               child: Text(
                 _formatFeatureName(feature),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).primaryColor,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  color: Theme.of(context).primaryColor,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             );
           }).toList(),
@@ -324,9 +325,9 @@ class DashboardPage extends StatelessWidget {
       children: [
         Text(
           'Recent Activity',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         SizedBox(height: 12),
         Container(
@@ -339,24 +340,20 @@ class DashboardPage extends StatelessWidget {
           ),
           child: Column(
             children: [
-              Icon(
-                Icons.history,
-                size: 48,
-                color: Colors.grey[400],
-              ),
+              Icon(Icons.history, size: 48, color: Colors.grey[400]),
               SizedBox(height: 12),
               Text(
                 'No recent activity',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.grey[600],
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
               ),
               SizedBox(height: 8),
               Text(
                 'Your activity will appear here once you start using the app',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.grey[500],
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.grey[500]),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -370,9 +367,11 @@ class DashboardPage extends StatelessWidget {
     return feature
         .replaceAll('_', ' ')
         .split(' ')
-        .map((word) => word.isNotEmpty
-            ? word[0].toUpperCase() + word.substring(1).toLowerCase()
-            : word)
+        .map(
+          (word) => word.isNotEmpty
+              ? word[0].toUpperCase() + word.substring(1).toLowerCase()
+              : word,
+        )
         .join(' ');
   }
 
@@ -406,18 +405,11 @@ class DashboardPage extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.notifications_off,
-              size: 48,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.notifications_off, size: 48, color: Colors.grey[400]),
             SizedBox(height: 16),
             Text(
               'No new notifications',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 16,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 16),
             ),
           ],
         ),
@@ -437,14 +429,12 @@ class DashboardPage extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => const ServerProfilePage(
-              title: 'Profil Pengguna',
-            ),
+            builder: (_) => const ServerProfilePage(title: 'Profil Pengguna'),
           ),
         );
         break;
       case 'settings':
-        Navigator.pushNamed(context, '/settings');
+        Navigator.pushNamed(context, AppRoutes.settingsPage);
         break;
       case 'web_qr_login':
         Navigator.pushNamed(context, AppRoutes.webQRLogin);
@@ -482,4 +472,3 @@ class DashboardPage extends StatelessWidget {
     );
   }
 }
-

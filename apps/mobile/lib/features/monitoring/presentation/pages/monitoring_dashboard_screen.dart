@@ -47,12 +47,12 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
 
   void _loadDashboardData() {
     context.read<MonitoringBloc>().add(
-          MonitoringDataRequested(
-            estateId: _selectedEstateId,
-            period: _selectedPeriod,
-            date: _selectedDate,
-          ),
-        );
+      MonitoringDataRequested(
+        estateId: _selectedEstateId,
+        period: _selectedPeriod,
+        date: _selectedDate,
+      ),
+    );
   }
 
   @override
@@ -153,10 +153,9 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
                           _loadDashboardData();
                         }
                       },
-                      selectedColor: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.2),
+                      selectedColor: Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.2),
                       checkmarkColor: Theme.of(context).colorScheme.primary,
                     ),
                   );
@@ -294,9 +293,9 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
           children: [
             Text(
               'Quick Actions',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             Row(
@@ -325,7 +324,8 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
                   child: _buildActionButton(
                     icon: Icons.settings,
                     label: 'Settings',
-                    onTap: () => Navigator.pushNamed(context, '/settings'),
+                    onTap: () =>
+                        Navigator.pushNamed(context, AppRoutes.settingsPage),
                   ),
                 ),
               ],
@@ -355,10 +355,7 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
           children: [
             Icon(icon, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 12),
-            ),
+            Text(label, style: const TextStyle(fontSize: 12)),
           ],
         ),
       ),
@@ -374,9 +371,9 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
           children: [
             Text(
               'Ringkasan Hari Ini',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             _buildSummaryRow(
@@ -410,7 +407,11 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
   }
 
   Widget _buildSummaryRow(
-      String title, String value, IconData icon, Color color) {
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -432,10 +433,7 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
           ),
           Text(
             value,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: color, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -451,9 +449,9 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
           children: [
             Text(
               'Produktivitas per Blok',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -494,21 +492,26 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
                   ),
                   borderData: FlBorderData(show: false),
                   barGroups: [
-                    BarChartGroupData(x: 0, barRods: [
-                      BarChartRodData(toY: 85, color: Colors.green)
-                    ]),
-                    BarChartGroupData(x: 1, barRods: [
-                      BarChartRodData(toY: 92, color: Colors.green)
-                    ]),
-                    BarChartGroupData(x: 2, barRods: [
-                      BarChartRodData(toY: 78, color: Colors.orange)
-                    ]),
-                    BarChartGroupData(x: 3, barRods: [
-                      BarChartRodData(toY: 95, color: Colors.green)
-                    ]),
-                    BarChartGroupData(x: 4, barRods: [
-                      BarChartRodData(toY: 88, color: Colors.green)
-                    ]),
+                    BarChartGroupData(
+                      x: 0,
+                      barRods: [BarChartRodData(toY: 85, color: Colors.green)],
+                    ),
+                    BarChartGroupData(
+                      x: 1,
+                      barRods: [BarChartRodData(toY: 92, color: Colors.green)],
+                    ),
+                    BarChartGroupData(
+                      x: 2,
+                      barRods: [BarChartRodData(toY: 78, color: Colors.orange)],
+                    ),
+                    BarChartGroupData(
+                      x: 3,
+                      barRods: [BarChartRodData(toY: 95, color: Colors.green)],
+                    ),
+                    BarChartGroupData(
+                      x: 4,
+                      barRods: [BarChartRodData(toY: 88, color: Colors.green)],
+                    ),
                   ],
                 ),
               ),
@@ -528,9 +531,9 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
           children: [
             Text(
               'Perbandingan Estate',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             ...state.estateComparison.map((estate) {
@@ -554,8 +557,8 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
                           estate['percentage'] > 80
                               ? Colors.green
                               : estate['percentage'] > 60
-                                  ? Colors.orange
-                                  : Colors.red,
+                              ? Colors.orange
+                              : Colors.red,
                         ),
                       ),
                     ),
@@ -579,11 +582,7 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Colors.red[400],
-          ),
+          Icon(Icons.error_outline, size: 64, color: Colors.red[400]),
           const SizedBox(height: 16),
           const Text('Terjadi kesalahan saat memuat data'),
           const SizedBox(height: 16),
@@ -620,4 +619,3 @@ class _MonitoringDashboardScreenState extends State<MonitoringDashboardScreen>
     );
   }
 }
-

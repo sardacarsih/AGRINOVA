@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:logger/logger.dart';
 
 import '../../../core/services/app_update_service.dart';
@@ -6,6 +7,12 @@ import '../../../core/di/dependency_injection.dart';
 import '../../../core/network/dio_client.dart'; // Minimal REST client for settings
 import '../../../core/models/app_update_models.dart';
 import '../../../shared/widgets/app_update_widgets.dart';
+import '../../auth/presentation/blocs/auth_bloc.dart';
+import '../../dashboard/presentation/pages/asisten_dashboard/asisten_theme.dart';
+import '../../dashboard/presentation/pages/manager_dashboard/manager_theme.dart';
+import '../../dashboard/presentation/pages/area_manager_dashboard/area_manager_theme.dart';
+import '../../dashboard/presentation/pages/mandor_dashboard/mandor_theme.dart';
+import '../../gate_check/presentation/pages/satpam_dashboard/genz_theme.dart';
 import 'network_settings_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -160,12 +167,21 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final roleTheme = _resolveRoleTheme(context);
+
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Pengaturan'),
-          backgroundColor: Colors.green[600],
+          backgroundColor: roleTheme.appBarColor,
           foregroundColor: Colors.white,
+          flexibleSpace: roleTheme.headerGradient == null
+              ? null
+              : Container(
+                  decoration: BoxDecoration(
+                    gradient: roleTheme.headerGradient!,
+                  ),
+                ),
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
@@ -174,8 +190,13 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Pengaturan'),
-        backgroundColor: Colors.green[600],
+        backgroundColor: roleTheme.appBarColor,
         foregroundColor: Colors.white,
+        flexibleSpace: roleTheme.headerGradient == null
+            ? null
+            : Container(
+                decoration: BoxDecoration(gradient: roleTheme.headerGradient!),
+              ),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -184,17 +205,17 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 16),
 
             // Update Settings Section
-            _buildUpdateSection(),
+            _buildUpdateSection(roleTheme),
 
             const Divider(),
 
             // Network Settings
-            _buildNetworkSettingsSection(),
+            _buildNetworkSettingsSection(roleTheme),
 
             const Divider(),
 
             // About Section
-            _buildAboutSection(),
+            _buildAboutSection(roleTheme),
 
             const SizedBox(height: 16),
           ],
@@ -203,7 +224,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildUpdateSection() {
+  Widget _buildUpdateSection(_SettingsRoleTheme roleTheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -251,7 +272,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             : 'Periksa Sekarang',
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
+                        backgroundColor: roleTheme.primary,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -296,11 +317,11 @@ class _SettingsPageState extends State<SettingsPage> {
                     decoration: BoxDecoration(
                       color: _pendingUpdate!.isCritical
                           ? Colors.red.shade50
-                          : Colors.blue.shade50,
+                          : roleTheme.primary.withValues(alpha: 0.08),
                       border: Border.all(
                         color: _pendingUpdate!.isCritical
                             ? Colors.red.shade300
-                            : Colors.blue.shade300,
+                            : roleTheme.primary.withValues(alpha: 0.35),
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -316,7 +337,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 fontWeight: FontWeight.bold,
                                 color: _pendingUpdate!.isCritical
                                     ? Colors.red
-                                    : Colors.blue,
+                                    : roleTheme.primary,
                               ),
                         ),
                         const SizedBox(height: 4),
@@ -344,7 +365,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: _pendingUpdate!.isCritical
                                     ? Colors.red
-                                    : Colors.blue,
+                                    : roleTheme.primary,
                                 foregroundColor: Colors.white,
                               ),
                               child: Text(
@@ -379,7 +400,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildNetworkSettingsSection() {
+  Widget _buildNetworkSettingsSection(_SettingsRoleTheme roleTheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -396,7 +417,7 @@ class _SettingsPageState extends State<SettingsPage> {
         Card(
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: ListTile(
-            leading: const Icon(Icons.wifi, color: Colors.blue),
+            leading: Icon(Icons.wifi, color: roleTheme.primary),
             title: const Text('Network Settings'),
             subtitle: const Text(
               'Configure server connection and API settings',
@@ -416,7 +437,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildAboutSection() {
+  Widget _buildAboutSection(_SettingsRoleTheme roleTheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -435,7 +456,7 @@ class _SettingsPageState extends State<SettingsPage> {
           child: Column(
             children: [
               ListTile(
-                leading: const Icon(Icons.privacy_tip, color: Colors.blue),
+                leading: Icon(Icons.privacy_tip, color: roleTheme.primary),
                 title: const Text('Privacy Policy'),
                 subtitle: const Text('View our privacy policy'),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 16),
@@ -473,4 +494,80 @@ class _SettingsPageState extends State<SettingsPage> {
       }
     }
   }
+
+  _SettingsRoleTheme _resolveRoleTheme(BuildContext context) {
+    AuthState? state;
+    try {
+      state = BlocProvider.of<AuthBloc>(context, listen: false).state;
+    } catch (_) {
+      state = null;
+    }
+    final role = state is AuthAuthenticated
+        ? state.user.role.toUpperCase()
+        : '';
+
+    switch (role) {
+      case 'MANDOR':
+        return const _SettingsRoleTheme(
+          appBarColor: MandorTheme.darkGreen,
+          primary: MandorTheme.forestGreen,
+          headerGradient: LinearGradient(
+            colors: [MandorTheme.darkGreen, MandorTheme.forestGreen],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+        );
+      case 'ASISTEN':
+        return const _SettingsRoleTheme(
+          appBarColor: AsistenTheme.primaryBlueDark,
+          primary: AsistenTheme.primaryBlue,
+          headerGradient: AsistenTheme.headerGradient,
+        );
+      case 'MANAGER':
+        return const _SettingsRoleTheme(
+          appBarColor: ManagerTheme.primaryPurpleDark,
+          primary: ManagerTheme.primaryPurple,
+          headerGradient: ManagerTheme.headerGradient,
+        );
+      case 'AREA_MANAGER':
+        return const _SettingsRoleTheme(
+          appBarColor: AreaManagerTheme.primaryTealDark,
+          primary: AreaManagerTheme.primaryTeal,
+          headerGradient: AreaManagerTheme.headerGradient,
+        );
+      case 'SATPAM':
+        return const _SettingsRoleTheme(
+          appBarColor: GenZTheme.deepPurple,
+          primary: GenZTheme.electricPurple,
+          headerGradient: GenZTheme.primaryGradient,
+        );
+      case 'COMPANY_ADMIN':
+        return const _SettingsRoleTheme(
+          appBarColor: Color(0xFFEA580C),
+          primary: Color(0xFFEA580C),
+        );
+      case 'SUPER_ADMIN':
+        return const _SettingsRoleTheme(
+          appBarColor: Color(0xFFB91C1C),
+          primary: Color(0xFFB91C1C),
+        );
+      default:
+        return const _SettingsRoleTheme(
+          appBarColor: Color(0xFF16A34A),
+          primary: Color(0xFF16A34A),
+        );
+    }
+  }
+}
+
+class _SettingsRoleTheme {
+  final Color appBarColor;
+  final Color primary;
+  final LinearGradient? headerGradient;
+
+  const _SettingsRoleTheme({
+    required this.appBarColor,
+    required this.primary,
+    this.headerGradient,
+  });
 }
