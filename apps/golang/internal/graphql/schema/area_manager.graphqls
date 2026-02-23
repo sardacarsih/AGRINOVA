@@ -370,7 +370,10 @@ type CompanyReportDetail {
 
 extend type Query {
   "Get area manager dashboard"
-  areaManagerDashboard: AreaManagerDashboardData! @requireAuth @hasRole(roles: [AREA_MANAGER])
+  areaManagerDashboard(
+    dateFrom: Time
+    dateTo: Time
+  ): AreaManagerDashboardData! @requireAuth @hasRole(roles: [AREA_MANAGER])
   
   "Get company details for area manager"
   areaManagerCompanyDetail(companyId: ID!): CompanyPerformanceData! @requireAuth @hasRole(roles: [AREA_MANAGER])

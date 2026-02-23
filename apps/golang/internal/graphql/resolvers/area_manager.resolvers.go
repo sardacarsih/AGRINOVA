@@ -56,14 +56,12 @@ func computeCompanyStatus(achievement float64) generated.CompanyHealthStatus {
 	}
 }
 
-// computeAmTrend derives trend by comparing today's production rate to the monthly average daily rate.
-func computeAmTrend(todayProd, monthlyProd float64) common.TrendDirection {
-	now := time.Now()
-	dayOfMonth := float64(now.Day())
-	if dayOfMonth <= 0 || monthlyProd <= 0 {
+// computeAmTrend derives trend by comparing today's production to average daily production.
+func computeAmTrend(todayProd, periodProd float64, dayCount int) common.TrendDirection {
+	if dayCount <= 0 || periodProd <= 0 {
 		return common.TrendDirectionStable
 	}
-	avgDailyRate := monthlyProd / dayOfMonth
+	avgDailyRate := periodProd / float64(dayCount)
 	if avgDailyRate <= 0 {
 		return common.TrendDirectionStable
 	}
@@ -88,14 +86,49 @@ func containsString(slice []string, val string) bool {
 	return false
 }
 
+func normalizeDashboardDateRange(dateFrom, dateTo *time.Time) (time.Time, time.Time, int, error) {
+	now := time.Now()
+	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	end := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, now.Location())
+
+	if dateFrom != nil {
+		start = time.Date(dateFrom.Year(), dateFrom.Month(), dateFrom.Day(), 0, 0, 0, 0, dateFrom.Location())
+	}
+	if dateTo != nil {
+		end = time.Date(dateTo.Year(), dateTo.Month(), dateTo.Day(), 23, 59, 59, 0, dateTo.Location())
+	}
+	if end.Before(start) {
+		return time.Time{}, time.Time{}, 0, fmt.Errorf("invalid date range: dateTo must be on or after dateFrom")
+	}
+
+	dayCount := int(end.Sub(start).Hours()/24) + 1
+	if dayCount < 1 {
+		dayCount = 1
+	}
+	return start, end, dayCount, nil
+}
+
+func dateOnlyString(value time.Time) string {
+	return value.Format("2006-01-02")
+}
+
 // ─── Query Resolvers ─────────────────────────────────────────────────────────
 
 // AreaManagerDashboard is the resolver for the areaManagerDashboard field.
-func (r *queryResolver) AreaManagerDashboard(ctx context.Context) (*generated.AreaManagerDashboardData, error) {
+func (r *queryResolver) AreaManagerDashboard(ctx context.Context, dateFrom *time.Time, dateTo *time.Time) (*generated.AreaManagerDashboardData, error) {
 	userID := strings.TrimSpace(middleware.GetCurrentUserID(ctx))
 	if userID == "" {
 		return nil, fmt.Errorf("authentication required")
 	}
+
+	rangeStart, rangeEnd, rangeDays, err := normalizeDashboardDateRange(dateFrom, dateTo)
+	if err != nil {
+		return nil, err
+	}
+	rangeStartStr := dateOnlyString(rangeStart)
+	rangeEndStr := dateOnlyString(rangeEnd)
+	referenceDateStr := dateOnlyString(rangeEnd)
+	targetPeriod := rangeEnd.Format("2006-01")
 
 	// 1. Scope: get assigned company IDs
 	companyIDs, err := r.areaManagerCompanyIDs(ctx, userID)
@@ -137,14 +170,15 @@ func (r *queryResolver) AreaManagerDashboard(ctx context.Context) (*generated.Ar
 			COUNT(DISTINCT d.id)                                                                  AS divs_count,
 			COUNT(DISTINCT uca2.user_id) FILTER (WHERE uca2.is_active = true)                    AS emp_count,
 			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE hr.tanggal = CURRENT_DATE AND hr.status = 'APPROVED'
+				WHERE hr.tanggal = ?::date AND hr.status = 'APPROVED'
 			), 0)                                                                                  AS today_prod,
 			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE date_trunc('month', hr.tanggal) = date_trunc('month', NOW())
+				WHERE hr.tanggal >= ?::date
+				  AND hr.tanggal <= ?::date
 				  AND hr.status = 'APPROVED'
 			), 0)                                                                                  AS monthly_prod,
 			COALESCE(SUM(b.target_ton) FILTER (
-				WHERE b.period_month = to_char(NOW(), 'YYYY-MM')
+				WHERE b.period_month = ?
 			), 0)                                                                                  AS month_target
 		FROM companies c
 		JOIN estates e ON e.company_id = c.id
@@ -154,21 +188,21 @@ func (r *queryResolver) AreaManagerDashboard(ctx context.Context) (*generated.Ar
 		LEFT JOIN manager_division_production_budgets b ON b.division_id = d.id
 		WHERE c.id IN ?
 		GROUP BY c.id, c.name
-	`, companyIDs).Scan(&rows).Error
+	`, referenceDateStr, rangeStartStr, rangeEndStr, targetPeriod, companyIDs).Scan(&rows).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to aggregate company stats: %w", err)
 	}
 
 	// 5. Build company performance list and aggregate totals
 	var (
-		totalEstates    int32
-		totalDivs       int32
-		totalEmp        int32
-		totalTodayProd  float64
+		totalEstates     int32
+		totalDivs        int32
+		totalEmp         int32
+		totalTodayProd   float64
 		totalMonthlyProd float64
 		totalMonthTarget float64
-		topCompanyName  string
-		topAchievement  float64
+		topCompanyName   string
+		topAchievement   float64
 	)
 
 	companyPerf := make([]*generated.CompanyPerformanceData, 0, len(rows))
@@ -199,7 +233,7 @@ func (r *queryResolver) AreaManagerDashboard(ctx context.Context) (*generated.Ar
 			TargetAchievement: achievement,
 			EfficiencyScore:   achievement, // proxy; real efficiency requires labor data
 			QualityScore:      0,           // requires grading data
-			Trend:             computeAmTrend(row.TodayProd, row.MonthlyProd),
+			Trend:             computeAmTrend(row.TodayProd, row.MonthlyProd, rangeDays),
 			Status:            computeCompanyStatus(achievement),
 			PendingIssues:     0,
 		})
@@ -303,7 +337,7 @@ func (r *queryResolver) AreaManagerCompanyDetail(ctx context.Context, companyID 
 		TargetAchievement: achievement,
 		EfficiencyScore:   achievement,
 		QualityScore:      0,
-		Trend:             computeAmTrend(row.TodayProd, row.MonthlyProd),
+		Trend:             computeAmTrend(row.TodayProd, row.MonthlyProd, time.Now().Day()),
 		Status:            computeCompanyStatus(achievement),
 		PendingIssues:     0,
 	}, nil
