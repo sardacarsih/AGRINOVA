@@ -6,6 +6,8 @@ on:
       - develop
       - main
       - 'release/**'
+    tags:
+      - 'mobile/v*.*.*'
     paths:
       - 'apps/mobile/**'
       - '.github/workflows/android-release.yml'
@@ -69,7 +71,17 @@ jobs:
           is_production="false"
           version_name=""
 
-          if [[ "$event_name" == "push" && "$ref_type" == "branch" ]]; then
+          if [[ "$event_name" == "push" && "$ref_type" == "tag" ]]; then
+            if [[ "$ref_name" =~ ^mobile/v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+              track="production"
+              environment="mobile-production"
+              is_production="true"
+              version_name="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+            else
+              echo "::error::Production release must use mobile tag format mobile/vX.Y.Z (example: mobile/v1.2.3)."
+              exit 1
+            fi
+          elif [[ "$event_name" == "push" && "$ref_type" == "branch" ]]; then
             if [[ "$ref_name" == "develop" ]]; then
               track="internal"
               environment="mobile-internal"
@@ -80,9 +92,6 @@ jobs:
               echo "::error::Unsupported branch '$ref_name'. Allowed: develop, main, release/*."
               exit 1
             fi
-          elif [[ "$event_name" == "push" && "$ref_type" == "tag" ]]; then
-            echo "::error::Tag-based production release is temporarily disabled. Use branch push (develop/main/release/*) or workflow_dispatch for internal/closed."
-            exit 1
           elif [[ "$event_name" == "workflow_dispatch" ]]; then
             track="${{ github.event.inputs.target_track }}"
             environment="mobile-${track}"
