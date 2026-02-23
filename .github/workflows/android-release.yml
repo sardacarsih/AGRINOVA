@@ -1,57 +1,32 @@
-# ──────────────────────────────────────────────────────────────────────────────
-# Android Release — Build AAB & Deploy to Google Play Store (alpha track)
-#
-# Dipicu oleh: git tag mobile/v*.*.* atau v*.*.* (push tag → build + deploy otomatis)
-# Manual:      workflow_dispatch dengan input version
-#
-# Required GitHub Secrets (Settings → Secrets → Actions):
-#   ANDROID_KEYSTORE_BASE64          base64-encoded release keystore (.jks/.keystore)
-#   ANDROID_KEYSTORE_PASSWORD        keystore store password
-#   ANDROID_KEY_ALIAS                key alias dalam keystore
-#   ANDROID_KEY_PASSWORD             key password dalam keystore
-#   ANDROID_PACKAGE_NAME             package name (e.g. com.agrinova.mobile)
-#   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON raw JSON service account GCP
-#                                    (butuh "Release Manager" di Play Console)
-#
-# Optional Secret:
-#   GOOGLE_SERVICES_JSON_BASE64  base64-encoded google-services.json
-#                                (hanya diperlukan jika file tersebut digitignore)
-#
-# Versioning:
-#   versionName = dari tag git (v1.2.3 → "1.2.3")
-#   versionCode = Unix timestamp (seconds), selalu naik dan aman untuk upgrade path
-#
-# Release flow:
-#   git tag -a mobile/v1.2.3 -m "Catatan rilis di sini" && git push origin mobile/v1.2.3
-#   atau:
-#   git tag -a v1.2.3 -m "Catatan rilis di sini" && git push origin v1.2.3
-#   → workflow terpicu otomatis
-#   → AAB dibangun, diunggah ke Play Store alpha track
-#   → What's New diambil dari anotasi tag (maks 500 karakter)
-#   → Promosikan ke alpha/beta/production secara manual di Play Console
-#
-# What's New / Release Notes:
-#   Prioritas 1: apps/mobile/whatsnew/whatsnew-id-ID  (file statis, opsional)
-#   Prioritas 2: anotasi git tag  (git tag -a v1.2.3 -m "...")
-#   Prioritas 3: fallback otomatis "Bug fixes and improvements for v1.2.3"
-#   Maks 500 karakter per locale (batas Play Store).
-# ──────────────────────────────────────────────────────────────────────────────
-
 name: Android Release
 
 on:
   push:
+    branches:
+      - develop
+      - main
+      - 'release/**'
     tags:
-      - 'mobile/v[0-9]+.[0-9]+.[0-9]+'
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v*.*.*'
+    paths:
+      - 'apps/mobile/**'
+      - '.github/workflows/android-release.yml'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version name (e.g. 1.2.3) — used as Android versionName'
+      target_track:
+        description: 'Manual run target track (non-production only)'
+        type: choice
         required: true
-        default: '1.0.0'
+        default: internal
+        options:
+          - internal
+          - closed
+      version_name:
+        description: 'Optional Android versionName override'
+        required: false
+        default: ''
       version_code:
-        description: 'Optional Android versionCode override (must be integer and > existing Play versionCode)'
+        description: 'Optional Android versionCode override'
         required: false
         default: ''
 
@@ -59,21 +34,141 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-release-${{ github.ref }}
+  group: android-release-mobile
   cancel-in-progress: false
 
 env:
-  FLUTTER_VERSION: "3.38.9"
-  JAVA_VERSION: "17"
+  FLUTTER_VERSION: '3.38.9'
+  JAVA_VERSION: '17'
+  ANDROID_MAX_VERSION_CODE: '2100000000'
 
 jobs:
-  # ── Gate: same checks as Mobile CI ────────────────────────────────────────
-  # build-and-deploy will NOT run if this job fails.
+  plan:
+    name: Plan Release Track and Version
+    runs-on: ubuntu-latest
+    outputs:
+      track: ${{ steps.plan.outputs.track }}
+      environment: ${{ steps.plan.outputs.environment }}
+      is_production: ${{ steps.plan.outputs.is_production }}
+      version_name: ${{ steps.plan.outputs.version_name }}
+      version_code: ${{ steps.plan.outputs.version_code }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve track and version
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          event_name="${{ github.event_name }}"
+          ref_type="${{ github.ref_type }}"
+          ref_name="${{ github.ref_name }}"
+
+          track=""
+          environment=""
+          is_production="false"
+          version_name=""
+
+          if [[ "$event_name" == "push" && "$ref_type" == "tag" ]]; then
+            if [[ "$ref_name" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+              track="production"
+              environment="mobile-production"
+              is_production="true"
+              version_name="${ref_name#v}"
+            else
+              echo "::error::Production release must use semantic tag format vX.Y.Z (example: v1.2.3)."
+              exit 1
+            fi
+          elif [[ "$event_name" == "push" && "$ref_type" == "branch" ]]; then
+            if [[ "$ref_name" == "develop" ]]; then
+              track="internal"
+              environment="mobile-internal"
+            elif [[ "$ref_name" == "main" || "$ref_name" == release/* ]]; then
+              track="closed"
+              environment="mobile-closed"
+            else
+              echo "::error::Unsupported branch '$ref_name'. Allowed: develop, main, release/*."
+              exit 1
+            fi
+          elif [[ "$event_name" == "workflow_dispatch" ]]; then
+            track="${{ github.event.inputs.target_track }}"
+            environment="mobile-${track}"
+          else
+            echo "::error::Unsupported trigger '$event_name'."
+            exit 1
+          fi
+
+          pubspec_version_line="$(grep -E '^version:' apps/mobile/pubspec.yaml | head -n1 || true)"
+          pubspec_version="$(echo "$pubspec_version_line" | awk '{print $2}')"
+          base_version="${pubspec_version%%+*}"
+
+          if [[ ! "$base_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Cannot parse base semantic version from apps/mobile/pubspec.yaml (found '$pubspec_version')."
+            exit 1
+          fi
+
+          if [[ -z "$version_name" ]]; then
+            manual_version_name="${{ github.event.inputs.version_name }}"
+            if [[ "$event_name" == "workflow_dispatch" && -n "$manual_version_name" ]]; then
+              version_name="$manual_version_name"
+            elif [[ "$track" == "internal" ]]; then
+              version_name="${base_version}-dev.${GITHUB_RUN_NUMBER}"
+            elif [[ "$track" == "closed" ]]; then
+              version_name="${base_version}-rc.${GITHUB_RUN_NUMBER}"
+            else
+              version_name="$base_version"
+            fi
+          fi
+
+          manual_version_code="${{ github.event.inputs.version_code }}"
+          if [[ -n "$manual_version_code" ]]; then
+            version_code="$manual_version_code"
+          else
+            version_code="$(date +%s)"
+          fi
+
+          if [[ ! "$version_code" =~ ^[0-9]+$ ]]; then
+            echo "::error::versionCode must be a positive integer (got '$version_code')."
+            exit 1
+          fi
+
+          if (( version_code <= 0 )); then
+            echo "::error::versionCode must be greater than zero."
+            exit 1
+          fi
+
+          if (( version_code > ANDROID_MAX_VERSION_CODE )); then
+            echo "::error::versionCode exceeds Android max (${ANDROID_MAX_VERSION_CODE})."
+            exit 1
+          fi
+
+          if [[ "$is_production" == "true" && ! "$version_name" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Production versionName must be semantic (X.Y.Z)."
+            exit 1
+          fi
+
+          echo "track=$track" >> "$GITHUB_OUTPUT"
+          echo "environment=$environment" >> "$GITHUB_OUTPUT"
+          echo "is_production=$is_production" >> "$GITHUB_OUTPUT"
+          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
+
+          echo "Release plan:"
+          echo "  event       = $event_name"
+          echo "  ref         = $ref_type/$ref_name"
+          echo "  track       = $track"
+          echo "  environment = $environment"
+          echo "  production  = $is_production"
+          echo "  versionName = $version_name"
+          echo "  versionCode = $version_code"
+
   validate:
     name: Validate Flutter (analyze + test)
     runs-on: ubuntu-latest
+    needs: plan
     timeout-minutes: 20
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -97,19 +192,17 @@ jobs:
         working-directory: apps/mobile
         run: flutter test test/widget_test.dart
 
-  # ── Release: only runs if validate succeeds ───────────────────────────────
   build-and-deploy:
-    name: Build & Deploy to Play Store
-    needs: validate
+    name: Build and Deploy to Google Play
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-
+    needs: [plan, validate]
+    timeout-minutes: 50
+    environment:
+      name: ${{ needs.plan.outputs.environment }}
     steps:
-      # ── 1. Source ──────────────────────────────────────────────────────────
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ── 2. Toolchain ───────────────────────────────────────────────────────
       - name: Set up Java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
@@ -123,56 +216,22 @@ jobs:
           channel: stable
           cache: true
 
-      # ── 3. Version ────────────────────────────────────────────────────────
-      - name: Resolve version from tag
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            version_name="${{ github.event.inputs.version }}"
-          else
-            # Tag push: github.ref_name = "mobile/v1.2.3" or "v1.2.3"
-            version_name="${{ github.ref_name }}"
-            version_name="${version_name#mobile/v}"
-            version_name="${version_name#v}"
-          fi
-          if [ -n "${{ github.event.inputs.version_code }}" ]; then
-            version_code="${{ github.event.inputs.version_code }}"
-          else
-            version_code="$(date +%s)"
-          fi
-
-          if ! [[ "$version_code" =~ ^[0-9]+$ ]]; then
-            echo "::error::versionCode must be a positive integer, got '$version_code'"
-            exit 1
-          fi
-
-          if [ "$version_code" -gt 2100000000 ]; then
-            echo "::error::versionCode exceeds Android max (2100000000): $version_code"
-            exit 1
-          fi
-          echo "name=$version_name" >> "$GITHUB_OUTPUT"
-          echo "code=$version_code" >> "$GITHUB_OUTPUT"
-          echo "Release: ${{ github.ref_name }} → versionName=$version_name, versionCode=$version_code"
-
-      # ── 4. Firebase config (optional secret) ─────────────────────────────
       - name: Write google-services.json
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
         working-directory: apps/mobile/android/app
+        shell: bash
         run: |
-          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+          set -euo pipefail
+          if [[ -n "$GOOGLE_SERVICES_JSON" ]]; then
             echo "$GOOGLE_SERVICES_JSON" | base64 --decode > google-services.json
             echo "google-services.json written from secret."
           fi
-          if [ ! -f google-services.json ]; then
-            echo "::error::google-services.json is missing. Either commit the file or set GOOGLE_SERVICES_JSON_BASE64 secret."
+          if [[ ! -f google-services.json ]]; then
+            echo "::error::google-services.json missing. Commit file or set GOOGLE_SERVICES_JSON_BASE64."
             exit 1
           fi
-          echo "google-services.json is present."
 
-      # ── 5. Android signing (keystore dari GitHub Secrets) ─────────────────
-      # key.properties dibaca oleh android/app/build.gradle via rootProject.file.
-      # storeFile diresolvasi relatif terhadap android/app/ (Gradle sub-project).
       - name: Write keystore and key.properties
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -180,7 +239,9 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         working-directory: apps/mobile/android
+        shell: bash
         run: |
+          set -euo pipefail
           echo "$KEYSTORE_B64" | base64 --decode > app/release.keystore
           printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=%s\n' \
             "$STORE_PASSWORD" \
@@ -188,119 +249,157 @@ jobs:
             "$KEY_ALIAS" \
             "release.keystore" \
             > key.properties
-          echo "Keystore: android/app/release.keystore"
-          echo "Config:   android/key.properties"
 
-      # ── 6. Build ──────────────────────────────────────────────────────────
+      - name: Verify versionCode is higher than Play Store
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          ANDROID_PACKAGE_NAME: ${{ secrets.ANDROID_PACKAGE_NAME }}
+          VERSION_CODE: ${{ needs.plan.outputs.version_code }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet --upgrade google-api-python-client google-auth
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.errors import HttpError
+
+          package_name = os.environ["ANDROID_PACKAGE_NAME"]
+          version_code = int(os.environ["VERSION_CODE"])
+          service_account_info = json.loads(os.environ["GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"])
+          scopes = ["https://www.googleapis.com/auth/androidpublisher"]
+          creds = service_account.Credentials.from_service_account_info(service_account_info, scopes=scopes)
+          service = build("androidpublisher", "v3", credentials=creds, cache_discovery=False)
+
+          edit = service.edits().insert(packageName=package_name, body={}).execute()
+          edit_id = edit["id"]
+          max_code = 0
+          tracks = ["internal", "alpha", "beta", "closed", "production"]
+
+          try:
+            for track in tracks:
+              try:
+                resp = service.edits().tracks().get(
+                  packageName=package_name,
+                  editId=edit_id,
+                  track=track
+                ).execute()
+              except HttpError as err:
+                status = getattr(err.resp, "status", None)
+                if status == 404:
+                  continue
+                raise
+
+              for release in resp.get("releases", []):
+                for code in release.get("versionCodes", []):
+                  max_code = max(max_code, int(code))
+          finally:
+            try:
+              service.edits().delete(packageName=package_name, editId=edit_id).execute()
+            except Exception:
+              pass
+
+          if max_code and version_code <= max_code:
+            print(f"::error::versionCode {version_code} must be greater than current Play max {max_code}.")
+            sys.exit(1)
+
+          print(f"versionCode check passed: {version_code} > {max_code}")
+          PY
+
       - name: Install Flutter dependencies
         working-directory: apps/mobile
         run: flutter pub get
 
-      - name: Build release AAB (bundleRelease)
+      - name: Build release AAB
         working-directory: apps/mobile
         run: |
           flutter build appbundle \
             --release \
-            --build-name=${{ steps.version.outputs.name }} \
-            --build-number=${{ steps.version.outputs.code }} \
+            --build-name=${{ needs.plan.outputs.version_name }} \
+            --build-number=${{ needs.plan.outputs.version_code }} \
             --dart-define-from-file=env/prod.json
 
-      # ── 7. Archive ────────────────────────────────────────────────────────
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: agrinova-android-${{ steps.version.outputs.name }}-${{ steps.version.outputs.code }}
+          name: agrinova-android-${{ needs.plan.outputs.version_name }}-${{ needs.plan.outputs.version_code }}
           path: apps/mobile/build/app/outputs/bundle/release/app-release.aab
           retention-days: 30
 
-      # ── 8. Prepare What's New / Release Notes ────────────────────────────
-      # Priority: static file → tag annotation → default fallback.
-      # Play Store limit: 500 chars per locale.
       - name: Prepare release notes
         id: notes
+        shell: bash
         run: |
+          set -euo pipefail
           WHATSNEW_DIR="$(mktemp -d)/whatsnew"
           mkdir -p "$WHATSNEW_DIR"
 
-          # Priority 1: static file committed in repo
           STATIC_ID="apps/mobile/whatsnew/whatsnew-id-ID"
           STATIC_ID_LEGACY="apps/mobile/whatsnew/whatsnew-id"
           STATIC_EN="apps/mobile/whatsnew/whatsnew-en-US"
 
-          if [ -f "$STATIC_ID" ]; then
+          if [[ -f "$STATIC_ID" ]]; then
             cp "$STATIC_ID" "$WHATSNEW_DIR/whatsnew-id-ID"
-            echo "Release notes: using static whatsnew-id-ID"
-          elif [ -f "$STATIC_ID_LEGACY" ]; then
+          elif [[ -f "$STATIC_ID_LEGACY" ]]; then
             cp "$STATIC_ID_LEGACY" "$WHATSNEW_DIR/whatsnew-id-ID"
-            echo "Release notes: using static legacy whatsnew-id"
           else
-            # Priority 2: git tag annotation (only available on push tags)
             TAG_BODY=""
-            if [ "${{ github.event_name }}" = "push" ]; then
-              TAG_BODY=$(git tag -l --format='%(contents:body)' "${{ github.ref_name }}" 2>/dev/null || true)
-              [ -z "$TAG_BODY" ] && TAG_BODY=$(git tag -l --format='%(contents:subject)' "${{ github.ref_name }}" 2>/dev/null || true)
+            if [[ "${{ github.ref_type }}" == "tag" ]]; then
+              TAG_BODY="$(git tag -l --format='%(contents:body)' "${{ github.ref_name }}" 2>/dev/null || true)"
+              if [[ -z "$TAG_BODY" ]]; then
+                TAG_BODY="$(git tag -l --format='%(contents:subject)' "${{ github.ref_name }}" 2>/dev/null || true)"
+              fi
             fi
 
-            if [ -n "$TAG_BODY" ]; then
+            if [[ -n "$TAG_BODY" ]]; then
               echo "$TAG_BODY" | head -c 500 > "$WHATSNEW_DIR/whatsnew-id-ID"
-              echo "Release notes: using tag annotation"
             else
-              # Priority 3: default fallback
-              echo "Perbaikan bug dan peningkatan performa untuk versi ${{ steps.version.outputs.name }}." \
+              echo "Perbaikan bug dan peningkatan performa track ${{ needs.plan.outputs.track }} untuk versi ${{ needs.plan.outputs.version_name }}." \
                 > "$WHATSNEW_DIR/whatsnew-id-ID"
-              echo "Release notes: using default fallback"
             fi
           fi
 
-          # English locale: static file or same content as Indonesian
-          if [ -f "$STATIC_EN" ]; then
+          if [[ -f "$STATIC_EN" ]]; then
             cp "$STATIC_EN" "$WHATSNEW_DIR/whatsnew-en-US"
           else
-            echo "Bug fixes and performance improvements for version ${{ steps.version.outputs.name }}." \
+            echo "Bug fixes and performance improvements for version ${{ needs.plan.outputs.version_name }}." \
               > "$WHATSNEW_DIR/whatsnew-en-US"
           fi
 
           echo "dir=$WHATSNEW_DIR" >> "$GITHUB_OUTPUT"
-          echo "── whatsnew-id-ID ──"
-          cat "$WHATSNEW_DIR/whatsnew-id-ID"
-          echo "── whatsnew-en-US ──"
-          cat "$WHATSNEW_DIR/whatsnew-en-US"
 
-      # ── 9. Deploy ─────────────────────────────────────────────────────────
-      # Uploads to the alpha track (available to opted-in testers).
-      # Promote to beta / production manually in Play Console.
-      - name: Deploy to Play Store — alpha track
+      - name: Deploy to Google Play
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: ${{ secrets.ANDROID_PACKAGE_NAME }}
           releaseFiles: apps/mobile/build/app/outputs/bundle/release/app-release.aab
-          track: alpha
+          track: ${{ needs.plan.outputs.track }}
           status: completed
           mappingFile: apps/mobile/build/app/outputs/mapping/release/mapping.txt
           whatsNewDirectory: ${{ steps.notes.outputs.dir }}
 
-      # ── 10. Summary ───────────────────────────────────────────────────────
       - name: Write job summary
         if: success()
+        shell: bash
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
           ## Android Release Deployed
 
-          | Field       | Value |
-          |-------------|-------|
-          | **Version** | ${{ steps.version.outputs.name }}+${{ steps.version.outputs.code }} |
-          | **Tag**     | `${{ github.ref_name }}` |
-          | **Track**   | alpha |
-          | **Package** | ${{ secrets.ANDROID_PACKAGE_NAME }} |
-          | **Commit**  | `${{ github.sha }}` |
-          | **Run**     | #${{ github.run_number }} |
-
-          Promote ke beta / production di [Play Console](https://play.google.com/console).
+          | Field | Value |
+          |-------|-------|
+          | **Version** | ${{ needs.plan.outputs.version_name }}+${{ needs.plan.outputs.version_code }} |
+          | **Ref** | `${{ github.ref_name }}` |
+          | **Track** | `${{ needs.plan.outputs.track }}` |
+          | **Environment** | `${{ needs.plan.outputs.environment }}` |
+          | **Package** | `${{ secrets.ANDROID_PACKAGE_NAME }}` |
+          | **Commit** | `${{ github.sha }}` |
+          | **Run** | `#${{ github.run_number }}` |
           EOF
 
-      # ── 11. Cleanup ───────────────────────────────────────────────────────
-      # Always remove signing artifacts regardless of build outcome.
       - name: Clean up signing files
         if: always()
         run: |
