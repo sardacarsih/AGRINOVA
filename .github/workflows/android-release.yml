@@ -5,7 +5,6 @@ on:
     branches:
       - develop
       - main
-      - 'release/**'
     paths:
       - 'apps/mobile/**'
       - '.github/workflows/android-release.yml'
@@ -27,9 +26,14 @@ on:
         description: 'Optional Android versionCode override'
         required: false
         default: ''
+      source_commit:
+        description: 'Commit SHA from develop artifact (required for closed promotion)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: android-release-mobile
@@ -49,11 +53,16 @@ jobs:
       play_track: ${{ steps.plan.outputs.play_track }}
       environment: ${{ steps.plan.outputs.environment }}
       is_production: ${{ steps.plan.outputs.is_production }}
+      requires_build: ${{ steps.plan.outputs.requires_build }}
+      source_commit: ${{ steps.plan.outputs.source_commit }}
+      artifact_name: ${{ steps.plan.outputs.artifact_name }}
       version_name: ${{ steps.plan.outputs.version_name }}
       version_code: ${{ steps.plan.outputs.version_code }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Resolve track and version
         id: plan
@@ -69,29 +78,47 @@ jobs:
           play_track=""
           environment=""
           is_production="false"
+          requires_build="true"
+          source_commit="${GITHUB_SHA}"
+          artifact_name=""
           version_name=""
+          version_code=""
 
           if [[ "$event_name" == "push" && "$ref_type" == "branch" ]]; then
             if [[ "$ref_name" == "develop" ]]; then
               track="internal"
               play_track="internal"
               environment="mobile-internal"
-            elif [[ "$ref_name" == "main" || "$ref_name" == release/* ]]; then
+            elif [[ "$ref_name" == "main" ]]; then
               track="closed"
               play_track="alpha"
               environment="mobile-closed"
+              requires_build="false"
+              if git rev-parse --verify HEAD^2 >/dev/null 2>&1; then
+                source_commit="$(git rev-parse HEAD^2)"
+              fi
             else
-              echo "::error::Unsupported branch '$ref_name'. Allowed: develop, main, release/*."
+              echo "::error::Unsupported branch '$ref_name'. Allowed: develop, main."
               exit 1
             fi
           elif [[ "$event_name" == "push" && "$ref_type" == "tag" ]]; then
-            echo "::error::Tag-based production release is temporarily disabled. Use branch push (develop/main/release/*) or workflow_dispatch for internal/closed."
+            echo "::error::Tag-based production release is temporarily disabled. Use branch push (develop/main) or workflow_dispatch for internal/closed."
             exit 1
           elif [[ "$event_name" == "workflow_dispatch" ]]; then
             track="${{ github.event.inputs.target_track }}"
             environment="mobile-${track}"
             if [[ "$track" == "closed" ]]; then
               play_track="alpha"
+              requires_build="false"
+              manual_source_commit="${{ github.event.inputs.source_commit }}"
+              if [[ -n "$manual_source_commit" ]]; then
+                source_commit="$manual_source_commit"
+              elif [[ "$ref_name" == "main" ]] && git rev-parse --verify HEAD^2 >/dev/null 2>&1; then
+                source_commit="$(git rev-parse HEAD^2)"
+              else
+                echo "::error::closed promotion requires source_commit input (develop commit SHA)."
+                exit 1
+              fi
             elif [[ "$track" == "internal" ]]; then
               play_track="internal"
             else
@@ -103,6 +130,13 @@ jobs:
             exit 1
           fi
 
+          if [[ ! "$source_commit" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Invalid source_commit '$source_commit'. Expected full 40-char SHA."
+            exit 1
+          fi
+
+          artifact_name="agrinova-android-aab-${source_commit}"
+
           pubspec_version_line="$(grep -E '^version:' apps/mobile/pubspec.yaml | head -n1 || true)"
           pubspec_version="$(echo "$pubspec_version_line" | awk '{print $2}')"
           base_version="${pubspec_version%%+*}"
@@ -112,50 +146,58 @@ jobs:
             exit 1
           fi
 
-          if [[ -z "$version_name" ]]; then
-            manual_version_name="${{ github.event.inputs.version_name }}"
-            if [[ "$event_name" == "workflow_dispatch" && -n "$manual_version_name" ]]; then
-              version_name="$manual_version_name"
-            elif [[ "$track" == "internal" ]]; then
-              version_name="${base_version}-dev.${GITHUB_RUN_NUMBER}"
-            elif [[ "$track" == "closed" ]]; then
-              version_name="${base_version}-rc.${GITHUB_RUN_NUMBER}"
-            else
-              version_name="$base_version"
+          if [[ "$requires_build" == "true" ]]; then
+            if [[ -z "$version_name" ]]; then
+              manual_version_name="${{ github.event.inputs.version_name }}"
+              if [[ "$event_name" == "workflow_dispatch" && -n "$manual_version_name" ]]; then
+                version_name="$manual_version_name"
+              elif [[ "$track" == "internal" ]]; then
+                version_name="${base_version}-dev.${GITHUB_RUN_NUMBER}"
+              elif [[ "$track" == "closed" ]]; then
+                version_name="${base_version}-rc.${GITHUB_RUN_NUMBER}"
+              else
+                version_name="$base_version"
+              fi
             fi
-          fi
 
-          manual_version_code="${{ github.event.inputs.version_code }}"
-          if [[ -n "$manual_version_code" ]]; then
-            version_code="$manual_version_code"
+            manual_version_code="${{ github.event.inputs.version_code }}"
+            if [[ -n "$manual_version_code" ]]; then
+              version_code="$manual_version_code"
+            else
+              version_code="$(date +%s)"
+            fi
+
+            if [[ ! "$version_code" =~ ^[0-9]+$ ]]; then
+              echo "::error::versionCode must be a positive integer (got '$version_code')."
+              exit 1
+            fi
+
+            if (( version_code <= 0 )); then
+              echo "::error::versionCode must be greater than zero."
+              exit 1
+            fi
+
+            if (( version_code > ANDROID_MAX_VERSION_CODE )); then
+              echo "::error::versionCode exceeds Android max (${ANDROID_MAX_VERSION_CODE})."
+              exit 1
+            fi
+
+            if [[ "$is_production" == "true" && ! "$version_name" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Production versionName must be semantic (X.Y.Z)."
+              exit 1
+            fi
           else
-            version_code="$(date +%s)"
-          fi
-
-          if [[ ! "$version_code" =~ ^[0-9]+$ ]]; then
-            echo "::error::versionCode must be a positive integer (got '$version_code')."
-            exit 1
-          fi
-
-          if (( version_code <= 0 )); then
-            echo "::error::versionCode must be greater than zero."
-            exit 1
-          fi
-
-          if (( version_code > ANDROID_MAX_VERSION_CODE )); then
-            echo "::error::versionCode exceeds Android max (${ANDROID_MAX_VERSION_CODE})."
-            exit 1
-          fi
-
-          if [[ "$is_production" == "true" && ! "$version_name" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Production versionName must be semantic (X.Y.Z)."
-            exit 1
+            version_name="from-artifact"
+            version_code="from-artifact"
           fi
 
           echo "track=$track" >> "$GITHUB_OUTPUT"
           echo "play_track=$play_track" >> "$GITHUB_OUTPUT"
           echo "environment=$environment" >> "$GITHUB_OUTPUT"
           echo "is_production=$is_production" >> "$GITHUB_OUTPUT"
+          echo "requires_build=$requires_build" >> "$GITHUB_OUTPUT"
+          echo "source_commit=$source_commit" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
 
@@ -166,6 +208,9 @@ jobs:
           echo "  play_track  = $play_track"
           echo "  environment = $environment"
           echo "  production  = $is_production"
+          echo "  build       = $requires_build"
+          echo "  source      = $source_commit"
+          echo "  artifact    = $artifact_name"
           echo "  versionName = $version_name"
           echo "  versionCode = $version_code"
 
@@ -199,6 +244,7 @@ jobs:
 
   build-and-deploy:
     name: Build and Deploy to Google Play
+    if: needs.plan.outputs.requires_build == 'true'
     runs-on: ubuntu-latest
     needs: [plan, validate]
     timeout-minutes: 50
@@ -329,13 +375,6 @@ jobs:
             --build-number=${{ needs.plan.outputs.version_code }} \
             --dart-define-from-file=env/prod.json
 
-      - name: Upload AAB artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: agrinova-android-${{ needs.plan.outputs.version_name }}-${{ needs.plan.outputs.version_code }}
-          path: apps/mobile/build/app/outputs/bundle/release/app-release.aab
-          retention-days: 30
-
       - name: Prepare release notes
         id: notes
         shell: bash
@@ -449,6 +488,41 @@ jobs:
 
           echo "dir=$WHATSNEW_DIR" >> "$GITHUB_OUTPUT"
 
+      - name: Package promotion artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          DIST_DIR="$RUNNER_TEMP/promotion"
+          mkdir -p "$DIST_DIR/whatsnew"
+
+          cp apps/mobile/build/app/outputs/bundle/release/app-release.aab "$DIST_DIR/app-release.aab"
+          cp -R "${{ steps.notes.outputs.dir }}/." "$DIST_DIR/whatsnew/"
+
+          if [[ -f apps/mobile/build/app/outputs/mapping/release/mapping.txt ]]; then
+            cp apps/mobile/build/app/outputs/mapping/release/mapping.txt "$DIST_DIR/mapping.txt"
+          fi
+
+          AAB_SHA256="$(sha256sum "$DIST_DIR/app-release.aab" | awk '{print $1}')"
+          cat > "$DIST_DIR/release-metadata.json" <<EOF
+          {
+            "source_commit": "${{ needs.plan.outputs.source_commit }}",
+            "version_name": "${{ needs.plan.outputs.version_name }}",
+            "version_code": "${{ needs.plan.outputs.version_code }}",
+            "track": "${{ needs.plan.outputs.track }}",
+            "play_track": "${{ needs.plan.outputs.play_track }}",
+            "aab_sha256": "$AAB_SHA256",
+            "build_run_id": "${{ github.run_id }}",
+            "build_run_number": "${{ github.run_number }}"
+          }
+          EOF
+
+      - name: Upload promotion artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ needs.plan.outputs.artifact_name }}
+          path: ${{ runner.temp }}/promotion/**
+          retention-days: 30
+
       - name: Deploy to Google Play
         uses: r0adkll/upload-google-play@v1
         with:
@@ -474,6 +548,8 @@ jobs:
           | **Track** | `${{ needs.plan.outputs.track }}` |
           | **Play Track** | `${{ needs.plan.outputs.play_track }}` |
           | **Environment** | `${{ needs.plan.outputs.environment }}` |
+          | **Source Commit** | `${{ needs.plan.outputs.source_commit }}` |
+          | **Promotion Artifact** | `${{ needs.plan.outputs.artifact_name }}` |
           | **Package** | `${{ secrets.ANDROID_PACKAGE_NAME }}` |
           | **Commit** | `${{ github.sha }}` |
           | **Run** | `#${{ github.run_number }}` |
@@ -485,3 +561,190 @@ jobs:
           rm -f apps/mobile/android/app/release.keystore
           rm -f apps/mobile/android/key.properties
           rm -f apps/mobile/android/app/google-services.json
+
+  promote-to-alpha:
+    name: Promote Existing AAB to Alpha
+    if: needs.plan.outputs.requires_build == 'false' && needs.plan.outputs.track == 'closed'
+    runs-on: ubuntu-latest
+    needs: [plan, validate]
+    timeout-minutes: 30
+    environment:
+      name: ${{ needs.plan.outputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Find develop run artifact for source commit
+        id: find_artifact
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const sourceCommit = '${{ needs.plan.outputs.source_commit }}';
+            const artifactName = '${{ needs.plan.outputs.artifact_name }}';
+            const workflowPath = '.github/workflows/android-release.yml';
+
+            const runs = await github.paginate(
+              github.rest.actions.listWorkflowRunsForRepo,
+              {
+                owner,
+                repo,
+                branch: 'develop',
+                event: 'push',
+                status: 'success',
+                per_page: 100
+              }
+            );
+
+            const candidates = runs
+              .filter((run) => run.head_sha === sourceCommit)
+              .filter((run) => typeof run.path === 'string' && run.path.startsWith(workflowPath))
+              .sort((a, b) => b.id - a.id);
+
+            if (candidates.length === 0) {
+              core.setFailed(`No successful develop workflow run found for source commit ${sourceCommit}.`);
+              return;
+            }
+
+            for (const run of candidates) {
+              const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+                owner,
+                repo,
+                run_id: run.id,
+                per_page: 100
+              });
+
+              const match = artifacts.data.artifacts.find(
+                (artifact) => artifact.name === artifactName && !artifact.expired
+              );
+
+              if (match) {
+                core.info(`Using run ${run.id} for commit ${sourceCommit}.`);
+                core.setOutput('run_id', String(run.id));
+                core.setOutput('artifact_id', String(match.id));
+                return;
+              }
+            }
+
+            core.setFailed(
+              `Artifact ${artifactName} not found in successful develop runs for commit ${sourceCommit}.`
+            );
+
+      - name: Download promotion artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.plan.outputs.artifact_name }}
+          run-id: ${{ steps.find_artifact.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/promotion
+
+      - name: Validate artifact metadata
+        id: metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ART_DIR="${{ runner.temp }}/promotion"
+          META_FILE="$(find "$ART_DIR" -type f -name 'release-metadata.json' | head -n1 || true)"
+          AAB_FILE="$(find "$ART_DIR" -type f -name 'app-release.aab' | head -n1 || true)"
+          NOTES_DIR="$(find "$ART_DIR" -type d -name 'whatsnew' | head -n1 || true)"
+
+          [[ -n "$META_FILE" && -f "$META_FILE" ]] || { echo "::error::Missing release-metadata.json in artifact."; exit 1; }
+          [[ -n "$AAB_FILE" && -f "$AAB_FILE" ]] || { echo "::error::Missing app-release.aab in artifact."; exit 1; }
+
+          python - "$META_FILE" "$AAB_FILE" <<'PY' > "$RUNNER_TEMP/meta.env"
+          import hashlib
+          import json
+          import sys
+          from pathlib import Path
+
+          meta = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+          aab_path = Path(sys.argv[2])
+          aab_sha256 = hashlib.sha256(aab_path.read_bytes()).hexdigest()
+          expected_sha256 = meta.get("aab_sha256", "")
+          if expected_sha256 and expected_sha256 != aab_sha256:
+            print("error=sha256-mismatch")
+            sys.exit(2)
+
+          required = ["source_commit", "version_name", "version_code"]
+          for key in required:
+            if not meta.get(key):
+              print(f"error=missing-{key}")
+              sys.exit(3)
+
+          print(f"meta_source_commit={meta['source_commit']}")
+          print(f"meta_version_name={meta['version_name']}")
+          print(f"meta_version_code={meta['version_code']}")
+          print(f"meta_aab_sha256={aab_sha256}")
+          PY
+
+          source "$RUNNER_TEMP/meta.env"
+          if [[ "${meta_source_commit}" != "${{ needs.plan.outputs.source_commit }}" ]]; then
+            echo "::error::Artifact source_commit ${meta_source_commit} does not match expected ${{ needs.plan.outputs.source_commit }}."
+            exit 1
+          fi
+
+          echo "version_name=${meta_version_name}" >> "$GITHUB_OUTPUT"
+          echo "version_code=${meta_version_code}" >> "$GITHUB_OUTPUT"
+          echo "aab_sha256=${meta_aab_sha256}" >> "$GITHUB_OUTPUT"
+          echo "aab_file=${AAB_FILE}" >> "$GITHUB_OUTPUT"
+          if [[ -n "$NOTES_DIR" ]]; then
+            echo "notes_dir=${NOTES_DIR}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Ensure release notes exists
+        id: notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          NOTES_DIR="${{ steps.metadata.outputs.notes_dir }}"
+          if [[ -z "$NOTES_DIR" ]]; then
+            NOTES_DIR="${{ runner.temp }}/promotion/whatsnew"
+          fi
+          mkdir -p "$NOTES_DIR"
+
+          if [[ ! -f "$NOTES_DIR/whatsnew-id-ID" ]]; then
+            echo "Perbaikan bug dan peningkatan performa untuk versi ${{ steps.metadata.outputs.version_name }}." > "$NOTES_DIR/whatsnew-id-ID"
+          fi
+
+          if [[ ! -f "$NOTES_DIR/whatsnew-en-US" ]]; then
+            echo "Bug fixes and performance improvements for version ${{ steps.metadata.outputs.version_name }}." > "$NOTES_DIR/whatsnew-en-US"
+          fi
+
+          echo "dir=${NOTES_DIR}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Google Play (alpha)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ secrets.ANDROID_PACKAGE_NAME }}
+          releaseFiles: ${{ steps.metadata.outputs.aab_file }}
+          track: ${{ needs.plan.outputs.play_track }}
+          status: completed
+          whatsNewDirectory: ${{ steps.notes.outputs.dir }}
+
+      - name: Write job summary
+        if: success()
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" << 'EOF'
+          ## Android Promotion Deployed
+
+          | Field | Value |
+          |-------|-------|
+          | **Version** | ${{ steps.metadata.outputs.version_name }}+${{ steps.metadata.outputs.version_code }} |
+          | **Ref** | `${{ github.ref_name }}` |
+          | **Track** | `${{ needs.plan.outputs.track }}` |
+          | **Play Track** | `${{ needs.plan.outputs.play_track }}` |
+          | **Environment** | `${{ needs.plan.outputs.environment }}` |
+          | **Source Commit** | `${{ needs.plan.outputs.source_commit }}` |
+          | **AAB SHA256** | `${{ steps.metadata.outputs.aab_sha256 }}` |
+          | **Promotion Artifact** | `${{ needs.plan.outputs.artifact_name }}` |
+          | **Artifact Run ID** | `${{ steps.find_artifact.outputs.run_id }}` |
+          | **Package** | `${{ secrets.ANDROID_PACKAGE_NAME }}` |
+          | **Commit** | `${{ github.sha }}` |
+          | **Run** | `#${{ github.run_number }}` |
+          EOF
