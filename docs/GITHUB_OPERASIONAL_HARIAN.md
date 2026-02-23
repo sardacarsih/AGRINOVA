@@ -143,7 +143,8 @@ Interpretasi:
 
 Workflow di repo ini:
 - `CI`: validasi build/test.
-- `Build Production Artifact`: build paket produksi setelah `CI` sukses di `main` (atau manual `workflow_dispatch`).
+- `Backend Release`: build backend production release via tag `backend/vX.Y.Z` (atau manual).
+- `Web Release`: build web production release via tag `web/vX.Y.Z` (atau manual).
 
 ## 6) Error Umum dan Solusi Cepat
 ### A) Push ditolak (`non-fast-forward`)
@@ -165,16 +166,23 @@ git push origin main
 git restore path/ke/file
 ```
 
-## 7) Operasional Build Artifact
-Otomatis:
-- Push ke `main`.
-- `CI` jalan.
-- Jika `CI` sukses, `Build Production Artifact` jalan otomatis.
+## 7) Operasional Release Backend/Web
+Release backend (otomatis via tag):
+```powershell
+git tag -a backend/v1.2.3 -m "Backend release v1.2.3"
+git push origin backend/v1.2.3
+```
 
-Manual:
+Release web (otomatis via tag):
+```powershell
+git tag -a web/v1.2.3 -m "Web release v1.2.3"
+git push origin web/v1.2.3
+```
+
+Manual run:
 - Buka tab `Actions` di GitHub.
-- Pilih `Build Production Artifact`.
-- Klik `Run workflow`.
+- Pilih `Backend Release` atau `Web Release`.
+- Klik `Run workflow`, isi `version`, lalu jalankan.
 
 ## 8) Kapan Tetap Pakai Branch Fitur
 Pakai branch (`feat/...`) jika:
@@ -205,3 +213,5 @@ Penjelasan cepat:
 ## 10) Referensi Khusus Mobile Release
 - Untuk SOP lengkap pipeline mobile (branch -> track, environment, approval production, versioning, dan troubleshooting), lihat:
   - `docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md`
+- Untuk template cara memberi perintah ke AI (prompt siap pakai), lihat:
+  - `docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md` bagian `12. Template Command ke AI (Operasional Harian)`

@@ -1,0 +1,143 @@
+name: Web Release
+
+on:
+  push:
+    tags:
+      - "web/v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (example: 1.2.3)"
+        required: true
+        default: "1.0.0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: web-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  validate:
+    name: Validate Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Type check
+        working-directory: apps/web
+        run: npm run type-check
+
+      - name: Build frontend
+        working-directory: apps/web
+        run: npm run build
+
+  build-and-release:
+    name: Build and Release Web
+    needs: validate
+    runs-on: windows-latest
+    timeout-minutes: 50
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version from tag
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version_name="${{ github.event.inputs.version }}"
+            if [[ ! "$version_name" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Invalid version: $version_name (expected X.Y.Z)"
+              exit 1
+            fi
+            tag_name="web/v${version_name}"
+          else
+            tag_name="${{ github.ref_name }}"
+            if [[ ! "$tag_name" =~ ^web/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+              echo "Invalid web tag format: $tag_name (expected web/vX.Y.Z)"
+              exit 1
+            fi
+            version_name="${BASH_REMATCH[1]}"
+          fi
+          echo "name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag_name" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Build web standalone artifact
+        shell: pwsh
+        working-directory: apps/web
+        env:
+          NEXT_PUBLIC_APP_VERSION: ${{ steps.version.outputs.name }}
+        run: |
+          npm ci
+          npm run build:standalone
+          powershell -ExecutionPolicy Bypass -File .\scripts\package-standalone.ps1 -ReleaseName web-standalone
+
+          if (!(Test-Path ".\release\web-standalone.zip")) {
+            throw "Missing web standalone zip artifact."
+          }
+
+      - name: Rename release asset
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.name }}"
+          Copy-Item -Path "apps\web\release\web-standalone.zip" -Destination "agrinova-web-standalone-$version.zip" -Force
+
+      - name: Build release body
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            tag="${{ steps.version.outputs.tag }}"
+            body="$(git tag -l --format='%(contents)' "$tag")"
+            if [ -z "$body" ]; then
+              body="Web release $tag"
+            fi
+          else
+            body="Web release web/v${{ steps.version.outputs.name }}"
+          fi
+          printf "%s\n" "$body" > gh_release_body.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "Web v${{ steps.version.outputs.name }}"
+          body_path: gh_release_body.md
+          files: agrinova-web-standalone-${{ steps.version.outputs.name }}.zip
+          draft: false
+          prerelease: false
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-release-${{ steps.version.outputs.name }}-${{ github.run_number }}
+          path: agrinova-web-standalone-${{ steps.version.outputs.name }}.zip
+          retention-days: 30

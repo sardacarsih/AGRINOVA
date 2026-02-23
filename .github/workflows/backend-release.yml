@@ -1,0 +1,146 @@
+name: Backend Release
+
+on:
+  push:
+    tags:
+      - "backend/v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (example: 1.2.3)"
+        required: true
+        default: "1.0.0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backend-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GO_VERSION: "1.24"
+
+jobs:
+  validate:
+    name: Validate Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: apps/golang/go.sum
+
+      - name: Download Go dependencies
+        working-directory: apps/golang
+        run: go mod download
+
+      - name: Build all Go packages
+        working-directory: apps/golang
+        run: go build ./...
+
+      - name: Run backend smoke tests
+        working-directory: apps/golang
+        run: go test ./internal/auth/constants ./internal/auth/models ./internal/graphql/resolvers -count=1
+
+  build-and-release:
+    name: Build and Release Backend
+    needs: validate
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version from tag
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            version_name="${{ github.event.inputs.version }}"
+            if [[ ! "$version_name" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "Invalid version: $version_name (expected X.Y.Z)"
+              exit 1
+            fi
+            tag_name="backend/v${version_name}"
+          else
+            tag_name="${{ github.ref_name }}"
+            if [[ ! "$tag_name" =~ ^backend/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+              echo "Invalid backend tag format: $tag_name (expected backend/vX.Y.Z)"
+              exit 1
+            fi
+            version_name="${BASH_REMATCH[1]}"
+          fi
+          echo "name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag_name" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: apps/golang/go.sum
+
+      - name: Build backend runtime artifact
+        shell: pwsh
+        working-directory: apps/golang
+        run: |
+          powershell -ExecutionPolicy Bypass -File .\scripts\package-binaries.ps1 `
+            -TargetOS windows -TargetArch amd64 `
+            -ReleaseName backend-windows-amd64 `
+            -Version "${{ steps.version.outputs.name }}" `
+            -SkipSeed -SkipEnvTemplate
+
+          if (!(Test-Path ".\release\backend-windows-amd64\agrinova-migrate.exe")) {
+            throw "Missing agrinova-migrate.exe"
+          }
+          if (!(Test-Path ".\release\backend-windows-amd64\agrinova-server.exe")) {
+            throw "Missing agrinova-server.exe"
+          }
+
+      - name: Rename release asset
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.name }}"
+          Copy-Item -Path "apps\golang\release\backend-windows-amd64.zip" -Destination "agrinova-backend-$version.zip" -Force
+
+      - name: Build release body
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            tag="${{ steps.version.outputs.tag }}"
+            body="$(git tag -l --format='%(contents)' "$tag")"
+            if [ -z "$body" ]; then
+              body="Backend release $tag"
+            fi
+          else
+            body="Backend release backend/v${{ steps.version.outputs.name }}"
+          fi
+          printf "%s\n" "$body" > gh_release_body.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "Backend v${{ steps.version.outputs.name }}"
+          body_path: gh_release_body.md
+          files: agrinova-backend-${{ steps.version.outputs.name }}.zip
+          draft: false
+          prerelease: false
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-release-${{ steps.version.outputs.name }}-${{ github.run_number }}
+          path: agrinova-backend-${{ steps.version.outputs.name }}.zip
+          retention-days: 30

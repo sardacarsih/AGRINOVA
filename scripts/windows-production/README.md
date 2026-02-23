@@ -1,91 +1,36 @@
-# Windows Production Auto Deploy (GitHub Releases)
+# Windows Production Auto Deploy (Split Backend/Web)
 
-Dokumen ini adalah runbook deployment produksi untuk skenario:
-1. Build dilakukan di GitHub Actions (dipicu oleh git tag `v*.*.*`).
-2. GitHub Actions membuat **GitHub Release** dengan ZIP artifact terlampir.
-3. Server Windows mendeteksi release baru dan mengunduh ZIP tersebut.
-4. Backend wajib menjalankan `agrinova-migrate.exe` sebelum `agrinova-server.exe`.
+This runbook uses a fully split release and deploy model:
 
-## Alur end-to-end
+- Backend release tags: `backend/vX.Y.Z`
+- Web release tags: `web/vX.Y.Z`
+- Backend deploy script: `deploy-backend.ps1`
+- Web deploy script: `deploy-web.ps1`
 
-1. Developer push git tag: `git tag -a v1.2.3 -m "..." && git push origin v1.2.3`
-2. GitHub Actions menjalankan `backend-web-release.yml` → validate → build → create GitHub Release.
-3. Release berisi ZIP `agrinova-production-1.2.3.zip` (backend + web).
-4. Server menjalankan `deploy.ps1` (manual/terjadwal).
-5. `deploy.ps1` cek `/releases/latest`, bandingkan tag dengan versi aktif, download ZIP jika ada versi baru.
-6. Extract, deploy ke `releases`, update `current`, restart service, health check.
-7. Jika health check gagal, script rollback otomatis ke release sebelumnya.
+There is no combined backend+web release flow.
 
-## 1) Sisi Laptop Development
+## End-to-end flow
 
-1. Pastikan file ini ada di repo:
-- `.github/workflows/backend-web-release.yml`
-- `.github/workflows/android-release.yml`
-- `scripts/windows-production/deploy.ps1`
-- `scripts/windows-production/run-backend.ps1`
-- `scripts/windows-production/run-web.ps1`
+1. Push backend tag or web tag.
+2. GitHub Actions creates a release for that component.
+3. Windows server runs component deploy script (manual or scheduled).
+4. Script downloads latest component release asset, deploys, restarts only related service, and runs health check.
+5. If health check fails, script rolls back that component only.
 
-2. Push git tag untuk rilis:
+## 1) Tag and release conventions
 
-```bash
-git tag -a v1.0.0 -m "Rilis pertama" && git push origin v1.0.0
-```
+- Backend:
+  - Tag: `backend/v1.2.3`
+  - Workflow: `.github/workflows/backend-release.yml`
+  - Asset: `agrinova-backend-1.2.3.zip`
 
-Cek hasil:
-- GitHub Actions → tab **Actions** → workflow `Backend & Web Release` harus sukses
-- GitHub → tab **Releases** → release `v1.0.0` harus muncul dengan asset ZIP
+- Web:
+  - Tag: `web/v1.2.3`
+  - Workflow: `.github/workflows/web-release.yml`
+  - Asset: `agrinova-web-standalone-1.2.3.zip`
 
+## 2) Server folder layout
 
-3. Verifikasi cepat sebelum push (opsional):
-- Backend: pastikan build menghasilkan `agrinova-migrate.exe` dan `agrinova-server.exe`.
-- Web: pastikan `npm run build:standalone` sukses.
-
-Perintah cek cepat:
-cd d:\VSCODE\agrinova\apps\golang
-
-# Build backend artifact (Windows)
-powershell -ExecutionPolicy Bypass -File .\scripts\package-binaries.ps1 -TargetOS windows -TargetArch amd64 -ReleaseName verify-backend
-
-# Verifikasi file exe
-Get-ChildItem .\release\verify-backend\*.exe
-Test-Path .\release\verify-backend\agrinova-migrate.exe
-Test-Path .\release\verify-backend\agrinova-server.exe
-
-cd d:\VSCODE\agrinova\apps\web
-
-# Build standalone
-npm ci
-npm run build:standalone
-
-# Verifikasi output standalone
-Test-Path .\.next\standalone
-Test-Path .\.next\static
-Kalau Test-Path hasilnya True, berarti lolos verifikasi.
-
-## 2) Sisi GitHub
-
-1. Workflow yang dipakai:
-- File: `.github/workflows/backend-web-release.yml`
-- Trigger: `push` git tag `v*.*.*`
-
-2. Output workflow:
-- GitHub Release dengan tag `v1.2.3`
-- Asset ZIP: `agrinova-production-1.2.3.zip`
-- Struktur minimum di dalam ZIP:
-  - `backend/`
-  - `web/`
-  - `VERSION.txt` (berisi semver `1.2.3`)
-  - `MANIFEST.json`
-
-3. Cek hasil di GitHub:
-- Buka `Releases` → pastikan release `v1.2.3` ada dan statusnya bukan draft.
-- Pastikan asset ZIP `agrinova-production-1.2.3.zip` terlampir.
-
-## 3) Sisi Server Production (Windows)
-
-### 3.1 One-time setup
-
-1. Buat struktur folder:
 - `D:\agrinova\backend\config`
 - `D:\agrinova\backend\current`
 - `D:\agrinova\backend\releases`
@@ -96,124 +41,110 @@ Kalau Test-Path hasilnya True, berarti lolos verifikasi.
 - `D:\agrinova\deploy\state`
 - `D:\agrinova\deploy\temp`
 
-2. Copy script ke server:
-- `run-backend.ps1` -> `D:\agrinova\backend\config\run-backend.ps1`
-- `run-web.ps1` -> `D:\agrinova\web\config\run-web.ps1`
-- `deploy.ps1` -> `D:\agrinova\deploy\deploy.ps1`
+## 3) Required files on server
 
-3. Pastikan file env production:
-- Go: `D:\agrinova\backend\config\.env`
-- Web: `D:\agrinova\web\config\.env`
+Copy these files from repository:
 
-4. Set GitHub token di server:
+- `scripts/windows-production/deploy-backend.ps1` -> `D:\agrinova\deploy\deploy-backend.ps1`
+- `scripts/windows-production/deploy-web.ps1` -> `D:\agrinova\deploy\deploy-web.ps1`
+- `scripts/windows-production/run-backend.ps1` -> `D:\agrinova\backend\config\run-backend.ps1`
+- `scripts/windows-production/run-web.ps1` -> `D:\agrinova\web\config\run-web.ps1`
+- `scripts/windows-production/manual-deploy.bat` -> `D:\agrinova\deploy\manual-deploy.bat`
+
+Set environment files:
+
+- `D:\agrinova\backend\config\.env`
+- `D:\agrinova\web\config\.env`
+
+Set GitHub token:
+
 ```powershell
 [Environment]::SetEnvironmentVariable("AGRINOVA_GH_TOKEN", "<YOUR_GITHUB_TOKEN>", "Machine")
 ```
 
-### 3.2 Setup service (NSSM contoh)
+## 4) Service setup (NSSM example)
 
-Backend:
+Backend service:
+
 ```powershell
 nssm install agrinova-backend powershell.exe "-ExecutionPolicy Bypass -File D:\agrinova\backend\config\run-backend.ps1"
 nssm set agrinova-backend AppDirectory D:\agrinova\backend\current
 ```
 
-Web:
+Web service:
+
 ```powershell
 nssm install agrinova-web powershell.exe "-ExecutionPolicy Bypass -File D:\agrinova\web\config\run-web.ps1"
 nssm set agrinova-web AppDirectory D:\agrinova\web\current
 ```
 
-Catatan:
-- `run-backend.ps1` akan selalu:
-  1. load env dari `D:\agrinova\backend\config\.env`
-  2. run `agrinova-migrate.exe`
-  3. jika sukses baru run `agrinova-server.exe`
-- Default mode script adalah `production`.
-- Jika butuh menjalankan script dalam mode development:
-  - `run-backend.ps1 -Environment development`
-  - `run-web.ps1 -Environment development`
-  - Mode development akan mencari `.env` default lokal (jika ada), bukan fixed production path.
+## 5) Manual deploy commands
 
-### 3.3 Deploy manual pertama (wajib)
+Backend:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File D:\agrinova\deploy\deploy.ps1 `
+powershell -ExecutionPolicy Bypass -File D:\agrinova\deploy\deploy-backend.ps1 `
   -RepoOwner "<GITHUB_OWNER>" `
   -RepoName "<GITHUB_REPO>"
 ```
 
-Validasi:
-1. Service `agrinova-backend` dan `agrinova-web` status `Running`.
-2. `D:\agrinova\backend\current` dan `D:\agrinova\web\current` terisi artifact terbaru.
-3. Health check:
-- `http://127.0.0.1:8080/health`
-- `http://127.0.0.1:3000`
-4. Folder upload backend tetap ada:
-- `D:\agrinova\backend\current\uploads`
-- Deploy script mengecualikan folder `uploads` saat sync release -> current agar foto tidak ikut terhapus.
-- Rekomendasi terbaik: simpan upload di luar folder `current` dengan env `AGRINOVA_UPLOADS_DIR` (contoh: `D:\agrinova\backend\data\uploads`).
-
-### 3.4 Aktifkan auto deploy terjadwal
+Web:
 
 ```powershell
-schtasks /Create /SC MINUTE /MO 5 /TN "AgrinovaAutoDeploy" /TR "powershell -ExecutionPolicy Bypass -File D:\agrinova\deploy\deploy.ps1 -RepoOwner <GITHUB_OWNER> -RepoName <GITHUB_REPO>" /RU SYSTEM
+powershell -ExecutionPolicy Bypass -File D:\agrinova\deploy\deploy-web.ps1 `
+  -RepoOwner "<GITHUB_OWNER>" `
+  -RepoName "<GITHUB_REPO>"
 ```
 
-## 4) Operasional harian
+Specific version examples:
 
-1. Developer push git tag: `git tag -a v1.2.3 -m "Catatan rilis" && git push origin v1.2.3`
-2. GitHub Actions build dan buat GitHub Release.
-3. Task Scheduler menjalankan `deploy.ps1` setiap 5 menit.
-4. Jika tag release lebih baru dari `deployed-version.txt`, server download dan deploy.
-5. Jika health check gagal, rollback otomatis ke versi sebelumnya.
-
-## 5) Parameter penting `deploy.ps1`
-
-- `-RepoOwner` (wajib)
-- `-RepoName` (wajib)
-- `-ReleaseTag` default: `latest` (otomatis ambil release terbaru; atau spesifik: `v1.2.3`)
-- `-BackendServiceName` default: `agrinova-backend`
-- `-WebServiceName` default: `agrinova-web`
-- `-BackendHealthUrl` default: `http://127.0.0.1:8080/health`
-- `-WebHealthUrl` default: `http://127.0.0.1:3000`
-
-### Contoh deploy ke versi spesifik (rollforward / pinned):
 ```powershell
-.\deploy.ps1 -RepoOwner sardacarsih -RepoName AGRINOVA -ReleaseTag v1.2.1
+.\deploy-backend.ps1 -RepoOwner sardacarsih -RepoName AGRINOVA -ReleaseTag backend/v1.2.3
+.\deploy-web.ps1 -RepoOwner sardacarsih -RepoName AGRINOVA -ReleaseTag web/v1.2.3
 ```
 
-## 6) Policy env loading
+## 6) Scheduler setup
 
-1. Go backend source code:
-- Development: default lookup `.env`.
-- Production: wajib load `D:\agrinova\backend\config\.env`.
+Create separate tasks so each component can deploy independently.
 
-2. Web runtime:
-- Development: default env dari proses / `.env` lokal.
-- Production wrapper (`run-web.ps1`): wajib load `D:\agrinova\web\config\.env`.
+Backend task:
 
-## 7) Troubleshooting singkat
+```powershell
+schtasks /Create /SC MINUTE /MO 5 /TN "AgrinovaAutoDeployBackend" /TR "powershell -ExecutionPolicy Bypass -File D:\agrinova\deploy\deploy-backend.ps1 -RepoOwner <GITHUB_OWNER> -RepoName <GITHUB_REPO>" /RU SYSTEM
+```
 
-1. Error `AGRINOVA_GH_TOKEN is not set`:
-- Set ulang environment variable machine, lalu restart service/task host.
+Web task:
 
-2. Deploy sukses tapi app tidak jalan:
-- Cek log `D:\agrinova\deploy\logs`.
-- Cek service log NSSM.
-- Pastikan `.env` ada di path config yang benar.
+```powershell
+schtasks /Create /SC MINUTE /MO 5 /TN "AgrinovaAutoDeployWeb" /TR "powershell -ExecutionPolicy Bypass -File D:\agrinova\deploy\deploy-web.ps1 -RepoOwner <GITHUB_OWNER> -RepoName <GITHUB_REPO>" /RU SYSTEM
+```
 
-3. Backend gagal start setelah deploy:
-- Pastikan migration binary ada di `D:\agrinova\backend\current\agrinova-migrate.exe`.
-- Periksa hasil migrate (schema/DB credentials).
-- Pastikan path `AGRINOVA_UPLOADS_DIR` ada dan bisa ditulis oleh service account.
+## 7) State and logs
 
-4. Release atau asset tidak ditemukan:
-- Pastikan workflow `backend-web-release.yml` selesai sukses.
-- Buka GitHub → Releases, pastikan release tidak berstatus draft.
-- Pastikan asset ZIP `agrinova-production-*.zip` terlampir di release.
-- Pastikan `AGRINOVA_GH_TOKEN` punya scope `repo` (untuk repo private) atau `public_repo`.
+- Backend deployed version: `D:\agrinova\deploy\state\backend-deployed-version.txt`
+- Web deployed version: `D:\agrinova\deploy\state\web-deployed-version.txt`
+- Logs:
+  - `D:\agrinova\deploy\logs\deploy_backend_*.log`
+  - `D:\agrinova\deploy\logs\deploy_web_*.log`
 
-5. Foto/upload hilang setelah deploy:
-- Pastikan server menggunakan `deploy.ps1` versi terbaru (sudah exclude `uploads` dari proses mirror ke `current`).
-- Pindahkan upload ke lokasi persisten via `AGRINOVA_UPLOADS_DIR` (mis. `D:\agrinova\backend\data\uploads`) lalu backup lokasi tersebut secara berkala.
+## 8) Troubleshooting
+
+1. `AGRINOVA_GH_TOKEN is not set`
+- Set machine environment variable and restart task host/service host.
+
+2. Release not found
+- Ensure tag prefix is correct:
+  - `backend/v...` for backend
+  - `web/v...` for web
+
+3. Asset not found
+- Backend expects `agrinova-backend-*.zip`
+- Web expects `agrinova-web-standalone-*.zip`
+
+4. Backend health check fails
+- Check `http://127.0.0.1:8080/health`
+- Check service `agrinova-backend` logs.
+
+5. Web health check fails
+- Check `http://127.0.0.1:3000`
+- Check service `agrinova-web` logs.
