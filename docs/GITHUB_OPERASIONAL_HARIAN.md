@@ -201,3 +201,7 @@ Penjelasan cepat:
 - `fix: perbaiki query analytics area manager`
 - `ci: update trigger build artifact`
 - `chore: rapikan dokumentasi setup`
+
+## 10) Referensi Khusus Mobile Release
+- Untuk SOP lengkap pipeline mobile (branch -> track, environment, approval production, versioning, dan troubleshooting), lihat:
+  - `docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md`
