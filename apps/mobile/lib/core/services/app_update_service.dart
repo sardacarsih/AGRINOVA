@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../network/dio_client.dart'; // Minimal REST client for app updates
 import '../models/app_update_models.dart';
 import '../error/app_error.dart';
+import 'app_update_channel_policy.dart';
 
 /// Comprehensive App Update Service for Agrinova Flutter Mobile
 ///
@@ -147,6 +148,7 @@ class AppUpdateService {
         final resolvedUpdate = _mergePlayStoreAndServerUpdate(
           playStoreUpdate: playStoreUpdate,
           serverUpdate: serverUpdate,
+          currentVersion: currentVersion,
         );
 
         if (_isSkippedUpdate(resolvedUpdate)) {
@@ -219,12 +221,26 @@ class AppUpdateService {
         },
       );
 
-      final updateInfo = AppUpdateInfo.fromJson(response.data);
+      final updateInfo = _normalizeUpdateInfoVersionLabel(
+        AppUpdateInfo.fromJson(response.data),
+      );
       if (!_isUpdateAvailable(currentVersion, updateInfo)) {
         return null;
       }
 
-      return _normalizeUpdateInfoVersionLabel(updateInfo);
+      if (!isUpdateChannelCompatible(
+        installedVersion: currentVersion.version,
+        updateVersionLabel: updateInfo.latestVersion,
+        updateMetadata: updateInfo.metadata,
+      )) {
+        _logger.i(
+          '$_tag: Ignoring server update ${updateInfo.latestVersion} because '
+          'channel is not compatible with installed version ${currentVersion.version}',
+        );
+        return null;
+      }
+
+      return updateInfo;
     } catch (e, stackTrace) {
       _logger.w(
         '$_tag: Server version check failed',
@@ -242,10 +258,10 @@ class AppUpdateService {
 
     try {
       final playStoreInfo = await in_app_update.InAppUpdate.checkForUpdate();
+      final availability = playStoreInfo.updateAvailability;
       final isUpdateAvailable =
-          playStoreInfo.updateAvailability ==
-              in_app_update.UpdateAvailability.updateAvailable ||
-          playStoreInfo.updateAvailability ==
+          availability == in_app_update.UpdateAvailability.updateAvailable ||
+          availability ==
               in_app_update
                   .UpdateAvailability
                   .developerTriggeredUpdateInProgress;
@@ -254,8 +270,23 @@ class AppUpdateService {
         return null;
       }
 
-      final availableBuild =
-          playStoreInfo.availableVersionCode ?? currentVersion.buildNumber + 1;
+      final availableBuild = playStoreInfo.availableVersionCode;
+      if (availableBuild == null) {
+        _logger.w(
+          '$_tag: Play Store reported update state without availableVersionCode; '
+          'skipping update prompt to avoid false positive.',
+        );
+        return null;
+      }
+
+      if (availableBuild <= currentVersion.buildNumber) {
+        _logger.i(
+          '$_tag: Ignoring Play Store update signal because available build '
+          '($availableBuild) <= installed build (${currentVersion.buildNumber})',
+        );
+        return null;
+      }
+
       final isCritical =
           playStoreInfo.updatePriority >= 4 ||
           (playStoreInfo.clientVersionStalenessDays ?? 0) >= 7;
@@ -273,6 +304,10 @@ class AppUpdateService {
           'stalenessDays': playStoreInfo.clientVersionStalenessDays,
           'immediateAllowed': playStoreInfo.immediateUpdateAllowed,
           'flexibleAllowed': playStoreInfo.flexibleUpdateAllowed,
+          'releaseChannel': resolveReleaseChannelFromVersion(
+            currentVersion.version,
+          ),
+          'trackScope': 'play_store_managed',
         },
       );
     } on PlatformException catch (e, stackTrace) {
@@ -684,7 +719,8 @@ class AppUpdateService {
     }
 
     final currentBuild = int.tryParse(_packageInfo!.buildNumber);
-    if (currentBuild != null && currentBuild >= _pendingUpdate!.latestBuildNumber) {
+    if (currentBuild != null &&
+        currentBuild >= _pendingUpdate!.latestBuildNumber) {
       _logger.i(
         '$_tag: Clearing pending update because installed build '
         '($currentBuild) >= pending build (${_pendingUpdate!.latestBuildNumber})',
@@ -709,16 +745,23 @@ class AppUpdateService {
   AppUpdateInfo _mergePlayStoreAndServerUpdate({
     required AppUpdateInfo playStoreUpdate,
     required AppUpdateInfo? serverUpdate,
+    required AppVersionInfo currentVersion,
   }) {
-    final mergedVersion = serverUpdate != null
+    final serverLabelAllowed =
+        serverUpdate != null &&
+        isUpdateChannelCompatible(
+          installedVersion: currentVersion.version,
+          updateVersionLabel: serverUpdate.latestVersion,
+          updateMetadata: serverUpdate.metadata,
+        );
+    final mergedVersion = serverLabelAllowed
         ? serverUpdate.latestVersion
-        : _derivePlayStoreVersionLabel(
-            playStoreUpdate: playStoreUpdate,
-          );
+        : _derivePlayStoreVersionLabel(playStoreUpdate: playStoreUpdate);
 
+    final serverReleaseNotes = serverUpdate?.releaseNotes?.trim();
     final mergedNotes =
-        (serverUpdate?.releaseNotes?.trim().isNotEmpty ?? false)
-        ? serverUpdate!.releaseNotes
+        (serverLabelAllowed && (serverReleaseNotes?.isNotEmpty ?? false))
+        ? serverReleaseNotes
         : playStoreUpdate.releaseNotes;
 
     return AppUpdateInfo(
@@ -730,7 +773,10 @@ class AppUpdateService {
       metadata: {
         ...?serverUpdate?.metadata,
         ...?playStoreUpdate.metadata,
-        'versionLabelSource': serverUpdate != null ? 'server' : 'play_store',
+        'versionLabelSource': serverLabelAllowed ? 'server' : 'play_store',
+        'installedChannel': resolveReleaseChannelFromVersion(
+          currentVersion.version,
+        ),
       },
     );
   }

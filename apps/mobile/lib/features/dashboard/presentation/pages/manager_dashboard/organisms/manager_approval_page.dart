@@ -33,8 +33,9 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
     _repository = ManagerHarvestApprovalRepository(
       graphqlClient: ServiceLocator.get<GraphQLClientService>(),
     );
-    _harvestNotificationSub =
-        FCMService.harvestNotificationStream.listen(_handleNotification);
+    _harvestNotificationSub = FCMService.harvestNotificationStream.listen(
+      _handleNotification,
+    );
     _loadPendingApprovals();
   }
 
@@ -89,7 +90,8 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
 
     final action = event.action.toUpperCase();
     final type = event.type.toUpperCase();
-    final isRelevant = action == 'APPROVAL_NEEDED' ||
+    final isRelevant =
+        action == 'APPROVAL_NEEDED' ||
         action == 'APPROVED' ||
         action == 'REJECTED' ||
         action == 'ESCALATED' ||
@@ -276,8 +278,9 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
         ),
         flexibleSpace: Container(
-          decoration:
-              const BoxDecoration(gradient: ManagerTheme.headerGradient),
+          decoration: const BoxDecoration(
+            gradient: ManagerTheme.headerGradient,
+          ),
         ),
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
@@ -336,8 +339,11 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
         physics: const AlwaysScrollableScrollPhysics(),
         children: const [
           SizedBox(height: 140),
-          Icon(Icons.task_alt_rounded,
-              size: 56, color: ManagerTheme.approvedGreen),
+          Icon(
+            Icons.task_alt_rounded,
+            size: 56,
+            color: ManagerTheme.approvedGreen,
+          ),
           SizedBox(height: 12),
           Center(
             child: Text(
@@ -449,9 +455,13 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
               _buildMetricChip('Tanggal', _formatDate(item.harvestDate)),
               _buildMetricChip('Janjang', '${item.bunchCount} jjg'),
               _buildMetricChip(
-                  'Berat', '${item.weightKg.toStringAsFixed(1)} kg'),
+                'Berat',
+                '${item.weightKg.toStringAsFixed(1)} kg',
+              ),
             ],
           ),
+          const SizedBox(height: 8),
+          _buildQualitySummary(item),
           const SizedBox(height: 8),
           Text('Pekerja: ${item.workerLabel}', style: ManagerTheme.bodyMedium),
           const SizedBox(height: 2),
@@ -504,6 +514,45 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
         style: const TextStyle(
           color: ManagerTheme.textSecondary,
           fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQualitySummary(ManagerHarvestApprovalItem item) {
+    if (!item.hasQualityData) {
+      return const Text(
+        'Kualitas buah: data belum tersedia',
+        style: TextStyle(color: ManagerTheme.textSecondary, fontSize: 12),
+      );
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        _buildQualityChip('Matang', item.jjgMatang),
+        _buildQualityChip('Mentah', item.jjgMentah),
+        _buildQualityChip('Lewat', item.jjgLewatMatang),
+        _buildQualityChip('Busuk', item.jjgBusukAbnormal),
+        _buildQualityChip('Tangkai', item.jjgTangkaiPanjang),
+      ],
+    );
+  }
+
+  Widget _buildQualityChip(String label, int value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: ManagerTheme.teamReviewTeal.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label: $value',
+        style: const TextStyle(
+          color: ManagerTheme.textSecondary,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
       ),
