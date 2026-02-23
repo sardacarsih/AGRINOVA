@@ -16,6 +16,8 @@ interface SuperAdminDashboardLayoutProps {
   title?: string;
   description?: string;
   actions?: React.ReactNode;
+  contentMaxWidthClass?: string;
+  contentPaddingClass?: string;
   showBreadcrumb?: boolean;
   breadcrumbItems?: Array<{ label: string; href?: string }>;
 }
@@ -25,6 +27,8 @@ export function SuperAdminDashboardLayout({
   title = 'Dashboard Super Admin',
   description = 'Kontrol dan pemantauan sistem lengkap',
   actions,
+  contentMaxWidthClass = 'max-w-7xl',
+  contentPaddingClass = 'p-4 sm:p-6 lg:p-8',
   showBreadcrumb = true,
   breadcrumbItems = [],
 }: SuperAdminDashboardLayoutProps) {
@@ -86,6 +90,8 @@ export function SuperAdminDashboardLayout({
           orbPrimaryClass="bg-blue-500/10"
           orbSecondaryClass="bg-indigo-500/10"
           dotClass="bg-status-success"
+          maxWidthClass={contentMaxWidthClass}
+          contentPaddingClass={contentPaddingClass}
         >
           {children}
         </RoleLayoutContent>

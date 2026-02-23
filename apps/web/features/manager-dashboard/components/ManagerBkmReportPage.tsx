@@ -243,7 +243,10 @@ export default function ManagerBkmReportPage() {
                 Blok: item.blok,
                 NIK: item.nik,
                 Nama: item.nama,
+                "Qty 1": item.qtyp1,
+                "Sat 1": item.satp1 || '-',
                 "Qty P2": item.qtyp2,
+                "Sat 2": item.satp2 || '-',
                 "Total Qty": item.qty,
                 "Satuan": item.satuan,
                 "Jumlah (Rp)": item.jumlah
