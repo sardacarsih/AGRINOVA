@@ -8,6 +8,13 @@ import '../../data/repositories/area_manager_dashboard_repository.dart';
 part 'area_manager_dashboard_event.dart';
 part 'area_manager_dashboard_state.dart';
 
+enum AreaManagerDashboardPeriod {
+  today,
+  last7Days,
+  monthToDate,
+  custom,
+}
+
 /// BLoC for Area Manager Dashboard data management.
 ///
 /// Fetches real data from the GraphQL API via [AreaManagerDashboardRepository].
@@ -16,11 +23,15 @@ class AreaManagerDashboardBloc
     extends Bloc<AreaManagerDashboardEvent, AreaManagerDashboardState> {
   final AreaManagerDashboardRepository repository;
   static final Logger _logger = Logger();
+  AreaManagerDashboardPeriod _currentPeriod = AreaManagerDashboardPeriod.monthToDate;
+  DateTime _currentDateFrom = _startOfMonth(DateTime.now());
+  DateTime _currentDateTo = _endOfDay(DateTime.now());
 
   AreaManagerDashboardBloc({required this.repository})
       : super(const AreaManagerDashboardInitial()) {
     on<AreaManagerDashboardLoadRequested>(_onLoadRequested);
     on<AreaManagerDashboardRefreshRequested>(_onRefreshRequested);
+    on<AreaManagerDashboardFilterChanged>(_onFilterChanged);
   }
 
   Future<void> _onLoadRequested(
@@ -42,11 +53,30 @@ class AreaManagerDashboardBloc
     await _loadAll(emit);
   }
 
+  Future<void> _onFilterChanged(
+    AreaManagerDashboardFilterChanged event,
+    Emitter<AreaManagerDashboardState> emit,
+  ) async {
+    _currentPeriod = event.period;
+    _currentDateFrom = _startOfDay(event.dateFrom);
+    _currentDateTo = _endOfDay(event.dateTo);
+
+    if (state is AreaManagerDashboardLoaded) {
+      emit((state as AreaManagerDashboardLoaded).copyWith(isRefreshing: true));
+    } else {
+      emit(const AreaManagerDashboardLoading());
+    }
+    await _loadAll(emit);
+  }
+
   Future<void> _loadAll(Emitter<AreaManagerDashboardState> emit) async {
     try {
       // Parallel fetch: dashboard stats + manager list
       final results = await Future.wait([
-        repository.getDashboard(),
+        repository.getDashboard(
+          dateFrom: _currentDateFrom,
+          dateTo: _currentDateTo,
+        ),
         repository.getManagersUnderArea(),
       ]);
 
@@ -56,7 +86,10 @@ class AreaManagerDashboardBloc
       _logger.i(
         'AreaManagerDashboardBloc: loaded '
         '${dashboard.companyPerformance.length} companies, '
-        '${managers.length} managers',
+        '${managers.length} managers '
+        '(period: $_currentPeriod, '
+        'dateFrom: ${_currentDateFrom.toIso8601String()}, '
+        'dateTo: ${_currentDateTo.toIso8601String()})',
       );
 
       emit(AreaManagerDashboardLoaded(
@@ -64,11 +97,26 @@ class AreaManagerDashboardBloc
         companyPerformance: dashboard.companyPerformance,
         alerts: dashboard.alerts,
         managers: managers,
+        selectedPeriod: _currentPeriod,
+        dateFrom: _currentDateFrom,
+        dateTo: _currentDateTo,
         lastUpdated: DateTime.now(),
       ));
     } catch (e) {
       _logger.e('AreaManagerDashboardBloc: load error: $e');
       emit(AreaManagerDashboardError(message: e.toString()));
     }
+  }
+
+  static DateTime _startOfMonth(DateTime value) {
+    return DateTime(value.year, value.month, 1);
+  }
+
+  static DateTime _startOfDay(DateTime value) {
+    return DateTime(value.year, value.month, value.day);
+  }
+
+  static DateTime _endOfDay(DateTime value) {
+    return DateTime(value.year, value.month, value.day, 23, 59, 59, 999);
   }
 }

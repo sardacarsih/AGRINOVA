@@ -24,6 +24,9 @@ class AreaManagerDashboardLoaded extends AreaManagerDashboardState {
   final List<CompanyPerformanceModel> companyPerformance;
   final List<RegionalAlertModel> alerts;
   final List<ManagerUserModel> managers;
+  final AreaManagerDashboardPeriod selectedPeriod;
+  final DateTime dateFrom;
+  final DateTime dateTo;
   final DateTime lastUpdated;
   final bool isRefreshing;
 
@@ -32,6 +35,9 @@ class AreaManagerDashboardLoaded extends AreaManagerDashboardState {
     required this.companyPerformance,
     required this.alerts,
     required this.managers,
+    required this.selectedPeriod,
+    required this.dateFrom,
+    required this.dateTo,
     required this.lastUpdated,
     this.isRefreshing = false,
   });
@@ -41,6 +47,9 @@ class AreaManagerDashboardLoaded extends AreaManagerDashboardState {
     List<CompanyPerformanceModel>? companyPerformance,
     List<RegionalAlertModel>? alerts,
     List<ManagerUserModel>? managers,
+    AreaManagerDashboardPeriod? selectedPeriod,
+    DateTime? dateFrom,
+    DateTime? dateTo,
     DateTime? lastUpdated,
     bool? isRefreshing,
   }) {
@@ -49,6 +58,9 @@ class AreaManagerDashboardLoaded extends AreaManagerDashboardState {
       companyPerformance: companyPerformance ?? this.companyPerformance,
       alerts: alerts ?? this.alerts,
       managers: managers ?? this.managers,
+      selectedPeriod: selectedPeriod ?? this.selectedPeriod,
+      dateFrom: dateFrom ?? this.dateFrom,
+      dateTo: dateTo ?? this.dateTo,
       lastUpdated: lastUpdated ?? this.lastUpdated,
       isRefreshing: isRefreshing ?? this.isRefreshing,
     );
@@ -60,6 +72,9 @@ class AreaManagerDashboardLoaded extends AreaManagerDashboardState {
         companyPerformance,
         alerts,
         managers,
+        selectedPeriod,
+        dateFrom,
+        dateTo,
         lastUpdated,
         isRefreshing,
       ];

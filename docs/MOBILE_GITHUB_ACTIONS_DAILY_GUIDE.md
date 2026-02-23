@@ -293,3 +293,36 @@ Solusi:
 4. Sinkronkan ke `main` sesuai proses tim
 5. Buat tag `v1.2.0` -> approve production -> rilis ke Play production
 
+## 12. Template Command ke AI (Operasional Harian)
+
+Gunakan pola prompt berikut agar AI memberi langkah yang presisi:
+
+`Baca docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md, kondisi saya [kondisi], tujuan saya [tujuan], berikan command PowerShell step-by-step + expected result tiap step.`
+
+Contoh siap pakai:
+
+### 12.1 Operasional harian internal
+
+`Baca docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md. Saya akan kerja mobile hari ini. Beri langkah dari sync branch develop, validasi Flutter, commit, sampai push ke develop.`
+
+### 12.2 Siapkan closed tester
+
+`Ikuti docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md. Buat command untuk membuat branch release/1.2.0 dari develop, push pertama, dan pola update commit berikutnya.`
+
+### 12.3 Rilis production via tag
+
+`Ikuti docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md. Beri command rilis production dari main dengan tag v1.2.3 dan langkah approval environment mobile-production.`
+
+### 12.4 Troubleshooting workflow
+
+`Cek docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md. Workflow Android Release gagal dengan error: [paste error]. Beri diagnosis singkat dan command perbaikan.`
+
+### 12.5 Audit kesesuaian docs vs workflow
+
+`Bandingkan docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md dengan .github/workflows/android-release.yml. Tunjukkan mismatch jika ada dan sarankan patch.`
+
+Tips:
+
+- Selalu sertakan kondisi branch saat ini (`develop/main/release/*`).
+- Sertakan tujuan track (`internal/closed/production`) agar jawaban tidak ambigu.
+- Jika ada error CI, paste pesan error utuh agar diagnosis akurat.

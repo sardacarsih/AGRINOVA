@@ -202,6 +202,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Java ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
@@ -357,8 +359,69 @@ jobs:
             if [[ -n "$TAG_BODY" ]]; then
               echo "$TAG_BODY" | head -c 500 > "$WHATSNEW_DIR/whatsnew-id-ID"
             else
-              echo "Perbaikan bug dan peningkatan performa track ${{ needs.plan.outputs.track }} untuk versi ${{ needs.plan.outputs.version_name }}." \
-                > "$WHATSNEW_DIR/whatsnew-id-ID"
+              current_tag=""
+              if [[ "${{ github.ref_type }}" == "tag" ]]; then
+                current_tag="${{ github.ref_name }}"
+              fi
+
+              previous_tag=""
+              while IFS= read -r tag; do
+                [[ -z "$tag" ]] && continue
+                if [[ -n "$current_tag" && "$tag" == "$current_tag" ]]; then
+                  continue
+                fi
+                previous_tag="$tag"
+                break
+              done < <(git tag --list 'v*.*.*' --sort=-version:refname)
+
+              COMMITS_FILE="$(mktemp)"
+              if [[ -n "$previous_tag" ]]; then
+                git log --no-merges --format='%s' "${previous_tag}..HEAD" > "$COMMITS_FILE" || true
+              else
+                git log --no-merges -n 30 --format='%s' > "$COMMITS_FILE" || true
+              fi
+
+              NOTES_TMP="$(mktemp)"
+              {
+                echo "Versi ${{ needs.plan.outputs.version_name }}:"
+              } > "$NOTES_TMP"
+
+              changes_count=0
+              while IFS= read -r subject; do
+                [[ -z "$subject" ]] && continue
+                [[ "$subject" =~ ^Merge[[:space:]] ]] && continue
+
+                commit_type="other"
+                commit_desc="$subject"
+                if [[ "$subject" =~ ^([a-zA-Z]+)(\([^)]+\))?(!)?:[[:space:]]*(.+)$ ]]; then
+                  commit_type="${BASH_REMATCH[1],,}"
+                  commit_desc="${BASH_REMATCH[4]}"
+                fi
+
+                label="Perubahan"
+                case "$commit_type" in
+                  fix) label="Perbaikan" ;;
+                  feat) label="Fitur" ;;
+                  perf) label="Performa" ;;
+                  refactor) label="Refactor" ;;
+                  build|ci|chore) label="Build/CI" ;;
+                  docs) label="Dokumentasi" ;;
+                  test) label="Pengujian" ;;
+                esac
+
+                printf -- "- %s: %s\n" "$label" "$commit_desc" >> "$NOTES_TMP"
+                changes_count=$((changes_count + 1))
+                if (( changes_count >= 8 )); then
+                  break
+                fi
+              done < "$COMMITS_FILE"
+
+              if (( changes_count > 0 )); then
+                head -c 500 "$NOTES_TMP" > "$WHATSNEW_DIR/whatsnew-id-ID"
+              else
+                echo "Perbaikan bug dan peningkatan performa track ${{ needs.plan.outputs.track }} untuk versi ${{ needs.plan.outputs.version_name }}." \
+                  > "$WHATSNEW_DIR/whatsnew-id-ID"
+              fi
             fi
           fi
 

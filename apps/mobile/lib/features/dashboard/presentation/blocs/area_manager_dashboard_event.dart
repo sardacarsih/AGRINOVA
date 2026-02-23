@@ -17,3 +17,19 @@ class AreaManagerDashboardLoadRequested extends AreaManagerDashboardEvent {
 class AreaManagerDashboardRefreshRequested extends AreaManagerDashboardEvent {
   const AreaManagerDashboardRefreshRequested();
 }
+
+/// Apply date period filter and reload dashboard data.
+class AreaManagerDashboardFilterChanged extends AreaManagerDashboardEvent {
+  final AreaManagerDashboardPeriod period;
+  final DateTime dateFrom;
+  final DateTime dateTo;
+
+  const AreaManagerDashboardFilterChanged({
+    required this.period,
+    required this.dateFrom,
+    required this.dateTo,
+  });
+
+  @override
+  List<Object?> get props => [period, dateFrom, dateTo];
+}

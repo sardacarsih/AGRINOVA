@@ -2,8 +2,8 @@
 class AreaManagerQueries {
   /// Dashboard query — fetches overview stats, company performance, and alerts
   static const String dashboardQuery = r'''
-    query AreaManagerDashboard {
-      areaManagerDashboard {
+    query AreaManagerDashboard($dateFrom: Time, $dateTo: Time) {
+      areaManagerDashboard(dateFrom: $dateFrom, dateTo: $dateTo) {
         user {
           id
           name

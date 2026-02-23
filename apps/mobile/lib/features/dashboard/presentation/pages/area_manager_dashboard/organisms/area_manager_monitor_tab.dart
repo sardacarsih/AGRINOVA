@@ -26,6 +26,12 @@ class _AreaManagerMonitorTabState extends State<AreaManagerMonitorTab> {
   int _selectedFilterIndex = 0;
 
   final List<String> _filters = ['Semua', 'Active', 'Alert', 'Maintenance'];
+  final List<AreaManagerDashboardPeriod> _periodOptions = const [
+    AreaManagerDashboardPeriod.today,
+    AreaManagerDashboardPeriod.last7Days,
+    AreaManagerDashboardPeriod.monthToDate,
+    AreaManagerDashboardPeriod.custom,
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +129,10 @@ class _AreaManagerMonitorTabState extends State<AreaManagerMonitorTab> {
               ),
             ),
 
+            SliverToBoxAdapter(
+              child: _buildPeriodSelector(state),
+            ),
+
             // Filter Tabs
             SliverToBoxAdapter(
               child: Padding(
@@ -210,6 +220,204 @@ class _AreaManagerMonitorTabState extends State<AreaManagerMonitorTab> {
         ),
       ],
     );
+  }
+
+  Widget _buildPeriodSelector(AreaManagerDashboardLoaded state) {
+    final startLabel = _formatDate(state.dateFrom);
+    final endLabel = _formatDate(state.dateTo);
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Periode Data',
+            style: AreaManagerTheme.bodyMedium.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: _periodOptions.map((period) {
+              final isSelected = state.selectedPeriod == period;
+              return ChoiceChip(
+                label: Text(_periodLabel(period)),
+                selected: isSelected,
+                onSelected: (_) => _onPeriodSelected(state, period),
+                selectedColor: AreaManagerTheme.primaryTeal.withValues(alpha: 0.2),
+                labelStyle: TextStyle(
+                  color: isSelected
+                      ? AreaManagerTheme.primaryTeal
+                      : AreaManagerTheme.textPrimary,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                ),
+                side: BorderSide(
+                  color: isSelected
+                      ? AreaManagerTheme.primaryTeal
+                      : Colors.grey.shade300,
+                ),
+                showCheckmark: false,
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 10),
+          InkWell(
+            onTap: () => _selectCustomDateRange(state),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+                color: Colors.grey.shade50,
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.date_range_rounded,
+                    size: 18,
+                    color: AreaManagerTheme.primaryTeal,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '$startLabel - $endLabel',
+                      style: AreaManagerTheme.bodySmall.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: AreaManagerTheme.textPrimary,
+                      ),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.edit_calendar_rounded,
+                    size: 18,
+                    color: AreaManagerTheme.textMuted,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onPeriodSelected(
+    AreaManagerDashboardLoaded state,
+    AreaManagerDashboardPeriod period,
+  ) {
+    if (period == AreaManagerDashboardPeriod.custom) {
+      _selectCustomDateRange(state);
+      return;
+    }
+
+    final selectedRange = _resolveRangeForPeriod(period);
+    context.read<AreaManagerDashboardBloc>().add(
+          AreaManagerDashboardFilterChanged(
+            period: period,
+            dateFrom: selectedRange.start,
+            dateTo: selectedRange.end,
+          ),
+        );
+  }
+
+  Future<void> _selectCustomDateRange(AreaManagerDashboardLoaded state) async {
+    final now = DateTime.now();
+    final firstDate = DateTime(now.year - 2, 1, 1);
+    final lastDate = DateTime(now.year + 1, 12, 31);
+
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      initialDateRange: DateTimeRange(
+        start: _startOfDay(state.dateFrom),
+        end: _startOfDay(state.dateTo),
+      ),
+      saveText: 'Terapkan',
+      helpText: 'Pilih Periode Monitoring',
+    );
+
+    if (picked == null || !mounted) {
+      return;
+    }
+
+    context.read<AreaManagerDashboardBloc>().add(
+          AreaManagerDashboardFilterChanged(
+            period: AreaManagerDashboardPeriod.custom,
+            dateFrom: picked.start,
+            dateTo: picked.end,
+          ),
+        );
+  }
+
+  DateTimeRange _resolveRangeForPeriod(AreaManagerDashboardPeriod period) {
+    final now = DateTime.now();
+    switch (period) {
+      case AreaManagerDashboardPeriod.today:
+        return DateTimeRange(
+          start: _startOfDay(now),
+          end: _endOfDay(now),
+        );
+      case AreaManagerDashboardPeriod.last7Days:
+        return DateTimeRange(
+          start: _startOfDay(now.subtract(const Duration(days: 6))),
+          end: _endOfDay(now),
+        );
+      case AreaManagerDashboardPeriod.monthToDate:
+        return DateTimeRange(
+          start: DateTime(now.year, now.month, 1),
+          end: _endOfDay(now),
+        );
+      case AreaManagerDashboardPeriod.custom:
+        return DateTimeRange(
+          start: DateTime(now.year, now.month, 1),
+          end: _endOfDay(now),
+        );
+    }
+  }
+
+  String _periodLabel(AreaManagerDashboardPeriod period) {
+    switch (period) {
+      case AreaManagerDashboardPeriod.today:
+        return 'Hari Ini';
+      case AreaManagerDashboardPeriod.last7Days:
+        return '7 Hari';
+      case AreaManagerDashboardPeriod.monthToDate:
+        return 'Bulan Ini';
+      case AreaManagerDashboardPeriod.custom:
+        return 'Custom';
+    }
+  }
+
+  String _formatDate(DateTime value) {
+    final day = value.day.toString().padLeft(2, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    return '$day/$month/${value.year}';
+  }
+
+  DateTime _startOfDay(DateTime value) {
+    return DateTime(value.year, value.month, value.day);
+  }
+
+  DateTime _endOfDay(DateTime value) {
+    return DateTime(value.year, value.month, value.day, 23, 59, 59, 999);
   }
 
   List<CompanyPerformanceModel> _getFilteredCompanies(

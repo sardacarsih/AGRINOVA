@@ -18,12 +18,25 @@ class AreaManagerDashboardRepository {
         _logger = logger ?? Logger();
 
   /// Fetches the main dashboard data (stats, company performance, alerts).
-  Future<AreaManagerDashboardModel> getDashboard() async {
-    _logger.d('AreaManagerDashboardRepository: fetching dashboard');
+  Future<AreaManagerDashboardModel> getDashboard({
+    DateTime? dateFrom,
+    DateTime? dateTo,
+  }) async {
+    _logger.d(
+      'AreaManagerDashboardRepository: fetching dashboard '
+      '(dateFrom: ${dateFrom?.toIso8601String()}, '
+      'dateTo: ${dateTo?.toIso8601String()})',
+    );
+
+    final variables = <String, dynamic>{
+      'dateFrom': dateFrom == null ? null : _toDateOnlyString(dateFrom),
+      'dateTo': dateTo == null ? null : _toDateOnlyString(dateTo),
+    };
 
     final result = await _graphqlClient.query(
       QueryOptions(
         document: gql(AreaManagerQueries.dashboardQuery),
+        variables: variables,
         fetchPolicy: FetchPolicy.networkOnly,
       ),
     );
@@ -70,5 +83,12 @@ class AreaManagerDashboardRepository {
     return list
         .map((e) => ManagerUserModel.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  String _toDateOnlyString(DateTime value) {
+    final normalized = DateTime(value.year, value.month, value.day);
+    final month = normalized.month.toString().padLeft(2, '0');
+    final day = normalized.day.toString().padLeft(2, '0');
+    return '${normalized.year}-$month-$day';
   }
 }
