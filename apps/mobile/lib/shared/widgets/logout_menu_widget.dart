@@ -124,15 +124,13 @@ class LogoutMenuWidget extends StatelessWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const ServerProfilePage(
-          title: 'Profil Pengguna',
-        ),
+        builder: (_) => const ServerProfilePage(title: 'Profil Pengguna'),
       ),
     );
   }
 
   void _navigateToSettings(BuildContext context) {
-    Navigator.pushNamed(context, '/settings');
+    Navigator.pushNamed(context, AppRoutes.settingsPage);
   }
 
   void _navigateToBiometricSettings(BuildContext context) {
@@ -171,17 +169,22 @@ class LogoutMenuWidget extends StatelessWidget {
             Text('Version: ${ApiConstants.appVersionDisplay}'),
             SizedBox(height: 8),
             Text(
-                'Palm oil management system with offline-first capabilities and JWT authentication.'),
+              'Palm oil management system with offline-first capabilities and JWT authentication.',
+            ),
             SizedBox(height: 16),
             if (username != null || role != null) ...[
               Divider(),
               SizedBox(height: 8),
               if (username != null)
-                Text('User: $username',
-                    style: TextStyle(fontWeight: FontWeight.w500)),
+                Text(
+                  'User: $username',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
               if (role != null)
-                Text('Role: $role',
-                    style: TextStyle(fontWeight: FontWeight.w500)),
+                Text(
+                  'Role: $role',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
             ],
           ],
         ),
@@ -216,10 +219,7 @@ class LogoutMenuWidget extends StatelessWidget {
             if (username != null)
               Text(
                 'Pengguna: $username',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
             SizedBox(height: 16),
             Container(
@@ -236,10 +236,7 @@ class LogoutMenuWidget extends StatelessWidget {
                   Expanded(
                     child: Text(
                       'Data offline yang belum tersimpan tetap aman di perangkat dan akan sinkron saat Anda login kembali.',
-                      style: TextStyle(
-                        color: Colors.orange[800],
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: Colors.orange[800], fontSize: 12),
                     ),
                   ),
                 ],
@@ -265,10 +262,7 @@ class LogoutMenuWidget extends StatelessWidget {
     );
   }
 
-  void _performLogout(
-    BuildContext parentContext,
-    BuildContext dialogContext,
-  ) {
+  void _performLogout(BuildContext parentContext, BuildContext dialogContext) {
     final authBloc = parentContext.read<AuthBloc>();
     Navigator.pop(dialogContext); // Close confirmation dialog
     if (!parentContext.mounted) return;
