@@ -393,9 +393,19 @@ jobs:
 
                 commit_type="other"
                 commit_desc="$subject"
-                if [[ "$subject" =~ ^([a-zA-Z]+)(\([^)]+\))?(!)?:[[:space:]]*(.+)$ ]]; then
-                  commit_type="${BASH_REMATCH[1],,}"
-                  commit_desc="${BASH_REMATCH[4]}"
+                if [[ "$subject" == *:* ]]; then
+                  prefix="${subject%%:*}"
+                  rest="${subject#*:}"
+                  commit_desc="${rest# }"
+
+                  # Parse conventional commit prefix: type(scope)!:
+                  commit_type="${prefix%%(*}"
+                  commit_type="${commit_type%!}"
+                  commit_type="${commit_type,,}"
+
+                  if [[ -z "$commit_desc" ]]; then
+                    commit_desc="$subject"
+                  fi
                 fi
 
                 label="Perubahan"
