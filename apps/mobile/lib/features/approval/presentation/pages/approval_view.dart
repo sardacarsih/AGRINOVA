@@ -30,8 +30,9 @@ class _ApprovalViewState extends State<ApprovalView>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
-    _tabController.index =
-        _getIndexFromStatus(widget.initialStatus.toUpperCase());
+    _tabController.index = _getIndexFromStatus(
+      widget.initialStatus.toUpperCase(),
+    );
     _tabController.addListener(_handleTabSelection);
   }
 
@@ -152,9 +153,7 @@ class _ApprovalViewState extends State<ApprovalView>
                 tabs: _tabs.map((tab) => Tab(text: tab)).toList(),
               ),
             ),
-            Expanded(
-              child: _buildBody(state),
-            ),
+            Expanded(child: _buildBody(state)),
           ],
         );
       },
@@ -187,8 +186,10 @@ class _ApprovalViewState extends State<ApprovalView>
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 12,
+                  horizontal: 16,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(8),
@@ -196,14 +197,23 @@ class _ApprovalViewState extends State<ApprovalView>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildStatItem('Pending', state.stats.pendingCount,
-                        AsistenTheme.pendingOrange),
+                    _buildStatItem(
+                      'Pending',
+                      state.stats.pendingCount,
+                      AsistenTheme.pendingOrange,
+                    ),
                     _buildStatVerticalDivider(),
-                    _buildStatItem('Approved', state.stats.approvedCount,
-                        AsistenTheme.approvedGreen),
+                    _buildStatItem(
+                      'Approved',
+                      state.stats.approvedCount,
+                      AsistenTheme.approvedGreen,
+                    ),
                     _buildStatVerticalDivider(),
-                    _buildStatItem('Rejected', state.stats.rejectedCount,
-                        AsistenTheme.rejectedRed),
+                    _buildStatItem(
+                      'Rejected',
+                      state.stats.rejectedCount,
+                      AsistenTheme.rejectedRed,
+                    ),
                   ],
                 ),
               ),
@@ -229,13 +239,10 @@ class _ApprovalViewState extends State<ApprovalView>
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final mandorGroup = groupedApprovals[index];
-                    return _buildMandorGroupCard(mandorGroup);
-                  },
-                  childCount: groupedApprovals.length,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final mandorGroup = groupedApprovals[index];
+                  return _buildMandorGroupCard(mandorGroup);
+                }, childCount: groupedApprovals.length),
               ),
             ),
           const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
@@ -264,8 +271,11 @@ class _ApprovalViewState extends State<ApprovalView>
         children: [
           Row(
             children: [
-              const Icon(Icons.badge_outlined,
-                  size: 18, color: AsistenTheme.textPrimary),
+              const Icon(
+                Icons.badge_outlined,
+                size: 18,
+                color: AsistenTheme.textPrimary,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -309,8 +319,11 @@ class _ApprovalViewState extends State<ApprovalView>
         children: [
           Row(
             children: [
-              const Icon(Icons.calendar_today,
-                  size: 14, color: AsistenTheme.primaryBlue),
+              const Icon(
+                Icons.calendar_today,
+                size: 14,
+                color: AsistenTheme.primaryBlue,
+              ),
               const SizedBox(width: 6),
               Text(
                 dateLabel,
@@ -359,8 +372,11 @@ class _ApprovalViewState extends State<ApprovalView>
         children: [
           Row(
             children: [
-              const Icon(Icons.location_on_outlined,
-                  size: 16, color: AsistenTheme.textSecondary),
+              const Icon(
+                Icons.location_on_outlined,
+                size: 16,
+                color: AsistenTheme.textSecondary,
+              ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
@@ -409,32 +425,40 @@ class _ApprovalViewState extends State<ApprovalView>
               Row(
                 children: [
                   if (item.photoUrls != null && item.photoUrls!.isNotEmpty) ...[
-                    Builder(builder: (context) {
-                      final url = _resolvePhotoUrl(item.photoUrls!.first);
-                      return ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: Image.network(
-                          url,
-                          width: 48,
-                          height: 48,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 48,
-                              height: 48,
-                              color: Colors.grey[200],
-                              alignment: Alignment.center,
-                              child: const Icon(Icons.broken_image,
-                                  size: 16, color: Colors.grey),
-                            );
-                          },
-                        ),
-                      );
-                    }),
+                    Builder(
+                      builder: (context) {
+                        final url = _resolvePhotoUrl(item.photoUrls!.first);
+                        return ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.network(
+                            url,
+                            width: 48,
+                            height: 48,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 48,
+                                height: 48,
+                                color: Colors.grey[200],
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.broken_image,
+                                  size: 16,
+                                  color: Colors.grey,
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
                     const SizedBox(width: 8),
                   ],
-                  const Icon(Icons.person_outline,
-                      size: 14, color: AsistenTheme.textSecondary),
+                  const Icon(
+                    Icons.person_outline,
+                    size: 14,
+                    color: AsistenTheme.textSecondary,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -464,6 +488,8 @@ class _ApprovalViewState extends State<ApprovalView>
                   fontSize: 11,
                 ),
               ),
+              const SizedBox(height: 6),
+              _buildQualitySummary(item),
               const SizedBox(height: 8),
               if (item.status == 'PENDING')
                 Row(
@@ -471,8 +497,11 @@ class _ApprovalViewState extends State<ApprovalView>
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () => _showApproveConfirm(context, item),
-                        icon: const Icon(Icons.check,
-                            size: 16, color: Colors.white),
+                        icon: const Icon(
+                          Icons.check,
+                          size: 16,
+                          color: Colors.white,
+                        ),
                         label: const Text('Setuju'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AsistenTheme.approvedGreen,
@@ -489,13 +518,17 @@ class _ApprovalViewState extends State<ApprovalView>
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () => _showRejectDialog(context, item),
-                        icon: const Icon(Icons.close,
-                            size: 16, color: AsistenTheme.rejectedRed),
+                        icon: const Icon(
+                          Icons.close,
+                          size: 16,
+                          color: AsistenTheme.rejectedRed,
+                        ),
                         label: const Text('Tolak'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AsistenTheme.rejectedRed,
-                          side:
-                              const BorderSide(color: AsistenTheme.rejectedRed),
+                          side: const BorderSide(
+                            color: AsistenTheme.rejectedRed,
+                          ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
@@ -591,16 +624,32 @@ class _ApprovalViewState extends State<ApprovalView>
                 _buildDetailRow('Blok', item.blockName),
                 _buildDetailRow('Status', _resolveStatusLabel(item.status)),
                 _buildDetailRow('Janjang', '${item.tbsCount}'),
+                _buildDetailRow('Total Kualitas', '${item.qualityTotal}'),
+                _buildDetailRow('Jjg Matang', '${item.jjgMatang}'),
+                _buildDetailRow('Jjg Mentah', '${item.jjgMentah}'),
+                _buildDetailRow('Jjg Lewat Matang', '${item.jjgLewatMatang}'),
                 _buildDetailRow(
-                    'Berat', '${item.weight.toStringAsFixed(1)} kg'),
+                  'Jjg Busuk/Abnormal',
+                  '${item.jjgBusukAbnormal}',
+                ),
+                _buildDetailRow(
+                  'Jjg Tangkai Panjang',
+                  '${item.jjgTangkaiPanjang}',
+                ),
+                _buildDetailRow(
+                  'Berat',
+                  '${item.weight.toStringAsFixed(1)} kg',
+                ),
                 _buildDetailRow(
                   'Tanggal Panen',
                   _formatHarvestDate(item.harvestDate),
                 ),
                 _buildDetailRow(
                   'Dikirim',
-                  DateFormat('d MMM yyyy HH:mm', 'id_ID')
-                      .format(item.submittedAt),
+                  DateFormat(
+                    'd MMM yyyy HH:mm',
+                    'id_ID',
+                  ).format(item.submittedAt),
                 ),
                 if (item.notes != null && item.notes!.trim().isNotEmpty)
                   _buildDetailRow('Catatan', item.notes!.trim()),
@@ -636,8 +685,10 @@ class _ApprovalViewState extends State<ApprovalView>
                                 width: 120,
                                 height: 120,
                                 color: Colors.grey[200],
-                                child: const Icon(Icons.broken_image,
-                                    color: Colors.grey),
+                                child: const Icon(
+                                  Icons.broken_image,
+                                  color: Colors.grey,
+                                ),
                               );
                             },
                           ),
@@ -682,6 +733,45 @@ class _ApprovalViewState extends State<ApprovalView>
     );
   }
 
+  Widget _buildQualitySummary(ApprovalItem item) {
+    if (!item.hasQualityData) {
+      return const Text(
+        'Kualitas buah: data belum tersedia',
+        style: TextStyle(color: AsistenTheme.textSecondary, fontSize: 11),
+      );
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        _buildQualityChip('Matang', item.jjgMatang),
+        _buildQualityChip('Mentah', item.jjgMentah),
+        _buildQualityChip('Lewat', item.jjgLewatMatang),
+        _buildQualityChip('Busuk', item.jjgBusukAbnormal),
+        _buildQualityChip('Tangkai', item.jjgTangkaiPanjang),
+      ],
+    );
+  }
+
+  Widget _buildQualityChip(String label, int value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AsistenTheme.primaryBlue.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label: $value',
+        style: const TextStyle(
+          color: AsistenTheme.textSecondary,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
   Widget _buildDetailRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -723,32 +813,26 @@ class _ApprovalViewState extends State<ApprovalView>
   Widget _buildStatItem(String label, int count, Color color) {
     return Text(
       '$label: $count',
-      style: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        color: color,
-      ),
+      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color),
     );
   }
 
   Widget _buildStatVerticalDivider() {
-    return Container(
-      height: 20,
-      width: 1,
-      color: Colors.black12,
-    );
+    return Container(height: 20, width: 1, color: Colors.black12);
   }
 
   List<_MandorApprovalGroup> _buildGroupedApprovals(
-      List<ApprovalItem> approvals) {
+    List<ApprovalItem> approvals,
+  ) {
     final mandorMaps =
         <String, Map<DateTime, Map<String, List<ApprovalItem>>>>{};
     final mandorNameByKey = <String, String>{};
     final blockNameByKey = <String, String>{};
 
     for (final item in approvals) {
-      final mandorKey =
-          item.mandorId.isNotEmpty ? item.mandorId : item.mandorName;
+      final mandorKey = item.mandorId.isNotEmpty
+          ? item.mandorId
+          : item.mandorName;
       final blockKey = item.blockId.isNotEmpty ? item.blockId : item.blockName;
       final dateKey = DateUtils.dateOnly(item.harvestDate);
 
@@ -785,10 +869,7 @@ class _ApprovalViewState extends State<ApprovalView>
         blockGroups.sort((a, b) => a.blockName.compareTo(b.blockName));
 
         dateGroups.add(
-          _DateApprovalGroup(
-            date: dateEntry.key,
-            blockGroups: blockGroups,
-          ),
+          _DateApprovalGroup(date: dateEntry.key, blockGroups: blockGroups),
         );
       }
 
@@ -813,7 +894,8 @@ class _ApprovalViewState extends State<ApprovalView>
       builder: (ctx) => AlertDialog(
         title: const Text('Setujui Panen?'),
         content: Text(
-            'Anda akan menyetujui panen karyawan ${_resolveEmployeeName(item)}.'),
+          'Anda akan menyetujui panen karyawan ${_resolveEmployeeName(item)}.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -822,9 +904,9 @@ class _ApprovalViewState extends State<ApprovalView>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(ctx);
-              context
-                  .read<ApprovalBloc>()
-                  .add(ApprovalApproveRequested(id: item.id));
+              context.read<ApprovalBloc>().add(
+                ApprovalApproveRequested(id: item.id),
+              );
             },
             child: const Text('Setuju'),
           ),
@@ -843,7 +925,8 @@ class _ApprovalViewState extends State<ApprovalView>
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-                'Berikan alasan penolakan untuk ${_resolveEmployeeName(item)}:'),
+              'Berikan alasan penolakan untuk ${_resolveEmployeeName(item)}:',
+            ),
             const SizedBox(height: 8),
             TextField(
               controller: reasonController,
@@ -870,14 +953,15 @@ class _ApprovalViewState extends State<ApprovalView>
               }
               Navigator.pop(ctx);
               context.read<ApprovalBloc>().add(
-                    ApprovalRejectRequested(
-                      id: item.id,
-                      reason: reasonController.text,
-                    ),
-                  );
+                ApprovalRejectRequested(
+                  id: item.id,
+                  reason: reasonController.text,
+                ),
+              );
             },
             style: ElevatedButton.styleFrom(
-                backgroundColor: AsistenTheme.rejectedRed),
+              backgroundColor: AsistenTheme.rejectedRed,
+            ),
             child: const Text('Tolak', style: TextStyle(color: Colors.white)),
           ),
         ],
@@ -912,9 +996,7 @@ class _ApprovalViewState extends State<ApprovalView>
                     loadingBuilder: (context, child, loadingProgress) {
                       if (loadingProgress == null) return child;
                       return const Center(
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                        ),
+                        child: CircularProgressIndicator(color: Colors.white),
                       );
                     },
                     errorBuilder: (context, error, stackTrace) {
@@ -976,8 +1058,9 @@ class _ApprovalViewState extends State<ApprovalView>
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        backgroundColor:
-            found ? AsistenTheme.approvedGreen : AsistenTheme.pendingOrange,
+        backgroundColor: found
+            ? AsistenTheme.approvedGreen
+            : AsistenTheme.pendingOrange,
       ),
     );
 
@@ -1034,10 +1117,7 @@ class _DateApprovalGroup {
   final DateTime date;
   final List<_BlockApprovalGroup> blockGroups;
 
-  const _DateApprovalGroup({
-    required this.date,
-    required this.blockGroups,
-  });
+  const _DateApprovalGroup({required this.date, required this.blockGroups});
 
   int get totalRecords =>
       blockGroups.fold(0, (sum, block) => sum + block.items.length);

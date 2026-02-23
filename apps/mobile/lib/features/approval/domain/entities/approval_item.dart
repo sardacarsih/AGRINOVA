@@ -7,7 +7,7 @@ part 'approval_item.g.dart';
 class ApprovalItem extends Equatable {
   final String id;
   final String
-      mandorName; // Flattened for easier UI usage or derived from nested object
+  mandorName; // Flattened for easier UI usage or derived from nested object
   final String mandorId;
   final String blockName;
   final String blockId;
@@ -27,6 +27,11 @@ class ApprovalItem extends Equatable {
   final double? longitude;
   final String? notes;
   final String priority; // NORMAL, HIGH, URGENT
+  final int jjgMatang;
+  final int jjgMentah;
+  final int jjgLewatMatang;
+  final int jjgBusukAbnormal;
+  final int jjgTangkaiPanjang;
 
   const ApprovalItem({
     required this.id,
@@ -50,6 +55,11 @@ class ApprovalItem extends Equatable {
     this.longitude,
     this.notes,
     this.priority = 'NORMAL',
+    this.jjgMatang = 0,
+    this.jjgMentah = 0,
+    this.jjgLewatMatang = 0,
+    this.jjgBusukAbnormal = 0,
+    this.jjgTangkaiPanjang = 0,
   });
 
   factory ApprovalItem.fromJson(Map<String, dynamic> json) =>
@@ -57,17 +67,68 @@ class ApprovalItem extends Equatable {
 
   Map<String, dynamic> toJson() => _$ApprovalItemToJson(this);
 
+  int get qualityTotal =>
+      jjgMatang +
+      jjgMentah +
+      jjgLewatMatang +
+      jjgBusukAbnormal +
+      jjgTangkaiPanjang;
+
+  bool get hasQualityData => qualityTotal > 0;
+
+  ApprovalItem copyWith({
+    int? jjgMatang,
+    int? jjgMentah,
+    int? jjgLewatMatang,
+    int? jjgBusukAbnormal,
+    int? jjgTangkaiPanjang,
+  }) {
+    return ApprovalItem(
+      id: id,
+      mandorName: mandorName,
+      mandorId: mandorId,
+      blockName: blockName,
+      blockId: blockId,
+      divisionName: divisionName,
+      divisionId: divisionId,
+      harvestDate: harvestDate,
+      employeeCount: employeeCount,
+      employees: employees,
+      tbsCount: tbsCount,
+      weight: weight,
+      submittedAt: submittedAt,
+      elapsedTime: elapsedTime,
+      status: status,
+      hasPhoto: hasPhoto,
+      photoUrls: photoUrls,
+      latitude: latitude,
+      longitude: longitude,
+      notes: notes,
+      priority: priority,
+      jjgMatang: jjgMatang ?? this.jjgMatang,
+      jjgMentah: jjgMentah ?? this.jjgMentah,
+      jjgLewatMatang: jjgLewatMatang ?? this.jjgLewatMatang,
+      jjgBusukAbnormal: jjgBusukAbnormal ?? this.jjgBusukAbnormal,
+      jjgTangkaiPanjang: jjgTangkaiPanjang ?? this.jjgTangkaiPanjang,
+    );
+  }
+
   @override
   List<Object?> get props => [
-        id,
-        mandorName,
-        blockName,
-        divisionName,
-        harvestDate,
-        employees,
-        status,
-        submittedAt
-      ];
+    id,
+    mandorName,
+    blockName,
+    divisionName,
+    harvestDate,
+    employees,
+    status,
+    submittedAt,
+    jjgMatang,
+    jjgMentah,
+    jjgLewatMatang,
+    jjgBusukAbnormal,
+    jjgTangkaiPanjang,
+  ];
 }
 
 @JsonSerializable()

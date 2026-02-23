@@ -16,6 +16,7 @@ abstract class ApprovalRepository {
     String? sortDirection,
     int? page,
     int? pageSize,
+    bool includeQuality = false,
   });
 
   Future<ApprovalStats> getApprovalStats();
@@ -29,7 +30,7 @@ class ApprovalRepositoryImpl implements ApprovalRepository {
   final AgroGraphQLClient _graphQLClient;
 
   ApprovalRepositoryImpl({required AgroGraphQLClient graphQLClient})
-      : _graphQLClient = graphQLClient;
+    : _graphQLClient = graphQLClient;
 
   static const String _pendingApprovalsQuery = r'''
       query PendingApprovals($filter: ApprovalFilterInput) {
@@ -99,6 +100,19 @@ class ApprovalRepositoryImpl implements ApprovalRepository {
       }
     ''';
 
+  static const String _harvestQualityQuery = r'''
+      query HarvestQualityById($id: ID!) {
+        harvestRecord(id: $id) {
+          id
+          jjgMatang
+          jjgMentah
+          jjgLewatMatang
+          jjgBusukAbnormal
+          jjgTangkaiPanjang
+        }
+      }
+    ''';
+
   @override
   Future<List<ApprovalItem>> getPendingApprovals({
     String? status,
@@ -113,6 +127,7 @@ class ApprovalRepositoryImpl implements ApprovalRepository {
     String? sortDirection,
     int? page,
     int? pageSize,
+    bool includeQuality = false,
   }) async {
     final baseFilter = _buildFilter(
       divisionId: divisionId,
@@ -148,21 +163,26 @@ class ApprovalRepositoryImpl implements ApprovalRepository {
         ),
       ]);
 
-      final combined = <ApprovalItem>[
-        ...results[0],
-        ...results[1],
-      ]..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
-      return combined;
+      final combined = <ApprovalItem>[...results[0], ...results[1]]
+        ..sort((a, b) => b.submittedAt.compareTo(a.submittedAt));
+      if (!includeQuality) {
+        return combined;
+      }
+      return _enrichApprovalsWithQuality(combined);
     }
 
     final filter = Map<String, dynamic>.from(baseFilter)..['status'] = status;
     final useHistoryQuery = status == 'APPROVED' || status == 'REJECTED';
 
-    return _fetchApprovalItems(
+    final items = await _fetchApprovalItems(
       query: useHistoryQuery ? _approvalHistoryQuery : _pendingApprovalsQuery,
       rootField: useHistoryQuery ? 'approvalHistory' : 'pendingApprovals',
       filter: filter,
     );
+    if (!includeQuality) {
+      return items;
+    }
+    return _enrichApprovalsWithQuality(items);
   }
 
   Map<String, dynamic> _buildFilter({
@@ -238,11 +258,69 @@ class ApprovalRepositoryImpl implements ApprovalRepository {
       elapsedTime: json['elapsedTime'] ?? '',
       status: json['status'] ?? 'PENDING',
       hasPhoto: json['hasPhoto'] ?? false,
-      photoUrls:
-          (json['photoUrls'] as List?)?.map((e) => e.toString()).toList(),
+      photoUrls: (json['photoUrls'] as List?)
+          ?.map((e) => e.toString())
+          .toList(),
       priority: json['priority'] ?? 'NORMAL',
       notes: json['notes'],
     );
+  }
+
+  Future<List<ApprovalItem>> _enrichApprovalsWithQuality(
+    List<ApprovalItem> items,
+  ) async {
+    if (items.isEmpty) {
+      return items;
+    }
+
+    final enriched = await Future.wait(items.map(_fetchApprovalWithQuality));
+
+    return List<ApprovalItem>.generate(
+      items.length,
+      (index) => enriched[index] ?? items[index],
+      growable: false,
+    );
+  }
+
+  Future<ApprovalItem?> _fetchApprovalWithQuality(ApprovalItem item) async {
+    try {
+      final result = await _graphQLClient.query(
+        QueryOptions(
+          document: gql(_harvestQualityQuery),
+          variables: {'id': item.id},
+          fetchPolicy: FetchPolicy.networkOnly,
+        ),
+      );
+
+      if (result.hasException) {
+        return null;
+      }
+
+      final harvest = result.data?['harvestRecord'] as Map<String, dynamic>?;
+      if (harvest == null) {
+        return null;
+      }
+
+      return item.copyWith(
+        jjgMatang: _toInt(harvest['jjgMatang']),
+        jjgMentah: _toInt(harvest['jjgMentah']),
+        jjgLewatMatang: _toInt(harvest['jjgLewatMatang']),
+        jjgBusukAbnormal: _toInt(harvest['jjgBusukAbnormal']),
+        jjgTangkaiPanjang: _toInt(harvest['jjgTangkaiPanjang']),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  int _toInt(dynamic value) {
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String) {
+      return int.tryParse(value) ?? 0;
+    }
+    return 0;
   }
 
   @override
@@ -260,10 +338,7 @@ class ApprovalRepositoryImpl implements ApprovalRepository {
     ''';
 
     final result = await _graphQLClient.query(
-      QueryOptions(
-        document: gql(query),
-        fetchPolicy: FetchPolicy.networkOnly,
-      ),
+      QueryOptions(document: gql(query), fetchPolicy: FetchPolicy.networkOnly),
     );
 
     if (result.hasException) {
@@ -273,7 +348,10 @@ class ApprovalRepositoryImpl implements ApprovalRepository {
     final data = result.data?['asistenDashboardStats'];
     if (data == null) {
       return const ApprovalStats(
-          pendingCount: 0, approvedCount: 0, rejectedCount: 0);
+        pendingCount: 0,
+        approvedCount: 0,
+        rejectedCount: 0,
+      );
     }
 
     return ApprovalStats(

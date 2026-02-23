@@ -12,6 +12,11 @@ class ManagerHarvestApprovalItem {
   final DateTime harvestDate;
   final DateTime submittedAt;
   final String status;
+  final int jjgMatang;
+  final int jjgMentah;
+  final int jjgLewatMatang;
+  final int jjgBusukAbnormal;
+  final int jjgTangkaiPanjang;
 
   const ManagerHarvestApprovalItem({
     required this.id,
@@ -24,7 +29,21 @@ class ManagerHarvestApprovalItem {
     required this.harvestDate,
     required this.submittedAt,
     required this.status,
+    required this.jjgMatang,
+    required this.jjgMentah,
+    required this.jjgLewatMatang,
+    required this.jjgBusukAbnormal,
+    required this.jjgTangkaiPanjang,
   });
+
+  int get qualityTotal =>
+      jjgMatang +
+      jjgMentah +
+      jjgLewatMatang +
+      jjgBusukAbnormal +
+      jjgTangkaiPanjang;
+
+  bool get hasQualityData => qualityTotal > 0;
 }
 
 class ManagerHarvestApprovalRepository {
@@ -44,6 +63,11 @@ class ManagerHarvestApprovalRepository {
         karyawan
         jumlahJanjang
         beratTbs
+        jjgMatang
+        jjgMentah
+        jjgLewatMatang
+        jjgBusukAbnormal
+        jjgTangkaiPanjang
         mandor {
           id
           name
@@ -127,10 +151,7 @@ class ManagerHarvestApprovalRepository {
       MutationOptions(
         document: gql(_rejectMutation),
         variables: {
-          'input': {
-            'id': id,
-            'rejectedReason': reason,
-          },
+          'input': {'id': id, 'rejectedReason': reason},
         },
       ),
     );
@@ -161,6 +182,11 @@ class ManagerHarvestApprovalRepository {
       harvestDate: harvestDate,
       submittedAt: submittedAt,
       status: _stringOrFallback(json['status'], 'PENDING'),
+      jjgMatang: (json['jjgMatang'] as num?)?.toInt() ?? 0,
+      jjgMentah: (json['jjgMentah'] as num?)?.toInt() ?? 0,
+      jjgLewatMatang: (json['jjgLewatMatang'] as num?)?.toInt() ?? 0,
+      jjgBusukAbnormal: (json['jjgBusukAbnormal'] as num?)?.toInt() ?? 0,
+      jjgTangkaiPanjang: (json['jjgTangkaiPanjang'] as num?)?.toInt() ?? 0,
     );
   }
 
