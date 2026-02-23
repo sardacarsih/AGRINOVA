@@ -89,6 +89,7 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const { login, isAuthenticated, user } = useAuth();
   const [loading, setLoading] = React.useState(false);
+  const [isRedirectingAfterAuth, setIsRedirectingAfterAuth] = React.useState(false);
   const hasRedirectedAfterAuthRef = React.useRef(false);
   const shouldReduceMotion = useReducedMotion();
   const [isMobileViewport, setIsMobileViewport] = React.useState<boolean>(() => {
@@ -132,6 +133,7 @@ function LoginPageContent() {
   React.useEffect(() => {
     if (!isAuthenticated || !user) {
       hasRedirectedAfterAuthRef.current = false;
+      setIsRedirectingAfterAuth(false);
       return;
     }
 
@@ -141,6 +143,7 @@ function LoginPageContent() {
 
     const safePath = resolveSafeRedirectPath(user);
     hasRedirectedAfterAuthRef.current = true;
+    setIsRedirectingAfterAuth(true);
 
     console.log('Authenticated user redirect:', {
       userRole: user.role,
@@ -178,6 +181,7 @@ function LoginPageContent() {
 
   const handleLogin = async (data: LoginFormData) => {
     setLoading(true);
+    let loginSucceeded = false;
 
     try {
       console.log('[Login] Using cookie-based authentication');
@@ -198,7 +202,9 @@ function LoginPageContent() {
           success: response.success
         });
 
+        setIsRedirectingAfterAuth(true);
         login(response.data);
+        loginSucceeded = true;
 
         console.log('Login successful, waiting auth state to redirect...');
       } else {
@@ -212,6 +218,7 @@ function LoginPageContent() {
         throw new Error(errorMessage);
       }
     } catch (error: unknown) {
+      setIsRedirectingAfterAuth(false);
       const normalizedError = error as {
         message?: string;
         details?: string;
@@ -240,7 +247,9 @@ function LoginPageContent() {
         ? error
         : new Error(message || 'Login gagal. Silakan coba lagi.');
     } finally {
-      setLoading(false);
+      if (!loginSucceeded) {
+        setLoading(false);
+      }
     }
   };
 
@@ -250,6 +259,7 @@ function LoginPageContent() {
 
   const handleQRLogin = async (data: QRLoginData) => {
     setLoading(true);
+    let loginSucceeded = false;
 
     try {
       toast.success(`Selamat datang via QR, ${data.user.name}!`);
@@ -261,16 +271,32 @@ function LoginPageContent() {
         expiresAt: data.expiresAt ?? new Date(Date.now() + 24 * 60 * 60 * 1000),
       };
 
+      setIsRedirectingAfterAuth(true);
       login(authSession);
+      loginSucceeded = true;
 
       console.log('QR login successful, waiting auth state to redirect...');
     } catch (error) {
+      setIsRedirectingAfterAuth(false);
       console.error('QR Login error:', error);
       toast.error('Terjadi kesalahan saat login dengan QR. Silakan coba lagi.');
     } finally {
-      setLoading(false);
+      if (!loginSucceeded) {
+        setLoading(false);
+      }
     }
   };
+
+  if (isRedirectingAfterAuth || (isAuthenticated && !!user)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 dark:text-slate-400">Mengalihkan ke dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Animation variants that respect reduced motion preference
   const containerVariants = {

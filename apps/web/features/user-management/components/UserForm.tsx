@@ -21,6 +21,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Badge } from '@/components/ui/badge';
 import { User, UserRole } from '@/gql/graphql';
+import { LOGIN_PASSWORD_MIN_LENGTH } from '@/lib/auth/validation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -64,7 +65,13 @@ const userFormSchema = z.object({
     username: z.string().min(3, 'Username minimal 3 karakter'),
     email: z.string().email('Format email tidak valid').optional().or(z.literal('')),
     phoneNumber: z.string().optional(),
-    password: z.string().optional(),
+    password: z
+        .string()
+        .optional()
+        .refine(
+            (value) => !value || value.trim().length >= LOGIN_PASSWORD_MIN_LENGTH,
+            `Password minimal ${LOGIN_PASSWORD_MIN_LENGTH} karakter`
+        ),
     role: z.nativeEnum(UserRole),
     managerId: z.string().optional().nullable(),
     companyIds: z.array(z.string()).optional(),
@@ -289,7 +296,7 @@ export function UserForm({
 
     const handleSubmit = async (values: z.infer<typeof userFormSchema>) => {
         // Validation logic for password on create
-        if (!isEditing && !values.password) {
+        if (!isEditing && !values.password?.trim()) {
             form.setError('password', { message: 'Password wajib diisi untuk user baru' });
             return;
         }
@@ -416,7 +423,7 @@ export function UserForm({
                                                     <FormControl>
                                                         <Input type="password" placeholder="••••••••" {...field} className="bg-slate-50 border-slate-200 focus:bg-white transition-colors" />
                                                     </FormControl>
-                                                    <FormDescription>Minimal 6 karakter.</FormDescription>
+                                                    <FormDescription>Minimal {LOGIN_PASSWORD_MIN_LENGTH} karakter.</FormDescription>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}

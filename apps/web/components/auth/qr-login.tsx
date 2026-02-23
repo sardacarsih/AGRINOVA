@@ -34,6 +34,17 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
 
   const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const onSuccessRef = React.useRef(onSuccess);
+  const onErrorRef = React.useRef(onError);
+  const isConsumingRef = React.useRef(false);
+
+  React.useEffect(() => {
+    onSuccessRef.current = onSuccess;
+  }, [onSuccess]);
+
+  React.useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   const clearTimers = React.useCallback(() => {
     if (pollingIntervalRef.current) {
@@ -47,37 +58,43 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
   }, []);
 
   const consumeApprovedSession = React.useCallback(async (sid: string, sessionChallenge: string) => {
-    const consumeResponse = await cookieApiClient.consumeWebQRLogin({
-      sessionId: sid,
-      challenge: sessionChallenge,
-    });
-
-    if (!consumeResponse.success || !consumeResponse.data?.user) {
-      setStatus('error');
-      onError(consumeResponse.message || 'Gagal menyelesaikan login QR.');
+    if (isConsumingRef.current) {
       return;
     }
-
-    const authenticated = await cookieApiClient.checkAuth();
-    if (!authenticated) {
-      setStatus('error');
-      onError('QR login berhasil, tetapi sesi belum aktif. Silakan coba lagi.');
-      return;
-    }
-
-    setStatus('approved');
-    clearTimers();
-
+    isConsumingRef.current = true;
     try {
-      await onSuccess({
+      const consumeResponse = await cookieApiClient.consumeWebQRLogin({
+        sessionId: sid,
+        challenge: sessionChallenge,
+      });
+
+      if (!consumeResponse.success || !consumeResponse.data?.user) {
+        setStatus('error');
+        onErrorRef.current(consumeResponse.message || 'Gagal menyelesaikan login QR.');
+        return;
+      }
+
+      const authenticated = await cookieApiClient.checkAuth();
+      if (!authenticated) {
+        setStatus('error');
+        onErrorRef.current('QR login berhasil, tetapi sesi belum aktif. Silakan coba lagi.');
+        return;
+      }
+
+      setStatus('approved');
+      clearTimers();
+
+      await onSuccessRef.current({
         user: consumeResponse.data.user,
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       });
     } catch (error: any) {
       setStatus('error');
-      onError(error?.message || 'Gagal menyelesaikan login QR.');
+      onErrorRef.current(error?.message || 'Gagal menyelesaikan login QR.');
+    } finally {
+      isConsumingRef.current = false;
     }
-  }, [clearTimers, onError, onSuccess]);
+  }, [clearTimers]);
 
   const startPolling = React.useCallback((sid: string, sessionChallenge: string) => {
     if (pollingIntervalRef.current) {
@@ -86,17 +103,22 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
 
     pollingIntervalRef.current = setInterval(async () => {
       try {
+        if (isConsumingRef.current) {
+          return;
+        }
+
         const response = await cookieApiClient.getWebQRLoginStatus(sid, sessionChallenge);
         const statusValue = response.data?.status;
 
         if (!response.success && statusValue !== 'PENDING') {
           setStatus('error');
           clearTimers();
-          onError(response.message || 'Status QR login tidak valid.');
+          onErrorRef.current(response.message || 'Status QR login tidak valid.');
           return;
         }
 
         if (statusValue === 'APPROVED') {
+          clearTimers();
           await consumeApprovedSession(sid, sessionChallenge);
           return;
         }
@@ -109,7 +131,7 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
         console.error('QR status polling error:', error);
       }
     }, 3000);
-  }, [clearTimers, consumeApprovedSession, onError]);
+  }, [clearTimers, consumeApprovedSession]);
 
   const startCountdown = React.useCallback((expiryMs: number) => {
     if (countdownIntervalRef.current) {
@@ -135,7 +157,7 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
       const response = await cookieApiClient.createWebQRLoginSession();
       if (!response.success || !response.data?.sessionId || !response.data.challenge || !response.data.qrData) {
         setStatus('error');
-        onError(response.message || 'Gagal membuat QR Code. Silakan coba lagi.');
+        onErrorRef.current(response.message || 'Gagal membuat QR Code. Silakan coba lagi.');
         return;
       }
 
@@ -152,9 +174,9 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
     } catch (error) {
       console.error('QR generation error:', error);
       setStatus('error');
-      onError('Terjadi kesalahan saat membuat QR Code.');
+      onErrorRef.current('Terjadi kesalahan saat membuat QR Code.');
     }
-  }, [clearTimers, onError, startCountdown, startPolling]);
+  }, [clearTimers, startCountdown, startPolling]);
 
   React.useEffect(() => {
     generateQRCode();

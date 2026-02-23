@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+export const LOGIN_PASSWORD_MIN_LENGTH = 6;
+
 // Login form validation schema - no role selection
 export const loginSchema = z.object({
   email: z
@@ -15,7 +17,7 @@ export const loginSchema = z.object({
   password: z
     .string()
     .min(1, 'Password harus diisi')
-    .min(6, 'Password minimal 6 karakter')
+    .min(LOGIN_PASSWORD_MIN_LENGTH, `Password minimal ${LOGIN_PASSWORD_MIN_LENGTH} karakter`)
     .max(100, 'Password terlalu panjang'),
   rememberMe: z.boolean(),
 });
