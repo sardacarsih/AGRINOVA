@@ -46,6 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       track: ${{ steps.plan.outputs.track }}
+      play_track: ${{ steps.plan.outputs.play_track }}
       environment: ${{ steps.plan.outputs.environment }}
       is_production: ${{ steps.plan.outputs.is_production }}
       version_name: ${{ steps.plan.outputs.version_name }}
@@ -65,6 +66,7 @@ jobs:
           ref_name="${{ github.ref_name }}"
 
           track=""
+          play_track=""
           environment=""
           is_production="false"
           version_name=""
@@ -72,9 +74,11 @@ jobs:
           if [[ "$event_name" == "push" && "$ref_type" == "branch" ]]; then
             if [[ "$ref_name" == "develop" ]]; then
               track="internal"
+              play_track="internal"
               environment="mobile-internal"
             elif [[ "$ref_name" == "main" || "$ref_name" == release/* ]]; then
               track="closed"
+              play_track="alpha"
               environment="mobile-closed"
             else
               echo "::error::Unsupported branch '$ref_name'. Allowed: develop, main, release/*."
@@ -86,6 +90,14 @@ jobs:
           elif [[ "$event_name" == "workflow_dispatch" ]]; then
             track="${{ github.event.inputs.target_track }}"
             environment="mobile-${track}"
+            if [[ "$track" == "closed" ]]; then
+              play_track="alpha"
+            elif [[ "$track" == "internal" ]]; then
+              play_track="internal"
+            else
+              echo "::error::Unsupported workflow_dispatch track '$track'. Allowed: internal, closed."
+              exit 1
+            fi
           else
             echo "::error::Unsupported trigger '$event_name'."
             exit 1
@@ -141,6 +153,7 @@ jobs:
           fi
 
           echo "track=$track" >> "$GITHUB_OUTPUT"
+          echo "play_track=$play_track" >> "$GITHUB_OUTPUT"
           echo "environment=$environment" >> "$GITHUB_OUTPUT"
           echo "is_production=$is_production" >> "$GITHUB_OUTPUT"
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
@@ -150,6 +163,7 @@ jobs:
           echo "  event       = $event_name"
           echo "  ref         = $ref_type/$ref_name"
           echo "  track       = $track"
+          echo "  play_track  = $play_track"
           echo "  environment = $environment"
           echo "  production  = $is_production"
           echo "  versionName = $version_name"
@@ -270,7 +284,7 @@ jobs:
           edit = service.edits().insert(packageName=package_name, body={}).execute()
           edit_id = edit["id"]
           max_code = 0
-          tracks = ["internal", "alpha", "beta", "closed", "production"]
+          tracks = ["internal", "alpha", "beta", "production"]
 
           try:
             for track in tracks:
@@ -441,7 +455,7 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: ${{ secrets.ANDROID_PACKAGE_NAME }}
           releaseFiles: apps/mobile/build/app/outputs/bundle/release/app-release.aab
-          track: ${{ needs.plan.outputs.track }}
+          track: ${{ needs.plan.outputs.play_track }}
           status: completed
           mappingFile: apps/mobile/build/app/outputs/mapping/release/mapping.txt
           whatsNewDirectory: ${{ steps.notes.outputs.dir }}
@@ -458,6 +472,7 @@ jobs:
           | **Version** | ${{ needs.plan.outputs.version_name }}+${{ needs.plan.outputs.version_code }} |
           | **Ref** | `${{ github.ref_name }}` |
           | **Track** | `${{ needs.plan.outputs.track }}` |
+          | **Play Track** | `${{ needs.plan.outputs.play_track }}` |
           | **Environment** | `${{ needs.plan.outputs.environment }}` |
           | **Package** | `${{ secrets.ANDROID_PACKAGE_NAME }}` |
           | **Commit** | `${{ github.sha }}` |
