@@ -15,6 +15,7 @@ import (
 	notificationServices "agrinovagraphql/server/internal/notifications/services"
 
 	panenModels "agrinovagraphql/server/internal/panen/models"
+	panenResolvers "agrinovagraphql/server/internal/panen/resolvers"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -28,6 +29,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // CreateMandorHarvest is the resolver for the createMandorHarvest field.
@@ -287,8 +289,11 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 
 		var err error
 		var record *mandor.HarvestRecord
-		isConflict := false
-		isUpdate := false
+		var createdModel *panenModels.HarvestRecord
+		recordCreated := false
+		recordUpdated := false
+		recordConflict := false
+		conflictResolutionFailed := false
 		effectiveMandorID := authUserID
 		effectiveDeviceID := strings.TrimSpace(input.DeviceID)
 		effectiveKaryawanID := normalizeSyncKaryawanID(recordInput.KaryawanID)
@@ -321,95 +326,83 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 			continue
 		}
 
-		// Determine if this is an UPDATE or CREATE based on ServerID presence
-		if recordInput.ServerID != nil && *recordInput.ServerID != "" {
-			// UPDATE: Record has a server ID - this is an update to existing record
-			isUpdate = true
-			existing, findErr := r.PanenResolver.HarvestRecord(ctx, *recordInput.ServerID)
-			if findErr != nil || existing == nil {
-				// Server record not found - try to create instead
-				isUpdate = false
-			} else {
-				if strings.TrimSpace(existing.MandorID) != effectiveMandorID {
-					errMsg := "access denied: cannot sync another mandor's harvest record"
-					syncResults = append(syncResults, &mandor.MandorSyncItemResult{
-						LocalID:  recordInput.LocalID,
-						ServerID: recordInput.ServerID,
-						Success:  false,
-						Status:   common.SyncItemStatusRejected,
-						Error:    &errMsg,
-					})
-					failureCount++
-					continue
-				}
+		err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			scopedPanenResolver := r.PanenResolver.WithDB(tx)
+			isUpdate := false
 
-				// Check for conflicts before updating
-				isConflict, err = r.checkAndResolveConflict(ctx, (*panenModels.HarvestRecord)(existing), recordInput, effectiveDeviceID, effectiveKaryawanID, effectiveNik)
-				if err != nil {
-					failureCount++
-					conflictsDetected++
-					errMsg := fmt.Sprintf("conflict resolution failed: %v", err)
-					syncResults = append(syncResults, &mandor.MandorSyncItemResult{
-						LocalID: recordInput.LocalID,
-						Success: false,
-						Status:  common.SyncItemStatusRejected,
-						Error:   &errMsg,
-					})
-					continue
-				}
-
-				if isConflict {
-					conflictsDetected++
-					// Server wins - return existing record without update
-					record = existing
+			// Determine if this is an UPDATE or CREATE based on ServerID presence.
+			if recordInput.ServerID != nil && *recordInput.ServerID != "" {
+				isUpdate = true
+				existing, findErr := scopedPanenResolver.HarvestRecord(ctx, *recordInput.ServerID)
+				if findErr != nil || existing == nil {
+					// Server record not found - fall back to create path.
+					isUpdate = false
 				} else {
+					if strings.TrimSpace(existing.MandorID) != effectiveMandorID {
+						return fmt.Errorf("access denied: cannot sync another mandor's harvest record")
+					}
+
+					isConflict, conflictErr := r.checkAndResolveConflict(
+						ctx,
+						(*panenModels.HarvestRecord)(existing),
+						recordInput,
+						effectiveDeviceID,
+						effectiveKaryawanID,
+						effectiveNik,
+					)
+					if conflictErr != nil {
+						conflictResolutionFailed = true
+						return fmt.Errorf("conflict resolution failed: %w", conflictErr)
+					}
+
+					if isConflict {
+						recordConflict = true
+						// Server wins - return existing record without write.
+						record = existing
+						return nil
+					}
+
 					// No conflict - allow updates for:
 					// 1) normal draft update (PENDING -> PENDING)
 					// 2) correction flow (REJECTED -> PENDING)
 					existingStatus := strings.ToUpper(strings.TrimSpace(string(existing.Status)))
 					requestedStatus := strings.ToUpper(strings.TrimSpace(stringValue(recordInput.Status)))
 					allowRejectedCorrection := existingStatus == "REJECTED" && requestedStatus == "PENDING"
-					if existingStatus == "PENDING" || allowRejectedCorrection {
-						record, err = r.updateHarvestRecordFromSync(
-							ctx,
-							*recordInput.ServerID,
-							recordInput,
-							effectiveDeviceID,
-							effectiveKaryawanID,
-							effectiveNik,
-							effectiveEmployeeDivisionID,
-							effectiveEmployeeDivisionName,
-							allowRejectedCorrection,
-						)
-						if err == nil {
-							updatedCount++
-						}
-					} else {
-						// Record is APPROVED or any non-correctable state - cannot update
-						errMsg := fmt.Sprintf("cannot update record with status %s", existing.Status)
-						syncResults = append(syncResults, &mandor.MandorSyncItemResult{
-							LocalID:  recordInput.LocalID,
-							ServerID: recordInput.ServerID,
-							Success:  false,
-							Status:   common.SyncItemStatusRejected,
-							Error:    &errMsg,
-						})
-						failureCount++
-						continue
+					if existingStatus != "PENDING" && !allowRejectedCorrection {
+						return fmt.Errorf("cannot update record with status %s", existing.Status)
 					}
+
+					updatedRecord, updateErr := r.updateHarvestRecordFromSync(
+						ctx,
+						scopedPanenResolver,
+						*recordInput.ServerID,
+						recordInput,
+						effectiveDeviceID,
+						effectiveKaryawanID,
+						effectiveNik,
+						effectiveEmployeeDivisionID,
+						effectiveEmployeeDivisionName,
+						allowRejectedCorrection,
+					)
+					if updateErr != nil {
+						return updateErr
+					}
+
+					record = updatedRecord
+					recordUpdated = true
+					return nil
 				}
 			}
-		}
 
-		// CREATE: No server ID or server record not found
-		if !isUpdate {
-			// Check for idempotency using LocalID
-			existing, findErr := r.PanenResolver.GetByLocalID(ctx, recordInput.LocalID, effectiveMandorID)
-			if findErr == nil && existing != nil {
-				// Record already exists by LocalID - treat as success (idempotent)
-				record = (*mandor.HarvestRecord)(existing)
-			} else {
-				// Create new record
+			// CREATE: No server ID or server record not found.
+			if !isUpdate {
+				existing, findErr := scopedPanenResolver.GetByLocalID(ctx, recordInput.LocalID, effectiveMandorID)
+				if findErr == nil && existing != nil {
+					// Record already exists by LocalID - treat as success (idempotent).
+					record = (*mandor.HarvestRecord)(existing)
+					return nil
+				}
+
 				localID := recordInput.LocalID
 				var localIDPtr *string
 				if localID != "" {
@@ -427,7 +420,7 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 					BeratTbs:      recordInput.BeratTbs,
 				}
 
-				// Add optional fields from sync input
+				// Add optional fields from sync input.
 				if recordInput.Notes != nil {
 					createInput.Notes = recordInput.Notes
 				}
@@ -471,42 +464,41 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 					createInput.EmployeeDivisionName = effectiveEmployeeDivisionName
 				}
 				createInput.KaryawanID = effectiveKaryawanID
+
 				if recordInput.PhotoURL != nil {
 					photoValue := strings.TrimSpace(*recordInput.PhotoURL)
 					if photoValue != "" {
 						resolvedPhotoURL, photoErr := r.saveHarvestPhotoFromPayload(recordInput.LocalID, photoValue)
 						if photoErr != nil {
-							err = fmt.Errorf("failed to process harvest photo: %w", photoErr)
-						} else {
-							createInput.PhotoURL = &resolvedPhotoURL
+							return fmt.Errorf("failed to process harvest photo: %w", photoErr)
 						}
+						createInput.PhotoURL = &resolvedPhotoURL
 					}
 				}
 
-				var model *panenModels.HarvestRecord
-				if err == nil {
-					model, err = r.PanenResolver.CreateHarvestRecord(ctx, createInput)
-					if err == nil {
-						if enforceErr := r.enforceSyncIdentity(
-							ctx,
-							model,
-							effectiveKaryawanID,
-							effectiveNik,
-							effectiveEmployeeDivisionID,
-							effectiveEmployeeDivisionName,
-						); enforceErr != nil {
-							err = enforceErr
-						}
-					}
-					if err == nil {
-						record = (*mandor.HarvestRecord)(model)
-						createdCount++
-						r.notifyAsistenHarvestCreated(ctx, model)
-						publishHarvestRecordCreated((*mandor.HarvestRecord)(model))
-					}
+				model, createErr := scopedPanenResolver.CreateHarvestRecord(ctx, createInput)
+				if createErr != nil {
+					return createErr
 				}
+				if enforceErr := r.enforceSyncIdentity(
+					ctx,
+					scopedPanenResolver,
+					model,
+					effectiveKaryawanID,
+					effectiveNik,
+					effectiveEmployeeDivisionID,
+					effectiveEmployeeDivisionName,
+				); enforceErr != nil {
+					return enforceErr
+				}
+
+				record = (*mandor.HarvestRecord)(model)
+				createdModel = model
+				recordCreated = true
 			}
-		}
+
+			return nil
+		})
 
 		itemResult := &mandor.MandorSyncItemResult{
 			LocalID: recordInput.LocalID,
@@ -514,12 +506,26 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 
 		if err != nil {
 			failureCount++
+			if conflictResolutionFailed {
+				conflictsDetected++
+			}
 			errMsg := err.Error()
 			itemResult.Success = false
 			itemResult.Status = common.SyncItemStatusRejected
 			itemResult.Error = &errMsg
 		} else {
 			successCount++
+			if recordConflict {
+				conflictsDetected++
+			}
+			if recordUpdated {
+				updatedCount++
+			}
+			if recordCreated {
+				createdCount++
+				r.notifyAsistenHarvestCreated(ctx, createdModel)
+				publishHarvestRecordCreated((*mandor.HarvestRecord)(createdModel))
+			}
 			itemResult.Success = true
 			itemResult.Status = common.SyncItemStatusAccepted
 			if record != nil {
@@ -1091,6 +1097,7 @@ func sanitizeFileComponent(value string) string {
 // updateHarvestRecordFromSync updates an existing harvest record from sync input
 func (r *mutationResolver) updateHarvestRecordFromSync(
 	ctx context.Context,
+	panenResolver *panenResolvers.PanenResolver,
 	serverID string,
 	input *mandor.HarvestRecordSyncInput,
 	deviceID string,
@@ -1136,7 +1143,7 @@ func (r *mutationResolver) updateHarvestRecordFromSync(
 	}
 
 	// Call the update service
-	updated, err := r.PanenResolver.UpdateHarvestRecord(ctx, updateInput)
+	updated, err := panenResolver.UpdateHarvestRecord(ctx, updateInput)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update harvest record: %w", err)
 	}
@@ -1156,6 +1163,7 @@ func (r *mutationResolver) updateHarvestRecordFromSync(
 	}
 	if err := r.enforceSyncIdentity(
 		ctx,
+		panenResolver,
 		updatedModel,
 		karyawanID,
 		nik,
@@ -1173,7 +1181,7 @@ func (r *mutationResolver) updateHarvestRecordFromSync(
 		updatedModel.RejectedReason = nil
 		updatedModel.ApprovedAt = nil
 		updatedModel.ApprovedBy = nil
-		if err := r.PanenResolver.SaveHarvestRecord(ctx, updatedModel); err != nil {
+		if err := panenResolver.SaveHarvestRecord(ctx, updatedModel); err != nil {
 			return nil, fmt.Errorf("failed to reset corrected harvest status to pending: %w", err)
 		}
 	}
@@ -1237,6 +1245,7 @@ func (r *mutationResolver) resolveHarvestNikFromSyncInput(
 
 func (r *mutationResolver) enforceSyncIdentity(
 	ctx context.Context,
+	panenResolver *panenResolvers.PanenResolver,
 	record *panenModels.HarvestRecord,
 	karyawanID *string,
 	nik *string,
@@ -1256,7 +1265,7 @@ func (r *mutationResolver) enforceSyncIdentity(
 	if employeeDivisionName != nil {
 		record.EmployeeDivisionName = employeeDivisionName
 	}
-	return r.PanenResolver.SaveHarvestRecord(ctx, record)
+	return panenResolver.SaveHarvestRecord(ctx, record)
 }
 
 func normalizeSyncKaryawanID(karyawanID string) *string {
@@ -1625,7 +1634,7 @@ func convertToMandorHarvestRecord(record *mandor.HarvestRecord) *mandor.MandorHa
 
 	return &mandor.MandorHarvestRecord{
 		ID:                record.ID,
-		LocalID:           nil, // Server doesn't track local IDs
+		LocalID:           record.LocalID,
 		Tanggal:           record.Tanggal,
 		MandorID:          record.MandorID,
 		MandorName:        mandorName,

@@ -201,45 +201,36 @@ func (r *PanenRepository) GetHarvestRecordByIDForManager(ctx context.Context, id
 func (r *PanenRepository) UpdateHarvestRecord(ctx context.Context, id string, updates map[string]interface{}) (*models.HarvestRecord, error) {
 	var record models.HarvestRecord
 
-	// Start transaction
-	tx := r.db.WithContext(ctx).Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
 	filteredUpdates, err := r.filterHarvestRecordColumns(ctx, updates)
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 	if len(filteredUpdates) == 0 {
 		filteredUpdates = map[string]interface{}{"updated_at": time.Now()}
 	}
 
-	// Update the record
-	err = tx.Model(&record).Where("id = ?", id).Updates(filteredUpdates).Error
+	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Update the record
+		if updateErr := tx.Model(&models.HarvestRecord{}).
+			Where("id = ?", id).
+			Updates(filteredUpdates).Error; updateErr != nil {
+			return updateErr
+		}
+
+		// Fetch updated record with associations
+		return tx.Preload("Mandor").
+			Preload("Block").
+			Preload("Block.Division").
+			Preload("Block.Division.Estate").
+			Preload("Block.Division.Estate.Company").
+			Where("id = ?", id).
+			First(&record).Error
+	})
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
-	// Fetch updated record with associations
-	err = tx.Preload("Mandor").
-		Preload("Block").
-		Preload("Block.Division").
-		Preload("Block.Division.Estate").
-		Preload("Block.Division.Estate.Company").
-		Where("id = ?", id).
-		First(&record).Error
-
-	if err != nil {
-		tx.Rollback()
-		return nil, err
-	}
-
-	return &record, tx.Commit().Error
+	return &record, nil
 }
 
 // ApproveHarvestRecord approves a harvest record
@@ -542,8 +533,31 @@ func (r *PanenRepository) getHarvestRecordColumns(ctx context.Context) (map[stri
 		WHERE table_schema = current_schema()
 		  AND table_name = 'harvest_records'
 	`).Scan(&columnNames).Error
-	if err != nil {
-		return nil, err
+
+	if err != nil || len(columnNames) == 0 {
+		// SQLite/test fallback when information_schema/current_schema are unavailable.
+		var pragmaRows []struct {
+			Name string `gorm:"column:name"`
+		}
+		pragmaErr := r.db.WithContext(ctx).
+			Raw(`PRAGMA table_info('harvest_records')`).
+			Scan(&pragmaRows).Error
+		if pragmaErr != nil {
+			if err != nil {
+				return nil, err
+			}
+			return nil, pragmaErr
+		}
+		columnNames = make([]string, 0, len(pragmaRows))
+		for _, row := range pragmaRows {
+			if strings.TrimSpace(row.Name) == "" {
+				continue
+			}
+			columnNames = append(columnNames, row.Name)
+		}
+		if len(columnNames) == 0 && err != nil {
+			return nil, err
+		}
 	}
 
 	columns := make(map[string]struct{}, len(columnNames))

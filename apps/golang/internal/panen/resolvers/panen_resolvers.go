@@ -30,6 +30,19 @@ func NewPanenResolver(db *gorm.DB, authMiddleware *middleware.AuthMiddleware) *P
 	}
 }
 
+// WithDB returns a resolver clone that uses the provided DB handle.
+// Useful for running resolver/service logic inside an existing transaction.
+func (r *PanenResolver) WithDB(db *gorm.DB) *PanenResolver {
+	if db == nil {
+		return r
+	}
+	return &PanenResolver{
+		db:          db,
+		service:     panenServices.NewPanenService(db),
+		rbacService: r.rbacService,
+	}
+}
+
 // Query Resolvers
 
 // HarvestRecords retrieves harvest records

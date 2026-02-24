@@ -582,7 +582,7 @@ func (s *PanenService) resolveEmployeeDivisionSnapshot(
 	}
 	if err := s.db.WithContext(ctx).Raw(`
 		SELECT
-			d.id::text AS division_id,
+			CAST(d.id AS TEXT) AS division_id,
 			NULLIF(BTRIM(d.name), '') AS division_name
 		FROM employees e
 		LEFT JOIN divisions d ON d.id = e.division_id
@@ -625,9 +625,9 @@ func (s *PanenService) resolveHarvestScopeFromBlock(ctx context.Context, blockID
 	}
 	err := s.db.WithContext(ctx).Raw(`
 		SELECT
-			e.company_id::text AS company_id,
-			d.estate_id::text AS estate_id,
-			b.division_id::text AS division_id
+			CAST(e.company_id AS TEXT) AS company_id,
+			CAST(d.estate_id AS TEXT) AS estate_id,
+			CAST(b.division_id AS TEXT) AS division_id
 		FROM blocks b
 		JOIN divisions d ON d.id = b.division_id
 		JOIN estates e ON e.id = d.estate_id
@@ -653,7 +653,7 @@ func (s *PanenService) resolveCompanyFromAssignment(ctx context.Context, userID 
 	var companyID *string
 	_ = s.db.WithContext(ctx).
 		Table("user_company_assignments").
-		Select("company_id::text").
+		Select("CAST(company_id AS TEXT)").
 		Where("user_id = ? AND is_active = true", trimmed).
 		Order("updated_at DESC").
 		Limit(1).
@@ -671,7 +671,7 @@ func (s *PanenService) resolveEstateFromAssignment(ctx context.Context, userID s
 	var estateID *string
 	_ = s.db.WithContext(ctx).
 		Table("user_estate_assignments").
-		Select("estate_id::text").
+		Select("CAST(estate_id AS TEXT)").
 		Where("user_id = ? AND is_active = true", trimmed).
 		Order("updated_at DESC").
 		Limit(1).
