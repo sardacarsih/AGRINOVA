@@ -1,30 +1,18 @@
-name: Go and Next CI
+name: Go CI
 
 on:
   push:
     branches: [main, develop, graphql]
     paths:
       - "apps/golang/**"
-      - "apps/web/**"
-      - "packages/**"
-      - "package.json"
-      - "package-lock.json"
-      - "yarn.lock"
-      - ".github/workflows/ci.yml"
+      - ".github/workflows/go-ci.yml"
       - ".github/workflows/backend-release.yml"
-      - ".github/workflows/web-release.yml"
   pull_request:
     branches: [main, develop, graphql]
     paths:
       - "apps/golang/**"
-      - "apps/web/**"
-      - "packages/**"
-      - "package.json"
-      - "package-lock.json"
-      - "yarn.lock"
-      - ".github/workflows/ci.yml"
+      - ".github/workflows/go-ci.yml"
       - ".github/workflows/backend-release.yml"
-      - ".github/workflows/web-release.yml"
   workflow_dispatch:
 
 permissions:
@@ -32,10 +20,9 @@ permissions:
 
 env:
   GO_VERSION: "1.24"
-  NODE_VERSION: "20"
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: go-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -74,31 +61,3 @@ jobs:
       - name: Build migration binary
         working-directory: apps/golang
         run: go build -o bin/agrinova-migrate ./cmd/migrate
-
-  frontend:
-    name: Frontend Checks
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: apps/web/package-lock.json
-
-      - name: Install dependencies
-        working-directory: apps/web
-        run: npm ci
-
-      - name: Type check
-        working-directory: apps/web
-        run: npm run type-check
-
-      - name: Build frontend
-        working-directory: apps/web
-        run: npm run build
