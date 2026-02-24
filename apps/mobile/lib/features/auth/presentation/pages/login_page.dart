@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../blocs/auth_bloc.dart';
 import '../blocs/biometric_auth_bloc.dart';
@@ -326,6 +327,8 @@ class _LoginPageState extends State<LoginPage>
                                 _buildGlassCard(state),
                                 const SizedBox(height: 24),
                                 _buildVersionBadge(),
+                                const SizedBox(height: 12),
+                                _buildLegalLinks(),
                               ],
                             ),
                           ),
@@ -826,5 +829,83 @@ class _LoginPageState extends State<LoginPage>
         ),
       ),
     );
+  }
+
+  Widget _buildLegalLinks() {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 2,
+      children: [
+        Text(
+          'Dengan masuk, Anda menyetujui',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.45),
+            fontSize: 11,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        _buildLegalLinkButton(
+          label: 'Syarat Layanan',
+          onTap: () => _launchExternalUrl(
+            'https://agrinova.kskgroup.web.id/terms-of-service',
+          ),
+        ),
+        Text(
+          'dan',
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.45),
+            fontSize: 11,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        _buildLegalLinkButton(
+          label: 'Kebijakan Privasi',
+          onTap: () => _launchExternalUrl(
+            'https://agrinova.kskgroup.web.id/privacy-policy',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLegalLinkButton({
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return TextButton(
+      onPressed: onTap,
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: _accentCyan.withValues(alpha: 0.95),
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          decoration: TextDecoration.underline,
+          decorationColor: _accentCyan.withValues(alpha: 0.85),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _launchExternalUrl(String url) async {
+    final uri = Uri.parse(url);
+    try {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        return;
+      }
+      if (!mounted) return;
+      _showErrorSnackBar('Tidak dapat membuka tautan');
+    } catch (_) {
+      if (!mounted) return;
+      _showErrorSnackBar('Terjadi kesalahan saat membuka tautan');
+    }
   }
 }
