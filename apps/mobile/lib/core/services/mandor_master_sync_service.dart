@@ -21,8 +21,8 @@ class MandorMasterSyncService {
   MandorMasterSyncService({
     required AgroGraphQLClient graphqlClient,
     required EnhancedDatabaseService databaseService,
-  })  : _graphqlClient = graphqlClient,
-        _databaseService = databaseService;
+  }) : _graphqlClient = graphqlClient,
+       _databaseService = databaseService;
 
   int _toSqliteActiveFlag(dynamic value) {
     if (value is bool) return value ? 1 : 0;
@@ -128,7 +128,8 @@ class MandorMasterSyncService {
       result.blocksSynced = blockResult.count;
       result.blocksSuccess = blockResult.success;
 
-      result.success = divisionResult.success &&
+      result.success =
+          divisionResult.success &&
           employeeResult.success &&
           blockResult.success;
       result.message = result.success
@@ -191,12 +192,16 @@ class MandorMasterSyncService {
       int companySynced = 0;
       int estateSynced = 0;
       int divisionSynced = 0;
+      int companyFailed = 0;
+      int estateFailed = 0;
+      int divisionFailed = 0;
 
       for (final company in companies) {
         try {
           await _upsertCompany(Map<String, dynamic>.from(company as Map));
           companySynced++;
         } catch (e) {
+          companyFailed++;
           _logger.w('Failed to upsert company: $e');
         }
       }
@@ -206,6 +211,7 @@ class MandorMasterSyncService {
           await _upsertEstate(Map<String, dynamic>.from(estate as Map));
           estateSynced++;
         } catch (e) {
+          estateFailed++;
           _logger.w('Failed to upsert estate: $e');
         }
       }
@@ -215,14 +221,27 @@ class MandorMasterSyncService {
           await _upsertDivision(Map<String, dynamic>.from(division as Map));
           divisionSynced++;
         } catch (e) {
+          divisionFailed++;
           _logger.w('Failed to upsert division: $e');
         }
       }
 
+      final totalFailed = companyFailed + estateFailed + divisionFailed;
+      final success = totalFailed == 0;
       _logger.i(
-        'Synced assignment masters: $companySynced companies, $estateSynced estates, $divisionSynced divisions',
+        'Synced assignment masters: $companySynced companies, '
+        '$estateSynced estates, $divisionSynced divisions '
+        '(failed: company=$companyFailed, estate=$estateFailed, division=$divisionFailed)',
       );
-      return SyncItemResult(success: true, count: divisionSynced);
+      return SyncItemResult(
+        success: success,
+        count: divisionSynced,
+        error: success
+            ? null
+            : 'Sebagian data master gagal disimpan '
+                  '(company=$companyFailed, estate=$estateFailed, division=$divisionFailed). '
+                  'Silakan ulangi sinkronisasi.',
+      );
     } catch (e) {
       _logger.e('Error syncing division masters: $e');
       return SyncItemResult(
@@ -237,8 +256,10 @@ class MandorMasterSyncService {
   }
 
   /// Sync employees from server to local SQLite
-  Future<SyncItemResult> syncEmployees(
-      {String? divisionId, String? search}) async {
+  Future<SyncItemResult> syncEmployees({
+    String? divisionId,
+    String? search,
+  }) async {
     _logger.i('Syncing employees from server...');
 
     try {
@@ -250,10 +271,7 @@ class MandorMasterSyncService {
 
       final QueryOptions options = QueryOptions(
         document: gql(MandorMasterSyncQueries.getEmployees),
-        variables: {
-          'divisionId': ?divisionId,
-          'search': ?search,
-        },
+        variables: {'divisionId': ?divisionId, 'search': ?search},
         fetchPolicy: FetchPolicy.networkOnly,
       );
 
@@ -275,17 +293,29 @@ class MandorMasterSyncService {
       _logger.i('Received ${employees.length} employees from server');
 
       int syncedCount = 0;
+      int failedCount = 0;
       for (var emp in employees) {
         try {
           await _upsertEmployee(emp);
           syncedCount++;
         } catch (e) {
+          failedCount++;
           _logger.w('Failed to upsert employee ${emp['id']}: $e');
         }
       }
 
-      _logger.i('Synced $syncedCount employees to local database');
-      return SyncItemResult(success: true, count: syncedCount);
+      final success = failedCount == 0;
+      _logger.i(
+        'Synced $syncedCount employees to local database (failed: $failedCount)',
+      );
+      return SyncItemResult(
+        success: success,
+        count: syncedCount,
+        error: success
+            ? null
+            : 'Sebagian data karyawan gagal disimpan ($failedCount gagal). '
+                  'Silakan ulangi sinkronisasi.',
+      );
     } catch (e) {
       _logger.e('Error syncing employees: $e');
       return SyncItemResult(
@@ -312,9 +342,7 @@ class MandorMasterSyncService {
 
       final QueryOptions options = QueryOptions(
         document: gql(MandorMasterSyncQueries.getBlocks),
-        variables: {
-          'divisionId': ?divisionId,
-        },
+        variables: {'divisionId': ?divisionId},
         fetchPolicy: FetchPolicy.networkOnly,
       );
 
@@ -336,17 +364,29 @@ class MandorMasterSyncService {
       _logger.i('Received ${blocks.length} blocks from server');
 
       int syncedCount = 0;
+      int failedCount = 0;
       for (var block in blocks) {
         try {
           await _upsertBlock(block);
           syncedCount++;
         } catch (e) {
+          failedCount++;
           _logger.w('Failed to upsert block ${block['id']}: $e');
         }
       }
 
-      _logger.i('Synced $syncedCount blocks to local database');
-      return SyncItemResult(success: true, count: syncedCount);
+      final success = failedCount == 0;
+      _logger.i(
+        'Synced $syncedCount blocks to local database (failed: $failedCount)',
+      );
+      return SyncItemResult(
+        success: success,
+        count: syncedCount,
+        error: success
+            ? null
+            : 'Sebagian data blok gagal disimpan ($failedCount gagal). '
+                  'Silakan ulangi sinkronisasi.',
+      );
     } catch (e) {
       _logger.e('Error syncing blocks: $e');
       return SyncItemResult(
@@ -409,27 +449,50 @@ class MandorMasterSyncService {
       final updates =
           result.data?['mandorServerUpdates'] as List<dynamic>? ?? [];
       _logger.i('Received ${updates.length} harvest updates from server');
+      if (updates.isEmpty) {
+        await _saveLastHarvestSyncTimestamp(currentMandorId, DateTime.now());
+        return SyncItemResult(success: true, count: 0);
+      }
 
       int updatedCount = 0;
+      int skippedCount = 0;
       for (var update in updates) {
         try {
           final didUpdate = await _updateLocalHarvestStatus(update);
           if (didUpdate) {
             updatedCount++;
           } else {
+            skippedCount++;
             _logger.d(
-                'No local harvest row matched server update id=${update['id']} localId=${update['localId']}');
+              'No local harvest row matched server update id=${update['id']} localId=${update['localId']}',
+            );
           }
         } catch (e) {
+          skippedCount++;
           _logger.w('Failed to update harvest ${update['id']}: $e');
         }
       }
 
-      // Save last sync timestamp
-      await _saveLastHarvestSyncTimestamp(currentMandorId, DateTime.now());
+      // Save last sync timestamp only when all updates are safely applied.
+      if (skippedCount == 0) {
+        await _saveLastHarvestSyncTimestamp(currentMandorId, DateTime.now());
+      } else {
+        _logger.w(
+          'Keeping harvest pull cursor unchanged because $skippedCount updates were not applied',
+        );
+      }
 
-      _logger.i('Updated $updatedCount harvest records from server');
-      return SyncItemResult(success: true, count: updatedCount);
+      _logger.i(
+        'Updated $updatedCount harvest records from server (skipped: $skippedCount)',
+      );
+      return SyncItemResult(
+        success: skippedCount == 0,
+        count: updatedCount,
+        error: skippedCount == 0
+            ? null
+            : 'Sebagian update status panen belum diterapkan ($skippedCount data). '
+                  'Silakan sinkron ulang.',
+      );
     } catch (e) {
       _logger.e('Error pulling harvest updates: $e');
       return SyncItemResult(
@@ -463,8 +526,9 @@ class MandorMasterSyncService {
     final employeeData = {
       'employee_id': employeeIdBytes, // UUID from server (BLOB)
       'company_id': emp['companyId'] ?? '',
-      'division_id':
-          (divisionId != null && divisionId.isNotEmpty) ? divisionId : null,
+      'division_id': (divisionId != null && divisionId.isNotEmpty)
+          ? divisionId
+          : null,
       'employee_code': employeeCode, // NIK preferred, fallback to UUID
       'full_name': emp['name'] ?? '',
       'position': emp['role'] ?? '',
@@ -594,7 +658,8 @@ class MandorMasterSyncService {
       final companyId = await _getCurrentCompanyId();
       if (companyId == null || companyId.isEmpty) {
         _logger.w(
-            'Skip division upsert because estate parent is missing and company context is unavailable. division_id=$divisionId');
+          'Skip division upsert because estate parent is missing and company context is unavailable. division_id=$divisionId',
+        );
         return;
       }
       await _ensureEstateExists(estateId, companyId);
@@ -651,8 +716,8 @@ class MandorMasterSyncService {
       'division_id': block['divisionId'] ?? '',
       'code': block['blockCode'] ?? '',
       'name': block['name'] ?? '',
-      'area_hectares':
-          (block['luasHa'] as num?)?.toDouble(), // Mapped to area_hectares
+      'area_hectares': (block['luasHa'] as num?)
+          ?.toDouble(), // Mapped to area_hectares
       'planting_year': block['plantingYear'],
       'variety_type': block['cropType'],
       'is_active': 1,
@@ -680,7 +745,8 @@ class MandorMasterSyncService {
         (await UnifiedSecureStorageService.getCurrentUserId())?.trim() ?? '';
     if (currentMandorId.isEmpty) {
       _logger.w(
-          'Skip local harvest status update: current mandor session not found');
+        'Skip local harvest status update: current mandor session not found',
+      );
       return false;
     }
 
@@ -778,7 +844,9 @@ class MandorMasterSyncService {
   }
 
   Future<void> _saveLastHarvestSyncTimestamp(
-      String mandorId, DateTime timestamp) async {
+    String mandorId,
+    DateTime timestamp,
+  ) async {
     final now = DateTime.now().millisecondsSinceEpoch;
     final scopedKey = _buildLastHarvestSyncKey(mandorId);
 
@@ -801,10 +869,7 @@ class MandorMasterSyncService {
       } else {
         await _databaseService.update(
           'app_settings',
-          {
-            'value': timestamp.toIso8601String(),
-            'updated_at': now,
-          },
+          {'value': timestamp.toIso8601String(), 'updated_at': now},
           where: 'key = ?',
           whereArgs: [scopedKey],
         );
@@ -828,7 +893,8 @@ class MandorMasterSyncService {
         return true;
       }
       _logger.i(
-          'Mandor master sync auth: access token expired/near expiry, trying refresh tiers...');
+        'Mandor master sync auth: access token expired/near expiry, trying refresh tiers...',
+      );
     }
 
     final authGql = GraphQLAuthService(_graphqlClient.client);
@@ -895,11 +961,7 @@ class SyncItemResult {
   final int count;
   final String? error;
 
-  SyncItemResult({
-    required this.success,
-    required this.count,
-    this.error,
-  });
+  SyncItemResult({required this.success, required this.count, this.error});
 }
 
 String _composePartialSyncMessage({

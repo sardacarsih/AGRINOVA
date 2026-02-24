@@ -11,6 +11,39 @@ import 'unified_secure_storage_service.dart';
 import '../utils/sync_error_message_helper.dart';
 import 'device_service.dart';
 
+class PullServerUpdatesResult {
+  final int totalReceived;
+  final int appliedCount;
+  final int missingLocalCount;
+  final int failedCount;
+  final DateTime previousCursor;
+  final DateTime nextCursor;
+
+  const PullServerUpdatesResult({
+    required this.totalReceived,
+    required this.appliedCount,
+    required this.missingLocalCount,
+    required this.failedCount,
+    required this.previousCursor,
+    required this.nextCursor,
+  });
+
+  int get skippedCount => missingLocalCount + failedCount;
+  bool get hasUnsafeRecords => skippedCount > 0;
+  bool get cursorAdvanced => nextCursor.isAfter(previousCursor);
+}
+
+enum _ServerUpdateApplyStatus { applied, missingLocal, invalidPayload, failed }
+
+class _ServerUpdateApplyResult {
+  final _ServerUpdateApplyStatus status;
+  final String message;
+
+  const _ServerUpdateApplyResult({required this.status, required this.message});
+
+  bool get safeForCursor => status == _ServerUpdateApplyStatus.applied;
+}
+
 class HarvestSyncService {
   final AgroGraphQLClient _graphqlClient;
   final EnhancedDatabaseService _databaseService;
@@ -21,8 +54,8 @@ class HarvestSyncService {
   HarvestSyncService({
     required AgroGraphQLClient graphqlClient,
     required EnhancedDatabaseService databaseService,
-  })  : _graphqlClient = graphqlClient,
-        _databaseService = databaseService;
+  }) : _graphqlClient = graphqlClient,
+       _databaseService = databaseService;
 
   Future<String?> _getCurrentMandorIdForSync() async {
     final userId = await UnifiedSecureStorageService.getCurrentUserId();
@@ -75,10 +108,25 @@ class HarvestSyncService {
     // 2. Get device ID from DeviceService
     final deviceId = await DeviceService.getDeviceId();
 
-    // 3. Prepare payload records
-    final recordsWithEmployees = await Future.wait(
-      unsynced.map((h) => _mapToSyncRecordWithEmployees(h)).toList(),
-    );
+    // 3. Prepare payload records (per-record protection so one bad row doesn't block the batch)
+    final recordsWithEmployees = <Map<String, dynamic>>[];
+    for (final localRecord in unsynced) {
+      final localId =
+          localRecord['harvest_id']?.toString() ??
+          localRecord['id']?.toString() ??
+          '';
+      try {
+        final mapped = await _mapToSyncRecordWithEmployees(localRecord);
+        recordsWithEmployees.add(mapped);
+      } catch (e, st) {
+        final issueMessage = 'Gagal menyiapkan payload sync: $e';
+        _logger.w('Skipping harvest payload $localId due to mapping error: $e');
+        _logger.d(st.toString());
+        if (localId.isNotEmpty) {
+          await _markSyncFailed(localId, issueMessage);
+        }
+      }
+    }
 
     final validRecords = <Map<String, dynamic>>[];
     for (final record in recordsWithEmployees) {
@@ -108,8 +156,9 @@ class HarvestSyncService {
       'clientTimestamp': DateTime.now().toIso8601String(),
       'records': serverRecords,
     };
-    _logger
-        .d('Harvest sync payload preview: ${_buildSyncPayloadPreview(input)}');
+    _logger.d(
+      'Harvest sync payload preview: ${_buildSyncPayloadPreview(input)}',
+    );
 
     // 4. Execute Mutation
     final MutationOptions options = MutationOptions(
@@ -137,8 +186,11 @@ class HarvestSyncService {
         // Fallback: mark all as synced if no per-record results
         await _markAsSynced(
           unsynced
-              .where((row) => validRecords
-                  .any((record) => record['localId'] == row['harvest_id']))
+              .where(
+                (row) => validRecords.any(
+                  (record) => record['localId'] == row['harvest_id'],
+                ),
+              )
               .toList(),
         );
       }
@@ -146,8 +198,9 @@ class HarvestSyncService {
       // Log summary
       final successCount = data['recordsSuccessful'] ?? 0;
       final failedCount = data['recordsFailed'] ?? 0;
-      _logger
-          .i('Push completed: $successCount successful, $failedCount failed');
+      _logger.i(
+        'Push completed: $successCount successful, $failedCount failed',
+      );
     } else {
       _logger.w('Harvest Push returned null data');
     }
@@ -156,6 +209,11 @@ class HarvestSyncService {
   /// Pull server updates (approval status changes) for MANDOR's harvest records
   /// This fetches records that have been APPROVED or REJECTED by ASISTEN
   Future<void> pullServerUpdates() async {
+    await pullServerUpdatesWithResult();
+  }
+
+  /// Pull server updates and return detailed counters for UI/reporting.
+  Future<PullServerUpdatesResult> pullServerUpdatesWithResult() async {
     _logger.i('Pulling server updates for harvest records...');
 
     try {
@@ -195,30 +253,76 @@ class HarvestSyncService {
       final data = result.data?['mandorServerUpdates'] as List<dynamic>?;
       if (data == null || data.isEmpty) {
         _logger.i('No server updates to pull.');
-        await _updateLastPullSyncTimestamp(currentMandorId, DateTime.now());
-        return;
+        final nextCursor = DateTime.now();
+        await _updateLastPullSyncTimestamp(currentMandorId, nextCursor);
+        return PullServerUpdatesResult(
+          totalReceived: 0,
+          appliedCount: 0,
+          missingLocalCount: 0,
+          failedCount: 0,
+          previousCursor: lastSyncAt,
+          nextCursor: nextCursor,
+        );
       }
 
       _logger.i('Found ${data.length} server updates to apply.');
 
       // 3. Apply server updates to local database
-      int updatedCount = 0;
-      int skippedCount = 0;
+      int appliedCount = 0;
+      int missingLocalCount = 0;
+      int failedCount = 0;
+      DateTime maxSafeCursor = lastSyncAt;
+      DateTime? earliestUnsafeUpdatedAt;
 
       for (final serverRecord in data) {
-        final updated = await _applyServerUpdate(serverRecord);
-        if (updated) {
-          updatedCount++;
+        final typedRecord = Map<String, dynamic>.from(serverRecord as Map);
+        final updatedAt = _extractServerUpdatedAt(typedRecord);
+        final outcome = await _applyServerUpdate(typedRecord, currentMandorId);
+        if (outcome.safeForCursor) {
+          appliedCount++;
+          if (updatedAt != null && updatedAt.isAfter(maxSafeCursor)) {
+            maxSafeCursor = updatedAt;
+          }
+          continue;
+        }
+
+        if (outcome.status == _ServerUpdateApplyStatus.missingLocal) {
+          missingLocalCount++;
         } else {
-          skippedCount++;
+          failedCount++;
+        }
+
+        if (updatedAt != null) {
+          if (earliestUnsafeUpdatedAt == null ||
+              updatedAt.isBefore(earliestUnsafeUpdatedAt)) {
+            earliestUnsafeUpdatedAt = updatedAt;
+          }
         }
       }
 
-      // 4. Update last sync timestamp
-      await _updateLastPullSyncTimestamp(currentMandorId, DateTime.now());
+      // 4. Update last sync timestamp with a safe cursor strategy:
+      // keep unsafe records in the pull window so they are retried.
+      final nextCursor = _resolveNextPullCursor(
+        previousCursor: lastSyncAt,
+        maxSafeCursor: maxSafeCursor,
+        earliestUnsafeUpdatedAt: earliestUnsafeUpdatedAt,
+      );
+      await _updateLastPullSyncTimestamp(currentMandorId, nextCursor);
 
       _logger.i(
-          'Pull sync completed: $updatedCount updated, $skippedCount skipped');
+        'Pull sync completed: $appliedCount applied, '
+        '${missingLocalCount + failedCount} skipped '
+        '(missingLocal=$missingLocalCount, failed=$failedCount), '
+        'cursor=${lastSyncAt.toIso8601String()} -> ${nextCursor.toIso8601String()}',
+      );
+      return PullServerUpdatesResult(
+        totalReceived: data.length,
+        appliedCount: appliedCount,
+        missingLocalCount: missingLocalCount,
+        failedCount: failedCount,
+        previousCursor: lastSyncAt,
+        nextCursor: nextCursor,
+      );
     } catch (e) {
       _logger.e('Pull Server Updates Error: $e');
       throw Exception(
@@ -240,7 +344,8 @@ class HarvestSyncService {
         return true;
       }
       _logger.i(
-          'Harvest sync auth: access token expired/near expiry, trying refresh tiers...');
+        'Harvest sync auth: access token expired/near expiry, trying refresh tiers...',
+      );
     }
 
     final authGql = GraphQLAuthService(_graphqlClient.client);
@@ -289,42 +394,59 @@ class HarvestSyncService {
   }
 
   /// Apply a single server update to local database
-  /// Returns true if record was updated, false if skipped
-  Future<bool> _applyServerUpdate(Map<String, dynamic> serverRecord) async {
-    final serverId = serverRecord['id']?.toString();
-    final status = serverRecord['status']?.toString();
+  /// Returns classification used for cursor safety.
+  Future<_ServerUpdateApplyResult> _applyServerUpdate(
+    Map<String, dynamic> serverRecord,
+    String currentMandorId,
+  ) async {
+    final serverId = serverRecord['id']?.toString().trim() ?? '';
+    final localId = serverRecord['localId']?.toString().trim() ?? '';
+    final status = serverRecord['status']?.toString().trim() ?? '';
     final approvedBy = serverRecord['approvedBy']?.toString();
     final approvedAt = serverRecord['approvedAt'];
     final rejectedReason = serverRecord['rejectedReason']?.toString();
 
-    if (serverId == null || serverId.isEmpty) {
-      _logger.w('Server record missing ID, skipping');
-      return false;
+    if (status.isEmpty) {
+      return const _ServerUpdateApplyResult(
+        status: _ServerUpdateApplyStatus.invalidPayload,
+        message: 'missing status',
+      );
     }
 
-    // Find local record by server_id
+    final whereParts = <String>[];
+    final whereArgs = <dynamic>[currentMandorId];
+    if (serverId.isNotEmpty) {
+      whereParts.add('server_id = ?');
+      whereArgs.add(serverId);
+    }
+    if (localId.isNotEmpty) {
+      whereParts.add('harvest_id = ?');
+      whereArgs.add(localId);
+    }
+
+    if (whereParts.isEmpty) {
+      return const _ServerUpdateApplyResult(
+        status: _ServerUpdateApplyStatus.invalidPayload,
+        message: 'missing server id and local id',
+      );
+    }
+
+    // Find local record by server_id or fallback localId.
     final localRecords = await _databaseService.query(
       'harvest_records',
-      where: 'server_id = ?',
-      whereArgs: [serverId],
+      where: 'mandor_id = ? AND (${whereParts.join(' OR ')})',
+      whereArgs: whereArgs,
       limit: 1,
     );
 
     if (localRecords.isEmpty) {
-      _logger.d('No local record found for server_id: $serverId, skipping');
-      return false;
+      return _ServerUpdateApplyResult(
+        status: _ServerUpdateApplyStatus.missingLocal,
+        message:
+            'No local record found for server_id=$serverId localId=$localId',
+      );
     }
 
-    final localRecord = localRecords.first;
-    final localStatus = localRecord['status']?.toString();
-
-    // Only update if server status is different (APPROVED/REJECTED)
-    if (localStatus == status) {
-      _logger.d('Local record already has status $status, skipping');
-      return false;
-    }
-
-    // Update local record with server status
     final updates = <String, dynamic>{
       'status': status,
       'sync_status': 'SYNCED',
@@ -332,30 +454,101 @@ class HarvestSyncService {
       'updated_at': DateTime.now().millisecondsSinceEpoch,
     };
 
-    if (approvedBy != null && approvedBy.isNotEmpty) {
-      updates['approved_by_id'] = approvedBy;
+    // Keep approval/rejection metadata consistent with latest server status.
+    if (status == 'REJECTED') {
+      updates['approved_by_id'] = null;
+      updates['approval_date'] = null;
+      updates['rejection_reason'] =
+          (rejectedReason != null && rejectedReason.isNotEmpty)
+          ? rejectedReason
+          : null;
+    } else if (status == 'APPROVED' ||
+        status == 'PKS_RECEIVED' ||
+        status == 'PKS_WEIGHED') {
+      updates['rejection_reason'] = null;
+      if (approvedBy != null && approvedBy.isNotEmpty) {
+        updates['approved_by_id'] = approvedBy;
+      }
+
+      if (approvedAt != null) {
+        try {
+          final approvedAtDate = DateTime.parse(approvedAt.toString());
+          updates['approval_date'] = approvedAtDate.millisecondsSinceEpoch;
+        } catch (_) {}
+      }
+    } else {
+      if (approvedBy != null && approvedBy.isNotEmpty) {
+        updates['approved_by_id'] = approvedBy;
+      }
+
+      if (approvedAt != null) {
+        try {
+          final approvedAtDate = DateTime.parse(approvedAt.toString());
+          updates['approval_date'] = approvedAtDate.millisecondsSinceEpoch;
+        } catch (_) {}
+      }
+
+      if (rejectedReason != null && rejectedReason.isNotEmpty) {
+        updates['rejection_reason'] = rejectedReason;
+      }
     }
 
-    if (approvedAt != null) {
-      try {
-        final approvedAtDate = DateTime.parse(approvedAt.toString());
-        updates['approval_date'] = approvedAtDate.millisecondsSinceEpoch;
-      } catch (_) {}
+    try {
+      await _databaseService.update(
+        'harvest_records',
+        updates,
+        where: 'mandor_id = ? AND (${whereParts.join(' OR ')})',
+        whereArgs: whereArgs,
+      );
+    } catch (e) {
+      return _ServerUpdateApplyResult(
+        status: _ServerUpdateApplyStatus.failed,
+        message: e.toString(),
+      );
     }
 
-    if (rejectedReason != null && rejectedReason.isNotEmpty) {
-      updates['rejection_reason'] = rejectedReason;
-    }
-
-    await _databaseService.update(
-      'harvest_records',
-      updates,
-      where: 'server_id = ?',
-      whereArgs: [serverId],
+    _logger.d(
+      'Applied server update server_id=$serverId localId=$localId status=$status',
     );
+    return const _ServerUpdateApplyResult(
+      status: _ServerUpdateApplyStatus.applied,
+      message: 'applied',
+    );
+  }
 
-    _logger.d('Updated local record $serverId: status=$status');
-    return true;
+  DateTime? _extractServerUpdatedAt(Map<String, dynamic> serverRecord) {
+    final candidates = [
+      serverRecord['updatedAt'],
+      serverRecord['approvedAt'],
+      serverRecord['createdAt'],
+    ];
+    for (final raw in candidates) {
+      if (raw == null) continue;
+      final parsed = DateTime.tryParse(raw.toString());
+      if (parsed != null) return parsed;
+    }
+    return null;
+  }
+
+  DateTime _resolveNextPullCursor({
+    required DateTime previousCursor,
+    required DateTime maxSafeCursor,
+    required DateTime? earliestUnsafeUpdatedAt,
+  }) {
+    if (earliestUnsafeUpdatedAt == null) {
+      if (maxSafeCursor.isAfter(previousCursor)) {
+        return maxSafeCursor;
+      }
+      return DateTime.now();
+    }
+
+    final candidate = earliestUnsafeUpdatedAt.subtract(
+      const Duration(milliseconds: 1),
+    );
+    if (candidate.isAfter(previousCursor)) {
+      return candidate;
+    }
+    return previousCursor;
   }
 
   /// Get the last pull sync timestamp from local storage
@@ -399,7 +592,9 @@ class HarvestSyncService {
 
   /// Update the last pull sync timestamp in local storage
   Future<void> _updateLastPullSyncTimestamp(
-      String mandorId, DateTime timestamp) async {
+    String mandorId,
+    DateTime timestamp,
+  ) async {
     try {
       final scopedKey = _buildHarvestPullSyncKey(mandorId);
 
@@ -408,7 +603,7 @@ class HarvestSyncService {
         'sync_metadata',
         {
           'value': timestamp.toIso8601String(),
-          'updated_at': DateTime.now().millisecondsSinceEpoch
+          'updated_at': DateTime.now().millisecondsSinceEpoch,
         },
         where: 'key = ?',
         whereArgs: [scopedKey],
@@ -432,8 +627,9 @@ class HarvestSyncService {
   Future<List<Map<String, dynamic>>> _getUnsyncedHarvestsLocally() async {
     final currentUserId = await UnifiedSecureStorageService.getCurrentUserId();
     if (currentUserId == null || currentUserId.trim().isEmpty) {
-      _logger
-          .w('Cannot sync harvest records: current mandor session not found');
+      _logger.w(
+        'Cannot sync harvest records: current mandor session not found',
+      );
       return [];
     }
 
@@ -447,7 +643,8 @@ class HarvestSyncService {
 
   /// Map local harvest record to sync format using canonical IDs from local DB.
   Future<Map<String, dynamic>> _mapToSyncRecordWithEmployees(
-      Map<String, dynamic> local) async {
+    Map<String, dynamic> local,
+  ) async {
     // Convert harvest_date from INTEGER (milliseconds) to ISO8601 string
     String? tanggal;
     if (local['harvest_date'] != null) {
@@ -461,29 +658,34 @@ class HarvestSyncService {
     tanggal ??= DateTime.now().toIso8601String();
 
     final harvestId = local['harvest_id'] ?? local['id']?.toString() ?? '';
-    final blockId = dbUuidToString(local['block_id']) ??
+    final blockId =
+        dbUuidToString(local['block_id']) ??
         local['block_id']?.toString().trim() ??
         '';
     final mandorId = local['mandor_id']?.toString() ?? '';
-    final localCompanyId = dbUuidToString(local['company_id']) ??
+    final localCompanyId =
+        dbUuidToString(local['company_id']) ??
         local['company_id']?.toString().trim() ??
         '';
     final notes = local['notes']?.toString().trim() ?? '';
     final photoUrl = await _extractPrimaryPhotoUrl(local);
-    final localKaryawanId = dbUuidToString(local['karyawan_id']) ??
+    final localKaryawanId =
+        dbUuidToString(local['karyawan_id']) ??
         local['karyawan_id']?.toString().trim() ??
         '';
-    final localDivisionId = dbUuidToString(local['division_id']) ??
+    final localDivisionId =
+        dbUuidToString(local['division_id']) ??
         local['division_id']?.toString().trim() ??
         '';
-    final localEstateId = dbUuidToString(local['estate_id']) ??
+    final localEstateId =
+        dbUuidToString(local['estate_id']) ??
         local['estate_id']?.toString().trim() ??
         '';
     final localKaryawanNik = local['karyawan_nik']?.toString().trim() ?? '';
     var localEmployeeDivisionId =
         dbUuidToString(local['employee_division_id']) ??
-            local['employee_division_id']?.toString().trim() ??
-            '';
+        local['employee_division_id']?.toString().trim() ??
+        '';
     var localEmployeeDivisionName =
         local['employee_division_name']?.toString().trim() ?? '';
 
@@ -512,8 +714,8 @@ class HarvestSyncService {
           final row = rows.first;
           final resolvedEmployeeDivisionId =
               dbUuidToString(row['employee_division_id']) ??
-                  row['employee_division_id']?.toString().trim() ??
-                  '';
+              row['employee_division_id']?.toString().trim() ??
+              '';
           final resolvedEmployeeDivisionName =
               row['employee_division_name']?.toString().trim() ?? '';
 
@@ -528,7 +730,8 @@ class HarvestSyncService {
         }
       } catch (e) {
         _logger.w(
-            'Failed resolving employee division context for $localKaryawanId: $e');
+          'Failed resolving employee division context for $localKaryawanId: $e',
+        );
       }
     }
     if (!_isUuid(localEmployeeDivisionId)) {
@@ -566,8 +769,9 @@ class HarvestSyncService {
     final jjgLewatMatang = _toIntOrNull(local['jjg_lewat_matang']);
     final jjgBusukAbnormal = _toIntOrNull(local['jjg_busuk_abnormal']);
     final jjgTangkaiPanjang = _toIntOrNull(local['jjg_tangkai_panjang']);
-    final totalBrondolan =
-        _toDoubleOrNull(local['total_brondolan'] ?? local['brondolan']);
+    final totalBrondolan = _toDoubleOrNull(
+      local['total_brondolan'] ?? local['brondolan'],
+    );
     final hasQualityCounts = [
       jjgMatang,
       jjgMentah,
@@ -585,8 +789,8 @@ class HarvestSyncService {
       'karyawanId': localKaryawanId,
       'karyawannik': localKaryawanNik,
       'beratTbs': (local['total_weight'] ?? 0.0).toDouble(),
-      'jumlahJanjang':
-          ((local['jumlah_janjang'] ?? local['total_tbs']) ?? 0).toInt(),
+      'jumlahJanjang': ((local['jumlah_janjang'] ?? local['total_tbs']) ?? 0)
+          .toInt(),
       'status': _mapStatus(local['status']),
       'localVersion': local['local_version'] ?? local['version'] ?? 1,
       'lastUpdated': _getUpdatedAtIso(local),
@@ -594,7 +798,8 @@ class HarvestSyncService {
 
     if (blockId.isEmpty) {
       _logger.w(
-          'Harvest $harvestId has empty block_id; payload will be rejected.');
+        'Harvest $harvestId has empty block_id; payload will be rejected.',
+      );
     }
 
     // Add optional fields only if they have valid values
@@ -790,13 +995,16 @@ class HarvestSyncService {
 
         if (rows.isNotEmpty) {
           final row = rows.first;
-          final resolvedDivisionId = dbUuidToString(row['block_division_id']) ??
+          final resolvedDivisionId =
+              dbUuidToString(row['block_division_id']) ??
               row['block_division_id']?.toString().trim() ??
               '';
-          final resolvedEstateId = dbUuidToString(row['block_estate_id']) ??
+          final resolvedEstateId =
+              dbUuidToString(row['block_estate_id']) ??
               row['block_estate_id']?.toString().trim() ??
               '';
-          final resolvedCompanyId = dbUuidToString(row['block_company_id']) ??
+          final resolvedCompanyId =
+              dbUuidToString(row['block_company_id']) ??
               row['block_company_id']?.toString().trim() ??
               '';
 
@@ -931,22 +1139,33 @@ class HarvestSyncService {
       return;
     }
 
+    int updatedCount = 0;
     for (var record in records) {
       final recordId = record['harvest_id'] ?? record['id'].toString();
 
-      await _databaseService.update(
+      final affectedRows = await _databaseService.update(
         'harvest_records',
         {
           'sync_status': 'SYNCED',
           'needs_sync': 0,
           'synced_at': now,
+          'sync_error_message': null,
+          'sync_retry_count': 0,
+          'last_sync_attempt': null,
         },
         where: 'harvest_id = ? AND mandor_id = ?',
         whereArgs: [recordId, currentMandorId],
       );
+      if (affectedRows == 0) {
+        _logger.w(
+          'Could not mark synced for local harvest $recordId (row not found/mandor mismatch)',
+        );
+        continue;
+      }
+      updatedCount++;
     }
 
-    _logger.i('Marked ${records.length} harvests as synced.');
+    _logger.i('Marked $updatedCount/${records.length} harvests as synced.');
   }
 
   /// Process per-record sync results from server response
@@ -959,7 +1178,8 @@ class HarvestSyncService {
     final currentMandorId = await _getCurrentMandorIdForSync();
     if (currentMandorId == null) {
       _logger.w(
-          'Skipping per-record sync status update: current mandor session not found');
+        'Skipping per-record sync status update: current mandor session not found',
+      );
       return;
     }
     int successCount = 0;
@@ -984,20 +1204,37 @@ class HarvestSyncService {
         _logger.w('Sync result missing localId: $result');
         continue;
       }
+      if (!localRecordMap.containsKey(localId)) {
+        failedCount++;
+        _logger.w(
+          'Server returned result for unknown local harvest $localId; skipping local status update',
+        );
+        continue;
+      }
 
       if (success) {
         // Mark as synced and store server ID
-        await _databaseService.update(
+        final affectedRows = await _databaseService.update(
           'harvest_records',
           {
             'sync_status': 'SYNCED',
             'needs_sync': 0,
             'synced_at': now,
+            'sync_error_message': null,
+            'sync_retry_count': 0,
+            'last_sync_attempt': null,
             if (serverId != null && serverId.isNotEmpty) 'server_id': serverId,
           },
           where: 'harvest_id = ? AND mandor_id = ?',
           whereArgs: [localId, currentMandorId],
         );
+        if (affectedRows == 0) {
+          failedCount++;
+          _logger.w(
+            'Server accepted harvest $localId but local row was not updated (row not found/mandor mismatch)',
+          );
+          continue;
+        }
         successCount++;
         _logger.d('Harvest $localId synced successfully (serverId: $serverId)');
       } else {
@@ -1013,7 +1250,8 @@ class HarvestSyncService {
     }
 
     _logger.i(
-        'Per-record sync processing: $successCount success, $failedCount failed');
+      'Per-record sync processing: $successCount success, $failedCount failed',
+    );
   }
 
   /// Mark a specific harvest record as sync failed
@@ -1022,7 +1260,8 @@ class HarvestSyncService {
     final currentMandorId = await _getCurrentMandorIdForSync();
     if (currentMandorId == null) {
       _logger.w(
-          'Cannot mark sync failed for $harvestId: current mandor session not found');
+        'Cannot mark sync failed for $harvestId: current mandor session not found',
+      );
       return;
     }
 
@@ -1053,7 +1292,8 @@ class HarvestSyncService {
     );
 
     _logger.w(
-        'Marked harvest $harvestId as sync failed (retry #${retryCount + 1}): $errorMessage');
+      'Marked harvest $harvestId as sync failed (retry #${retryCount + 1}): $errorMessage',
+    );
   }
 
   /// Get count of failed sync records
