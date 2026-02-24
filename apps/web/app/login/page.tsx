@@ -437,6 +437,13 @@ function LoginPageContent() {
                   >
                     Kebijakan Privasi
                   </a>
+                  <span className="text-xs text-slate-300 dark:text-slate-600">|</span>
+                  <a
+                    href="/terms-of-service"
+                    className="text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                  >
+                    Syarat &amp; Ketentuan
+                  </a>
                   <span className="text-xs text-slate-300 dark:text-slate-600">•</span>
                   <span className="text-xs text-slate-400 dark:text-slate-500">
                     v{process.env.NEXT_PUBLIC_APP_VERSION ?? '—'}
@@ -561,9 +568,9 @@ function LoginPageContent() {
                         transition: { duration: 0.2 }
                       }}
                       className={`w-full p-6 rounded-2xl border transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${index === 0 ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' :
-                          index === 1 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' :
-                            index === 2 ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800' :
-                              'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
+                        index === 1 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' :
+                          index === 2 ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800' :
+                            'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
                         }`}
                       tabIndex={0}
                       role="article"
@@ -583,9 +590,9 @@ function LoginPageContent() {
                           aria-label={feature.title}
                         >
                           <Icon className={`h-6 w-6 ${index === 0 ? 'text-emerald-600 dark:text-emerald-400' :
-                              index === 1 ? 'text-blue-600 dark:text-blue-400' :
-                                index === 2 ? 'text-purple-600 dark:text-purple-400' :
-                                  'text-orange-600 dark:text-orange-400'
+                            index === 1 ? 'text-blue-600 dark:text-blue-400' :
+                              index === 2 ? 'text-purple-600 dark:text-purple-400' :
+                                'text-orange-600 dark:text-orange-400'
                             }`} aria-hidden="true" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -748,6 +755,13 @@ function LoginPageContent() {
                         className="text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                       >
                         Kebijakan Privasi
+                      </a>
+                      <span className="text-xs text-slate-300 dark:text-slate-600">|</span>
+                      <a
+                        href="/terms-of-service"
+                        className="text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                      >
+                        Syarat &amp; Ketentuan
                       </a>
                       <span className="text-xs text-slate-300 dark:text-slate-600">•</span>
                       <span className="text-xs text-slate-400 dark:text-slate-500">
