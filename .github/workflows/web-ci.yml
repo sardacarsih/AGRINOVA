@@ -1,29 +1,25 @@
-name: Go and Next CI
+name: Web CI
 
 on:
   push:
     branches: [main, develop, graphql]
     paths:
-      - "apps/golang/**"
       - "apps/web/**"
       - "packages/**"
       - "package.json"
       - "package-lock.json"
       - "yarn.lock"
-      - ".github/workflows/ci.yml"
-      - ".github/workflows/backend-release.yml"
+      - ".github/workflows/web-ci.yml"
       - ".github/workflows/web-release.yml"
   pull_request:
     branches: [main, develop, graphql]
     paths:
-      - "apps/golang/**"
       - "apps/web/**"
       - "packages/**"
       - "package.json"
       - "package-lock.json"
       - "yarn.lock"
-      - ".github/workflows/ci.yml"
-      - ".github/workflows/backend-release.yml"
+      - ".github/workflows/web-ci.yml"
       - ".github/workflows/web-release.yml"
   workflow_dispatch:
 
@@ -31,7 +27,6 @@ permissions:
   contents: read
 
 env:
-  GO_VERSION: "1.24"
   NODE_VERSION: "20"
 
 concurrency:
@@ -39,42 +34,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  backend:
-    name: Backend Checks
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-          cache-dependency-path: apps/golang/go.sum
-
-      - name: Download dependencies
-        working-directory: apps/golang
-        run: go mod download
-
-      - name: Build all Go packages
-        working-directory: apps/golang
-        run: go build ./...
-
-      - name: Run backend smoke tests
-        working-directory: apps/golang
-        run: go test ./internal/auth/constants ./internal/auth/models ./internal/graphql/resolvers -count=1
-
-      - name: Build server binary
-        working-directory: apps/golang
-        run: go build -o bin/agrinova-server ./cmd/server
-
-      - name: Build migration binary
-        working-directory: apps/golang
-        run: go build -o bin/agrinova-migrate ./cmd/migrate
-
   frontend:
     name: Frontend Checks
     runs-on: ubuntu-latest
