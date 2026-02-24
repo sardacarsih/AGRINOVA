@@ -7,8 +7,10 @@ import 'core/di/service_locator.dart';
 import 'core/init/app_initializer.dart';
 import 'core/services/app_update_manager.dart';
 import 'features/auth/presentation/blocs/auth_bloc.dart';
+import 'features/auth/presentation/pages/unauthorized_page.dart';
 import 'core/theme/app_theme.dart';
 import 'core/routes/app_routes.dart';
+import 'core/routes/route_guards.dart';
 import 'features/auth/presentation/pages/splash_screen.dart';
 import 'shared/widgets/app_bloc_observer.dart';
 
@@ -135,7 +137,7 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
         if (!_isInitialized || _authBloc == null) {
           return null;
         }
-        return AppRoutes.generateRoute(settings);
+        return _generateGuardedRoute(settings);
       },
       builder: (context, child) {
         if (_isInitialized) {
@@ -170,5 +172,44 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
       initError: _initError,
       onRetry: _retry,
     );
+  }
+
+  String? _getCurrentUserRole() {
+    final state = _authBloc?.state;
+    if (state is AuthAuthenticated) {
+      return state.user.role;
+    }
+    if (state is AuthOfflineMode) {
+      return state.user.role;
+    }
+    return null;
+  }
+
+  Route<dynamic> _generateGuardedRoute(RouteSettings settings) {
+    final routeName = settings.name;
+    if (routeName == null || routeName.isEmpty) {
+      return AppRoutes.generateRoute(settings);
+    }
+
+    if (!RouteGuard.isKnownRoute(routeName)) {
+      return AppRoutes.generateRoute(settings);
+    }
+
+    final userRole = _getCurrentUserRole();
+    if (!RouteGuard.canAccessRoute(routeName, userRole)) {
+      if (userRole == null) {
+        return AppRoutes.generateRoute(
+          const RouteSettings(name: AppRoutes.login),
+        );
+      }
+
+      return MaterialPageRoute(
+        settings: settings,
+        builder: (_) =>
+            UnauthorizedPage(attemptedRoute: routeName, userRole: userRole),
+      );
+    }
+
+    return AppRoutes.generateRoute(settings);
   }
 }

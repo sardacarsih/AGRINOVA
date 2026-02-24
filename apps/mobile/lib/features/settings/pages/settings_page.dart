@@ -6,7 +6,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/di/dependency_injection.dart';
 import '../../../core/models/app_update_models.dart';
 import '../../../core/network/dio_client.dart';
+import '../../../core/routes/app_routes.dart';
 import '../../../core/services/app_update_service.dart';
+import '../../../core/services/role_service.dart';
 import '../../../shared/widgets/app_update_widgets.dart';
 import '../../auth/presentation/blocs/auth_bloc.dart';
 import '../../dashboard/presentation/pages/area_manager_dashboard/area_manager_theme.dart';
@@ -270,6 +272,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildMenuCard(_SettingsRoleTheme roleTheme) {
+    final canOpenAdminSettings = _canOpenAdminSettings();
+
     return Card(
       margin: EdgeInsets.zero,
       elevation: 0,
@@ -311,6 +315,18 @@ class _SettingsPageState extends State<SettingsPage> {
             iconColor: roleTheme.primary,
             onTap: _showVersionDialog,
           ),
+          if (canOpenAdminSettings) ...[
+            _buildTileDivider(),
+            _buildMenuTile(
+              icon: Icons.admin_panel_settings_outlined,
+              title: 'Pengaturan Admin',
+              subtitle: 'Kelola konfigurasi tingkat admin',
+              iconColor: roleTheme.primary,
+              onTap: () {
+                Navigator.pushNamed(context, AppRoutes.adminSettingsPage);
+              },
+            ),
+          ],
         ],
       ),
     );
@@ -625,7 +641,10 @@ class _SettingsPageState extends State<SettingsPage> {
       if (opened) {
         return;
       }
-      final openedFallback = await launchUrl(uri, mode: LaunchMode.platformDefault);
+      final openedFallback = await launchUrl(
+        uri,
+        mode: LaunchMode.platformDefault,
+      );
       if (openedFallback) {
         return;
       }
@@ -708,6 +727,32 @@ class _SettingsPageState extends State<SettingsPage> {
           primary: Color(0xFF16A34A),
         );
     }
+  }
+
+  bool _canOpenAdminSettings() {
+    final role = _currentRoleUpper();
+    if (role.isEmpty) return false;
+
+    return RoleService.hasPermission(role, 'system_configuration') ||
+        RoleService.hasPermission(role, 'system_administration');
+  }
+
+  String _currentRoleUpper() {
+    AuthState? state;
+    try {
+      state = BlocProvider.of<AuthBloc>(context, listen: false).state;
+    } catch (_) {
+      state = null;
+    }
+
+    if (state is AuthAuthenticated) {
+      return state.user.role.toUpperCase();
+    }
+    if (state is AuthOfflineMode) {
+      return state.user.role.toUpperCase();
+    }
+
+    return '';
   }
 }
 

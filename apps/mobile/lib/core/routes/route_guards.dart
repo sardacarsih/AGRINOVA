@@ -9,19 +9,41 @@ import 'app_routes.dart';
 class RouteGuard {
   static final Logger _logger = Logger();
   static const String _profileRoute = '/profile';
+  static final Set<String> _knownRoutes = <String>{
+    ...AppRoutes.allRoutes,
+    AppRoutes.login,
+    AppRoutes.authWrapper,
+    AppRoutes.dashboard,
+    AppRoutes.harvestInput,
+    AppRoutes.webQRLogin,
+    '/harvest',
+    '/gate-check',
+    '/approvals',
+    '/monitoring',
+    '/reports',
+    '/users',
+    AppRoutes.settingsPage,
+    AppRoutes.adminSettingsPage,
+    _profileRoute,
+  };
 
   // Check if user can access a specific route
   static bool canAccessRoute(String route, String? userRole) {
-    if (userRole == null) {
-      _logger.w('User role is null, denying access to route: $route');
-      return false;
-    }
-
     // Get required permissions for the route
     final requiredPermissions = _getRoutePermissions(route);
 
     if (requiredPermissions.isEmpty) {
       // Public routes or routes that don't require specific permissions
+      return true;
+    }
+
+    if (userRole == null) {
+      _logger.w('User role is null, denying access to route: $route');
+      return false;
+    }
+
+    // Pseudo-permission for routes that only require authenticated session.
+    if (requiredPermissions.contains('authenticated')) {
       return true;
     }
 
@@ -71,6 +93,9 @@ class RouteGuard {
       case '/harvest':
         return ['harvest_input', 'harvest_approval'];
 
+      case AppRoutes.harvestInput:
+        return ['harvest_input'];
+
       case '/gate-check':
         return ['gate_check'];
 
@@ -96,7 +121,13 @@ class RouteGuard {
       case '/users':
         return ['user_management', 'user_management_global'];
 
+      case AppRoutes.webQRLogin:
+        return ['authenticated'];
+
       case AppRoutes.settingsPage:
+        return ['authenticated'];
+
+      case AppRoutes.adminSettingsPage:
         return ['system_configuration', 'system_administration'];
 
       // Profile routes - accessible to all authenticated users
@@ -108,6 +139,11 @@ class RouteGuard {
         _logger.w('Unknown route permissions: $route');
         return ['authenticated']; // Require authentication for unknown routes
     }
+  }
+
+  // Check if route is part of the application's known route registry.
+  static bool isKnownRoute(String routeName) {
+    return _knownRoutes.contains(routeName);
   }
 
   // Create a route with access control
@@ -143,21 +179,7 @@ class RouteGuard {
 
   // Check if route exists and user has access
   static bool isRouteAccessible(String routeName, String? userRole) {
-    final knownRoutes = <String>{
-      ...AppRoutes.allRoutes,
-      AppRoutes.login,
-      AppRoutes.authWrapper,
-      AppRoutes.dashboard,
-      '/harvest',
-      '/gate-check',
-      '/approvals',
-      '/monitoring',
-      '/reports',
-      '/users',
-      AppRoutes.settingsPage,
-      _profileRoute,
-    };
-    if (!knownRoutes.contains(routeName)) {
+    if (!isKnownRoute(routeName)) {
       return false;
     }
 

@@ -13,6 +13,7 @@ import '../../features/dashboard/presentation/pages/satpam_page.dart';
 import '../../features/dashboard/presentation/pages/company_admin_page.dart';
 import '../../features/dashboard/presentation/pages/super_admin_page.dart';
 import '../../features/settings/pages/settings_page.dart';
+import '../../features/settings/pages/admin_settings_page.dart';
 import '../../features/harvest/presentation/pages/harvest_input_screen.dart';
 import '../../features/harvest/presentation/blocs/harvest_bloc.dart';
 import '../../features/auth/presentation/pages/web_qr_login_page.dart';
@@ -31,6 +32,7 @@ class AppRoutes {
   static const String companyAdmin = '/company_admin';
   static const String superAdmin = '/super_admin';
   static const String settingsPage = '/settings';
+  static const String adminSettingsPage = '/settings/admin';
   static const String harvestInput = '/harvest/input';
   static const String webQRLogin = '/web_qr_login';
 
@@ -58,6 +60,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const SuperAdminPage());
       case settingsPage:
         return MaterialPageRoute(builder: (_) => const SettingsPage());
+      case adminSettingsPage:
+        return MaterialPageRoute(builder: (_) => const AdminSettingsPage());
       case harvestInput:
         return MaterialPageRoute(
           builder: (_) => BlocProvider(
