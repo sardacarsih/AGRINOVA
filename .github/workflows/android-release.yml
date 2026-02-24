@@ -101,6 +101,52 @@ jobs:
             return 1
           }
 
+          resolve_latest_develop_run_commit() {
+            # Last-resort fallback for repositories using squash/rebase merges to main.
+            python - <<'PY'
+          import json
+          import os
+          import sys
+          import urllib.request
+
+          repo = os.environ.get("GITHUB_REPOSITORY", "")
+          token = os.environ.get("GITHUB_TOKEN", "")
+          if not repo or not token:
+            sys.exit(1)
+
+          url = (
+            f"https://api.github.com/repos/{repo}/actions/workflows/android-release.yml/runs"
+            "?branch=develop&event=push&status=success&per_page=20"
+          )
+          req = urllib.request.Request(
+            url,
+            headers={
+              "Authorization": f"Bearer {token}",
+              "Accept": "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "agrinova-android-release-plan",
+            },
+          )
+
+          try:
+            with urllib.request.urlopen(req, timeout=20) as resp:
+              data = json.load(resp)
+          except Exception:
+            sys.exit(1)
+
+          runs = data.get("workflow_runs", [])
+          if not runs:
+            sys.exit(1)
+
+          head_sha = runs[0].get("head_sha", "")
+          if head_sha and len(head_sha) == 40:
+            print(head_sha)
+            sys.exit(0)
+
+          sys.exit(1)
+          PY
+          }
+
           if [[ "$event_name" == "push" && "$ref_type" == "branch" ]]; then
             if [[ "$ref_name" == "develop" ]]; then
               track="internal"
@@ -115,8 +161,14 @@ jobs:
               if [[ -n "$resolved_closed_source_commit" ]]; then
                 source_commit="$resolved_closed_source_commit"
               else
-                echo "::error::Unable to resolve develop source commit for closed promotion on main. Use workflow_dispatch with source_commit."
-                exit 1
+                resolved_latest_develop_commit="$(resolve_latest_develop_run_commit || true)"
+                if [[ -n "$resolved_latest_develop_commit" ]]; then
+                  source_commit="$resolved_latest_develop_commit"
+                  echo "::warning::Using latest successful develop run commit as source_commit: $source_commit"
+                else
+                  echo "::error::Unable to resolve develop source commit for closed promotion on main. Use workflow_dispatch with source_commit."
+                  exit 1
+                fi
               fi
             else
               echo "::error::Unsupported branch '$ref_name'. Allowed: develop, main."
@@ -139,8 +191,14 @@ jobs:
                 if [[ -n "$resolved_closed_source_commit" ]]; then
                   source_commit="$resolved_closed_source_commit"
                 else
-                  echo "::error::closed promotion requires source_commit input (develop commit SHA)."
-                  exit 1
+                  resolved_latest_develop_commit="$(resolve_latest_develop_run_commit || true)"
+                  if [[ -n "$resolved_latest_develop_commit" ]]; then
+                    source_commit="$resolved_latest_develop_commit"
+                    echo "::warning::Using latest successful develop run commit as source_commit: $source_commit"
+                  else
+                    echo "::error::closed promotion requires source_commit input (develop commit SHA)."
+                    exit 1
+                  fi
                 fi
               else
                 echo "::error::closed promotion requires source_commit input (develop commit SHA)."
