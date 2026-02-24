@@ -716,15 +716,120 @@ jobs:
 
           echo "dir=${NOTES_DIR}" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy to Google Play (alpha)
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: ${{ secrets.ANDROID_PACKAGE_NAME }}
-          releaseFiles: ${{ steps.metadata.outputs.aab_file }}
-          track: ${{ needs.plan.outputs.play_track }}
-          status: completed
-          whatsNewDirectory: ${{ steps.notes.outputs.dir }}
+      - name: Promote existing versionCode to alpha
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          ANDROID_PACKAGE_NAME: ${{ secrets.ANDROID_PACKAGE_NAME }}
+          VERSION_CODE: ${{ steps.metadata.outputs.version_code }}
+          VERSION_NAME: ${{ steps.metadata.outputs.version_name }}
+          NOTES_DIR: ${{ steps.notes.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet --upgrade google-api-python-client google-auth
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          from google.oauth2 import service_account
+          from googleapiclient.discovery import build
+          from googleapiclient.errors import HttpError
+
+          def read_text(path: Path) -> str:
+            if not path.exists():
+              return ""
+            return path.read_text(encoding="utf-8").strip()
+
+          package_name = os.environ["ANDROID_PACKAGE_NAME"]
+          version_code = str(int(os.environ["VERSION_CODE"]))
+          version_name = os.environ["VERSION_NAME"]
+          notes_dir = Path(os.environ["NOTES_DIR"])
+
+          release_notes = []
+          note_id = read_text(notes_dir / "whatsnew-id-ID")
+          note_en = read_text(notes_dir / "whatsnew-en-US")
+          if note_id:
+            release_notes.append({"language": "id-ID", "text": note_id[:500]})
+          if note_en:
+            release_notes.append({"language": "en-US", "text": note_en[:500]})
+
+          service_account_info = json.loads(os.environ["GOOGLE_PLAY_SERVICE_ACCOUNT_JSON"])
+          scopes = ["https://www.googleapis.com/auth/androidpublisher"]
+          creds = service_account.Credentials.from_service_account_info(service_account_info, scopes=scopes)
+          service = build("androidpublisher", "v3", credentials=creds, cache_discovery=False)
+
+          edit = service.edits().insert(packageName=package_name, body={}).execute()
+          edit_id = edit["id"]
+
+          def collect_codes(track_response: dict) -> set[str]:
+            codes = set()
+            for release in track_response.get("releases", []):
+              for code in release.get("versionCodes", []):
+                codes.add(str(code))
+            return codes
+
+          try:
+            try:
+              internal = service.edits().tracks().get(
+                packageName=package_name,
+                editId=edit_id,
+                track="internal",
+              ).execute()
+            except HttpError as err:
+              if getattr(err.resp, "status", None) == 404:
+                print("::error::Internal track not found in Play Console for this app.")
+                sys.exit(1)
+              raise
+
+            internal_codes = collect_codes(internal)
+            if version_code not in internal_codes:
+              print(
+                f"::error::versionCode {version_code} is not present in internal track. "
+                "Run develop build/deploy first."
+              )
+              sys.exit(1)
+
+            alpha_codes = set()
+            try:
+              alpha = service.edits().tracks().get(
+                packageName=package_name,
+                editId=edit_id,
+                track="alpha",
+              ).execute()
+              alpha_codes = collect_codes(alpha)
+            except HttpError as err:
+              if getattr(err.resp, "status", None) != 404:
+                raise
+
+            if version_code in alpha_codes:
+              print(f"versionCode {version_code} already exists in alpha track. No promotion needed.")
+            else:
+              release = {
+                "name": version_name,
+                "status": "completed",
+                "versionCodes": [version_code],
+              }
+              if release_notes:
+                release["releaseNotes"] = release_notes
+
+              service.edits().tracks().update(
+                packageName=package_name,
+                editId=edit_id,
+                track="alpha",
+                body={"releases": [release]},
+              ).execute()
+              print(f"Promoted versionCode {version_code} from internal to alpha.")
+
+            service.edits().commit(packageName=package_name, editId=edit_id).execute()
+          except Exception:
+            try:
+              service.edits().delete(packageName=package_name, editId=edit_id).execute()
+            except Exception:
+              pass
+            raise
+          PY
 
       - name: Write job summary
         if: success()
