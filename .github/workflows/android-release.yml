@@ -66,6 +66,8 @@ jobs:
 
       - name: Resolve track and version
         id: plan
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
