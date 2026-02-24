@@ -395,10 +395,13 @@ class AppUpdateService {
 
       if (shouldUseImmediate) {
         final result = await in_app_update.InAppUpdate.performImmediateUpdate();
-        if (result != in_app_update.AppUpdateResult.success) {
-          throw BusinessError.conflictingData(
-            'Immediate Play Store update was cancelled or failed',
-          );
+        final shouldContinue = _handlePlayStoreResult(
+          result,
+          updateInfo,
+          flow: 'immediate',
+        );
+        if (!shouldContinue) {
+          return;
         }
         _clearPendingUpdate();
         _setLastVersionCheck(DateTime.now());
@@ -408,10 +411,13 @@ class AppUpdateService {
 
       if (playStoreInfo.flexibleUpdateAllowed) {
         final result = await in_app_update.InAppUpdate.startFlexibleUpdate();
-        if (result != in_app_update.AppUpdateResult.success) {
-          throw BusinessError.conflictingData(
-            'Flexible Play Store update was cancelled or failed',
-          );
+        final shouldContinue = _handlePlayStoreResult(
+          result,
+          updateInfo,
+          flow: 'flexible',
+        );
+        if (!shouldContinue) {
+          return;
         }
         await in_app_update.InAppUpdate.completeFlexibleUpdate();
         _clearPendingUpdate();
@@ -422,10 +428,13 @@ class AppUpdateService {
 
       if (playStoreInfo.immediateUpdateAllowed) {
         final result = await in_app_update.InAppUpdate.performImmediateUpdate();
-        if (result != in_app_update.AppUpdateResult.success) {
-          throw BusinessError.conflictingData(
-            'Immediate Play Store update was cancelled or failed',
-          );
+        final shouldContinue = _handlePlayStoreResult(
+          result,
+          updateInfo,
+          flow: 'immediate',
+        );
+        if (!shouldContinue) {
+          return;
         }
         _clearPendingUpdate();
         _setLastVersionCheck(DateTime.now());
@@ -444,6 +453,34 @@ class AppUpdateService {
       );
       throw DeviceError.networkNotAvailable();
     }
+  }
+
+  bool _handlePlayStoreResult(
+    in_app_update.AppUpdateResult result,
+    AppUpdateInfo updateInfo, {
+    required String flow,
+  }) {
+    switch (result) {
+      case in_app_update.AppUpdateResult.success:
+        return true;
+      case in_app_update.AppUpdateResult.userDeniedUpdate:
+        _logger.i(
+          '$_tag: Play Store $flow update cancelled by user',
+        );
+        _emitProgress(AppUpdateProgress.cancelled(updateInfo));
+        return false;
+      case in_app_update.AppUpdateResult.inAppUpdateFailed:
+        throw BusinessError.conflictingData(
+          '${_capitalize(flow)} Play Store update failed',
+        );
+    }
+  }
+
+  String _capitalize(String value) {
+    if (value.isEmpty) {
+      return value;
+    }
+    return '${value[0].toUpperCase()}${value.substring(1)}';
   }
 
   /// Handle Over-The-Air (OTA) updates

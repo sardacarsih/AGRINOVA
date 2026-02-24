@@ -176,7 +176,7 @@ class AppUpdateInfo extends Equatable {
 
     for (final entry in metadata.entries) {
       final key = entry.key.toLowerCase();
-      if (!key.contains('version')) {
+      if (!key.contains('version') || key.contains('source')) {
         continue;
       }
 
@@ -199,7 +199,29 @@ class AppUpdateInfo extends Equatable {
     if (trimmed.isEmpty || _isBuildOnlyLabel(trimmed)) {
       return null;
     }
+
+    final normalized = trimmed.toLowerCase();
+    if (_isNonVersionToken(normalized) || !_containsVersionSignal(normalized)) {
+      return null;
+    }
     return trimmed;
+  }
+
+  bool _isNonVersionToken(String value) {
+    return const {
+      'play_store',
+      'playstore',
+      'server',
+      'unknown',
+      'true',
+      'false',
+      'null',
+      'none',
+    }.contains(value);
+  }
+
+  bool _containsVersionSignal(String value) {
+    return RegExp(r'\d').hasMatch(value);
   }
 
   bool _isBuildOnlyLabel(String value) {

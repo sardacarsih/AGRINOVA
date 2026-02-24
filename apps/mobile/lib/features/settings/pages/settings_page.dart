@@ -621,8 +621,12 @@ class _SettingsPageState extends State<SettingsPage> {
   }) async {
     final uri = Uri.parse(url);
     try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (opened) {
+        return;
+      }
+      final openedFallback = await launchUrl(uri, mode: LaunchMode.platformDefault);
+      if (openedFallback) {
         return;
       }
       if (!mounted) return;
