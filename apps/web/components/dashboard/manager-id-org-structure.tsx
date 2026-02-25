@@ -113,6 +113,8 @@ type ChartNode = RawNodeDatum & {
     role: string;
     username: string;
     company: string;
+    estates: string;
+    divisions: string;
     avatar: string;
     isCurrent: 'yes' | 'no';
     directReports: number;
@@ -307,6 +309,17 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
   }, [childrenByManagerId, currentRole, currentUserId, userById, users]);
 
   const chartData = React.useMemo<ChartNode[]>(() => {
+    const formatAssignments = (
+      items: Array<{ name?: string | null } | null | undefined> | null | undefined
+    ): string => {
+      if (!items || items.length === 0) return '-';
+      const names = items
+        .map((item) => item?.name?.trim())
+        .filter((name): name is string => Boolean(name));
+
+      return names.length > 0 ? names.join(', ') : '-';
+    };
+
     const toCompanyChartNode = (ownerUserId: string, companyName: string, children: ChartNode[]): ChartNode => ({
       name: companyName,
       attributes: {
@@ -315,6 +328,8 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
         role: 'COMPANY',
         username: '-',
         company: companyName,
+        estates: '-',
+        divisions: '-',
         avatar: '',
         isCurrent: 'no',
         directReports: children.length,
@@ -339,6 +354,8 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
           role: String(node.user.role),
           username: node.user.username,
           company: companyName,
+          estates: formatAssignments(node.user.estates),
+          divisions: formatAssignments(node.user.divisions),
           avatar: node.user.avatar || '',
           isCurrent: node.user.id === currentUserId ? 'yes' : 'no',
           directReports: node.children.length,
@@ -391,6 +408,8 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
       const nodeName = String(nodeDatum.name || '-');
       const username = String(attributes.username || '-');
       const company = String(attributes.company || '-');
+      const estates = String(attributes.estates || '-');
+      const divisions = String(attributes.divisions || '-');
       const avatar = String(attributes.avatar || '');
       const isCurrent = String(attributes.isCurrent || 'no') === 'yes';
       const directReports = Number(attributes.directReports || 0);
@@ -479,6 +498,12 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
                   </div>
 
                   <p className="mt-2 truncate text-[11px] text-muted-foreground">Perusahaan: {company}</p>
+                  {normalizedRole === 'MANAGER' && (
+                    <p className="mt-1 truncate text-[11px] text-muted-foreground">Estates: {estates}</p>
+                  )}
+                  {(normalizedRole === 'ASISTEN' || normalizedRole === 'MANDOR') && (
+                    <p className="mt-1 truncate text-[11px] text-muted-foreground">Divisi: {divisions}</p>
+                  )}
 
                   <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
                     <span>Direct Reports: {directReports}</span>
