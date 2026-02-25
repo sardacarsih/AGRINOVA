@@ -23,7 +23,7 @@ import { ALL_COMPANIES_SCOPE, useCompanyScope } from '@/contexts/company-scope-c
 import { cn } from '@/lib/utils';
 import type { CustomNodeElementProps, RawNodeDatum } from 'react-d3-tree';
 
-type OrgRole = 'AREA_MANAGER' | 'MANAGER' | 'ASISTEN';
+type OrgRole = 'AREA_MANAGER' | 'MANAGER' | 'ASISTEN' | 'MANDOR';
 
 type QueryUser = NonNullable<NonNullable<GetUsersQuery['users']>['users']>[number];
 
@@ -37,11 +37,12 @@ interface ManagerIdOrgStructureProps {
   currentRole: OrgRole;
 }
 
-const ALLOWED_ROLE_SET = new Set<OrgRole>(['AREA_MANAGER', 'MANAGER', 'ASISTEN']);
+const ALLOWED_ROLE_SET = new Set<OrgRole>(['AREA_MANAGER', 'MANAGER', 'ASISTEN', 'MANDOR']);
 const ROLE_ORDER: Record<OrgRole, number> = {
   AREA_MANAGER: 0,
   MANAGER: 1,
   ASISTEN: 2,
+  MANDOR: 3,
 };
 
 const Tree = dynamic(() => import('react-d3-tree').then((module) => module.default), {
@@ -58,6 +59,8 @@ const getRoleLabel = (role: OrgRole): string => {
       return 'Manager';
     case 'ASISTEN':
       return 'Asisten';
+    case 'MANDOR':
+      return 'Mandor';
   }
 };
 
@@ -69,6 +72,8 @@ const getRoleBadgeClassName = (role: OrgRole): string => {
       return 'bg-blue-100 text-blue-800 border-blue-200';
     case 'ASISTEN':
       return 'bg-emerald-100 text-emerald-800 border-emerald-200';
+    case 'MANDOR':
+      return 'bg-orange-100 text-orange-800 border-orange-200';
   }
 };
 
@@ -80,6 +85,8 @@ const getRoleIcon = (role: OrgRole) => {
       return <Users className="h-4 w-4 text-blue-600" />;
     case 'ASISTEN':
       return <UserCheck className="h-4 w-4 text-emerald-600" />;
+    case 'MANDOR':
+      return <UserCheck className="h-4 w-4 text-orange-600" />;
   }
 };
 
@@ -270,8 +277,8 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
       cursor = parent;
     }
 
-    // For AREA_MANAGER and MANAGER, include descendants.
-    if (currentRole === 'AREA_MANAGER' || currentRole === 'MANAGER') {
+    // Include descendants for AREA_MANAGER, MANAGER, and ASISTEN viewers.
+    if (currentRole === 'AREA_MANAGER' || currentRole === 'MANAGER' || currentRole === 'ASISTEN') {
       const queue: string[] = [current.id];
       const walkedDescendants = new Set<string>([current.id]);
 
@@ -561,7 +568,7 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
             Struktur Organisasi Berdasarkan Manager ID
           </CardTitle>
           <CardDescription>
-            Menampilkan relasi pelaporan untuk role Area Manager, Manager, dan Asisten menggunakan chart interaktif.
+            Menampilkan relasi pelaporan untuk role Area Manager, Manager, Asisten, dan Mandor menggunakan chart interaktif.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
