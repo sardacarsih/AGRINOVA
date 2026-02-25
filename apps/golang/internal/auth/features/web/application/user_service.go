@@ -54,6 +54,17 @@ var rolesWithUniqueActiveAssignments = map[domain.Role]assignmentScope{
 	domain.RoleManager:     assignmentScopeEstate,
 }
 
+var roleAllowedManagerRoles = map[domain.Role][]domain.Role{
+	domain.RoleCompanyAdmin: {domain.RoleSuperAdmin},
+	domain.RoleAreaManager:  {domain.RoleCompanyAdmin},
+	domain.RoleManager:      {domain.RoleAreaManager},
+	domain.RoleAsisten:      {domain.RoleManager},
+	domain.RoleMandor:       {domain.RoleAsisten},
+	domain.RoleSatpam:       {domain.RoleManager},
+	domain.RoleTimbangan:    {domain.RoleManager},
+	domain.RoleGrading:      {domain.RoleManager},
+}
+
 // UserManagementService handles user CRUD operations
 type UserManagementService struct {
 	userRepo       domain.UserRepository
@@ -142,6 +153,8 @@ func (s *UserManagementService) CreateUser(ctx context.Context, input domain.Use
 		return nil, err
 	}
 
+	input.ManagerID = normalizeOptionalID(input.ManagerID)
+
 	user := &domain.User{
 		ID:                 generateID(), // Reuse helper
 		Username:           input.Username,
@@ -169,6 +182,9 @@ func (s *UserManagementService) CreateUser(ctx context.Context, input domain.Use
 	divisionIDs := uniqueNonEmptyStrings(input.DivisionIDs)
 
 	if err := validateRoleAssignmentRequirements(input.Role, companyIDs, estateIDs, divisionIDs); err != nil {
+		return nil, err
+	}
+	if err := s.validateManagerAssignmentForRole(ctx, input.Role, input.ManagerID, user.ID); err != nil {
 		return nil, err
 	}
 	if user.IsActive {
@@ -301,6 +317,7 @@ func (s *UserManagementService) UpdateUser(ctx context.Context, input domain.Use
 	if input.LanguagePreference != nil {
 		user.LanguagePreference = input.LanguagePreference
 	}
+	input.ManagerID = normalizeOptionalID(input.ManagerID)
 	user.ManagerID = input.ManagerID
 	user.UpdatedAt = time.Now()
 
@@ -316,6 +333,9 @@ func (s *UserManagementService) UpdateUser(ctx context.Context, input domain.Use
 	effectiveRole := user.Role
 	if input.Role != "" {
 		effectiveRole = input.Role
+	}
+	if err := s.validateManagerAssignmentForRole(ctx, effectiveRole, user.ManagerID, user.ID); err != nil {
+		return nil, err
 	}
 
 	currentCompanyIDs, currentEstateIDs, currentDivisionIDs := extractActiveAssignmentIDs(user.Assignments)
@@ -877,4 +897,74 @@ func validateRoleAssignmentRequirements(role domain.Role, companyIDs, estateIDs,
 	}
 
 	return nil
+}
+
+func (s *UserManagementService) validateManagerAssignmentForRole(
+	ctx context.Context,
+	role domain.Role,
+	managerID *string,
+	userID string,
+) error {
+	if managerID == nil {
+		return nil
+	}
+
+	normalizedManagerID := strings.TrimSpace(*managerID)
+	if normalizedManagerID == "" {
+		return nil
+	}
+
+	if userID != "" && normalizedManagerID == userID {
+		return errors.New("atasan langsung tidak boleh diri sendiri")
+	}
+
+	manager, err := s.userRepo.FindByID(ctx, normalizedManagerID)
+	if err != nil {
+		return err
+	}
+	if manager == nil {
+		return errors.New("atasan langsung tidak ditemukan")
+	}
+	if !manager.IsActive {
+		return errors.New("atasan langsung harus dalam kondisi aktif")
+	}
+
+	return validateManagerRoleForUserRole(role, manager.Role)
+}
+
+func validateManagerRoleForUserRole(role domain.Role, managerRole domain.Role) error {
+	allowedManagerRoles, hasRules := roleAllowedManagerRoles[role]
+	if !hasRules || len(allowedManagerRoles) == 0 {
+		return fmt.Errorf("role %s tidak boleh memiliki atasan langsung", role)
+	}
+
+	for _, allowedRole := range allowedManagerRoles {
+		if managerRole == allowedRole {
+			return nil
+		}
+	}
+
+	allowedRoleStrings := make([]string, 0, len(allowedManagerRoles))
+	for _, allowedRole := range allowedManagerRoles {
+		allowedRoleStrings = append(allowedRoleStrings, string(allowedRole))
+	}
+
+	return fmt.Errorf(
+		"role %s hanya boleh memiliki atasan dengan role %s",
+		role,
+		strings.Join(allowedRoleStrings, " atau "),
+	)
+}
+
+func normalizeOptionalID(value *string) *string {
+	if value == nil {
+		return nil
+	}
+
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+
+	return &trimmed
 }

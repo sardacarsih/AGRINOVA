@@ -288,10 +288,10 @@ export function UserForm({
             users.filter((u) => {
                 if (u.id === initialData?.id) return false;
                 if (!managerRolesForSelectedRole.includes(u.role)) return false;
-                if (!u.isActive && u.id !== selectedManagerId) return false;
+                if (!u.isActive) return false;
                 return true;
             }),
-        [users, initialData?.id, managerRolesForSelectedRole, selectedManagerId]
+        [users, initialData?.id, managerRolesForSelectedRole]
     );
 
     useEffect(() => {

@@ -203,3 +203,35 @@ func TestFindActiveAssignmentConflict(t *testing.T) {
 		}
 	})
 }
+
+func TestValidateManagerRoleForUserRole(t *testing.T) {
+	t.Run("asisten manager role must be manager", func(t *testing.T) {
+		if err := validateManagerRoleForUserRole(domain.RoleAsisten, domain.RoleManager); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if err := validateManagerRoleForUserRole(domain.RoleAsisten, domain.RoleAreaManager); err == nil {
+			t.Fatal("expected validation error for ASISTEN manager role")
+		}
+	})
+
+	t.Run("mandor manager role must be asisten", func(t *testing.T) {
+		if err := validateManagerRoleForUserRole(domain.RoleMandor, domain.RoleAsisten); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if err := validateManagerRoleForUserRole(domain.RoleMandor, domain.RoleManager); err == nil {
+			t.Fatal("expected validation error for MANDOR manager role")
+		}
+	})
+
+	t.Run("manager manager role must be area manager", func(t *testing.T) {
+		if err := validateManagerRoleForUserRole(domain.RoleManager, domain.RoleAreaManager); err != nil {
+			t.Fatalf("expected no error, got %v", err)
+		}
+
+		if err := validateManagerRoleForUserRole(domain.RoleManager, domain.RoleCompanyAdmin); err == nil {
+			t.Fatal("expected validation error for MANAGER manager role")
+		}
+	})
+}
