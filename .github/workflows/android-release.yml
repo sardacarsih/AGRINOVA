@@ -27,7 +27,7 @@ on:
         required: false
         default: ''
       source_commit:
-        description: 'Commit SHA from develop artifact (required for closed promotion)'
+        description: 'Commit SHA from latest successful develop internal artifact (required for closed promotion)'
         required: false
         default: ''
 
@@ -113,10 +113,8 @@ jobs:
               manual_source_commit="${{ github.event.inputs.source_commit }}"
               if [[ -n "$manual_source_commit" ]]; then
                 source_commit="$manual_source_commit"
-              elif [[ "$ref_name" == "main" ]] && git rev-parse --verify HEAD^2 >/dev/null 2>&1; then
-                source_commit="$(git rev-parse HEAD^2)"
               else
-                echo "::error::closed promotion requires source_commit input (develop commit SHA)."
+                echo "::error::closed promotion requires source_commit input (latest successful develop internal commit SHA)."
                 exit 1
               fi
             elif [[ "$track" == "internal" ]]; then
@@ -593,18 +591,13 @@ jobs:
                 per_page: 100
               }
             );
-
-            const candidates = runs
-              .filter((run) => run.head_sha === sourceCommit)
+            const developRuns = runs
               .filter((run) => typeof run.path === 'string' && run.path.startsWith(workflowPath))
               .sort((a, b) => b.id - a.id);
 
-            if (candidates.length === 0) {
-              core.setFailed(`No successful develop workflow run found for source commit ${sourceCommit}.`);
-              return;
-            }
+            let latestPromotable = null;
 
-            for (const run of candidates) {
+            for (const run of developRuns) {
               const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
                 owner,
                 repo,
@@ -612,21 +605,46 @@ jobs:
                 per_page: 100
               });
 
+              const expectedArtifactName = `agrinova-android-aab-${run.head_sha}`;
               const match = artifacts.data.artifacts.find(
-                (artifact) => artifact.name === artifactName && !artifact.expired
+                (artifact) => artifact.name === expectedArtifactName && !artifact.expired
               );
 
               if (match) {
-                core.info(`Using run ${run.id} for commit ${sourceCommit}.`);
-                core.setOutput('run_id', String(run.id));
-                core.setOutput('artifact_id', String(match.id));
-                return;
+                latestPromotable = {
+                  run,
+                  artifact: match,
+                  expectedArtifactName,
+                };
+                break;
               }
             }
 
-            core.setFailed(
-              `Artifact ${artifactName} not found in successful develop runs for commit ${sourceCommit}.`
-            );
+            if (!latestPromotable) {
+              core.setFailed('No promotable develop internal artifact found (artifact missing or expired).');
+              return;
+            }
+
+            core.setOutput('latest_source_commit', latestPromotable.run.head_sha);
+
+            if (sourceCommit !== latestPromotable.run.head_sha) {
+              core.setFailed(
+                `source_commit must match latest successful develop internal artifact commit. ` +
+                `Expected ${latestPromotable.run.head_sha}, got ${sourceCommit}.`
+              );
+              return;
+            }
+
+            if (artifactName !== latestPromotable.expectedArtifactName) {
+              core.setFailed(
+                `Artifact name mismatch. Expected ${latestPromotable.expectedArtifactName}, got ${artifactName}.`
+              );
+              return;
+            }
+
+            core.info(`Using latest promotable run ${latestPromotable.run.id} for commit ${sourceCommit}.`);
+            core.setOutput('run_id', String(latestPromotable.run.id));
+            core.setOutput('artifact_id', String(latestPromotable.artifact.id));
 
       - name: Download promotion artifact
         uses: actions/download-artifact@v4

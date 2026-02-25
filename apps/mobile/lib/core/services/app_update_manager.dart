@@ -74,6 +74,7 @@ class AppUpdateManager {
         error: e,
         stackTrace: stackTrace,
       );
+      rethrow;
     }
   }
 
@@ -320,6 +321,9 @@ class AppUpdateManager {
     _logger.d('$_tag: Update progress: ${progress.status}');
 
     switch (progress.status) {
+      case UpdateProgressStatus.available:
+        _onUpdateAvailable(progress);
+        break;
       case UpdateProgressStatus.completed:
         _onUpdateCompleted(progress);
         break;
@@ -332,6 +336,26 @@ class AppUpdateManager {
       default:
         break;
     }
+  }
+
+  /// Handle periodic update availability events from AppUpdateService
+  void _onUpdateAvailable(AppUpdateProgress progress) {
+    final updateInfo = progress.updateInfo;
+    final existing = _currentUpdateInfo;
+    if (existing != null &&
+        existing.latestBuildNumber == updateInfo.latestBuildNumber &&
+        existing.latestVersion == updateInfo.latestVersion) {
+      return;
+    }
+
+    _currentUpdateInfo = updateInfo;
+
+    if (updateInfo.isCritical) {
+      unawaited(_handleCriticalUpdate(updateInfo));
+      return;
+    }
+
+    unawaited(_showUpdateBanner(updateInfo));
   }
 
   /// Handle successful update completion
