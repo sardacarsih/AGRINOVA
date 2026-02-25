@@ -429,11 +429,11 @@ func (r *PanenRepository) applyEmployeeWorkerNameJoin(query *gorm.DB) *gorm.DB {
 		Select(`
 			harvest_records.*,
 			COALESCE(
-				NULLIF(BTRIM(employees.name), ''),
-				NULLIF(BTRIM(employees.nik), ''),
-				NULLIF(BTRIM(harvest_records.nik), ''),
+				NULLIF(TRIM(employees.name), ''),
+				NULLIF(TRIM(employees.nik), ''),
+				NULLIF(TRIM(harvest_records.nik), ''),
 				CASE
-					WHEN harvest_records.karyawan_id IS NOT NULL THEN harvest_records.karyawan_id::text
+					WHEN harvest_records.karyawan_id IS NOT NULL THEN CAST(harvest_records.karyawan_id AS TEXT)
 					ELSE ''
 				END
 			) AS karyawan
