@@ -50,6 +50,18 @@ const ROLE_REQUIRES_DIVISION = new Set<UserRole>([
     UserRole.Mandor,
 ]);
 
+const ROLE_ALLOWED_MANAGER_ROLES: Record<UserRole, UserRole[]> = {
+    [UserRole.SuperAdmin]: [],
+    [UserRole.CompanyAdmin]: [UserRole.SuperAdmin],
+    [UserRole.AreaManager]: [UserRole.CompanyAdmin],
+    [UserRole.Manager]: [UserRole.AreaManager],
+    [UserRole.Asisten]: [UserRole.Manager],
+    [UserRole.Mandor]: [UserRole.Asisten],
+    [UserRole.Satpam]: [UserRole.Manager],
+    [UserRole.Timbangan]: [UserRole.Manager],
+    [UserRole.Grading]: [UserRole.Manager],
+};
+
 const normalizeIds = (ids?: Array<string | null | undefined> | null): string[] => {
     const cleaned = (ids || [])
         .filter((id): id is string => typeof id === 'string')
@@ -224,12 +236,6 @@ export function UserForm({
         divisionsEntityKey,
     ]);
 
-    // Filter managers (exclude self)
-    const managerCandidates = useMemo(
-        () => users.filter((u) => u.id !== initialData?.id),
-        [users, initialData?.id]
-    );
-
     const initialValues = useMemo<z.infer<typeof userFormSchema>>(() => ({
         name: initialData?.name || '',
         username: initialData?.username || '',
@@ -271,19 +277,45 @@ export function UserForm({
     }, [form, initialValues]);
 
     const selectedRole = form.watch('role');
+    const selectedManagerId = form.watch('managerId');
     const selectedCompanyIds = form.watch('companyIds') || [];
     const selectedEstateIds = form.watch('estateIds') || [];
     const selectedDivisionIds = form.watch('divisionIds') || [];
 
+    const managerRolesForSelectedRole = ROLE_ALLOWED_MANAGER_ROLES[selectedRole] || [];
+    const managerCandidates = useMemo(
+        () =>
+            users.filter((u) => {
+                if (u.id === initialData?.id) return false;
+                if (!managerRolesForSelectedRole.includes(u.role)) return false;
+                if (!u.isActive && u.id !== selectedManagerId) return false;
+                return true;
+            }),
+        [users, initialData?.id, managerRolesForSelectedRole, selectedManagerId]
+    );
+
+    useEffect(() => {
+        if (!selectedManagerId) return;
+
+        const managerStillValid = managerCandidates.some((u) => u.id === selectedManagerId);
+        if (!managerStillValid) {
+            form.setValue('managerId', null, { shouldValidate: true });
+        }
+    }, [form, selectedManagerId, managerCandidates]);
+
     const selectedRoleData = roles.find((r) => r.role === selectedRole);
     const selectedRoleName = selectedRoleData?.name || selectedRole;
     const selectedRoleDescription = selectedRoleData?.description || 'Akses pengguna standar';
+    const managerRoleHint =
+        managerRolesForSelectedRole.length > 0
+            ? `Atasan untuk role ${selectedRole} hanya: ${managerRolesForSelectedRole.join(', ')}.`
+            : `Role ${selectedRole} tidak memerlukan atasan langsung.`;
 
     const selectedCompanyCount = selectedCompanyIds.length;
     const selectedEstateCount = selectedEstateIds.length;
     const selectedDivisionCount = selectedDivisionIds.length;
     const isCompanySelectionLocked = companySelectionReadOnly;
-    const isManagerSelectDisabled = false;
+    const isManagerSelectDisabled = managerRolesForSelectedRole.length === 0 || managerCandidates.length === 0;
 
     // Convert companies to options
     const companyOptions = useMemo(() => {
@@ -499,6 +531,7 @@ export function UserForm({
                                                             ))}
                                                         </SelectContent>
                                                     </Select>
+                                                    <FormDescription>{managerRoleHint}</FormDescription>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
