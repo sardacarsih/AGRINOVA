@@ -68,6 +68,7 @@ const roleBasedNavigation = {
       { name: "Grading", href: "/grading", icon: Star, current: false },
     ],
     management: [
+      { name: "Struktur Organisasi", href: "/struktur-organisasi", icon: Users, current: false },
       { name: "Karyawan", href: "/users", icon: Users, current: false },
       { name: "Laporan Panen", href: "/harvest", icon: FileText, current: false },
     ]
@@ -84,6 +85,7 @@ const roleBasedNavigation = {
       { name: "Gate Check", href: "/gate-check", icon: Shield, current: false },
     ],
     management: [
+      { name: "Struktur Organisasi", href: "/struktur-organisasi", icon: Users, current: false },
       { name: "Budget Divisi", href: "/budget-divisi", icon: Users, current: false },
       { name: "Laporan", href: "/reports", icon: BarChart3, current: false },
       { name: "Analytics", href: "/analytics", icon: BarChart3, current: false },
@@ -100,6 +102,7 @@ const roleBasedNavigation = {
       { name: "Gate Check", href: "/gate-check", icon: Shield, current: false },
     ],
     reporting: [
+      { name: "Struktur Organisasi", href: "/struktur-organisasi", icon: Users, current: false },
       { name: "Laporan Regional", href: "/reports", icon: FileText, current: false },
       { name: "Analitik Regional", href: "/analytics", icon: BarChart3, current: false },
     ]

@@ -600,6 +600,12 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       permissions: ['analytics:regional']
     },
     {
+      label: 'items.organizationStructure',
+      path: '/struktur-organisasi',
+      icon: 'users',
+      permissions: ['team:read']
+    },
+    {
       label: 'items.systemMonitoring',
       path: '/settings',
       icon: 'terminal',
@@ -660,6 +666,12 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       path: '/harvest/history',
       icon: 'clock',
       permissions: ['harvest:read']
+    },
+    {
+      label: 'items.organizationStructure',
+      path: '/struktur-organisasi',
+      icon: 'users',
+      permissions: ['users:read']
     },
     {
       label: 'items.teamUsers',
@@ -727,6 +739,12 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
     {
       label: 'items.team',
       path: '/users',
+      icon: 'users',
+      permissions: ['team:read']
+    },
+    {
+      label: 'items.organizationStructure',
+      path: '/struktur-organisasi',
       icon: 'users',
       permissions: ['team:read']
     },
