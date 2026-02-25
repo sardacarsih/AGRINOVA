@@ -992,6 +992,206 @@ func getCurrentUserScope(ctx context.Context) (string, auth.UserRole) {
 	return userID, role
 }
 
+func (r *queryResolver) buildScopedHarvestFilters(
+	ctx context.Context,
+	userID string,
+	role auth.UserRole,
+	base *panenModels.HarvestFilters,
+) (*panenModels.HarvestFilters, bool, error) {
+	if strings.TrimSpace(userID) == "" {
+		return nil, false, fmt.Errorf("authentication required")
+	}
+	if r.MasterResolver == nil || r.MasterResolver.GetMasterService() == nil {
+		return nil, false, fmt.Errorf("master service unavailable")
+	}
+
+	assignments, err := r.MasterResolver.GetMasterService().GetUserAssignments(ctx, userID)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to load user assignments: %w", err)
+	}
+
+	companyIDs := make([]string, 0, len(assignments.Companies))
+	estateIDs := make([]string, 0, len(assignments.Estates))
+	divisionIDs := make([]string, 0, len(assignments.Divisions))
+	companySeen := make(map[string]struct{}, len(assignments.Companies))
+	estateSeen := make(map[string]struct{}, len(assignments.Estates))
+	divisionSeen := make(map[string]struct{}, len(assignments.Divisions))
+
+	for _, company := range assignments.Companies {
+		companyIDs = appendUniqueHarvestScopeID(companyIDs, companySeen, company.ID)
+	}
+	for _, estate := range assignments.Estates {
+		estateIDs = appendUniqueHarvestScopeID(estateIDs, estateSeen, estate.ID)
+	}
+	for _, division := range assignments.Divisions {
+		divisionIDs = appendUniqueHarvestScopeID(divisionIDs, divisionSeen, division.ID)
+	}
+
+	filters := &panenModels.HarvestFilters{}
+	if base != nil {
+		*filters = *base
+		filters.MandorIDs = append([]string(nil), base.MandorIDs...)
+		filters.CompanyIDs = append([]string(nil), base.CompanyIDs...)
+		filters.EstateIDs = append([]string(nil), base.EstateIDs...)
+		filters.DivisionIDs = append([]string(nil), base.DivisionIDs...)
+	}
+
+	// Reset scope dimensions and set exactly one role-priority scope.
+	filters.CompanyIDs = nil
+	filters.EstateIDs = nil
+	filters.DivisionIDs = nil
+
+	switch role {
+	case auth.UserRoleManager:
+		if len(estateIDs) > 0 {
+			filters.EstateIDs = estateIDs
+			return filters, true, nil
+		}
+	case auth.UserRoleAsisten:
+		if len(divisionIDs) > 0 {
+			filters.DivisionIDs = divisionIDs
+			return filters, true, nil
+		}
+	case auth.UserRoleAreaManager, auth.UserRoleCompanyAdmin:
+		if len(companyIDs) > 0 {
+			filters.CompanyIDs = companyIDs
+			return filters, true, nil
+		}
+	}
+
+	return nil, false, nil
+}
+
+func (r *queryResolver) buildHierarchyMandorScopedHarvestFilters(
+	ctx context.Context,
+	userID string,
+	base *panenModels.HarvestFilters,
+) (*panenModels.HarvestFilters, bool, error) {
+	mandorIDs, err := r.getHierarchyMandorIDs(ctx, userID)
+	if err != nil {
+		return nil, false, err
+	}
+	if len(mandorIDs) == 0 {
+		return nil, false, nil
+	}
+
+	filters := &panenModels.HarvestFilters{}
+	if base != nil {
+		*filters = *base
+		filters.MandorIDs = append([]string(nil), base.MandorIDs...)
+		filters.CompanyIDs = append([]string(nil), base.CompanyIDs...)
+		filters.EstateIDs = append([]string(nil), base.EstateIDs...)
+		filters.DivisionIDs = append([]string(nil), base.DivisionIDs...)
+	}
+	filters.MandorIDs = mandorIDs
+
+	return filters, true, nil
+}
+
+func (r *queryResolver) getHierarchyMandorIDs(ctx context.Context, userID string) ([]string, error) {
+	if strings.TrimSpace(userID) == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
+	if r.HierarchyService == nil {
+		return nil, fmt.Errorf("hierarchy service unavailable")
+	}
+
+	queue := []string{userID}
+	visited := map[string]struct{}{userID: {}}
+	mandorSeen := make(map[string]struct{})
+	mandorIDs := make([]string, 0)
+
+	for len(queue) > 0 {
+		currentID := queue[0]
+		queue = queue[1:]
+
+		children, err := r.HierarchyService.GetChildren(ctx, currentID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load hierarchy children: %w", err)
+		}
+
+		for _, child := range children {
+			if child == nil {
+				continue
+			}
+
+			childID := strings.TrimSpace(child.ID)
+			if childID == "" {
+				continue
+			}
+
+			if child.Role == auth.UserRoleMandor {
+				if _, exists := mandorSeen[childID]; !exists {
+					mandorSeen[childID] = struct{}{}
+					mandorIDs = append(mandorIDs, childID)
+				}
+			}
+
+			if _, seen := visited[childID]; seen {
+				continue
+			}
+			visited[childID] = struct{}{}
+			queue = append(queue, childID)
+		}
+	}
+
+	return mandorIDs, nil
+}
+
+func appendUniqueHarvestScopeID(target []string, seen map[string]struct{}, raw string) []string {
+	id := strings.TrimSpace(raw)
+	if id == "" {
+		return target
+	}
+	if _, exists := seen[id]; exists {
+		return target
+	}
+	seen[id] = struct{}{}
+	return append(target, id)
+}
+
+func harvestScopeContains(scope []string, value string) bool {
+	target := strings.TrimSpace(value)
+	if target == "" {
+		return false
+	}
+	for _, scopeID := range scope {
+		if strings.EqualFold(strings.TrimSpace(scopeID), target) {
+			return true
+		}
+	}
+	return false
+}
+
+func isHarvestRecordInScopedAssignments(record *panenModels.HarvestRecord, filters *panenModels.HarvestFilters) bool {
+	if record == nil || filters == nil {
+		return false
+	}
+
+	if len(filters.CompanyIDs) > 0 {
+		if record.CompanyID == nil || !harvestScopeContains(filters.CompanyIDs, *record.CompanyID) {
+			return false
+		}
+	}
+	if len(filters.EstateIDs) > 0 {
+		if record.EstateID == nil || !harvestScopeContains(filters.EstateIDs, *record.EstateID) {
+			return false
+		}
+	}
+	if len(filters.DivisionIDs) > 0 {
+		if record.DivisionID == nil || !harvestScopeContains(filters.DivisionIDs, *record.DivisionID) {
+			return false
+		}
+	}
+	if len(filters.MandorIDs) > 0 {
+		if strings.TrimSpace(record.MandorID) == "" || !harvestScopeContains(filters.MandorIDs, record.MandorID) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (r *mutationResolver) ensureManagerCanAccessHarvest(
 	ctx context.Context,
 	managerID string,
@@ -1673,6 +1873,9 @@ func convertToMandorHarvestRecord(record *mandor.HarvestRecord) *mandor.MandorHa
 // HarvestRecords is the resolver for the harvestRecords field.
 func (r *queryResolver) HarvestRecords(ctx context.Context, dateFrom *time.Time, dateTo *time.Time) ([]*mandor.HarvestRecord, error) {
 	userID, role := getCurrentUserScope(ctx)
+	if userID == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
 
 	var (
 		harvestModels []*panenModels.HarvestRecord
@@ -1687,17 +1890,36 @@ func (r *queryResolver) HarvestRecords(ctx context.Context, dateFrom *time.Time,
 
 	switch role {
 	case auth.UserRoleMandor:
-		if userID == "" {
-			return nil, fmt.Errorf("authentication required")
-		}
 		harvestModels, err = r.PanenResolver.HarvestRecordsByMandor(ctx, userID, filters)
 	case auth.UserRoleManager:
-		if userID == "" {
-			return nil, fmt.Errorf("authentication required")
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, filters)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if hasScope {
+			harvestModels, err = r.PanenResolver.HarvestRecords(ctx, scopedFilters)
+			break
 		}
 		harvestModels, err = r.PanenResolver.HarvestRecordsByManager(ctx, userID, filters)
+	case auth.UserRoleAsisten, auth.UserRoleAreaManager, auth.UserRoleCompanyAdmin:
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, filters)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if hasScope {
+			harvestModels, err = r.PanenResolver.HarvestRecords(ctx, scopedFilters)
+			break
+		}
+
+		hierarchyFilters, hasHierarchyScope, hierarchyErr := r.buildHierarchyMandorScopedHarvestFilters(ctx, userID, filters)
+		if hierarchyErr != nil {
+			return nil, hierarchyErr
+		}
+		if !hasHierarchyScope {
+			return []*mandor.HarvestRecord{}, nil
+		}
+		harvestModels, err = r.PanenResolver.HarvestRecords(ctx, hierarchyFilters)
 	default:
-		// For other roles, use the generic GetHarvestRecords with filters
 		harvestModels, err = r.PanenResolver.HarvestRecords(ctx, filters)
 	}
 	if err != nil {
@@ -1716,6 +1938,9 @@ func (r *queryResolver) HarvestRecords(ctx context.Context, dateFrom *time.Time,
 // HarvestRecord is the resolver for the harvestRecord field.
 func (r *queryResolver) HarvestRecord(ctx context.Context, id string) (*mandor.HarvestRecord, error) {
 	userID, role := getCurrentUserScope(ctx)
+	if userID == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
 
 	var (
 		harvestModel *panenModels.HarvestRecord
@@ -1723,9 +1948,6 @@ func (r *queryResolver) HarvestRecord(ctx context.Context, id string) (*mandor.H
 	)
 	switch role {
 	case auth.UserRoleMandor:
-		if userID == "" {
-			return nil, fmt.Errorf("authentication required")
-		}
 		harvestModel, err = r.PanenResolver.HarvestRecord(ctx, id)
 		if err != nil {
 			return nil, err
@@ -1737,9 +1959,24 @@ func (r *queryResolver) HarvestRecord(ctx context.Context, id string) (*mandor.H
 			return nil, fmt.Errorf("harvest record not found")
 		}
 	case auth.UserRoleManager:
-		if userID == "" {
-			return nil, fmt.Errorf("authentication required")
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, nil)
+		if scopeErr != nil {
+			return nil, scopeErr
 		}
+		if hasScope {
+			harvestModel, err = r.PanenResolver.HarvestRecord(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			if harvestModel == nil {
+				return nil, nil
+			}
+			if !isHarvestRecordInScopedAssignments(harvestModel, scopedFilters) {
+				return nil, fmt.Errorf("harvest record not found")
+			}
+			break
+		}
+
 		harvestModel, err = r.PanenResolver.HarvestRecordByManager(ctx, id, userID)
 		if err != nil {
 			var harvestErr *panenModels.HarvestError
@@ -1750,6 +1987,43 @@ func (r *queryResolver) HarvestRecord(ctx context.Context, id string) (*mandor.H
 		}
 		if harvestModel == nil {
 			return nil, nil
+		}
+	case auth.UserRoleAsisten, auth.UserRoleAreaManager, auth.UserRoleCompanyAdmin:
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, nil)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if hasScope {
+			harvestModel, err = r.PanenResolver.HarvestRecord(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			if harvestModel == nil {
+				return nil, nil
+			}
+			if !isHarvestRecordInScopedAssignments(harvestModel, scopedFilters) {
+				return nil, fmt.Errorf("harvest record not found")
+			}
+			break
+		}
+
+		hierarchyFilters, hasHierarchyScope, hierarchyErr := r.buildHierarchyMandorScopedHarvestFilters(ctx, userID, nil)
+		if hierarchyErr != nil {
+			return nil, hierarchyErr
+		}
+		if !hasHierarchyScope {
+			return nil, fmt.Errorf("harvest record not found")
+		}
+
+		harvestModel, err = r.PanenResolver.HarvestRecord(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if harvestModel == nil {
+			return nil, nil
+		}
+		if !isHarvestRecordInScopedAssignments(harvestModel, hierarchyFilters) {
+			return nil, fmt.Errorf("harvest record not found")
 		}
 	default:
 		harvestModel, err = r.PanenResolver.HarvestRecord(ctx, id)
@@ -1767,40 +2041,76 @@ func (r *queryResolver) HarvestRecord(ctx context.Context, id string) (*mandor.H
 // HarvestRecordsByStatus is the resolver for the harvestRecordsByStatus field.
 func (r *queryResolver) HarvestRecordsByStatus(ctx context.Context, status mandor.HarvestStatus) ([]*mandor.HarvestRecord, error) {
 	userID, role := getCurrentUserScope(ctx)
+	if userID == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
 
 	var harvestModels []*panenModels.HarvestRecord
 
 	if role == auth.UserRoleMandor {
-		if userID == "" {
-			return nil, fmt.Errorf("authentication required")
-		}
-
-		records, fetchErr := r.PanenResolver.HarvestRecordsByMandor(ctx, userID, nil)
-		if fetchErr != nil {
-			return nil, fetchErr
-		}
-
-		expectedStatus := strings.TrimSpace(status.String())
-		for _, record := range records {
-			if strings.EqualFold(strings.TrimSpace(string(record.Status)), expectedStatus) {
-				harvestModels = append(harvestModels, record)
-			}
-		}
-	} else if role == auth.UserRoleManager {
-		if userID == "" {
-			return nil, fmt.Errorf("authentication required")
-		}
-		records, fetchErr := r.PanenResolver.HarvestRecordsByManagerAndStatus(ctx, userID, status)
+		records, fetchErr := r.PanenResolver.HarvestRecordsByMandor(ctx, userID, &panenModels.HarvestFilters{
+			Status: &status,
+		})
 		if fetchErr != nil {
 			return nil, fetchErr
 		}
 		harvestModels = records
-	} else {
-		var err error
-		harvestModels, err = r.PanenResolver.HarvestRecordsByStatus(ctx, status)
-		if err != nil {
-			return nil, err
+	} else if role == auth.UserRoleManager {
+		filters := &panenModels.HarvestFilters{
+			Status: &status,
 		}
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, filters)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if hasScope {
+			records, fetchErr := r.PanenResolver.HarvestRecords(ctx, scopedFilters)
+			if fetchErr != nil {
+				return nil, fetchErr
+			}
+			harvestModels = records
+		} else {
+			records, fetchErr := r.PanenResolver.HarvestRecordsByManagerAndStatus(ctx, userID, status)
+			if fetchErr != nil {
+				return nil, fetchErr
+			}
+			harvestModels = records
+		}
+	} else if role == auth.UserRoleAsisten || role == auth.UserRoleAreaManager || role == auth.UserRoleCompanyAdmin {
+		filters := &panenModels.HarvestFilters{
+			Status: &status,
+		}
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, filters)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if hasScope {
+			records, fetchErr := r.PanenResolver.HarvestRecords(ctx, scopedFilters)
+			if fetchErr != nil {
+				return nil, fetchErr
+			}
+			harvestModels = records
+		} else {
+			hierarchyFilters, hasHierarchyScope, hierarchyErr := r.buildHierarchyMandorScopedHarvestFilters(ctx, userID, filters)
+			if hierarchyErr != nil {
+				return nil, hierarchyErr
+			}
+			if !hasHierarchyScope {
+				return []*mandor.HarvestRecord{}, nil
+			}
+
+			records, fetchErr := r.PanenResolver.HarvestRecords(ctx, hierarchyFilters)
+			if fetchErr != nil {
+				return nil, fetchErr
+			}
+			harvestModels = records
+		}
+	} else {
+		records, fetchErr := r.PanenResolver.HarvestRecordsByStatus(ctx, status)
+		if fetchErr != nil {
+			return nil, fetchErr
+		}
+		harvestModels = records
 	}
 
 	// Convert slice of internal models to slice of generated types

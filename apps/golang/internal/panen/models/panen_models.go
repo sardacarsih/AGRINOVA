@@ -50,6 +50,7 @@ type RejectHarvestRequest struct {
 // HarvestFilters contains common filters for querying harvest records
 type HarvestFilters struct {
 	MandorID    *string        `json:"mandor_id,omitempty"`
+	MandorIDs   []string       `json:"mandor_ids,omitempty"`
 	BlockID     *string        `json:"block_id,omitempty"`
 	DivisionIDs []string       `json:"division_ids,omitempty"`
 	EstateIDs   []string       `json:"estate_ids,omitempty"`

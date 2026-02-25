@@ -575,6 +575,34 @@ func (r *PanenRepository) applyHarvestFilters(query *gorm.DB, filters *models.Ha
 	}
 
 	// Apply filters
+	if len(filters.CompanyIDs) > 0 {
+		companyIDs := normalizeHarvestScopeIDs(filters.CompanyIDs)
+		if len(companyIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.company_id IN ?", companyIDs)
+	}
+	if len(filters.EstateIDs) > 0 {
+		estateIDs := normalizeHarvestScopeIDs(filters.EstateIDs)
+		if len(estateIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.estate_id IN ?", estateIDs)
+	}
+	if len(filters.DivisionIDs) > 0 {
+		divisionIDs := normalizeHarvestScopeIDs(filters.DivisionIDs)
+		if len(divisionIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.division_id IN ?", divisionIDs)
+	}
+	if len(filters.MandorIDs) > 0 {
+		mandorIDs := normalizeHarvestScopeIDs(filters.MandorIDs)
+		if len(mandorIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.mandor_id IN ?", mandorIDs)
+	}
 	if filters.MandorID != nil {
 		query = query.Where("harvest_records.mandor_id = ?", *filters.MandorID)
 	}
@@ -659,4 +687,26 @@ func normalizeHarvestOrderBy(orderBy string) string {
 	default:
 		return "harvest_records.tanggal"
 	}
+}
+
+func normalizeHarvestScopeIDs(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, len(values))
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		normalized = append(normalized, trimmed)
+	}
+
+	return normalized
 }
