@@ -45,8 +45,8 @@ export const HARVEST_RECORD_FRAGMENT = gql`
 // Query to get all harvest records
 export const GET_HARVEST_RECORDS = gql`
   ${HARVEST_RECORD_FRAGMENT}
-  query GetHarvestRecords {
-    harvestRecords {
+  query GetHarvestRecords($dateFrom: Time, $dateTo: Time) {
+    harvestRecords(dateFrom: $dateFrom, dateTo: $dateTo) {
       ...HarvestRecordFields
     }
   }
