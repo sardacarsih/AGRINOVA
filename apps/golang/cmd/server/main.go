@@ -274,6 +274,14 @@ func main() {
 		resolver.HandleVehicleTaxDocumentUpload,
 	)
 
+	// Profile avatar upload endpoint (multipart form-data)
+	router.POST("/profile/avatar/upload",
+		authMiddleware.GraphQLAuth(),
+		webAuthMiddleware.WebSessionMiddleware(),
+		webAuthMiddleware.GraphQLContextMiddleware(),
+		resolver.HandleProfileAvatarUpload,
+	)
+
 	// Static file serving for uploads
 	// This allows access to uploaded photos (e.g., http://localhost:8080/uploads/satpam_photos/file.jpg)
 	router.Static("/uploads", uploadsDir)

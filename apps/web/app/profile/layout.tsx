@@ -11,9 +11,9 @@ interface ProfileLayoutProps {
 }
 
 export default function ProfileLayout({ children }: ProfileLayoutProps) {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  if (!user) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -21,7 +21,7 @@ export default function ProfileLayout({ children }: ProfileLayoutProps) {
     );
   }
 
-  const dashboardPath = DEFAULT_DASHBOARD_PATHS[user.role];
+  const dashboardPath = user ? DEFAULT_DASHBOARD_PATHS[user.role] : '/';
 
   return (
     <ProtectedRoute allowedRoles={['SUPER_ADMIN', 'COMPANY_ADMIN', 'AREA_MANAGER', 'MANAGER', 'ASISTEN', 'MANDOR', 'SATPAM', 'TIMBANGAN', 'GRADING']}>
