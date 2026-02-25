@@ -42,8 +42,20 @@ import { useAuth } from '@/hooks/use-auth';
 import { useHarvestSubscriptions } from '@/hooks/use-graphql-subscriptions';
 import { GraphQLErrorWrapper } from '@/components/ui/graphql-error-handler';
 import { useQuery, useMutation } from '@apollo/client/react';
-import { GetHarvestRecordsDocument, GetHarvestRecordsByStatusDocument, HarvestStatus, DeleteHarvestRecordDocument } from '@/gql/graphql';
+import { DeleteHarvestRecordDocument } from '@/gql/graphql';
 import { resolveMediaUrl } from '@/lib/utils/media-url';
+import { useCompanyScope } from '@/contexts/company-scope-context';
+import {
+  GET_HARVEST_RECORDS,
+  GET_MY_ASSIGNMENTS,
+  type GetHarvestRecordsResponse,
+  type GetMyAssignmentsResponse,
+} from '@/lib/apollo/queries/harvest';
+import {
+  buildHarvestDateVariables,
+  buildHarvestRoleScope,
+  isHarvestRecordInScope,
+} from '@/features/harvest/utils/harvest-query-params';
 
 // Utility function to sanitize block display text for MANDOR role
 const sanitizeBlockDisplay = (text: string | null | undefined, userRole: string | undefined): string => {
@@ -149,6 +161,7 @@ export function HarvestList({
   pageSize,
 }: HarvestListProps) {
   const { user } = useAuth();
+  const { selectedCompanyId } = useCompanyScope();
   const userRole = (user?.role || '').toUpperCase();
   const isMandor = userRole === 'MANDOR';
   const isMandorReadOnly = isMandor;
@@ -163,24 +176,33 @@ export function HarvestList({
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
   const realtimeRefetchInFlightRef = React.useRef(false);
   const lastRealtimeRefetchAtRef = React.useRef(0);
+  const shouldLoadAssignments = ['ASISTEN', 'MANAGER', 'AREA_MANAGER'].includes(userRole);
+  const harvestQueryVariables = React.useMemo(
+    () => buildHarvestDateVariables(dateFrom, dateTo),
+    [dateFrom, dateTo]
+  );
 
-  // Use generated hooks
-  const { data: allData, loading: allLoading, error: allError, refetch: refetchAll } = useQuery(GetHarvestRecordsDocument, {
-    skip: statusFilter !== 'ALL',
-    pollInterval: 30000,
-    fetchPolicy: 'cache-and-network',
+  const { data: assignmentsData } = useQuery<GetMyAssignmentsResponse>(GET_MY_ASSIGNMENTS, {
+    skip: !shouldLoadAssignments || !user,
+    fetchPolicy: 'cache-first',
+    nextFetchPolicy: 'cache-first',
   });
 
-  const { data: statusData, loading: statusLoading, error: statusError, refetch: refetchStatus } = useQuery(GetHarvestRecordsByStatusDocument, {
-    skip: statusFilter === 'ALL',
-    variables: { status: statusFilter as HarvestStatus }, // Cast to generated enum
+  const roleScope = React.useMemo(() => {
+    return buildHarvestRoleScope({
+      role: userRole,
+      currentUserId,
+      selectedCompanyId,
+      assignments: assignmentsData?.myAssignments,
+    });
+  }, [assignmentsData?.myAssignments, currentUserId, selectedCompanyId, userRole]);
+
+  const { data, loading, error, refetch } = useQuery<GetHarvestRecordsResponse>(GET_HARVEST_RECORDS, {
+    variables: harvestQueryVariables,
     pollInterval: 30000,
     fetchPolicy: 'cache-and-network',
+    notifyOnNetworkStatusChange: true,
   });
-
-  const loading = statusFilter === 'ALL' ? allLoading : statusLoading;
-  const error = statusFilter === 'ALL' ? allError : statusError;
-  const refetch = statusFilter === 'ALL' ? refetchAll : refetchStatus;
 
   const triggerRealtimeRefetch = React.useCallback(async (
     event: any,
@@ -247,19 +269,8 @@ export function HarvestList({
       return raw.slice(0, 10);
     };
 
-    let records = statusFilter === 'ALL'
-      ? allData?.harvestRecords || []
-      : statusData?.harvestRecordsByStatus || [];
-
-    // Extra frontend guard: MANDOR should only see records created by themselves.
-    if (isMandor && currentUserId) {
-      records = records.filter((record: any) => {
-        const recordMandorId = toSafeString(
-          record?.mandor?.id ?? record?.mandorId ?? record?.mandor_id
-        ).trim();
-        return recordMandorId === currentUserId;
-      });
-    }
+    let records = data?.harvestRecords || [];
+    records = records.filter((record: any) => isHarvestRecordInScope(record, roleScope));
 
     // Filter by search term with role-based sanitization
     let filteredRecords = records.filter((record: any) => {
@@ -288,6 +299,13 @@ export function HarvestList({
       );
     });
 
+    if (statusFilter !== 'ALL') {
+      filteredRecords = filteredRecords.filter((record: any) => {
+        const statusValue = toSafeString(record.status).toUpperCase();
+        return statusValue === statusFilter;
+      });
+    }
+
     // Sort records
     filteredRecords = [...filteredRecords].sort((a: any, b: any) => {
       switch (sortBy) {
@@ -301,7 +319,7 @@ export function HarvestList({
     });
 
     return filteredRecords;
-  }, [allData, statusData, searchTerm, statusFilter, sortBy, userRole, isMandor, currentUserId, enableDateRangeFilter, dateFrom, dateTo]);
+  }, [data, roleScope, searchTerm, statusFilter, sortBy, userRole, enableDateRangeFilter, dateFrom, dateTo]);
 
   const normalizedPageSize = React.useMemo(() => {
     if (typeof pageSize !== 'number') return null;
@@ -339,7 +357,7 @@ export function HarvestList({
   );
 
   // Show loading only for initial load, not for auth errors
-  if (loading && !allData && !statusData && !error) {
+  if (loading && !data && !error) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-8">

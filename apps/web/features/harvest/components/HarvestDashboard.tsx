@@ -17,6 +17,9 @@ import {
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
 import { MandorDashboardLayout } from '@/components/layouts/role-layouts/MandorDashboardLayout';
+import { AsistenDashboardLayout } from '@/components/layouts/role-layouts/AsistenDashboardLayout';
+import { ManagerDashboardLayout } from '@/components/layouts/role-layouts/ManagerDashboardLayout';
+import { AreaManagerDashboardLayout } from '@/components/layouts/role-layouts/AreaManagerDashboardLayout';
 import { HarvestList } from './HarvestList';
 import { HarvestStats } from './HarvestStats';
 import { useSubscription } from '@apollo/client/react';
@@ -52,12 +55,20 @@ interface HarvestDashboardProps {
   historyMode?: boolean;
 }
 
+interface HarvestLayoutProps {
+  children: React.ReactNode;
+  title: string;
+  description: string;
+  breadcrumbItems: Array<{ label: string; href?: string }>;
+}
+
 export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps) {
   // HOOKS VIOLATION FIX: All hooks must be called at the top level unconditionally
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const userRole = (user?.role || '').toUpperCase();
   const isMandorReadOnly = userRole === 'MANDOR';
+  const isMonitoringRole = userRole === 'MANAGER' || userRole === 'AREA_MANAGER';
   const [viewMode, setViewMode] = useState<ViewMode>('overview');
   const [notifications, setNotifications] = useState<Array<{
     id: string;
@@ -138,6 +149,63 @@ export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps)
     console.log('View record:', record);
   };
 
+  const renderRoleLayout = ({
+    children,
+    title,
+    description,
+    breadcrumbItems,
+  }: HarvestLayoutProps) => {
+    if (userRole === 'AREA_MANAGER') {
+      return (
+        <AreaManagerDashboardLayout
+          title={title}
+          description={description}
+          breadcrumbItems={breadcrumbItems}
+        >
+          {children}
+        </AreaManagerDashboardLayout>
+      );
+    }
+
+    if (userRole === 'MANAGER') {
+      return (
+        <ManagerDashboardLayout
+          title={title}
+          description={description}
+          breadcrumbItems={breadcrumbItems}
+          contentMaxWidthClass="max-w-[96rem]"
+          contentPaddingClass="px-2 sm:px-3 lg:px-4 py-4 sm:py-5 lg:py-6"
+        >
+          {children}
+        </ManagerDashboardLayout>
+      );
+    }
+
+    if (userRole === 'ASISTEN') {
+      return (
+        <AsistenDashboardLayout
+          title={title}
+          description={description}
+          breadcrumbItems={breadcrumbItems}
+        >
+          {children}
+        </AsistenDashboardLayout>
+      );
+    }
+
+    return (
+      <MandorDashboardLayout
+        title={title}
+        description={description}
+        maxWidthClass="max-w-[96rem]"
+        contentPaddingClass="px-2 sm:px-3 lg:px-4 py-4 sm:py-5 lg:py-6"
+        breadcrumbItems={breadcrumbItems}
+      >
+        {children}
+      </MandorDashboardLayout>
+    );
+  };
+
   // Show loading while authentication is being checked
   if (authLoading) {
     return (
@@ -190,17 +258,14 @@ export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps)
   }
 
   if (historyMode) {
-    return (
-      <MandorDashboardLayout
-        title="Histori Panen"
-        description="Lihat histori panen berdasarkan range tanggal"
-        maxWidthClass="max-w-[96rem]"
-        contentPaddingClass="px-2 sm:px-3 lg:px-4 py-4 sm:py-5 lg:py-6"
-        breadcrumbItems={[
-          { label: 'Panen', href: '/harvest' },
-          { label: 'Histori Panen' },
-        ]}
-      >
+    return renderRoleLayout({
+      title: 'Histori Panen',
+      description: 'Lihat histori panen berdasarkan range tanggal',
+      breadcrumbItems: [
+        { label: 'Panen', href: '/harvest' },
+        { label: 'Histori Panen' },
+      ],
+      children: (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -215,22 +280,19 @@ export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps)
             listTitle="Histori Panen (Range Tanggal)"
           />
         </motion.div>
-      </MandorDashboardLayout>
-    );
+      ),
+    });
   }
 
   if (isMandorReadOnly) {
-    return (
-      <MandorDashboardLayout
-        title="Record Hasil Sync Mobile"
-        description="Pantau data panen hasil sinkronisasi mobile untuk hari ini"
-        maxWidthClass="max-w-[96rem]"
-        contentPaddingClass="px-2 sm:px-3 lg:px-4 py-4 sm:py-5 lg:py-6"
-        breadcrumbItems={[
-          { label: 'Panen', href: '/harvest' },
-          { label: 'Record Sync Mobile' },
-        ]}
-      >
+    return renderRoleLayout({
+      title: 'Record Hasil Sync Mobile',
+      description: 'Pantau data panen hasil sinkronisasi mobile untuk hari ini',
+      breadcrumbItems: [
+        { label: 'Panen', href: '/harvest' },
+        { label: 'Record Sync Mobile' },
+      ],
+      children: (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -244,8 +306,8 @@ export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps)
             listTitle="Record Hasil Sync Mobile Hari Ini"
           />
         </motion.div>
-      </MandorDashboardLayout>
-    );
+      ),
+    });
   }
 
   const renderContent = () => {
@@ -292,8 +354,8 @@ export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps)
             {/* Quick Stats */}
             <HarvestStats />
 
-            {/* Quick Actions Card (hidden for MANAGER role) */}
-            {userRole !== 'MANAGER' && (
+            {/* Quick Actions Card (hidden for monitoring roles) */}
+            {!isMonitoringRole && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -456,20 +518,15 @@ export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps)
     }
   };
 
-  return (
-    <MandorDashboardLayout
-      title={getPageTitle()}
-      description={getPageDescription()}
-      maxWidthClass="max-w-[96rem]"
-      contentPaddingClass="px-2 sm:px-3 lg:px-4 py-4 sm:py-5 lg:py-6"
-      breadcrumbItems={breadcrumbItems}
-    >
+  return renderRoleLayout({
+    title: getPageTitle(),
+    description: getPageDescription(),
+    breadcrumbItems,
+    children: (
       <AnimatePresence mode="wait">
         {renderContent()}
       </AnimatePresence>
-      {/* Hooks debugging panel (development only) - temporarily disabled */}
-      {/* <HooksDebugPanel /> */}
-    </MandorDashboardLayout>
-  );
+    ),
+  });
 }
 

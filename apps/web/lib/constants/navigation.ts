@@ -558,6 +558,18 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       permissions: ['dashboard:read']
     },
     {
+      label: 'items.harvestReports',
+      path: '/harvest',
+      icon: 'sprout',
+      permissions: ['harvest:read']
+    },
+    {
+      label: 'items.harvestHistory',
+      path: '/harvest/history',
+      icon: 'clock',
+      permissions: ['harvest:read']
+    },
+    {
       label: 'items.gateCheck',
       path: '/gate-check',
       icon: 'shield',

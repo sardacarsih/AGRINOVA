@@ -7,7 +7,7 @@ import { HarvestDashboard } from '@/features/harvest/components/HarvestDashboard
 export default function HarvestHistoryPage() {
   return (
     <ProtectedRoute
-      allowedRoles={['MANDOR', 'ASISTEN', 'MANAGER']}
+      allowedRoles={['MANDOR', 'ASISTEN', 'MANAGER', 'AREA_MANAGER']}
       fallbackPath="/login"
     >
       <HarvestDashboard historyMode />
