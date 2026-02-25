@@ -11,6 +11,10 @@ import { UserRole } from '@/gql/graphql';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { DashboardLayout } from '@/components/layout/dashboard-layout';
+import {
+    normalizeAssignmentIds,
+    validateUniqueActiveAssignmentConflict,
+} from '@/features/user-management/utils/assignment-conflict-validation';
 
 export default function NewUserPage() {
     const router = useRouter();
@@ -38,6 +42,7 @@ export default function NewUserPage() {
     } = useUserFormData({
         companyId: currentCompanyId,
         loadAllCompanies: isSuperAdmin,
+        loadAllUsers: isSuperAdmin,
         onlyActiveUsers: true,
         fallbackCompanies: currentCompanyId ? [{ id: currentCompanyId, name: fallbackCompanyName }] : [],
     });
@@ -71,12 +76,31 @@ export default function NewUserPage() {
             return false;
         }
 
+        const preparedValues = {
+            ...values,
+            companyIds: normalizeAssignmentIds(values.companyIds),
+            estateIds: normalizeAssignmentIds(values.estateIds),
+            divisionIds: normalizeAssignmentIds(values.divisionIds),
+        };
+
         // If current user is NOT Super Admin, force company ID assignment
         if (currentUser?.role !== UserRole.SuperAdmin && currentCompanyId) {
-            values.companyIds = [currentCompanyId];
+            preparedValues.companyIds = [currentCompanyId];
         }
 
-        const success = await createUser(values);
+        const assignmentConflictMessage = validateUniqueActiveAssignmentConflict({
+            role: preparedValues.role,
+            isActive: preparedValues.isActive,
+            companyIds: preparedValues.companyIds,
+            estateIds: preparedValues.estateIds,
+            existingUsers: users,
+        });
+        if (assignmentConflictMessage) {
+            toast.error(assignmentConflictMessage);
+            return false;
+        }
+
+        const success = await createUser(preparedValues);
         if (success) {
             router.push('/users');
         }

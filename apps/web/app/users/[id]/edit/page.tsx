@@ -11,6 +11,10 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { UserRole } from '@/gql/graphql';
+import {
+    normalizeAssignmentIds,
+    validateUniqueActiveAssignmentConflict,
+} from '@/features/user-management/utils/assignment-conflict-validation';
 
 export default function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
@@ -85,20 +89,39 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
         if (values.password === '') {
             delete values.password;
         }
+        const preparedValues = {
+            ...values,
+            companyIds: normalizeAssignmentIds(values.companyIds),
+            estateIds: normalizeAssignmentIds(values.estateIds),
+            divisionIds: normalizeAssignmentIds(values.divisionIds),
+        };
 
-        if (isCompanyAdmin && !companyAdminAllowedRoles.includes(values.role)) {
+        if (isCompanyAdmin && !companyAdminAllowedRoles.includes(preparedValues.role)) {
             toast.error('Company Admin hanya boleh mengubah user role MANAGER ke bawah');
             return false;
         }
 
         if (isCompanyAdmin && currentCompanyId) {
             // Force to requester's company only.
-            values.companyIds = [currentCompanyId];
+            preparedValues.companyIds = [currentCompanyId];
+        }
+
+        const assignmentConflictMessage = validateUniqueActiveAssignmentConflict({
+            role: preparedValues.role,
+            isActive: preparedValues.isActive,
+            companyIds: preparedValues.companyIds,
+            estateIds: preparedValues.estateIds,
+            existingUsers: users,
+            excludeUserId: userId,
+        });
+        if (assignmentConflictMessage) {
+            toast.error(assignmentConflictMessage);
+            return false;
         }
 
         const success = await updateUser({
             id: userId,
-            ...values
+            ...preparedValues
         });
 
         if (success) {

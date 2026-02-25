@@ -41,6 +41,19 @@ var rolesRequiringDivision = map[domain.Role]struct{}{
 	domain.RoleMandor:  {},
 }
 
+type assignmentScope string
+
+const (
+	assignmentScopeCompany  assignmentScope = "COMPANY"
+	assignmentScopeEstate   assignmentScope = "ESTATE"
+	assignmentScopeDivision assignmentScope = "DIVISION"
+)
+
+var rolesWithUniqueActiveAssignments = map[domain.Role]assignmentScope{
+	domain.RoleAreaManager: assignmentScopeCompany,
+	domain.RoleManager:     assignmentScopeEstate,
+}
+
 // UserManagementService handles user CRUD operations
 type UserManagementService struct {
 	userRepo       domain.UserRepository
@@ -158,6 +171,11 @@ func (s *UserManagementService) CreateUser(ctx context.Context, input domain.Use
 	if err := validateRoleAssignmentRequirements(input.Role, companyIDs, estateIDs, divisionIDs); err != nil {
 		return nil, err
 	}
+	if user.IsActive {
+		if err := s.validateNoDuplicateActiveAssignmentsByRole(ctx, input.Role, companyIDs, estateIDs, divisionIDs, ""); err != nil {
+			return nil, err
+		}
+	}
 
 	// Extract current user ID for AssignedBy from context
 	var performerID string
@@ -236,6 +254,7 @@ func (s *UserManagementService) UpdateUser(ctx context.Context, input domain.Use
 	if user == nil {
 		return nil, errors.New("user not found")
 	}
+	wasActive := user.IsActive
 
 	if err := s.ensureCompanyAdminTargetAccess(ctx, user); err != nil {
 		return nil, err
@@ -323,6 +342,23 @@ func (s *UserManagementService) UpdateUser(ctx context.Context, input domain.Use
 
 	if shouldValidateRoleAssignments {
 		if err := validateRoleAssignmentRequirements(effectiveRole, effectiveCompanyIDs, effectiveEstateIDs, effectiveDivisionIDs); err != nil {
+			return nil, err
+		}
+	}
+	becameActive := !wasActive && user.IsActive
+	roleOrAssignmentUpdated := input.Role != "" ||
+		input.CompanyIDs != nil ||
+		input.EstateIDs != nil ||
+		input.DivisionIDs != nil
+	if user.IsActive && (becameActive || roleOrAssignmentUpdated) {
+		if err := s.validateNoDuplicateActiveAssignmentsByRole(
+			ctx,
+			effectiveRole,
+			effectiveCompanyIDs,
+			effectiveEstateIDs,
+			effectiveDivisionIDs,
+			user.ID,
+		); err != nil {
 			return nil, err
 		}
 	}
@@ -554,7 +590,14 @@ func (s *UserManagementService) ToggleStatus(ctx context.Context, id string) (*d
 		return nil, err
 	}
 
-	user.IsActive = !user.IsActive
+	nextStatus := !user.IsActive
+	if nextStatus {
+		companyIDs, estateIDs, divisionIDs := extractActiveAssignmentIDs(user.Assignments)
+		if err := s.validateNoDuplicateActiveAssignmentsByRole(ctx, user.Role, companyIDs, estateIDs, divisionIDs, user.ID); err != nil {
+			return nil, err
+		}
+	}
+	user.IsActive = nextStatus
 	user.UpdatedAt = time.Now()
 
 	if err := s.userRepo.Update(ctx, user); err != nil {
@@ -631,6 +674,128 @@ func (s *UserManagementService) ensureCompanyAdminTargetAccess(ctx context.Conte
 	}
 
 	return nil
+}
+
+type activeAssignmentConflict struct {
+	scope        assignmentScope
+	assignmentID string
+	username     string
+}
+
+func (s *UserManagementService) validateNoDuplicateActiveAssignmentsByRole(
+	ctx context.Context,
+	role domain.Role,
+	companyIDs, estateIDs, divisionIDs []string,
+	excludeUserID string,
+) error {
+	scope, enforced := rolesWithUniqueActiveAssignments[role]
+	if !enforced {
+		return nil
+	}
+
+	targetIDs := assignmentIDsForScope(scope, companyIDs, estateIDs, divisionIDs)
+	if len(targetIDs) == 0 {
+		return nil
+	}
+
+	usersWithSameRole, err := s.userRepo.FindByRole(ctx, role)
+	if err != nil {
+		return err
+	}
+
+	conflict := findActiveAssignmentConflict(scope, targetIDs, usersWithSameRole, excludeUserID)
+	if conflict == nil {
+		return nil
+	}
+
+	return fmt.Errorf(
+		"%s tidak boleh memiliki assignment %s aktif yang sama. Konflik pada %s (user: %s)",
+		role,
+		conflict.scope,
+		conflict.assignmentID,
+		conflict.username,
+	)
+}
+
+func assignmentIDsForScope(scope assignmentScope, companyIDs, estateIDs, divisionIDs []string) []string {
+	switch scope {
+	case assignmentScopeCompany:
+		return uniqueNonEmptyStrings(companyIDs)
+	case assignmentScopeEstate:
+		return uniqueNonEmptyStrings(estateIDs)
+	case assignmentScopeDivision:
+		return uniqueNonEmptyStrings(divisionIDs)
+	default:
+		return nil
+	}
+}
+
+func findActiveAssignmentConflict(
+	scope assignmentScope,
+	targetIDs []string,
+	users []*domain.User,
+	excludeUserID string,
+) *activeAssignmentConflict {
+	if len(targetIDs) == 0 {
+		return nil
+	}
+
+	targetSet := make(map[string]struct{}, len(targetIDs))
+	for _, id := range targetIDs {
+		targetSet[id] = struct{}{}
+	}
+
+	for _, user := range users {
+		if user == nil || !user.IsActive || user.ID == excludeUserID {
+			continue
+		}
+
+		for _, assignment := range user.Assignments {
+			if !assignment.IsActive {
+				continue
+			}
+
+			assignmentID, ok := assignmentIDByScope(scope, assignment)
+			if !ok {
+				continue
+			}
+
+			if _, exists := targetSet[assignmentID]; exists {
+				return &activeAssignmentConflict{
+					scope:        scope,
+					assignmentID: assignmentID,
+					username:     user.Username,
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func assignmentIDByScope(scope assignmentScope, assignment domain.Assignment) (string, bool) {
+	switch scope {
+	case assignmentScopeCompany:
+		if assignment.EstateID != nil || assignment.DivisionID != nil {
+			return "", false
+		}
+		if assignment.CompanyID == "" {
+			return "", false
+		}
+		return assignment.CompanyID, true
+	case assignmentScopeEstate:
+		if assignment.EstateID == nil {
+			return "", false
+		}
+		return *assignment.EstateID, true
+	case assignmentScopeDivision:
+		if assignment.DivisionID == nil {
+			return "", false
+		}
+		return *assignment.DivisionID, true
+	default:
+		return "", false
+	}
 }
 
 func uniqueNonEmptyStrings(values []string) []string {

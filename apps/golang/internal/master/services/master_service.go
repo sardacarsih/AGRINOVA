@@ -1331,6 +1331,11 @@ func (s *masterService) AssignUserToEstate(ctx context.Context, req *models.Assi
 	if err := s.ValidateUserRole(user.Role, allowedRoles); err != nil {
 		return nil, models.NewMasterDataError(models.ErrCodeInvalidInput, "only managers, asisten, or mandor can be assigned to estates", "user_id")
 	}
+	if user.Role == auth.UserRoleManager {
+		if err := s.ensureNoActiveEstateAssignmentConflictByRole(ctx, req.EstateID, req.UserID, auth.UserRoleManager); err != nil {
+			return nil, err
+		}
+	}
 
 	// MANDATORY DIVISION CHECK for ASISTEN and MANDOR
 	if user.Role == auth.UserRoleAsisten || user.Role == auth.UserRoleMandor {
@@ -1474,6 +1479,9 @@ func (s *masterService) AssignUserToCompany(ctx context.Context, req *models.Ass
 	// Only area managers can be assigned to companies
 	if user.Role != auth.UserRoleAreaManager {
 		return nil, models.NewMasterDataError(models.ErrCodeInvalidInput, "only area managers can be assigned to companies", "user_id")
+	}
+	if err := s.ensureNoActiveCompanyAssignmentConflictByRole(ctx, req.CompanyID, req.UserID, auth.UserRoleAreaManager); err != nil {
+		return nil, err
 	}
 
 	// Validate company access
@@ -1839,6 +1847,76 @@ func (s *masterService) ValidateCompleteAssignments(ctx context.Context, userID 
 			models.ErrCodeBusinessRuleViolation,
 			fmt.Sprintf("%s must have at least one active estate assignment", role),
 			"user_id",
+		)
+	}
+
+	return nil
+}
+
+func (s *masterService) ensureNoActiveEstateAssignmentConflictByRole(
+	ctx context.Context,
+	estateID string,
+	excludeUserID string,
+	role auth.UserRole,
+) error {
+	assignments, err := s.repo.GetEstateAssignments(ctx, nil, &estateID)
+	if err != nil {
+		return fmt.Errorf("failed to check estate assignment conflicts: %w", err)
+	}
+
+	for _, assignment := range assignments {
+		if assignment == nil || !assignment.IsActive || assignment.UserID == excludeUserID {
+			continue
+		}
+		if assignment.User == nil || !assignment.User.IsActive || assignment.User.Role != role {
+			continue
+		}
+
+		conflictingUsername := strings.TrimSpace(assignment.User.Username)
+		if conflictingUsername == "" {
+			conflictingUsername = assignment.UserID
+		}
+
+		return models.NewMasterDataError(
+			models.ErrCodeAssignmentConflict,
+			fmt.Sprintf("%s tidak boleh memiliki assignment ESTATE aktif yang sama. Konflik pada user %s", role, conflictingUsername),
+			"estate_id",
+		)
+	}
+
+	return nil
+}
+
+func (s *masterService) ensureNoActiveCompanyAssignmentConflictByRole(
+	ctx context.Context,
+	companyID string,
+	excludeUserID string,
+	role auth.UserRole,
+) error {
+	assignments, err := s.repo.GetCompanyAssignments(ctx, nil, &companyID)
+	if err != nil {
+		return fmt.Errorf("failed to check company assignment conflicts: %w", err)
+	}
+
+	for _, assignment := range assignments {
+		if assignment == nil || !assignment.IsActive || assignment.UserID == excludeUserID {
+			continue
+		}
+
+		assignedUser, err := s.getUserByID(ctx, assignment.UserID)
+		if err != nil || assignedUser == nil || !assignedUser.IsActive || assignedUser.Role != role {
+			continue
+		}
+
+		conflictingUsername := strings.TrimSpace(assignedUser.Username)
+		if conflictingUsername == "" {
+			conflictingUsername = assignment.UserID
+		}
+
+		return models.NewMasterDataError(
+			models.ErrCodeAssignmentConflict,
+			fmt.Sprintf("%s tidak boleh memiliki assignment COMPANY aktif yang sama. Konflik pada user %s", role, conflictingUsername),
+			"company_id",
 		)
 	}
 

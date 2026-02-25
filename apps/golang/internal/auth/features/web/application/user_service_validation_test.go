@@ -105,3 +105,101 @@ func TestValidateRoleAssignmentRequirements_AreaManagerCompanyRules(t *testing.T
 		}
 	})
 }
+
+func TestFindActiveAssignmentConflict(t *testing.T) {
+	estate1 := "estate-1"
+	estate2 := "estate-2"
+	division1 := "division-1"
+
+	users := []*domain.User{
+		{
+			ID:       "manager-1",
+			Username: "manager.one",
+			Role:     domain.RoleManager,
+			IsActive: true,
+			Assignments: []domain.Assignment{
+				{CompanyID: "company-1", IsActive: true},
+				{CompanyID: "company-1", EstateID: &estate1, IsActive: true},
+			},
+		},
+		{
+			ID:       "manager-inactive",
+			Username: "manager.inactive",
+			Role:     domain.RoleManager,
+			IsActive: false,
+			Assignments: []domain.Assignment{
+				{CompanyID: "company-1", EstateID: &estate2, IsActive: true},
+			},
+		},
+		{
+			ID:       "asisten-1",
+			Username: "asisten.one",
+			Role:     domain.RoleAsisten,
+			IsActive: true,
+			Assignments: []domain.Assignment{
+				{CompanyID: "company-1", DivisionID: &division1, IsActive: true},
+			},
+		},
+	}
+
+	t.Run("manager estate conflict should be detected", func(t *testing.T) {
+		conflict := findActiveAssignmentConflict(
+			assignmentScopeEstate,
+			[]string{"estate-1"},
+			users,
+			"",
+		)
+
+		if conflict == nil {
+			t.Fatal("expected conflict, got nil")
+		}
+		if conflict.assignmentID != "estate-1" {
+			t.Fatalf("expected estate-1 conflict, got %s", conflict.assignmentID)
+		}
+		if conflict.username != "manager.one" {
+			t.Fatalf("expected conflicting username manager.one, got %s", conflict.username)
+		}
+	})
+
+	t.Run("excluded user should not conflict with itself", func(t *testing.T) {
+		conflict := findActiveAssignmentConflict(
+			assignmentScopeEstate,
+			[]string{"estate-1"},
+			users,
+			"manager-1",
+		)
+
+		if conflict != nil {
+			t.Fatalf("expected no conflict, got %+v", conflict)
+		}
+	})
+
+	t.Run("inactive user should be ignored", func(t *testing.T) {
+		conflict := findActiveAssignmentConflict(
+			assignmentScopeEstate,
+			[]string{"estate-2"},
+			users,
+			"",
+		)
+
+		if conflict != nil {
+			t.Fatalf("expected no conflict, got %+v", conflict)
+		}
+	})
+
+	t.Run("division conflict should be detected", func(t *testing.T) {
+		conflict := findActiveAssignmentConflict(
+			assignmentScopeDivision,
+			[]string{"division-1"},
+			users,
+			"",
+		)
+
+		if conflict == nil {
+			t.Fatal("expected division conflict, got nil")
+		}
+		if conflict.assignmentID != "division-1" {
+			t.Fatalf("expected division-1 conflict, got %s", conflict.assignmentID)
+		}
+	})
+}
