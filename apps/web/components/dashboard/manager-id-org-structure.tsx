@@ -306,26 +306,30 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
     return { roots, current, isScopeFallback: false };
   }, [childrenByManagerId, currentRole, currentUserId, userById, users]);
 
-  const totalVisible = React.useMemo(() => {
-    const visited = new Set<string>();
-    const walk = (nodes: OrgNode[]) => {
-      nodes.forEach((node) => {
-        if (visited.has(node.user.id)) return;
-        visited.add(node.user.id);
-        walk(node.children);
-      });
-    };
-    walk(treeData.roots);
-    const companyCount = new Set(
-      treeData.roots.map((node) => node.user.company?.name || node.user.companies?.[0]?.name || '-')
-    ).size;
-
-    return visited.size + companyCount;
-  }, [treeData.roots]);
-
   const chartData = React.useMemo<ChartNode[]>(() => {
+    const toCompanyChartNode = (ownerUserId: string, companyName: string, children: ChartNode[]): ChartNode => ({
+      name: companyName,
+      attributes: {
+        id: `company-${ownerUserId}-${companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        nodeType: 'company',
+        role: 'COMPANY',
+        username: '-',
+        company: companyName,
+        avatar: '',
+        isCurrent: 'no',
+        directReports: children.length,
+      },
+      children,
+    });
+
     const toUserChartNode = (node: OrgNode): ChartNode => {
       const companyName = node.user.company?.name || node.user.companies?.[0]?.name || '-';
+      const normalizedRole = String(node.user.role || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
+      const childUserNodes = node.children.map(toUserChartNode);
+      const chartChildren =
+        normalizedRole === 'AREA_MANAGER'
+          ? [toCompanyChartNode(node.user.id, companyName, childUserNodes)]
+          : childUserNodes;
 
       return {
         name: node.user.name,
@@ -339,34 +343,29 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
           isCurrent: node.user.id === currentUserId ? 'yes' : 'no',
           directReports: node.children.length,
         },
-        children: node.children.map(toUserChartNode),
+        children: chartChildren,
       };
     };
 
-    const companyGroups = new Map<string, ChartNode[]>();
-
-    treeData.roots.map(toUserChartNode).forEach((rootNode) => {
-      const companyName = rootNode.attributes.company || '-';
-      const currentGroup = companyGroups.get(companyName) ?? [];
-      currentGroup.push(rootNode);
-      companyGroups.set(companyName, currentGroup);
-    });
-
-    return Array.from(companyGroups.entries()).map(([companyName, children], index) => ({
-      name: companyName,
-      attributes: {
-        id: `company-${index}-${companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-        nodeType: 'company',
-        role: 'COMPANY',
-        username: '-',
-        company: companyName,
-        avatar: '',
-        isCurrent: 'no',
-        directReports: children.length,
-      },
-      children,
-    }));
+    return treeData.roots.map(toUserChartNode);
   }, [currentUserId, treeData.roots]);
+
+  const totalVisible = React.useMemo(() => {
+    const visited = new Set<string>();
+    const walk = (nodes: ChartNode[]) => {
+      nodes.forEach((node) => {
+        const nodeId = String(node.attributes.id || node.name);
+        if (visited.has(nodeId)) return;
+        visited.add(nodeId);
+        if (node.children && node.children.length > 0) {
+          walk(node.children);
+        }
+      });
+    };
+
+    walk(chartData);
+    return visited.size;
+  }, [chartData]);
 
   const translate = React.useMemo(() => {
     if (orientation === 'horizontal') {
