@@ -12,12 +12,11 @@ import {
   CheckCircle,
   XCircle,
   Calendar,
-  CircleAlert,
   Clock
 } from 'lucide-react';
 import { useQuery } from '@apollo/client/react';
-// import { GetHarvestStatisticsDocument } from '@/gql/graphql';
 import { useAuth } from '@/hooks/use-auth';
+import { GET_HARVEST_STATISTICS, type GetHarvestStatisticsResponse } from '@/lib/apollo/queries/harvest';
 
 interface HarvestStatsProps {
   className?: string;
@@ -26,24 +25,23 @@ interface HarvestStatsProps {
 export function HarvestStats({ className }: HarvestStatsProps) {
   const { user } = useAuth();
   const userRole = (user?.role || '').toUpperCase();
-  // const { data, loading, error, refetch } = useQuery(GetHarvestStatisticsDocument, {
-  //   pollInterval: 60000, // Refresh every minute
-  //   errorPolicy: 'all', // Return both data and errors
-  //   notifyOnNetworkStatusChange: true,
-  //   fetchPolicy: 'cache-and-network',
-  //   skip: !user, // Skip query if user is not authenticated
-  // });
-  const data: any = null;
-  const loading = false;
-  const error = null;
-  const refetch = () => { };
+  const { data, loading, error, refetch } = useQuery<GetHarvestStatisticsResponse>(GET_HARVEST_STATISTICS, {
+    pollInterval: 60000,
+    errorPolicy: 'all',
+    notifyOnNetworkStatusChange: true,
+    fetchPolicy: 'cache-and-network',
+    skip: !user,
+  });
 
   // Check for authentication errors specifically
-  const isAuthError = (error as any)?.graphQLErrors?.some((err: any) =>
-    err.message?.includes('authentication required') ||
-    err.message?.includes('unauthorized') ||
-    err.extensions?.code === 'UNAUTHENTICATED'
-  );
+  const isAuthError = error?.graphQLErrors?.some((err) => {
+    const message = (err.message || '').toLowerCase();
+    return (
+      message.includes('authentication required') ||
+      message.includes('unauthorized') ||
+      err.extensions?.code === 'UNAUTHENTICATED'
+    );
+  }) ?? false;
 
   // Show loading only for initial load, not for auth errors
   if (loading && !data && !error) {
@@ -98,75 +96,67 @@ export function HarvestStats({ className }: HarvestStatsProps) {
     );
   }
 
-  const stats = React.useMemo(() => {
-    const harvestStats = data?.harvestStatistics;
+  const harvestStats = data?.harvestStatistics;
+  const stats = !harvestStats
+    ? {
+      total: 0,
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      totalWeight: 0,
+      totalBunches: 0,
+      todayRecords: 0,
+      todayWeight: 0,
+      weeklyRecords: 0,
+      weeklyWeight: 0,
+      avgWeightPerRecord: 0,
+      avgBunchesPerRecord: 0,
+      approvalRate: 0,
+      trendData: {
+        weightTrend: 0,
+        recordsTrend: 0,
+      }
+    }
+    : (() => {
+      const total = harvestStats.totalRecords;
+      const pending = harvestStats.pendingRecords;
+      const approved = harvestStats.approvedRecords;
+      const rejected = harvestStats.rejectedRecords;
+      const totalWeight = harvestStats.totalBeratTbs;
+      const totalBunches = harvestStats.totalJanjang;
+      const avgWeightPerRecord = harvestStats.averagePerRecord || 0;
+      const avgBunchesPerRecord = total > 0 ? totalBunches / total : 0;
 
-    if (!harvestStats) {
+      const processedRecords = approved + rejected;
+      const approvalRate = processedRecords > 0 ? (approved / processedRecords) * 100 : 0;
+
+      const todayRecords = 0;
+      const todayWeight = 0;
+      const weeklyRecords = 0;
+      const weeklyWeight = 0;
+      const recordsTrend = 0;
+      const weightTrend = 0;
+
       return {
-        total: 0,
-        pending: 0,
-        approved: 0,
-        rejected: 0,
-        totalWeight: 0,
-        totalBunches: 0,
-        todayRecords: 0,
-        todayWeight: 0,
-        weeklyRecords: 0,
-        weeklyWeight: 0,
-        avgWeightPerRecord: 0,
-        avgBunchesPerRecord: 0,
-        approvalRate: 0,
+        total,
+        pending,
+        approved,
+        rejected,
+        totalWeight,
+        totalBunches,
+        todayRecords,
+        todayWeight,
+        weeklyRecords,
+        weeklyWeight,
+        avgWeightPerRecord,
+        avgBunchesPerRecord,
+        approvalRate,
         trendData: {
-          weightTrend: 0,
-          recordsTrend: 0,
+          recordsTrend,
+          weightTrend,
         }
       };
-    }
-
-    // Use backend-calculated statistics
-    const total = harvestStats.totalRecords;
-    const pending = harvestStats.pendingRecords;
-    const approved = harvestStats.approvedRecords;
-    const rejected = harvestStats.rejectedRecords;
-    const totalWeight = harvestStats.totalBeratTbs;
-    const totalBunches = harvestStats.totalJanjang;
-    const avgWeightPerRecord = harvestStats.averagePerRecord || 0;
-    const avgBunchesPerRecord = total > 0 ? totalBunches / total : 0;
-
-    // Approval rate
-    const processedRecords = approved + rejected;
-    const approvalRate = processedRecords > 0 ? (approved / processedRecords) * 100 : 0;
-
-    // Calculate today's data (placeholder - could be added to backend)
-    const todayRecords = 0;
-    const todayWeight = 0;
-    const weeklyRecords = 0;
-    const weeklyWeight = 0;
-
-    // Trend calculation (placeholder values - backend integration needed)
-    const recordsTrend = 0;
-    const weightTrend = 0;
-
-    return {
-      total,
-      pending,
-      approved,
-      rejected,
-      totalWeight,
-      totalBunches,
-      todayRecords,
-      todayWeight,
-      weeklyRecords,
-      weeklyWeight,
-      avgWeightPerRecord,
-      avgBunchesPerRecord,
-      approvalRate,
-      trendData: {
-        recordsTrend,
-        weightTrend,
-      }
-    };
-  }, [data]);
+    })();
 
   const TrendIcon = ({ trend }: { trend: number }) => {
     if (trend > 0) return <TrendingUp className="h-3 w-3 text-green-600" />;

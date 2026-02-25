@@ -9,12 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
+  Activity,
   BarChart3,
   Bell,
   Building2,
   Calendar,
+  ChartColumnIncreasing,
   ClipboardList,
+  Database,
   Leaf,
+  LineChart,
   List,
   RefreshCw,
   ShieldCheck,
@@ -66,18 +70,59 @@ interface ViewOption {
   value: ViewMode;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
+  subtitle: string;
+}
+
+interface ModeNarrative {
+  title: string;
+  description: string;
+  badge: string;
+  points: string[];
 }
 
 const VIEW_OPTIONS_DEFAULT: ViewOption[] = [
-  { value: 'overview', label: 'Ringkasan', icon: Leaf },
-  { value: 'list', label: 'Data Panen', icon: List },
-  { value: 'stats', label: 'Statistik', icon: BarChart3 },
+  { value: 'overview', label: 'Ringkasan', icon: Leaf, subtitle: 'Snapshot operasional hari ini' },
+  { value: 'list', label: 'Data Panen', icon: List, subtitle: 'Eksplorasi data detail per record' },
+  { value: 'stats', label: 'Statistik', icon: BarChart3, subtitle: 'Analisis kinerja dan tren panen' },
 ];
 
 const VIEW_OPTIONS_MANDOR: ViewOption[] = [
-  { value: 'overview', label: 'Hari Ini', icon: Calendar },
-  { value: 'list', label: 'Riwayat 30 Hari', icon: ClipboardList },
+  { value: 'overview', label: 'Hari Ini', icon: Calendar, subtitle: 'Record sinkron hari berjalan' },
+  { value: 'list', label: 'Riwayat 30 Hari', icon: ClipboardList, subtitle: 'Audit data historis lapangan' },
 ];
+
+const MODE_NARRATIVE: Record<ViewMode, ModeNarrative> = {
+  overview: {
+    title: 'Ringkasan Operasional',
+    description: 'Tampilan cepat untuk melihat kondisi panen terkini sesuai scope role.',
+    badge: 'Mode Utama',
+    points: [
+      'Prioritas item paling relevan muncul lebih dulu',
+      'Cocok untuk briefing operasional harian',
+      'Menjaga keputusan cepat berbasis status terbaru',
+    ],
+  },
+  list: {
+    title: 'Eksplorasi Data Panen',
+    description: 'Mode investigasi detail record untuk validasi, tracing, dan audit lapangan.',
+    badge: 'Mode Detail',
+    points: [
+      'Gunakan pencarian untuk menemukan record spesifik',
+      'Kombinasikan status dan tanggal untuk penyaringan ketat',
+      'Ideal untuk cross-check anomali data panen',
+    ],
+  },
+  stats: {
+    title: 'Analitik dan Tren',
+    description: 'Mode evaluasi performa berbasis agregasi data panen yang telah terverifikasi.',
+    badge: 'Mode Analitik',
+    points: [
+      'Pantau tren volume dan ritme approval',
+      'Bandingkan kualitas output antar tim',
+      'Gunakan sebagai dasar evaluasi mingguan',
+    ],
+  },
+};
 
 const ROLE_VIEW_CONFIG: Record<DashboardRole, RoleViewConfig> = {
   MANDOR: {
@@ -375,20 +420,69 @@ export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps)
   const renderOverviewContent = () => {
     if (isMandorReadOnly) {
       return (
-        <HarvestList
-          key={`${normalizedRole}-overview`}
-          onView={handleViewRecord}
-          showActions={false}
-          defaultDateFrom={todayDate}
-          defaultDateTo={todayDate}
-          listTitle={roleConfig.overviewTitle}
-          pageSize={10}
-        />
+        <div className="space-y-6">
+          <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 via-white to-teal-50">
+            <CardContent className="p-4 sm:p-5">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-lg border border-emerald-200 bg-white px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Fokus Utama</p>
+                  <p className="mt-1 text-sm font-medium text-slate-900">Validasi record hari ini</p>
+                </div>
+                <div className="rounded-lg border border-emerald-200 bg-white px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Target Kerja</p>
+                  <p className="mt-1 text-sm font-medium text-slate-900">Pastikan sync lapangan lengkap</p>
+                </div>
+                <div className="rounded-lg border border-emerald-200 bg-white px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Cadence</p>
+                  <p className="mt-1 text-sm font-medium text-slate-900">Pantau tiap perubahan status</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <HarvestList
+            key={`${normalizedRole}-overview`}
+            onView={handleViewRecord}
+            showActions={false}
+            defaultDateFrom={todayDate}
+            defaultDateTo={todayDate}
+            listTitle={roleConfig.overviewTitle}
+            pageSize={10}
+          />
+        </div>
       );
     }
 
     return (
       <div className="space-y-6">
+        <Card className="border-slate-200 bg-white/90">
+          <CardContent className="p-4 sm:p-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <Activity className="h-4 w-4 text-emerald-600" />
+                  Ringkasan Live
+                </div>
+                <p className="mt-1 text-xs text-slate-600">Snapshot performa panen pada scope aktif.</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <Database className="h-4 w-4 text-emerald-600" />
+                  Data Terkurasi
+                </div>
+                <p className="mt-1 text-xs text-slate-600">Menonjolkan status paling relevan per role.</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <ChartColumnIncreasing className="h-4 w-4 text-emerald-600" />
+                  Aksi Prioritas
+                </div>
+                <p className="mt-1 text-xs text-slate-600">Bantu eksekusi keputusan operasional harian.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <HarvestStats />
         <HarvestList
           key={`${normalizedRole}-overview`}
@@ -405,30 +499,82 @@ export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps)
   const renderListContent = () => {
     if (isMandorReadOnly) {
       return (
-        <HarvestList
-          key={`${normalizedRole}-list`}
-          onView={handleViewRecord}
-          showActions={false}
-          enableDateRangeFilter
-          defaultDateFrom={historyDateFrom}
-          defaultDateTo={todayDate}
-          listTitle={roleConfig.listTitle}
-        />
+        <div className="space-y-6">
+          <Card className="border-slate-200 bg-white/90">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Data Panen</p>
+                  <h3 className="text-base font-semibold text-slate-900">Audit Record Historis</h3>
+                  <p className="text-sm text-slate-600">Gunakan range tanggal untuk menelusuri koreksi dan pola sync.</p>
+                </div>
+                <Badge variant="outline" className="border-slate-300 text-slate-700">Filter tanggal aktif</Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          <HarvestList
+            key={`${normalizedRole}-list`}
+            onView={handleViewRecord}
+            showActions={false}
+            enableDateRangeFilter
+            defaultDateFrom={historyDateFrom}
+            defaultDateTo={todayDate}
+            listTitle={roleConfig.listTitle}
+          />
+        </div>
       );
     }
 
     return (
-      <HarvestList
-        key={`${normalizedRole}-list`}
-        onView={handleViewRecord}
-        showActions={false}
-        listTitle={roleConfig.listTitle}
-      />
+      <div className="space-y-6">
+        <Card className="border-slate-200 bg-white/90">
+          <CardContent className="p-4 sm:p-5">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Search</p>
+                <p className="mt-1 text-sm text-slate-700">Temukan blok, mandor, atau pekerja tertentu lebih cepat.</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Filter</p>
+                <p className="mt-1 text-sm text-slate-700">Saring status approval untuk fokus ke pekerjaan prioritas.</p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Sort</p>
+                <p className="mt-1 text-sm text-slate-700">Bandingkan data berdasarkan tanggal atau berat TBS.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <HarvestList
+          key={`${normalizedRole}-list`}
+          onView={handleViewRecord}
+          showActions={false}
+          listTitle={roleConfig.listTitle}
+        />
+      </div>
     );
   };
 
   const renderStatsContent = () => (
     <div className="space-y-6">
+      <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50 via-white to-cyan-50">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Statistik</p>
+              <h3 className="text-base font-semibold text-slate-900">Analisis Kinerja Panen</h3>
+              <p className="text-sm text-slate-600">Fokus pada data approved untuk evaluasi performa dan tren stabilitas output.</p>
+            </div>
+            <Badge className="border-indigo-300 bg-white text-indigo-800">
+              <LineChart className="mr-1.5 h-3.5 w-3.5" />
+              Approved dataset
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
       <HarvestStats />
       <HarvestList
         key={`${normalizedRole}-stats`}
@@ -451,6 +597,7 @@ export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps)
 
   const activeView = viewOptions.find((item) => item.value === viewMode) || viewOptions[0];
   const ActiveViewIcon = activeView.icon;
+  const activeNarrative = MODE_NARRATIVE[viewMode];
 
   const layoutActions = historyMode ? (
     <Button type="button" variant="outline" size="sm" onClick={() => router.push('/harvest')}>
@@ -556,28 +703,47 @@ export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps)
                   {activeView.label}
                 </div>
                 <p className="text-sm text-emerald-100">
-                  Gunakan switch mode untuk menyesuaikan tampilan dengan kebutuhan operasional role Anda.
+                  {activeView.subtitle}
                 </p>
 
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {viewOptions.map((option) => {
-                    const Icon = option.icon;
-                    const isActive = viewMode === option.value;
-                    return (
-                      <Button
-                        key={option.value}
-                        type="button"
-                        size="sm"
-                        variant={isActive ? 'secondary' : 'outline'}
-                        className={isActive ? 'border-white/20 bg-white text-slate-900 hover:bg-white/90' : 'border-white/30 bg-transparent text-white hover:bg-white/10'}
-                        onClick={() => setViewMode(option.value)}
-                      >
-                        <Icon className="mr-1.5 h-4 w-4" />
-                        {option.label}
-                      </Button>
-                    );
-                  })}
+                <div className="rounded-xl border border-white/20 bg-slate-900/20 p-1.5">
+                  <div className={`grid gap-1.5 ${viewOptions.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                    {viewOptions.map((option) => {
+                      const Icon = option.icon;
+                      const isActive = viewMode === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-sm font-medium transition ${
+                            isActive
+                              ? 'bg-white text-slate-900 shadow-sm'
+                              : 'text-white/90 hover:bg-white/10 hover:text-white'
+                          }`}
+                          onClick={() => setViewMode(option.value)}
+                        >
+                          <Icon className="h-4 w-4" />
+                          <span>{option.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+
+                <div className="rounded-lg border border-white/15 bg-white/10 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-100">{activeNarrative.badge}</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{activeNarrative.title}</p>
+                  <p className="mt-1 text-xs text-emerald-100">{activeNarrative.description}</p>
+                </div>
+
+                <div className="grid gap-2 pt-1">
+                  {activeNarrative.points.slice(0, 2).map((point) => (
+                    <div key={point} className="rounded-md border border-white/15 bg-white/5 px-2.5 py-2 text-xs text-emerald-100">
+                      {point}
+                    </div>
+                  ))}
+                </div>
+
               </div>
             </div>
           </CardContent>
