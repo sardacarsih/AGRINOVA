@@ -38,6 +38,7 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
   bool _isInitialized = false;
   bool _isUpdateManagerInitialized = false;
   bool _isUpdateManagerInitializing = false;
+  DateTime? _lastUpdateManagerInitFailure;
   String? _initError;
   AuthBloc? _authBloc;
 
@@ -70,6 +71,12 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
   }
 
   void _initializeAppUpdateManager(BuildContext appContext) {
+    final lastFailure = _lastUpdateManagerInitFailure;
+    if (lastFailure != null &&
+        DateTime.now().difference(lastFailure) < const Duration(seconds: 30)) {
+      return;
+    }
+
     if (_isUpdateManagerInitialized || _isUpdateManagerInitializing) return;
     _isUpdateManagerInitializing = true;
 
@@ -87,12 +94,14 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
         await manager.initialize(appContext);
         initialized = true;
       } catch (e) {
+        _lastUpdateManagerInitFailure = DateTime.now();
         debugPrint('Failed to initialize AppUpdateManager: $e');
       } finally {
         if (mounted) {
           setState(() {
             if (initialized) {
               _isUpdateManagerInitialized = true;
+              _lastUpdateManagerInitFailure = null;
             }
             _isUpdateManagerInitializing = false;
           });

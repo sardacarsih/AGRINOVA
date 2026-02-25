@@ -1,328 +1,138 @@
-# Panduan Lengkap Mobile Release Pipeline (GitHub Actions + Google Play)
+# Panduan Harian Android Release (GitHub Actions + Play Console)
 
-Dokumen ini menjelaskan cara kerja pipeline mobile terbaru dan cara pakainya sehari-hari sebagai developer.
+Dokumen ini sinkron dengan workflow aktif:
 
-Referensi workflow: `.github/workflows/android-release.yml`
+- `.github/workflows/android-release.yml`
 
-## 1. Tujuan dan Kebijakan Rilis
+## 1. Kebijakan Rilis Saat Ini
 
-Pipeline mobile mengikuti kebijakan berikut:
+- `develop` -> build AAB baru -> upload ke Play track `internal`.
+- `main` -> **promote artifact existing** dari `develop` -> upload ke Play track `alpha` (closed testing).
+- `workflow_dispatch`:
+  - `target_track=internal` -> build baru ke `internal`.
+  - `target_track=closed` -> promote ke `alpha` dari artifact internal.
 
-- `develop` -> Play track `internal`
-- `main` atau `release/*` -> Play track `closed`
-- Tag `vX.Y.Z` -> Play track `production` (harus lewat approval environment)
+Catatan penting:
 
-Tujuan utamanya:
+- Rilis production via tag saat ini **dinonaktifkan** di workflow.
+- Track `closed` tidak build ulang binary; harus memakai artifact internal.
 
-- Build internal tidak mengganggu production
-- Release production hanya terjadi saat benar-benar disengaja (via tag)
-- Versi Android aman (versionCode selalu naik)
+## 2. Aturan Versi
 
-## 2. Gambaran Workflow
+### 2.1 Internal (build baru)
 
-Workflow `Android Release` memiliki 3 job:
+- `versionName`: `<base-from-pubspec>-dev.<github_run_number>`
+- `versionCode`: default Unix timestamp (detik), bisa di-override via input workflow.
 
-1. `plan`
-- Menentukan target track (`internal`/`closed`/`production`)
-- Menentukan `versionName` dan `versionCode`
-- Validasi aturan trigger
+### 2.2 Closed/Alpha (promote)
 
-2. `validate`
-- `flutter pub get`
-- `flutter analyze`
-- `flutter test test/widget_test.dart`
+- `versionName` dan `versionCode` diambil dari metadata artifact internal sumber.
+- Karena binary dipromosikan, versi alpha bisa tertinggal dari internal sampai ada promote terbaru.
 
-3. `build-and-deploy`
-- Build AAB release
-- Validasi `versionCode` terhadap Play Store (harus lebih besar dari versi tertinggi saat ini)
-- Upload ke track Play Store sesuai hasil `plan`
+## 3. Aturan Source Commit untuk Closed/Alpha
 
-## 3. Trigger yang Didukung
+Untuk promote `closed`:
 
-### 3.1 Push branch
+- `source_commit` wajib diisi (workflow_dispatch).
+- `source_commit` harus sama dengan **latest successful develop internal artifact**.
+- Jika tidak sama, job promotion akan gagal dengan pesan commit yang seharusnya.
 
-- `develop` -> deploy ke `internal`
-- `main` dan `release/*` -> deploy ke `closed`
-- Branch trigger dibatasi path mobile:
-  - `apps/mobile/**`
-  - `.github/workflows/android-release.yml`
+Tujuan aturan ini:
 
-Catatan:
-- Kalau tidak ada perubahan file mobile, push branch tidak memicu release workflow mobile.
+- Mencegah promote artifact lama.
+- Menjaga alpha selalu merefleksikan kandidat internal terbaru yang lolos.
 
-### 3.2 Push tag production
+## 4. Trigger yang Didukung
 
-- Tag format wajib: `vX.Y.Z` (contoh: `v1.2.3`)
-- Akan deploy ke `production` dan masuk gate approval environment `mobile-production`
+### 4.1 Push branch
 
-### 3.3 Manual run (`workflow_dispatch`)
+- Push ke `develop` (dengan perubahan `apps/mobile/**`) -> rilis `internal`.
+- Push ke `main` (dengan perubahan `apps/mobile/**`) -> flow promote ke `alpha`.
 
-- Hanya untuk `internal` atau `closed` (pilih `target_track`)
-- Bisa override `version_name` dan `version_code`
+### 4.2 Manual (`workflow_dispatch`)
 
-## 4. Setup Sekali Oleh Admin Repository
+Input:
 
-## 4.1 Environment GitHub yang wajib ada
+- `target_track`: `internal` atau `closed`
+- `version_name`, `version_code`: optional (hanya relevan saat build baru/internal)
+- `source_commit`: wajib untuk `closed`
 
-- `mobile-internal`
-- `mobile-closed`
-- `mobile-production`
+### 4.3 Yang tidak didukung
 
-## 4.2 Protection rules per environment
+- Push tag production (`vX.Y.Z`) saat ini ditolak oleh workflow.
 
-### `mobile-internal`
-- Required reviewers: OFF
-- Deployment branches and tags: `develop`
+## 5. SOP Operasional Harian
 
-### `mobile-closed`
-- Required reviewers: OFF (boleh ON jika ingin approval untuk closed)
-- Deployment branches and tags:
-  - `main`
-  - `release/*`
-
-### `mobile-production`
-- Required reviewers: ON
-- Prevent self-review: ON
-- Allow administrators to bypass: sebaiknya OFF untuk gate ketat
-- Deployment branches and tags:
-  - Tag: `v*.*.*`
-
-## 4.3 Secret yang dibutuhkan
-
-Set minimal ini di GitHub (Repository secrets atau Environment secrets sesuai kebijakan):
-
-- `ANDROID_KEYSTORE_BASE64`
-- `ANDROID_KEYSTORE_PASSWORD`
-- `ANDROID_KEY_ALIAS`
-- `ANDROID_KEY_PASSWORD`
-- `ANDROID_PACKAGE_NAME`
-- `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`
-
-Opsional:
-- `GOOGLE_SERVICES_JSON_BASE64`
-
-## 5. Aturan Versioning
-
-## 5.1 versionName
-
-- Tag production `v1.2.3` -> `1.2.3`
-- Push ke `develop` -> `<base-from-pubspec>-dev.<run_number>`
-- Push ke `main`/`release/*` -> `<base-from-pubspec>-rc.<run_number>`
-- Manual run bisa override dengan input `version_name`
-
-## 5.2 versionCode
-
-- Default: Unix timestamp (detik)
-- Bisa override dengan input `version_code`
-- Divalidasi:
-  - integer
-  - > 0
-  - <= 2100000000
-  - harus lebih besar dari versi tertinggi yang sudah ada di Play Store
-
-## 6. Release Notes (What s New)
-
-Prioritas sumber release notes:
-
-1. `apps/mobile/whatsnew/whatsnew-id-ID`
-2. Anotasi tag git (khusus tag release)
-3. Fallback otomatis dari workflow
-
-Untuk English:
-- pakai `apps/mobile/whatsnew/whatsnew-en-US` jika ada
-- jika tidak ada, fallback default bahasa Inggris
-
-## 7. SOP Harian Developer
-
-## 7.1 Pengembangan harian (internal track)
-
-Gunakan branch `develop` untuk integrasi harian mobile.
+### 5.1 Rilis internal dari develop
 
 ```powershell
 git checkout develop
 git pull origin develop
-```
-
-Kerjakan perubahan mobile, lalu validasi lokal:
-
-```powershell
-cd apps/mobile
-flutter pub get
-flutter analyze
-flutter test test/widget_test.dart
-```
-
-Commit dan push:
-
-```powershell
+# lakukan perubahan mobile
 git add -A
-git commit -m "feat(mobile): deskripsi perubahan"
+git commit -m "feat(mobile): ..."
 git push origin develop
 ```
 
-Hasil yang diharapkan:
-- Workflow `Android Release` jalan
-- Deploy ke Play track `internal`
+Expected:
 
-## 7.2 Kirim kandidat ke closed tester
+- Workflow `Android Release` sukses.
+- Play Console internal menampilkan versi baru.
 
-Saat fitur siap diuji terbatas:
+### 5.2 Promote ke alpha (closed)
 
-```powershell
-git checkout develop
-git pull origin develop
-git checkout -b release/1.2.0
-git push -u origin release/1.2.0
-```
+1. Buka run internal terbaru yang sukses di GitHub Actions.
+2. Salin `head_sha` commit develop run tersebut.
+3. Jalankan `workflow_dispatch`:
+   - `target_track=closed`
+   - `source_commit=<sha_internal_terbaru>`
 
-Setelah ada perbaikan di branch release:
+Expected:
 
-```powershell
-git add -A
-git commit -m "fix(mobile): perbaikan kandidat rilis 1.2.0"
-git push origin release/1.2.0
-```
+- Job `promote-to-alpha` sukses.
+- Alpha memakai binary yang sama dengan internal commit tersebut.
 
-Hasil yang diharapkan:
-- Workflow jalan
-- Deploy ke Play track `closed`
+## 6. Checklist Sebelum Promote Alpha
 
-Catatan:
-- Push ke `main` juga masuk `closed` track.
+- Internal terbaru sudah lulus QA.
+- `source_commit` yang dipakai = commit internal terbaru.
+- Artifact internal belum expired (retention 30 hari).
 
-## 7.3 Rilis production (hanya via tag)
+## 7. Troubleshooting Cepat
 
-Pastikan commit yang ingin dirilis sudah final (umumnya dari `main`).
-
-Contoh:
-
-```powershell
-git checkout main
-git pull origin main
-git tag -a v1.2.3 -m "Mobile release v1.2.3"
-git push origin v1.2.3
-```
-
-Hasil yang diharapkan:
-
-1. Workflow `Android Release` berjalan
-2. Job deploy menunggu approval environment `mobile-production`
-3. Reviewer approve
-4. AAB dirilis ke track `production`
-
-## 7.4 Manual run untuk recovery/non-prod
-
-Gunakan `Actions` -> `Android Release` -> `Run workflow` jika perlu:
-
-- Pilih `target_track`: `internal` atau `closed`
-- Isi `version_name`/`version_code` jika memang perlu override
-
-Jangan gunakan manual run untuk production.
-
-## 8. Checklist Cepat Sebelum Push
-
-Untuk `develop`/`release/*`/`main`:
-
-- [ ] Perubahan memang menyentuh mobile (`apps/mobile`)
-- [ ] `flutter analyze` lulus
-- [ ] `flutter test test/widget_test.dart` lulus
-- [ ] Tidak ada secret atau file sensitif ikut commit
-
-Tambahan untuk production tag:
-
-- [ ] Tag format `vX.Y.Z`
-- [ ] Catatan rilis siap
-- [ ] Reviewer production siap approve
-
-## 9. Troubleshooting Umum
-
-### 9.1 "Unsupported branch"
+### 7.1 Error: source_commit must match latest successful develop internal artifact commit
 
 Penyebab:
-- Branch bukan `develop`, `main`, atau `release/*`
+
+- Anda memakai SHA lama.
 
 Solusi:
-- Gunakan branch yang sesuai kebijakan pipeline.
 
-### 9.2 versionCode gagal (lebih kecil dari Play)
+- Ambil SHA dari run internal sukses paling baru, lalu rerun dispatch.
+
+### 7.2 Error: Artifact ... not found / expired
 
 Penyebab:
-- `version_code` override terlalu kecil
-- Timestamp bentrok dengan release yang sudah ada
+
+- Artifact internal sudah tidak tersedia.
 
 Solusi:
-- Jalankan ulang dengan `version_code` lebih besar dari Play latest.
 
-### 9.3 Workflow berhenti di production
+- Trigger build internal baru dari `develop`, lalu promote lagi.
+
+### 7.3 versionCode gagal (lebih kecil dari Play max)
 
 Penyebab:
-- Menunggu approval environment `mobile-production`
+
+- Override `version_code` terlalu kecil.
 
 Solusi:
-- Reviewer masuk ke halaman run Actions dan approve deployment.
 
-### 9.4 Rule environment "applies to 0 branches"
+- Kosongkan override agar pakai timestamp baru, atau isi angka yang lebih tinggi.
 
-Penyebab:
-- Branch pattern ada, tapi branch belum benar-benar ada di remote
+## 8. Catatan What's New
 
-Solusi:
-- Buat branch di remote (contoh `develop`) lalu refresh halaman environment.
+Workflow otomatis menghasilkan file `whatsnew-id-ID` dan `whatsnew-en-US` saat build internal.
+Saat promote alpha, notes ikut dari artifact internal.
 
-### 9.5 Missing secrets
-
-Penyebab:
-- Secret belum diisi atau nama tidak cocok
-
-Solusi:
-- Verifikasi nama secret persis sama dengan yang dipakai workflow.
-
-## 10. Praktik Harian yang Direkomendasikan
-
-- Merge perubahan mobile harian ke `develop`
-- Gunakan `release/*` untuk stabilisasi kandidat rilis
-- Gunakan tag `vX.Y.Z` hanya saat siap production
-- Simpan release notes singkat dan jelas di anotasi tag
-- Pantau tab `Actions` setiap selesai push penting
-
-## 11. Contoh Alur End-to-End
-
-1. Developer push fitur ke `develop` -> internal testers validasi
-2. Buat `release/1.2.0` -> closed testers validasi
-3. Perbaiki bug di `release/1.2.0` sampai lolos
-4. Sinkronkan ke `main` sesuai proses tim
-5. Buat tag `v1.2.0` -> approve production -> rilis ke Play production
-
-## 12. Template Command ke AI (Operasional Harian)
-
-Gunakan pola prompt berikut agar AI memberi langkah yang presisi:
-
-`Baca docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md, kondisi saya [kondisi], tujuan saya [tujuan], berikan command PowerShell step-by-step + expected result tiap step.`
-
-Contoh siap pakai:
-
-### 12.1 Operasional harian internal
-
-`Baca docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md. Saya akan kerja mobile hari ini. Beri langkah dari sync branch develop, validasi Flutter, commit, sampai push ke develop.`
-
-### 12.2 Siapkan closed tester
-
-`Ikuti docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md. Buat command untuk membuat branch release/1.2.0 dari develop, push pertama, dan pola update commit berikutnya.`
-
-### 12.3 Rilis production via tag
-
-`Ikuti docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md. Beri command rilis production dari main dengan tag v1.2.3 dan langkah approval environment mobile-production.`
-
-### 12.4 Troubleshooting workflow
-
-`Cek docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md. Workflow Android Release gagal dengan error: [paste error]. Beri diagnosis singkat dan command perbaikan.`
-
-### 12.5 Audit kesesuaian docs vs workflow
-
-`Bandingkan docs/MOBILE_GITHUB_ACTIONS_DAILY_GUIDE.md dengan .github/workflows/android-release.yml. Tunjukkan mismatch jika ada dan sarankan patch.`
-
-Tips:
-
-- Selalu sertakan kondisi branch saat ini (`develop/main/release/*`).
-- Sertakan tujuan track (`internal/closed/production`) agar jawaban tidak ambigu.
-- Jika ada error CI, paste pesan error utuh agar diagnosis akurat.
+Jika perlu teks khusus, ubah proses build internal sumbernya terlebih dahulu.

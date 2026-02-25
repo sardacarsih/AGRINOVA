@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:in_app_update/in_app_update.dart' as in_app_update;
@@ -41,6 +42,8 @@ class AppUpdateService {
 
   final DioClient _dioClient;
   final Logger _logger = Logger();
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
 
   StreamController<AppUpdateProgress>? _updateProgressController;
   Stream<AppUpdateProgress>? _updateProgressStream;
@@ -51,6 +54,7 @@ class AppUpdateService {
 
   bool _isInitialized = false;
   bool _isUpdateInProgress = false;
+  bool _isNotificationInitialized = false;
   AppUpdateInfo? _pendingUpdate;
 
   // Storage keys
@@ -58,6 +62,15 @@ class AppUpdateService {
   static const String _kPendingUpdateKey = 'pending_update_info';
   static const String _kUpdatePolicyKey = 'update_policy';
   static const String _kSkippedVersionsKey = 'skipped_versions';
+  static const AndroidNotificationChannel _updateNotificationChannel =
+      AndroidNotificationChannel(
+        'app_updates',
+        'App Updates',
+        description: 'Notifikasi pembaruan aplikasi Agrinova',
+        importance: Importance.high,
+      );
+  static const int _kUpdateNotificationId = 42001;
+  static const int _kCriticalUpdateNotificationId = 42002;
 
   /// Initialize the app update service
   Future<void> initialize() async {
@@ -72,6 +85,7 @@ class AppUpdateService {
       _updateProgressController =
           StreamController<AppUpdateProgress>.broadcast();
       _updateProgressStream = _updateProgressController!.stream;
+      await _initializeUpdateNotifications();
 
       // Load pending updates from storage
       await _loadPendingUpdate();
@@ -183,11 +197,6 @@ class AppUpdateService {
         _logger.i(
           '$_tag: Update available: ${serverUpdate.latestVersion} (${serverUpdate.updateType})',
         );
-
-        // Show notification if update is critical
-        if (serverUpdate.updateType == UpdateType.critical) {
-          await _showUpdateNotification(serverUpdate);
-        }
 
         return serverUpdate;
       }
@@ -464,9 +473,7 @@ class AppUpdateService {
       case in_app_update.AppUpdateResult.success:
         return true;
       case in_app_update.AppUpdateResult.userDeniedUpdate:
-        _logger.i(
-          '$_tag: Play Store $flow update cancelled by user',
-        );
+        _logger.i('$_tag: Play Store $flow update cancelled by user');
         _emitProgress(AppUpdateProgress.cancelled(updateInfo));
         return false;
       case in_app_update.AppUpdateResult.inAppUpdateFailed:
@@ -698,8 +705,76 @@ class AppUpdateService {
 
   /// Show update notification
   Future<void> _showUpdateNotification(AppUpdateInfo updateInfo) async {
-    // Notification handling would go here if needed
-    _logger.i('Update available: ${updateInfo.latestVersion}');
+    try {
+      if (!_isNotificationInitialized) {
+        await _initializeUpdateNotifications();
+      }
+
+      if (Platform.isAndroid) {
+        final android = _localNotifications
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        final enabled = await android?.areNotificationsEnabled() ?? false;
+        if (!enabled) {
+          final granted = await android?.requestNotificationsPermission();
+          if (granted != true) {
+            _logger.w(
+              '$_tag: Notification permission not granted. '
+              'Skipping update notification.',
+            );
+            return;
+          }
+        }
+      }
+
+      final isCritical = updateInfo.isCritical;
+      final notificationId = isCritical
+          ? _kCriticalUpdateNotificationId
+          : _kUpdateNotificationId;
+      final title = isCritical
+          ? 'Pembaruan kritis tersedia'
+          : 'Pembaruan aplikasi tersedia';
+      final body = isCritical
+          ? 'Agrinova ${updateInfo.displayVersion} wajib diperbarui segera.'
+          : 'Agrinova ${updateInfo.displayVersion} siap diperbarui.';
+
+      const androidDetails = AndroidNotificationDetails(
+        'app_updates',
+        'App Updates',
+        channelDescription: 'Notifikasi pembaruan aplikasi Agrinova',
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: '@mipmap/ic_launcher',
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      await _localNotifications.show(
+        id: notificationId,
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(
+          android: androidDetails,
+          iOS: iosDetails,
+        ),
+        payload: updateInfo.latestVersion,
+      );
+
+      _logger.i(
+        '$_tag: Update notification shown for ${updateInfo.latestVersion}',
+      );
+    } catch (e, stackTrace) {
+      _logger.w(
+        '$_tag: Failed to show update notification',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   /// Start periodic version checking
@@ -708,13 +783,57 @@ class AppUpdateService {
 
     _periodicCheckTimer = Timer.periodic(checkInterval, (_) async {
       if (getUpdatePolicy().autoCheckEnabled) {
-        await checkForUpdates();
+        final updateInfo = await checkForUpdates();
+        if (updateInfo != null) {
+          _emitProgress(AppUpdateProgress.available(updateInfo));
+          await _showUpdateNotification(updateInfo);
+        }
       }
     });
 
     _logger.i(
       '$_tag: Periodic version check started (every ${checkInterval.inHours}h)',
     );
+  }
+
+  Future<void> _initializeUpdateNotifications() async {
+    if (_isNotificationInitialized) {
+      return;
+    }
+
+    try {
+      const androidSettings = AndroidInitializationSettings(
+        '@mipmap/ic_launcher',
+      );
+      const iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
+
+      await _localNotifications.initialize(
+        settings: const InitializationSettings(
+          android: androidSettings,
+          iOS: iosSettings,
+        ),
+      );
+
+      if (Platform.isAndroid) {
+        final android = _localNotifications
+            .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin
+            >();
+        await android?.createNotificationChannel(_updateNotificationChannel);
+      }
+
+      _isNotificationInitialized = true;
+    } catch (e, stackTrace) {
+      _logger.w(
+        '$_tag: Failed to initialize update notifications',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   /// Storage helper methods
