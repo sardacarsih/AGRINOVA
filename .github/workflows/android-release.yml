@@ -375,6 +375,9 @@ jobs:
             --build-number=${{ needs.plan.outputs.version_code }} \
             --dart-define-from-file=env/prod.json
 
+      - name: Sync whatsnew version headers
+        run: node scripts/sync-mobile-whatsnew.mjs
+
       - name: Prepare release notes
         id: notes
         shell: bash
@@ -384,13 +387,10 @@ jobs:
           mkdir -p "$WHATSNEW_DIR"
 
           STATIC_ID="apps/mobile/whatsnew/whatsnew-id-ID"
-          STATIC_ID_LEGACY="apps/mobile/whatsnew/whatsnew-id"
           STATIC_EN="apps/mobile/whatsnew/whatsnew-en-US"
 
           if [[ -f "$STATIC_ID" ]]; then
             cp "$STATIC_ID" "$WHATSNEW_DIR/whatsnew-id-ID"
-          elif [[ -f "$STATIC_ID_LEGACY" ]]; then
-            cp "$STATIC_ID_LEGACY" "$WHATSNEW_DIR/whatsnew-id-ID"
           else
             TAG_BODY=""
             if [[ "${{ github.ref_type }}" == "tag" ]]; then

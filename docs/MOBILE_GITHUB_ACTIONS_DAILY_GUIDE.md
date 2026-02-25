@@ -124,7 +124,7 @@ Opsional:
 
 Prioritas sumber release notes:
 
-1. `apps/mobile/whatsnew/whatsnew-id-ID` (atau legacy `whatsnew-id`)
+1. `apps/mobile/whatsnew/whatsnew-id-ID`
 2. Anotasi tag git (khusus tag release)
 3. Fallback otomatis dari workflow
 
