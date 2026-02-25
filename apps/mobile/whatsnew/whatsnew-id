@@ -1,3 +1,0 @@
-Versi 1.0.3:
-- Perbaikan proses signing Android: keystore tidak lagi corrupt saat upload ke CI
-- Perbaikan script setup secrets menggunakan PowerShell untuk encoding binary yang benar

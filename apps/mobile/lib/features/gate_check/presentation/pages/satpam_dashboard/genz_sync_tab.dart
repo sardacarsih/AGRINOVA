@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 /// Gen Z Sync Tab - Full Page Sync Dashboard
-/// 
+///
 /// Replaces the dialog-based sync with a comprehensive dashboard view.
 /// Features dark theme, neon accents, and detailed sync statistics.
 class GenZSyncTab extends StatelessWidget {
   final Map<String, dynamic> repositoryStats;
-  final bool isLoading;
+  final bool isSyncing;
   final Function() onManualSync;
 
   const GenZSyncTab({
     super.key,
     required this.repositoryStats,
-    required this.isLoading,
+    required this.isSyncing,
     required this.onManualSync,
   });
 
@@ -29,16 +29,17 @@ class GenZSyncTab extends StatelessWidget {
     const neonRed = Color(0xFFEF4444);
 
     // Stats
-    final totalRecords = ((repositoryStats['total_gate_guest_logs'] as int?) ?? 0) + 
-                         ((repositoryStats['total_employee_logs'] as int?) ?? 0);
+    final totalRecords =
+        ((repositoryStats['total_gate_guest_logs'] as int?) ?? 0) +
+        ((repositoryStats['total_employee_logs'] as int?) ?? 0);
     final pendingSync = (repositoryStats['pending_sync'] as int?) ?? 0;
-    final syncedRecords = totalRecords - pendingSync;
+    final syncedRecords = (totalRecords - pendingSync).clamp(0, totalRecords);
     final isOnline = repositoryStats['is_online'] == true;
     final lastSync = repositoryStats['last_sync'] as DateTime?;
-    final lastSyncFormatted = lastSync != null 
-        ? DateFormat('dd MMM yyyy, HH:mm').format(lastSync) 
+    final lastSyncFormatted = lastSync != null
+        ? DateFormat('dd MMM yyyy, HH:mm').format(lastSync)
         : 'Belum pernah';
-    
+
     final dbSize = repositoryStats['database_storage']?['size_mb'] ?? '0.00';
 
     return Container(
@@ -50,18 +51,18 @@ class GenZSyncTab extends StatelessWidget {
           children: [
             // Header Section
             _buildHeader(context, isOnline, neonGreen, neonRed),
-            
+
             const SizedBox(height: 24),
 
             // Main Action Card (Manual Sync)
             _buildSyncActionCard(
-              context, 
-              isLoading, 
-              isOnline, 
-              pendingSync, 
+              context,
+              isSyncing,
+              isOnline,
+              pendingSync,
               lastSyncFormatted,
               neonPurple,
-              neonOrange
+              neonOrange,
             ),
 
             const SizedBox(height: 24),
@@ -76,7 +77,7 @@ class GenZSyncTab extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             Row(
               children: [
                 Expanded(
@@ -130,7 +131,9 @@ class GenZSyncTab extends StatelessWidget {
                 Expanded(
                   child: _buildStatTile(
                     label: 'Total Foto',
-                    value: (repositoryStats['photo_storage']?['total_files'] ?? 0).toString(),
+                    value:
+                        (repositoryStats['photo_storage']?['total_files'] ?? 0)
+                            .toString(),
                     icon: Icons.photo_camera_rounded,
                     color: Colors.cyanAccent,
                     cardBg: cardBg,
@@ -140,10 +143,16 @@ class GenZSyncTab extends StatelessWidget {
                 Expanded(
                   child: _buildStatTile(
                     label: 'Foto Pending',
-                    value: (repositoryStats['photo_storage']?['pending_files'] ?? 0).toString(),
+                    value:
+                        (repositoryStats['photo_storage']?['pending_files'] ??
+                                0)
+                            .toString(),
                     icon: Icons.cloud_upload_rounded,
-                    color: (repositoryStats['photo_storage']?['pending_files'] ?? 0) > 0 
-                        ? neonOrange 
+                    color:
+                        (repositoryStats['photo_storage']?['pending_files'] ??
+                                0) >
+                            0
+                        ? neonOrange
                         : neonGreen,
                     cardBg: cardBg,
                   ),
@@ -183,7 +192,12 @@ class GenZSyncTab extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, bool isOnline, Color neonGreen, Color neonRed) {
+  Widget _buildHeader(
+    BuildContext context,
+    bool isOnline,
+    Color neonGreen,
+    Color neonRed,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -241,9 +255,9 @@ class GenZSyncTab extends StatelessWidget {
   }
 
   Widget _buildSyncActionCard(
-    BuildContext context, 
-    bool isLoading,
-    bool isOnline, 
+    BuildContext context,
+    bool isSyncing,
+    bool isOnline,
     int pendingSync,
     String lastSyncTime,
     Color neonPurple,
@@ -261,9 +275,7 @@ class GenZSyncTab extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: neonPurple.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: neonPurple.withValues(alpha: 0.3)),
         boxShadow: [
           BoxShadow(
             color: neonPurple.withValues(alpha: 0.1),
@@ -283,11 +295,7 @@ class GenZSyncTab extends StatelessWidget {
                   color: neonPurple.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  Icons.sync_rounded,
-                  color: neonPurple,
-                  size: 32,
-                ),
+                child: Icon(Icons.sync_rounded, color: neonPurple, size: 32),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -295,7 +303,11 @@ class GenZSyncTab extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isLoading ? 'Sedang Sinkronisasi...' : (pendingSync > 0 ? 'Data Belum Tersimpan' : 'Semua Data Tersimpan'),
+                      isSyncing
+                          ? 'Sedang Sinkronisasi...'
+                          : (pendingSync > 0
+                                ? 'Data Belum Tersimpan'
+                                : 'Semua Data Tersimpan'),
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -315,15 +327,15 @@ class GenZSyncTab extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Action Button
           SizedBox(
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: isLoading ? null : onManualSync,
+              onPressed: isSyncing ? null : onManualSync,
               style: ElevatedButton.styleFrom(
                 backgroundColor: neonPurple,
                 foregroundColor: Colors.white,
@@ -332,7 +344,7 @@ class GenZSyncTab extends StatelessWidget {
                 ),
                 elevation: 0,
               ),
-              child: isLoading
+              child: isSyncing
                   ? const SizedBox(
                       width: 24,
                       height: 24,
@@ -350,7 +362,7 @@ class GenZSyncTab extends StatelessWidget {
                     ),
             ),
           ),
-          
+
           if (pendingSync > 0) ...[
             const SizedBox(height: 12),
             Text(
@@ -379,9 +391,7 @@ class GenZSyncTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: color.withValues(alpha: 0.2),
-        ),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,7 +426,4 @@ class GenZSyncTab extends StatelessWidget {
       ),
     );
   }
-
-
 }
-

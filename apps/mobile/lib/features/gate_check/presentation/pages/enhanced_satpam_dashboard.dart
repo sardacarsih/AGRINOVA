@@ -58,6 +58,7 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
   // State variables
   bool _isLoading = true;
   bool _isLoadingAction = false;
+  bool _isManualSyncing = false;
   String? _errorMessage;
   int _currentTabIndex = 0;
 
@@ -557,7 +558,10 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
         ((_repositoryStats['total_gate_guest_logs'] as int?) ?? 0) +
         ((_repositoryStats['total_employee_logs'] as int?) ?? 0);
     final pendingRecords = (_repositoryStats['pending_sync'] as int?) ?? 0;
-    final syncedRecords = totalRecords - pendingRecords;
+    final syncedRecords = (totalRecords - pendingRecords).clamp(
+      0,
+      totalRecords,
+    );
 
     return GenZDashboardTab(
       userName: _userName,
@@ -643,7 +647,7 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
   Widget _buildSyncTab() {
     return GenZSyncTab(
       repositoryStats: _repositoryStats,
-      isLoading: _isLoading,
+      isSyncing: _isManualSyncing || (_repositoryStats['is_syncing'] == true),
       onManualSync: _performManualSync,
     );
   }
@@ -1434,17 +1438,17 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
         context: context,
         serviceState: _serviceState!,
         onSyncStart: () {
-          if (mounted) setState(() => _isLoading = true);
+          if (mounted) setState(() => _isManualSyncing = true);
         },
         onSyncComplete: () {
-          if (mounted) setState(() => _isLoading = false);
+          if (mounted) setState(() => _isManualSyncing = false);
         },
       );
       await _loadDashboardData(showLoading: false);
     } catch (e) {
       _logger.e('Manual sync failed', error: e);
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() => _isManualSyncing = false);
         SatpamDashboardHelpers.showSnackBar(
           context,
           'Sync gagal: ${e.toString()}',

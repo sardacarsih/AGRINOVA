@@ -22,6 +22,7 @@ class RouteGuard {
     '/monitoring',
     '/reports',
     '/users',
+    AppRoutes.pending,
     AppRoutes.settingsPage,
     AppRoutes.adminSettingsPage,
     _profileRoute,
@@ -78,7 +79,7 @@ class RouteGuard {
         return ['harvest_view_estate', 'monitoring_estate'];
 
       case AppRoutes.areaManager:
-        return ['harvest_view_multi_estate', 'monitoring_multi_estate'];
+        return ['view_company_stats', 'monitoring_company'];
 
       case AppRoutes.satpam:
         return ['gate_check'];
@@ -101,6 +102,9 @@ class RouteGuard {
 
       case '/approvals':
         return ['harvest_approval'];
+
+      case AppRoutes.pending:
+        return ['harvest_input'];
 
       case '/monitoring':
         return [

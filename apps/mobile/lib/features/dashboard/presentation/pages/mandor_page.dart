@@ -52,7 +52,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
   int _unreadNotificationCount = 0;
   StreamSubscription<int>? _unreadCountSubscription;
   StreamSubscription<HarvestNotificationEvent>?
-      _harvestNotificationSubscription;
+  _harvestNotificationSubscription;
   Timer? _harvestNotificationSyncDebounce;
   bool _isAutoSyncingApprovalUpdate = false;
   bool _isNavigatingToLogin = false;
@@ -67,14 +67,14 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
       ..add(const MandorDashboardLoadRequested());
     _harvestBloc = sl<HarvestBloc>();
     _loadUnreadCount();
-    _unreadCountSubscription =
-        NotificationStorageService.unreadCountStream.listen((count) {
-      if (mounted) {
-        setState(() => _unreadNotificationCount = count);
-      }
-    });
-    _harvestNotificationSubscription =
-        FCMService.harvestNotificationStream.listen(_handleHarvestNotification);
+    _unreadCountSubscription = NotificationStorageService.unreadCountStream
+        .listen((count) {
+          if (mounted) {
+            setState(() => _unreadNotificationCount = count);
+          }
+        });
+    _harvestNotificationSubscription = FCMService.harvestNotificationStream
+        .listen(_handleHarvestNotification);
   }
 
   Future<void> _loadUnreadCount() async {
@@ -200,7 +200,8 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
 
     final action = event.action.toUpperCase();
     final type = event.type.toUpperCase();
-    final shouldRefresh = type == 'HARVEST_STATUS_UPDATE' ||
+    final shouldRefresh =
+        type == 'HARVEST_STATUS_UPDATE' ||
         type == 'HARVEST_PKS_UPDATE' ||
         action == 'APPROVED' ||
         action == 'REJECTED' ||
@@ -303,7 +304,8 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
       return;
     }
 
-    final isConnected = _connectivityService.isOnline ||
+    final isConnected =
+        _connectivityService.isOnline ||
         await _connectivityService.checkConnection();
     if (!isConnected) {
       _logger.i(
@@ -351,15 +353,18 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
               if (!mounted) {
                 return;
               }
-              Navigator.of(context, rootNavigator: true)
-                  .pushNamedAndRemoveUntil('/login', (route) => false);
+              Navigator.of(
+                context,
+                rootNavigator: true,
+              ).pushNamedAndRemoveUntil('/login', (route) => false);
             });
           }
         },
         builder: (context, authState) {
           if (authState is AuthAuthenticated) {
             _logger.i(
-                'Rendering Mandor Dashboard for: ${authState.user.username}');
+              'Rendering Mandor Dashboard for: ${authState.user.username}',
+            );
             _applyRouteArgumentsIfNeeded(context);
             return _buildScaffold(context, authState);
           }
@@ -390,10 +395,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
     return AppBar(
       title: Text(
         _getCurrentAppBarTitle(),
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 18,
-        ),
+        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
       ),
       backgroundColor: MandorTheme.darkGreen,
       foregroundColor: Colors.white,
@@ -458,12 +460,12 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
               : '',
           onSubmitSuccess: () {
             // Refresh dashboard after successful input
-            context
-                .read<MandorDashboardBloc>()
-                .add(const MandorDashboardRefreshRequested());
+            context.read<MandorDashboardBloc>().add(
+              const MandorDashboardRefreshRequested(),
+            );
             context.read<HarvestBloc>().add(
-                  HarvestSummaryRequested(date: DateTime.now()),
-                );
+              HarvestSummaryRequested(date: DateTime.now()),
+            );
             if (mounted) {
               setState(() {
                 _syncRefreshSignal++;
@@ -478,9 +480,9 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
           focusHarvestId: _focusHarvestId,
           autoOpenFocusedHarvest: true,
           onRefresh: () {
-            context
-                .read<MandorDashboardBloc>()
-                .add(const MandorDashboardRefreshRequested());
+            context.read<MandorDashboardBloc>().add(
+              const MandorDashboardRefreshRequested(),
+            );
           },
         ),
 
@@ -492,9 +494,9 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
             if (!context.mounted) return;
             _reloadHarvestMasterData(context);
             _refreshHarvestHistory(context);
-            context
-                .read<MandorDashboardBloc>()
-                .add(const MandorDashboardRefreshRequested());
+            context.read<MandorDashboardBloc>().add(
+              const MandorDashboardRefreshRequested(),
+            );
           },
         ),
       ],
@@ -508,30 +510,34 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
   ) {
     // Convert BLoC data to organism data types
     final pendingItems = data.pendingItems
-        .map((p) => PendingItem(
-              id: p.id,
-              title: p.title,
-              subtitle: p.subtitle,
-              time: p.time,
-            ))
+        .map(
+          (p) => PendingItem(
+            id: p.id,
+            title: p.title,
+            subtitle: p.subtitle,
+            time: p.time,
+          ),
+        )
         .toList();
 
     final activityItems = data.recentActivity
-        .map((a) => ActivityItem(
-              id: a.id,
-              title: a.title,
-              subtitle: a.subtitle,
-              time: a.time,
-              type: _mapActivityType(a.type),
-              isSuccess: a.isSuccess,
-            ))
+        .map(
+          (a) => ActivityItem(
+            id: a.id,
+            title: a.title,
+            subtitle: a.subtitle,
+            time: a.time,
+            type: _mapActivityType(a.type),
+            isSuccess: a.isSuccess,
+          ),
+        )
         .toList();
 
     return RefreshIndicator(
       onRefresh: () async {
-        context
-            .read<MandorDashboardBloc>()
-            .add(const MandorDashboardRefreshRequested());
+        context.read<MandorDashboardBloc>().add(
+          const MandorDashboardRefreshRequested(),
+        );
         // Wait for state change
         await Future.delayed(const Duration(milliseconds: 500));
       },
@@ -591,22 +597,18 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
 
   Widget _buildLoadingContent() {
     return Container(
-      decoration: BoxDecoration(
-        gradient: MandorTheme.darkGradient,
-      ),
+      decoration: BoxDecoration(gradient: MandorTheme.darkGradient),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(MandorTheme.forestGreen),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                MandorTheme.forestGreen,
+              ),
             ),
             const SizedBox(height: 16),
-            Text(
-              'Memuat data dashboard...',
-              style: MandorTheme.bodyMedium,
-            ),
+            Text('Memuat data dashboard...', style: MandorTheme.bodyMedium),
           ],
         ),
       ),
@@ -615,9 +617,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
 
   Widget _buildErrorContent(BuildContext context, String message) {
     return Container(
-      decoration: BoxDecoration(
-        gradient: MandorTheme.darkGradient,
-      ),
+      decoration: BoxDecoration(gradient: MandorTheme.darkGradient),
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -630,10 +630,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
                 color: MandorTheme.coralRed.withValues(alpha: 0.7),
               ),
               const SizedBox(height: 16),
-              Text(
-                'Gagal memuat data',
-                style: MandorTheme.headingSmall,
-              ),
+              Text('Gagal memuat data', style: MandorTheme.headingSmall),
               const SizedBox(height: 8),
               Text(
                 message,
@@ -643,9 +640,9 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: () {
-                  context
-                      .read<MandorDashboardBloc>()
-                      .add(const MandorDashboardLoadRequested());
+                  context.read<MandorDashboardBloc>().add(
+                    const MandorDashboardLoadRequested(),
+                  );
                 },
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Coba Lagi'),
@@ -676,22 +673,23 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(
-              valueColor:
-                  AlwaysStoppedAnimation<Color>(MandorTheme.forestGreen),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                MandorTheme.forestGreen,
+              ),
             ),
             const SizedBox(height: 16),
-            Text(
-              'Memuat dashboard...',
-              style: MandorTheme.bodyMedium,
-            ),
+            Text('Memuat dashboard...', style: MandorTheme.bodyMedium),
           ],
         ),
       ),
     );
   }
 
-  void _showSnackBar(String message,
-      {Color? color, bool showProgress = false}) {
+  void _showSnackBar(
+    String message, {
+    Color? color,
+    bool showProgress = false,
+  }) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -722,9 +720,9 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
   void _handleBottomNavigation(BuildContext blocContext, int index) {
     if (index == _currentNavIndex) {
       if (index == 0) {
-        blocContext
-            .read<MandorDashboardBloc>()
-            .add(const MandorDashboardRefreshRequested());
+        blocContext.read<MandorDashboardBloc>().add(
+          const MandorDashboardRefreshRequested(),
+        );
       } else if (index == 1) {
         _reloadHarvestMasterData(blocContext);
       } else if (index == 2) {
@@ -745,9 +743,9 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
     });
 
     if (index == 0) {
-      blocContext
-          .read<MandorDashboardBloc>()
-          .add(const MandorDashboardRefreshRequested());
+      blocContext.read<MandorDashboardBloc>().add(
+        const MandorDashboardRefreshRequested(),
+      );
     } else if (index == 1) {
       _reloadHarvestMasterData(blocContext);
     } else if (index == 2) {
@@ -777,6 +775,11 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
       return;
     }
 
+    if (normalized == '/pending') {
+      Navigator.pushNamed(context, AppRoutes.pending);
+      return;
+    }
+
     if (normalized == '/harvest/input') {
       Navigator.pushNamed(context, AppRoutes.harvestInput);
       return;
@@ -788,9 +791,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
   Future<void> _showNotifications(BuildContext context) async {
     final harvestBloc = context.read<HarvestBloc>();
     final result = await Navigator.of(context).push<Map<String, dynamic>>(
-      MaterialPageRoute(
-        builder: (context) => const MandorNotificationPage(),
-      ),
+      MaterialPageRoute(builder: (context) => const MandorNotificationPage()),
     );
 
     await _loadUnreadCount();
@@ -840,8 +841,6 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
   }
 
   void _refreshHarvestHistoryWithBloc(HarvestBloc harvestBloc) {
-    harvestBloc.add(
-      HarvestSummaryRequested(date: DateTime.now()),
-    );
+    harvestBloc.add(HarvestSummaryRequested(date: DateTime.now()));
   }
 }

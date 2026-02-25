@@ -263,7 +263,7 @@ class SatpamDashboardDialogs {
     final totalEmployee = (repositoryStats['total_employee_logs'] as int?) ?? 0;
     final totalRecords = totalGuest + totalEmployee;
     final pendingSync = (repositoryStats['pending_sync'] as int?) ?? 0;
-    final syncedRecords = totalRecords - pendingSync;
+    final syncedRecords = (totalRecords - pendingSync).clamp(0, totalRecords);
     final isOnline = repositoryStats['is_online'] == true;
     final isSyncing = repositoryStats['is_syncing'] == true;
     final lastSync = repositoryStats['last_sync'] as DateTime?;

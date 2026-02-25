@@ -12,6 +12,7 @@ class GenZRiwayatTab extends StatefulWidget {
   final String mandorId;
   final String? focusHarvestId;
   final bool autoOpenFocusedHarvest;
+  final String initialFilter;
   final VoidCallback? onRefresh;
 
   const GenZRiwayatTab({
@@ -19,6 +20,7 @@ class GenZRiwayatTab extends StatefulWidget {
     required this.mandorId,
     this.focusHarvestId,
     this.autoOpenFocusedHarvest = false,
+    this.initialFilter = 'Semua',
     this.onRefresh,
   });
 
@@ -27,14 +29,16 @@ class GenZRiwayatTab extends StatefulWidget {
 }
 
 class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
-  String _currentFilter = 'Semua';
-  DateTime _selectedDate = DateTime.now();
-  final List<String> _filterOptions = [
+  static const List<String> _supportedFilters = <String>[
     'Semua',
     'Pending',
     'Approved',
     'Rejected',
   ];
+
+  late String _currentFilter;
+  DateTime _selectedDate = DateTime.now();
+  final List<String> _filterOptions = _supportedFilters;
 
   List<Harvest> _harvests = [];
   bool _isLoading = true;
@@ -46,12 +50,20 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
   @override
   void initState() {
     super.initState();
+    _currentFilter = _normalizeFilter(widget.initialFilter);
     _loadHistory();
   }
 
   @override
   void didUpdateWidget(covariant GenZRiwayatTab oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.initialFilter != widget.initialFilter) {
+      final normalizedFilter = _normalizeFilter(widget.initialFilter);
+      if (normalizedFilter != _currentFilter) {
+        setState(() => _currentFilter = normalizedFilter);
+      }
+    }
 
     if (oldWidget.focusHarvestId != widget.focusHarvestId) {
       _handledFocusHarvestId = null;
@@ -67,6 +79,16 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
 
   DateTime _normalizeDate(DateTime date) {
     return DateTime(date.year, date.month, date.day);
+  }
+
+  String _normalizeFilter(String filter) {
+    final normalized = filter.trim().toLowerCase();
+    for (final candidate in _supportedFilters) {
+      if (candidate.toLowerCase() == normalized) {
+        return candidate;
+      }
+    }
+    return 'Semua';
   }
 
   bool _isSameDate(DateTime a, DateTime b) {
@@ -206,8 +228,11 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
               ),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.history_rounded,
-                color: Colors.white, size: 24),
+            child: const Icon(
+              Icons.history_rounded,
+              color: Colors.white,
+              size: 24,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -360,8 +385,9 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color:
-                      isSelected ? _getFilterColor(filter) : Colors.transparent,
+                  color: isSelected
+                      ? _getFilterColor(filter)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -395,12 +421,15 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
   }
 
   Widget _buildStatsRow() {
-    final pendingCount =
-        _harvests.where((h) => _getWorkflowStatus(h) == 'PENDING').length;
-    final approvedCount =
-        _harvests.where((h) => _getWorkflowStatus(h) == 'APPROVED').length;
-    final rejectedCount =
-        _harvests.where((h) => _getWorkflowStatus(h) == 'REJECTED').length;
+    final pendingCount = _harvests
+        .where((h) => _getWorkflowStatus(h) == 'PENDING')
+        .length;
+    final approvedCount = _harvests
+        .where((h) => _getWorkflowStatus(h) == 'APPROVED')
+        .length;
+    final rejectedCount = _harvests
+        .where((h) => _getWorkflowStatus(h) == 'REJECTED')
+        .length;
 
     return Row(
       children: [
@@ -460,10 +489,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 10,
-              color: color.withValues(alpha: 0.8),
-            ),
+            style: TextStyle(fontSize: 10, color: color.withValues(alpha: 0.8)),
           ),
         ],
       ),
@@ -507,8 +533,9 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
               : MandorTheme.gray800.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color:
-                isHighlighted ? MandorTheme.electricBlue : MandorTheme.gray700,
+            color: isHighlighted
+                ? MandorTheme.electricBlue
+                : MandorTheme.gray700,
             width: isHighlighted ? 1.6 : 1,
           ),
         ),
@@ -546,7 +573,9 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: statusColor.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
@@ -564,10 +593,12 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                             const SizedBox(width: 6),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
-                                color: MandorTheme.electricBlue.withValues(alpha: 
-                                  0.15,
+                                color: MandorTheme.electricBlue.withValues(
+                                  alpha: 0.15,
                                 ),
                                 borderRadius: BorderRadius.circular(6),
                               ),
@@ -603,25 +634,26 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    icon: Icon(Icons.edit_rounded,
-                        color: MandorTheme.forestGreen),
+                    icon: Icon(
+                      Icons.edit_rounded,
+                      color: MandorTheme.forestGreen,
+                    ),
                     tooltip: 'Edit',
                     onPressed: () => _showEditDialog(harvest),
                   ),
                   if (canDelete)
                     IconButton(
-                      icon: Icon(Icons.delete_rounded,
-                          color: MandorTheme.coralRed),
+                      icon: Icon(
+                        Icons.delete_rounded,
+                        color: MandorTheme.coralRed,
+                      ),
                       tooltip: 'Hapus',
                       onPressed: () => _showDeleteConfirmDialog(harvest),
                     ),
                 ],
               )
             else
-              Icon(
-                Icons.chevron_right_rounded,
-                color: MandorTheme.gray500,
-              ),
+              Icon(Icons.chevron_right_rounded, color: MandorTheme.gray500),
           ],
         ),
       ),
@@ -765,9 +797,13 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
               _buildDetailRow('Divisi', harvest.divisionName),
               _buildDetailRow('Status', harvest.status.toUpperCase()),
               _buildDetailRow(
-                  'Jumlah Janjang', harvest.tbsQuantity.toStringAsFixed(0)),
+                'Jumlah Janjang',
+                harvest.tbsQuantity.toStringAsFixed(0),
+              ),
               _buildDetailRow(
-                  'Tanggal Panen', _formatDate(harvest.harvestDate)),
+                'Tanggal Panen',
+                _formatDate(harvest.harvestDate),
+              ),
               if (harvest.notes != null && harvest.notes!.trim().isNotEmpty)
                 _buildDetailRow('Catatan', harvest.notes!.trim()),
               if (harvest.rejectionReason != null &&
@@ -792,10 +828,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(
-              'Tutup',
-              style: TextStyle(color: MandorTheme.gray300),
-            ),
+            child: Text('Tutup', style: TextStyle(color: MandorTheme.gray300)),
           ),
           if (_canEditHarvest(harvest))
             ElevatedButton(
@@ -823,9 +856,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
         children: [
           Text(
             label,
-            style: MandorTheme.labelSmall.copyWith(
-              color: MandorTheme.gray400,
-            ),
+            style: MandorTheme.labelSmall.copyWith(color: MandorTheme.gray400),
           ),
           const SizedBox(height: 2),
           Text(
@@ -849,10 +880,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: MandorTheme.gray800,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Hapus Panen',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('Hapus Panen', style: TextStyle(color: Colors.white)),
         content: Text(
           'Yakin hapus data panen ${harvest.employeeName} di blok ${harvest.blockName}?',
           style: MandorTheme.bodySmall,
@@ -860,10 +888,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(
-              'Batal',
-              style: TextStyle(color: MandorTheme.gray400),
-            ),
+            child: Text('Batal', style: TextStyle(color: MandorTheme.gray400)),
           ),
           ElevatedButton(
             onPressed: () {
@@ -890,18 +915,24 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
     final initialQuantity = harvest.jumlahJanjang > 0
         ? harvest.jumlahJanjang
         : harvest.tbsQuantity.toInt();
-    final quantityController =
-        TextEditingController(text: initialQuantity.toString());
-    final matangController =
-        TextEditingController(text: harvest.jjgMatang.toString());
-    final mentahController =
-        TextEditingController(text: harvest.jjgMentah.toString());
-    final lewatMatangController =
-        TextEditingController(text: harvest.jjgLewatMatang.toString());
-    final busukController =
-        TextEditingController(text: harvest.jjgBusukAbnormal.toString());
-    final tangkaiController =
-        TextEditingController(text: harvest.jjgTangkaiPanjang.toString());
+    final quantityController = TextEditingController(
+      text: initialQuantity.toString(),
+    );
+    final matangController = TextEditingController(
+      text: harvest.jjgMatang.toString(),
+    );
+    final mentahController = TextEditingController(
+      text: harvest.jjgMentah.toString(),
+    );
+    final lewatMatangController = TextEditingController(
+      text: harvest.jjgLewatMatang.toString(),
+    );
+    final busukController = TextEditingController(
+      text: harvest.jjgBusukAbnormal.toString(),
+    );
+    final tangkaiController = TextEditingController(
+      text: harvest.jjgTangkaiPanjang.toString(),
+    );
     final notesController = TextEditingController(text: harvest.notes ?? '');
 
     void recalculateMatang() {
@@ -1002,8 +1033,9 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                     TextFormField(
                       controller: notesController,
                       maxLines: 3,
-                      style:
-                          MandorTheme.bodySmall.copyWith(color: Colors.white),
+                      style: MandorTheme.bodySmall.copyWith(
+                        color: Colors.white,
+                      ),
                       decoration: InputDecoration(
                         labelText: 'Catatan',
                         labelStyle: MandorTheme.labelSmall,
@@ -1068,8 +1100,9 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                           ? null
                           : notesController.text.trim(),
                       status: wasRejected ? 'PENDING' : harvest.status,
-                      rejectionReason:
-                          wasRejected ? '' : harvest.rejectionReason,
+                      rejectionReason: wasRejected
+                          ? ''
+                          : harvest.rejectionReason,
                       updatedAt: DateTime.now(),
                       isSynced: false,
                     );
@@ -1188,9 +1221,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
             _currentFilter == 'Semua'
                 ? 'Belum ada riwayat panen'
                 : 'Tidak ada data $_currentFilter',
-            style: MandorTheme.bodyMedium.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            style: MandorTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
@@ -1205,11 +1236,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-      ),
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
     );
   }
 }
-

@@ -171,10 +171,18 @@ class ManagerUserModel {
 
   /// Returns up to 2 initials from the user's name.
   String get initials {
-    final parts = name.trim().split(RegExp(r'\s+'));
+    final parts = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
     if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts[0][0].toUpperCase();
-    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+
+    final first = parts[0].substring(0, 1).toUpperCase();
+    if (parts.length == 1) return first;
+
+    final second = parts[1].substring(0, 1).toUpperCase();
+    return '$first$second';
   }
 }
 
@@ -199,7 +207,9 @@ class AreaManagerDashboardModel {
           ? AreaManagerStats.fromJson(statsJson)
           : AreaManagerStats.empty,
       companyPerformance: perfList
-          .map((e) => CompanyPerformanceModel.fromJson(e as Map<String, dynamic>))
+          .map(
+            (e) => CompanyPerformanceModel.fromJson(e as Map<String, dynamic>),
+          )
           .toList(),
       alerts: alertList
           .map((e) => RegionalAlertModel.fromJson(e as Map<String, dynamic>))

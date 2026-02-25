@@ -41,8 +41,9 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<AreaManagerDashboardBloc>(
-      create: (_) => sl<AreaManagerDashboardBloc>()
-        ..add(const AreaManagerDashboardLoadRequested()),
+      create: (_) =>
+          sl<AreaManagerDashboardBloc>()
+            ..add(const AreaManagerDashboardLoadRequested()),
       child: AuthListenerWrapper(
         child: BlocBuilder<AuthBloc, AuthState>(
           builder: (context, state) {
@@ -71,7 +72,9 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
   }
 
   PreferredSizeWidget _buildAppBar(
-      BuildContext context, AuthAuthenticated state) {
+    BuildContext context,
+    AuthAuthenticated state,
+  ) {
     return AppBar(
       elevation: 0,
       backgroundColor: AreaManagerTheme.primaryTeal,
@@ -82,10 +85,7 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
       ),
       title: const Text(
         'Area Manager',
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 20,
-        ),
+        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
       ),
       centerTitle: true,
       actions: [
@@ -162,10 +162,12 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
               if (dashState is AreaManagerDashboardLoaded &&
                   dashState.companyPerformance.isNotEmpty) {
                 final perfs = dashState.companyPerformance
-                    .map((cp) => EstatePerformance(
-                          name: cp.companyName,
-                          percentage: cp.targetAchievement.clamp(0, 100),
-                        ))
+                    .map(
+                      (cp) => EstatePerformance(
+                        name: cp.companyName,
+                        percentage: cp.targetAchievement.clamp(0, 100),
+                      ),
+                    )
                     .toList();
                 return AreaManagerPerformanceSection(performances: perfs);
               }
@@ -257,10 +259,7 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              'Loading dashboard...',
-              style: AreaManagerTheme.bodyMedium,
-            ),
+            Text('Loading dashboard...', style: AreaManagerTheme.bodyMedium),
           ],
         ),
       ),
@@ -358,7 +357,7 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
               leading: CircleAvatar(
                 backgroundColor: AreaManagerTheme.primaryTeal,
                 child: Text(
-                  state.user.username[0].toUpperCase(),
+                  _resolveUserInitial(state),
                   style: const TextStyle(color: Colors.white),
                 ),
               ),
@@ -407,5 +406,18 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
       ),
     );
   }
-}
 
+  String _resolveUserInitial(AuthAuthenticated state) {
+    final username = state.user.username.trim();
+    if (username.isNotEmpty) {
+      return username.substring(0, 1).toUpperCase();
+    }
+
+    final fullName = state.user.fullName.trim();
+    if (fullName.isNotEmpty) {
+      return fullName.substring(0, 1).toUpperCase();
+    }
+
+    return '?';
+  }
+}

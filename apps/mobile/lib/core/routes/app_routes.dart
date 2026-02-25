@@ -12,6 +12,7 @@ import '../../features/dashboard/presentation/pages/area_manager_page.dart';
 import '../../features/dashboard/presentation/pages/satpam_page.dart';
 import '../../features/dashboard/presentation/pages/company_admin_page.dart';
 import '../../features/dashboard/presentation/pages/super_admin_page.dart';
+import '../../features/dashboard/presentation/pages/mandor_pending_page.dart';
 import '../../features/settings/pages/settings_page.dart';
 import '../../features/settings/pages/admin_settings_page.dart';
 import '../../features/harvest/presentation/pages/harvest_input_screen.dart';
@@ -31,6 +32,7 @@ class AppRoutes {
   static const String satpam = '/satpam';
   static const String companyAdmin = '/company_admin';
   static const String superAdmin = '/super_admin';
+  static const String pending = '/pending';
   static const String settingsPage = '/settings';
   static const String adminSettingsPage = '/settings/admin';
   static const String harvestInput = '/harvest/input';
@@ -58,6 +60,13 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const CompanyAdminPage());
       case superAdmin:
         return MaterialPageRoute(builder: (_) => const SuperAdminPage());
+      case pending:
+        return MaterialPageRoute(
+          builder: (_) => BlocProvider(
+            create: (context) => ServiceLocator.get<HarvestBloc>(),
+            child: const MandorPendingPage(),
+          ),
+        );
       case settingsPage:
         return MaterialPageRoute(builder: (_) => const SettingsPage());
       case adminSettingsPage:
