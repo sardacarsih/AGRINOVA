@@ -64,6 +64,7 @@ const roleBasedNavigation = {
     ],
     harvest: [
       { name: "Approval Panen", href: "/approvals", icon: ClipboardList, current: false },
+      { name: "Tim Estate", href: "/tim-estate", icon: Users, current: false },
       { name: "Timbangan", href: "/timbangan", icon: Scale, current: false },
       { name: "Grading", href: "/grading", icon: Star, current: false },
     ],
@@ -97,6 +98,7 @@ const roleBasedNavigation = {
     ],
     oversight: [
       { name: "Monitoring Panen", href: "/harvest", icon: ClipboardList, current: false },
+      { name: "Tim Estate", href: "/tim-estate", icon: Users, current: false },
       { name: "Timbangan", href: "/timbangan", icon: Scale, current: false },
       { name: "Grading", href: "/grading", icon: Star, current: false },
       { name: "Gate Check", href: "/gate-check", icon: Shield, current: false },

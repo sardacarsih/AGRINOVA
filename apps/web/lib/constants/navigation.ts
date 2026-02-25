@@ -564,6 +564,12 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       permissions: ['harvest:read']
     },
     {
+      label: 'items.teamUsers',
+      path: '/tim-estate',
+      icon: 'users',
+      permissions: ['users:read']
+    },
+    {
       label: 'items.harvestHistory',
       path: '/harvest/history',
       icon: 'clock',
@@ -705,6 +711,12 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       icon: 'check-circle',
       permissions: ['harvest:approve'],
       badge: 'pending'
+    },
+    {
+      label: 'items.teamUsers',
+      path: '/tim-estate',
+      icon: 'users',
+      permissions: ['users:read']
     },
     {
       label: 'items.monitoring',

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Activity, ArrowUpRight, BarChart3, ChevronDown, ClipboardList, Gauge, LayoutGrid, Leaf, List, Plus, Search, UserRound, Users } from 'lucide-react';
+import { Activity, ArrowUpRight, BarChart3, Building2, ChevronDown, ClipboardList, Gauge, LayoutGrid, Leaf, List, Plus, Search, UserRound, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -12,13 +12,17 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
-import { useGetHarvestRecordsQuery, useGetUsersQuery, UserRole } from '@/gql/graphql';
+import { ALL_COMPANIES_SCOPE, useCompanyScope } from '@/contexts/company-scope-context';
+import { GetHarvestRecordsQuery, GetUsersQuery, useGetHarvestRecordsQuery, useGetUsersQuery, UserRole } from '@/gql/graphql';
 
 type TeamRole = 'Mandor' | 'Asisten' | 'Pemanen';
 type RoleFilter = 'Semua' | TeamRole;
 type SortMode = 'Performa' | 'Nama' | 'Produksi';
 type TeamMemberSource = 'user' | 'harvest_record';
 type PeriodMode = 'HARI' | 'MINGGU' | 'BULAN';
+type DashboardRole = 'ASISTEN' | 'MANAGER' | 'AREA_MANAGER';
+type QueryUser = NonNullable<NonNullable<GetUsersQuery['users']>['users']>[number];
+type HarvestRecordNode = NonNullable<GetHarvestRecordsQuery['harvestRecords']>[number];
 
 interface TeamMember {
   id: string;
@@ -91,10 +95,43 @@ const splitKaryawanTokens = (value: string): string[] =>
 
 const getRoleRank = (role: TeamRole): number => TEAM_ROLE_ORDER.indexOf(role);
 
+const normalizeDashboardRole = (role?: string): DashboardRole | null => {
+  const normalized = (role || '').toUpperCase().replace(/[\s-]+/g, '_');
+  if (normalized === 'ASISTEN' || normalized === 'MANAGER' || normalized === 'AREA_MANAGER') {
+    return normalized;
+  }
+  return null;
+};
+
+const isVisibleUserRole = (viewerRole: DashboardRole | null, userRole: UserRole): boolean => {
+  if (!viewerRole) return false;
+  if (viewerRole === 'ASISTEN') {
+    return userRole === UserRole.Mandor;
+  }
+  return userRole === UserRole.Asisten || userRole === UserRole.Mandor;
+};
+
+const mapToTeamRole = (userRole: UserRole): TeamRole | null => {
+  if (userRole === UserRole.Asisten) return 'Asisten';
+  if (userRole === UserRole.Mandor) return 'Mandor';
+  return null;
+};
+
+const getUserEntityIds = (items?: Array<{ id: string } | null> | null): string[] =>
+  (items || [])
+    .map((item) => (item?.id || '').trim())
+    .filter(Boolean);
+
+const hasIdOverlap = (scope: Set<string>, targetIds: string[]): boolean => {
+  if (scope.size === 0 || targetIds.length === 0) return false;
+  return targetIds.some((id) => scope.has(id));
+};
+
 export function ManagerEstateTeamMonitor() {
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { effectiveCompanyId, selectedCompanyId, selectedCompanyLabel } = useCompanyScope();
 
   const [selectedRole, setSelectedRole] = React.useState<RoleFilter>('Semua');
   const [sortMode, setSortMode] = React.useState<SortMode>('Performa');
@@ -103,14 +140,15 @@ export function ManagerEstateTeamMonitor() {
   const [searchTerm, setSearchTerm] = React.useState('');
   const [detailMember, setDetailMember] = React.useState<TeamMember | null>(null);
 
-  const companyId = user?.companyId || user?.assignedCompanies?.[0];
-  const managerUserId = user?.id;
+  const currentUserId = (user?.id || '').trim();
+  const normalizedRole = normalizeDashboardRole(user?.role);
+  const companyId = effectiveCompanyId || user?.companyId || user?.assignedCompanies?.[0];
 
   const { data: usersData, loading: isLoadingUsers } = useGetUsersQuery({
     variables: {
       companyId: companyId || undefined,
       isActive: true,
-      limit: 400,
+      limit: 1000,
       offset: 0,
     },
     fetchPolicy: 'cache-and-network',
@@ -121,46 +159,194 @@ export function ManagerEstateTeamMonitor() {
     pollInterval: 60_000,
   });
 
-  const userMembers = React.useMemo<TeamMember[]>(() => {
-    const users = usersData?.users?.users || [];
-    if (!managerUserId) return [];
+  const users = React.useMemo(() => usersData?.users?.users || [], [usersData?.users?.users]);
 
-    const directReports = users.filter(item => {
-      const isTeamRole = item.role === UserRole.Mandor || item.role === UserRole.Asisten;
-      return isTeamRole && item.managerId === managerUserId;
+  const currentUserNode = React.useMemo(
+    () => users.find((candidate) => candidate.id === currentUserId) || null,
+    [currentUserId, users]
+  );
+
+  const viewerCompanyIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    const scopedCompanyId = (effectiveCompanyId || '').trim();
+    if (scopedCompanyId) {
+      ids.add(scopedCompanyId);
+      return ids;
+    }
+
+    const assignedCompanyIds = Array.isArray(user?.assignedCompanies) ? user.assignedCompanies : [];
+    assignedCompanyIds.forEach((id) => {
+      const value = (id || '').trim();
+      if (value) ids.add(value);
     });
 
-    const asistenIds = new Set(
-      directReports
-        .filter(item => item.role === UserRole.Asisten)
-        .map(item => item.id)
+    const userCompanyId = (user?.companyId || '').trim();
+    if (userCompanyId) ids.add(userCompanyId);
+
+    const nodeCompanyId = (currentUserNode?.companyId || '').trim();
+    if (nodeCompanyId) ids.add(nodeCompanyId);
+
+    getUserEntityIds(currentUserNode?.companies || []).forEach((id) => ids.add(id));
+    return ids;
+  }, [
+    currentUserNode?.companies,
+    currentUserNode?.companyId,
+    effectiveCompanyId,
+    user?.assignedCompanies,
+    user?.companyId,
+  ]);
+
+  const viewerEstateIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    const assignedEstateIds = Array.isArray(user?.assignedEstates) ? user.assignedEstates : [];
+    assignedEstateIds.forEach((id) => {
+      const value = (id || '').trim();
+      if (value) ids.add(value);
+    });
+    getUserEntityIds(currentUserNode?.estates || []).forEach((id) => ids.add(id));
+    return ids;
+  }, [currentUserNode?.estates, user?.assignedEstates]);
+
+  const viewerDivisionIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    const assignedDivisionIds = Array.isArray(user?.assignedDivisions) ? user.assignedDivisions : [];
+    assignedDivisionIds.forEach((id) => {
+      const value = (id || '').trim();
+      if (value) ids.add(value);
+    });
+    getUserEntityIds(currentUserNode?.divisions || []).forEach((id) => ids.add(id));
+    return ids;
+  }, [currentUserNode?.divisions, user?.assignedDivisions]);
+
+  const userMatchesCompanyScope = React.useCallback((candidate: QueryUser): boolean => {
+    if (normalizedRole !== 'AREA_MANAGER') return true;
+    if (viewerCompanyIds.size === 0) return true;
+
+    const directCompanyId = (candidate.companyId || '').trim();
+    if (directCompanyId && viewerCompanyIds.has(directCompanyId)) {
+      return true;
+    }
+
+    const candidateCompanyIds = getUserEntityIds(candidate.companies || []);
+    return hasIdOverlap(viewerCompanyIds, candidateCompanyIds);
+  }, [normalizedRole, viewerCompanyIds]);
+
+  const childrenByManagerId = React.useMemo(() => {
+    const map = new Map<string, QueryUser[]>();
+    users.forEach((candidate) => {
+      const managerId = (candidate.managerId || '').trim();
+      if (!managerId) return;
+      const current = map.get(managerId) || [];
+      current.push(candidate);
+      map.set(managerId, current);
+    });
+    return map;
+  }, [users]);
+
+  const hierarchicalTeamUsers = React.useMemo(() => {
+    if (!currentUserId || !normalizedRole) return [] as QueryUser[];
+
+    const visible = new Map<string, QueryUser>();
+    const queue: string[] = [currentUserId];
+    const visited = new Set<string>([currentUserId]);
+
+    while (queue.length > 0) {
+      const managerId = queue.shift();
+      if (!managerId) continue;
+
+      const children = childrenByManagerId.get(managerId) || [];
+      children.forEach((child) => {
+        if (visited.has(child.id)) return;
+        visited.add(child.id);
+        queue.push(child.id);
+
+        if (!isVisibleUserRole(normalizedRole, child.role)) return;
+        if (!userMatchesCompanyScope(child)) return;
+        visible.set(child.id, child);
+      });
+    }
+
+    return Array.from(visible.values());
+  }, [childrenByManagerId, currentUserId, normalizedRole, userMatchesCompanyScope]);
+
+  const fallbackScopedUsers = React.useMemo(() => {
+    if (!normalizedRole) return [] as QueryUser[];
+
+    const hierarchicalIds = new Set(hierarchicalTeamUsers.map((item) => item.id));
+    const result: QueryUser[] = [];
+
+    users.forEach((candidate) => {
+      if (candidate.id === currentUserId) return;
+      if (hierarchicalIds.has(candidate.id)) return;
+      if (!isVisibleUserRole(normalizedRole, candidate.role)) return;
+      if (!userMatchesCompanyScope(candidate)) return;
+
+      if (normalizedRole === 'AREA_MANAGER') {
+        result.push(candidate);
+        return;
+      }
+
+      const candidateEstateIds = getUserEntityIds(candidate.estates || []);
+      const candidateDivisionIds = getUserEntityIds(candidate.divisions || []);
+      const divisionMatch = hasIdOverlap(viewerDivisionIds, candidateDivisionIds);
+      const estateMatch = hasIdOverlap(viewerEstateIds, candidateEstateIds);
+      if (divisionMatch || estateMatch) {
+        result.push(candidate);
+      }
+    });
+
+    return result;
+  }, [
+    currentUserId,
+    hierarchicalTeamUsers,
+    normalizedRole,
+    userMatchesCompanyScope,
+    users,
+    viewerDivisionIds,
+    viewerEstateIds,
+  ]);
+
+  const scopedUsers = React.useMemo(() => {
+    const unique = new Map<string, QueryUser>();
+    hierarchicalTeamUsers.forEach((item) => unique.set(item.id, item));
+    fallbackScopedUsers.forEach((item) => unique.set(item.id, item));
+    return Array.from(unique.values());
+  }, [fallbackScopedUsers, hierarchicalTeamUsers]);
+
+  const userMembers = React.useMemo<TeamMember[]>(() => {
+    const mapped: TeamMember[] = [];
+
+    scopedUsers.forEach((item) => {
+      const teamRole = mapToTeamRole(item.role);
+      if (!teamRole) return;
+
+      mapped.push({
+        id: `usr-${item.id}`,
+        name: (item.name || item.username || 'Tanpa Nama').trim(),
+        role: teamRole,
+        division: item.divisions?.[0]?.name || 'Divisi -',
+        performance: 0,
+        productionTon: 0,
+        isActive: item.isActive,
+        source: 'user',
+        estateNames: item.estates?.map((estate) => estate.name) || [],
+        avatar: item.avatar,
+        rawUserId: item.id,
+        reportsToId: item.managerId || null,
+      });
+    });
+
+    return mapped;
+  }, [scopedUsers]);
+
+  const scopedMandorIds = React.useMemo(() => {
+    return new Set(
+      userMembers
+        .filter((member) => member.role === 'Mandor')
+        .map((member) => (member.rawUserId || '').trim())
+        .filter(Boolean)
     );
-
-    const mandorViaAsisten = users.filter(item =>
-      item.role === UserRole.Mandor &&
-      Boolean(item.managerId) &&
-      asistenIds.has(item.managerId as string)
-    );
-
-    const uniqueById = new Map<string, (typeof users)[number]>();
-    directReports.forEach(item => uniqueById.set(item.id, item));
-    mandorViaAsisten.forEach(item => uniqueById.set(item.id, item));
-
-    return Array.from(uniqueById.values()).map(item => ({
-      id: `usr-${item.id}`,
-      name: (item.name || item.username || 'Tanpa Nama').trim(),
-      role: item.role === UserRole.Asisten ? 'Asisten' : 'Mandor',
-      division: item.divisions?.[0]?.name || 'Divisi -',
-      performance: 0,
-      productionTon: 0,
-      isActive: item.isActive,
-      source: 'user',
-      estateNames: item.estates?.map(estate => estate.name) || [],
-      avatar: item.avatar,
-      rawUserId: item.id,
-      reportsToId: item.managerId || null,
-    }));
-  }, [managerUserId, usersData?.users?.users]);
+  }, [userMembers]);
 
   const periodStartDate = React.useMemo(() => {
     const now = new Date();
@@ -179,15 +365,25 @@ export function ManagerEstateTeamMonitor() {
     return start;
   }, [periodMode]);
 
+  const scopedHarvestRecords = React.useMemo(() => {
+    const records = harvestData?.harvestRecords || [];
+    if (!normalizedRole) return [] as HarvestRecordNode[];
+
+    return records.filter((record) => {
+      const recordDate = toRecordDate(record.tanggal);
+      if (!recordDate || recordDate < periodStartDate) return false;
+      if (record.status === 'REJECTED') return false;
+
+      if (scopedMandorIds.size === 0) return false;
+      const mandorId = (record.mandor?.id || '').trim();
+      return Boolean(mandorId && scopedMandorIds.has(mandorId));
+    });
+  }, [harvestData?.harvestRecords, normalizedRole, periodStartDate, scopedMandorIds]);
+
   const mandorProductionByUserId = React.useMemo(() => {
     const map = new Map<string, number>();
-    const records = harvestData?.harvestRecords || [];
 
-    for (const record of records) {
-      const recordDate = toRecordDate(record.tanggal);
-      if (!recordDate || recordDate < periodStartDate) continue;
-      if (record.status === 'REJECTED') continue;
-
+    for (const record of scopedHarvestRecords) {
       const mandorId = record.mandor?.id;
       if (!mandorId) continue;
 
@@ -196,7 +392,7 @@ export function ManagerEstateTeamMonitor() {
     }
 
     return map;
-  }, [harvestData?.harvestRecords, periodStartDate]);
+  }, [scopedHarvestRecords]);
 
   const members = React.useMemo(() => {
     const mandorProductionByAsistenId = new Map<string, number>();
@@ -255,12 +451,7 @@ export function ManagerEstateTeamMonitor() {
       return memberId;
     };
 
-    const records = harvestData?.harvestRecords || [];
-    for (const record of records) {
-      const recordDate = toRecordDate(record.tanggal);
-      if (!recordDate || recordDate < periodStartDate) continue;
-      if (record.status === 'REJECTED') continue;
-
+    for (const record of scopedHarvestRecords) {
       const nikTokens = splitKaryawanTokens((record.nik || '').trim());
       const fallbackKaryawanTokens = nikTokens.length > 0
         ? []
@@ -312,7 +503,7 @@ export function ManagerEstateTeamMonitor() {
         performance,
       };
     });
-  }, [harvestData?.harvestRecords, mandorProductionByUserId, periodStartDate, userMembers]);
+  }, [mandorProductionByUserId, scopedHarvestRecords, userMembers]);
 
   const summary = React.useMemo(() => {
     const totalMandor = members.filter(item => item.role === 'Mandor').length;
@@ -386,6 +577,22 @@ export function ManagerEstateTeamMonitor() {
 
   const isLoading = isLoadingUsers || isLoadingHarvest;
   const selectedPeriodLabel = PERIOD_OPTIONS.find(option => option.value === periodMode)?.label ?? '30 Hari';
+  const roleViewLabel = React.useMemo(() => {
+    if (normalizedRole === 'AREA_MANAGER') return 'Area Manager View';
+    if (normalizedRole === 'ASISTEN') return 'Asisten View';
+    if (normalizedRole === 'MANAGER') return 'Manager View';
+    return 'Team View';
+  }, [normalizedRole]);
+  const scopeLabel = React.useMemo(() => {
+    if (normalizedRole === 'AREA_MANAGER') {
+      if (selectedCompanyId === ALL_COMPANIES_SCOPE) {
+        return 'Semua perusahaan dalam assignment';
+      }
+      return selectedCompanyLabel || 'Perusahaan terpilih';
+    }
+
+    return selectedCompanyLabel || 'Scope perusahaan user';
+  }, [normalizedRole, selectedCompanyId, selectedCompanyLabel]);
 
   const handleDetail = (member: TeamMember) => {
     setDetailMember(member);
@@ -430,6 +637,16 @@ export function ManagerEstateTeamMonitor() {
               <p className="text-sm text-slate-700 sm:text-base dark:text-white/90">
                 Data tim diperbarui setiap 60 detik dengan fokus pada performa, produksi TBS, dan status keaktifan.
               </p>
+              <div className="flex flex-wrap items-center gap-2 pt-1 text-xs font-semibold">
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-white/80 px-2.5 py-1 text-emerald-900 dark:border-white/30 dark:bg-white/10 dark:text-white">
+                  <Users className="h-3.5 w-3.5" />
+                  {roleViewLabel}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-white/80 px-2.5 py-1 text-emerald-900 dark:border-white/30 dark:bg-white/10 dark:text-white">
+                  <Building2 className="h-3.5 w-3.5" />
+                  Scope: {scopeLabel}
+                </span>
+              </div>
             </div>
             <div className="rounded-xl border border-emerald-200 bg-white/70 px-4 py-3 text-sm dark:border-white/25 dark:bg-white/10">
               <p className="font-semibold">Periode Analisis</p>
