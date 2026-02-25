@@ -375,9 +375,6 @@ jobs:
             --build-number=${{ needs.plan.outputs.version_code }} \
             --dart-define-from-file=env/prod.json
 
-      - name: Sync whatsnew version headers
-        run: node scripts/sync-mobile-whatsnew.mjs
-
       - name: Prepare release notes
         id: notes
         shell: bash
@@ -386,105 +383,103 @@ jobs:
           WHATSNEW_DIR="$(mktemp -d)/whatsnew"
           mkdir -p "$WHATSNEW_DIR"
 
-          STATIC_ID="apps/mobile/whatsnew/whatsnew-id-ID"
-          STATIC_EN="apps/mobile/whatsnew/whatsnew-en-US"
+          VERSION_NAME="${{ needs.plan.outputs.version_name }}"
+          TRACK_NAME="${{ needs.plan.outputs.track }}"
+          NOTES_ID_TMP="$(mktemp)"
+          NOTES_EN_TMP="$(mktemp)"
+          COMMITS_FILE="$(mktemp)"
 
-          if [[ -f "$STATIC_ID" ]]; then
-            cp "$STATIC_ID" "$WHATSNEW_DIR/whatsnew-id-ID"
-          else
-            TAG_BODY=""
-            if [[ "${{ github.ref_type }}" == "tag" ]]; then
-              TAG_BODY="$(git tag -l --format='%(contents:body)' "${{ github.ref_name }}" 2>/dev/null || true)"
-              if [[ -z "$TAG_BODY" ]]; then
-                TAG_BODY="$(git tag -l --format='%(contents:subject)' "${{ github.ref_name }}" 2>/dev/null || true)"
-              fi
+          current_tag=""
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            current_tag="${{ github.ref_name }}"
+          fi
+
+          previous_tag=""
+          while IFS= read -r tag; do
+            [[ -z "$tag" ]] && continue
+            if [[ -n "$current_tag" && "$tag" == "$current_tag" ]]; then
+              continue
             fi
+            previous_tag="$tag"
+            break
+          done < <(git tag --list 'mobile/v*.*.*' --sort=-version:refname)
 
-            if [[ -n "$TAG_BODY" ]]; then
-              echo "$TAG_BODY" | head -c 500 > "$WHATSNEW_DIR/whatsnew-id-ID"
-            else
-              current_tag=""
-              if [[ "${{ github.ref_type }}" == "tag" ]]; then
-                current_tag="${{ github.ref_name }}"
-              fi
+          if [[ -n "$previous_tag" ]]; then
+            git log --no-merges --format='%s' "${previous_tag}..HEAD" > "$COMMITS_FILE" || true
+          else
+            git log --no-merges -n 30 --format='%s' > "$COMMITS_FILE" || true
+          fi
 
-              previous_tag=""
-              while IFS= read -r tag; do
-                [[ -z "$tag" ]] && continue
-                if [[ -n "$current_tag" && "$tag" == "$current_tag" ]]; then
-                  continue
-                fi
-                previous_tag="$tag"
-                break
-              done < <(git tag --list 'mobile/v*.*.*' --sort=-version:refname)
+          echo "Versi ${VERSION_NAME}:" > "$NOTES_ID_TMP"
+          echo "Version ${VERSION_NAME}:" > "$NOTES_EN_TMP"
 
-              COMMITS_FILE="$(mktemp)"
-              if [[ -n "$previous_tag" ]]; then
-                git log --no-merges --format='%s' "${previous_tag}..HEAD" > "$COMMITS_FILE" || true
-              else
-                git log --no-merges -n 30 --format='%s' > "$COMMITS_FILE" || true
-              fi
+          changes_count=0
+          while IFS= read -r subject; do
+            [[ -z "$subject" ]] && continue
+            [[ "$subject" =~ ^Merge[[:space:]] ]] && continue
 
-              NOTES_TMP="$(mktemp)"
-              {
-                echo "Versi ${{ needs.plan.outputs.version_name }}:"
-              } > "$NOTES_TMP"
-
-              changes_count=0
-              while IFS= read -r subject; do
-                [[ -z "$subject" ]] && continue
-                [[ "$subject" =~ ^Merge[[:space:]] ]] && continue
-
-                commit_type="other"
+            commit_type="other"
+            commit_desc="$subject"
+            if [[ "$subject" == *:* ]]; then
+              prefix="${subject%%:*}"
+              rest="${subject#*:}"
+              commit_desc="${rest# }"
+              commit_type="${prefix%%(*}"
+              commit_type="${commit_type%!}"
+              commit_type="${commit_type,,}"
+              if [[ -z "$commit_desc" ]]; then
                 commit_desc="$subject"
-                if [[ "$subject" == *:* ]]; then
-                  prefix="${subject%%:*}"
-                  rest="${subject#*:}"
-                  commit_desc="${rest# }"
-
-                  # Parse conventional commit prefix: type(scope)!:
-                  commit_type="${prefix%%(*}"
-                  commit_type="${commit_type%!}"
-                  commit_type="${commit_type,,}"
-
-                  if [[ -z "$commit_desc" ]]; then
-                    commit_desc="$subject"
-                  fi
-                fi
-
-                label="Perubahan"
-                case "$commit_type" in
-                  fix) label="Perbaikan" ;;
-                  feat) label="Fitur" ;;
-                  perf) label="Performa" ;;
-                  refactor) label="Refactor" ;;
-                  build|ci|chore) label="Build/CI" ;;
-                  docs) label="Dokumentasi" ;;
-                  test) label="Pengujian" ;;
-                esac
-
-                printf -- "- %s: %s\n" "$label" "$commit_desc" >> "$NOTES_TMP"
-                changes_count=$((changes_count + 1))
-                if (( changes_count >= 8 )); then
-                  break
-                fi
-              done < "$COMMITS_FILE"
-
-              if (( changes_count > 0 )); then
-                head -c 500 "$NOTES_TMP" > "$WHATSNEW_DIR/whatsnew-id-ID"
-              else
-                echo "Perbaikan bug dan peningkatan performa track ${{ needs.plan.outputs.track }} untuk versi ${{ needs.plan.outputs.version_name }}." \
-                  > "$WHATSNEW_DIR/whatsnew-id-ID"
               fi
             fi
+
+            label_id="Perubahan"
+            label_en="Change"
+            case "$commit_type" in
+              fix)
+                label_id="Perbaikan"
+                label_en="Fix"
+                ;;
+              feat)
+                label_id="Fitur"
+                label_en="Feature"
+                ;;
+              perf)
+                label_id="Performa"
+                label_en="Performance"
+                ;;
+              refactor)
+                label_id="Refactor"
+                label_en="Refactor"
+                ;;
+              build|ci|chore)
+                label_id="Build/CI"
+                label_en="Build/CI"
+                ;;
+              docs)
+                label_id="Dokumentasi"
+                label_en="Docs"
+                ;;
+              test)
+                label_id="Pengujian"
+                label_en="Test"
+                ;;
+            esac
+
+            printf -- "- %s: %s\n" "$label_id" "$commit_desc" >> "$NOTES_ID_TMP"
+            printf -- "- %s: %s\n" "$label_en" "$commit_desc" >> "$NOTES_EN_TMP"
+            changes_count=$((changes_count + 1))
+            if (( changes_count >= 8 )); then
+              break
+            fi
+          done < "$COMMITS_FILE"
+
+          if (( changes_count == 0 )); then
+            echo "- Perbaikan bug dan peningkatan performa untuk track ${TRACK_NAME}." >> "$NOTES_ID_TMP"
+            echo "- Bug fixes and performance improvements for ${TRACK_NAME} track." >> "$NOTES_EN_TMP"
           fi
 
-          if [[ -f "$STATIC_EN" ]]; then
-            cp "$STATIC_EN" "$WHATSNEW_DIR/whatsnew-en-US"
-          else
-            echo "Bug fixes and performance improvements for version ${{ needs.plan.outputs.version_name }}." \
-              > "$WHATSNEW_DIR/whatsnew-en-US"
-          fi
+          head -c 500 "$NOTES_ID_TMP" > "$WHATSNEW_DIR/whatsnew-id-ID"
+          head -c 500 "$NOTES_EN_TMP" > "$WHATSNEW_DIR/whatsnew-en-US"
 
           echo "dir=$WHATSNEW_DIR" >> "$GITHUB_OUTPUT"
 

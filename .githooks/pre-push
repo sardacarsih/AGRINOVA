@@ -1,21 +1,4 @@
 #!/bin/sh
 set -eu
 
-echo "[pre-push] Sinkronisasi apps/mobile/whatsnew ..."
-
-if ! command -v node >/dev/null 2>&1; then
-  echo "[pre-push] Node.js tidak ditemukan. Lewati sinkronisasi whatsnew."
-  exit 0
-fi
-
-node scripts/sync-mobile-whatsnew.mjs
-
-if ! git diff --quiet -- apps/mobile/whatsnew/whatsnew-id-ID apps/mobile/whatsnew/whatsnew-en-US \
-  || ! git diff --cached --quiet -- apps/mobile/whatsnew/whatsnew-id-ID apps/mobile/whatsnew/whatsnew-en-US; then
-  git add apps/mobile/whatsnew/whatsnew-id-ID apps/mobile/whatsnew/whatsnew-en-US
-  echo "[pre-push] whatsnew diperbarui dan sudah di-stage."
-  echo "[pre-push] Commit perubahan ini dulu, lalu jalankan push lagi."
-  exit 1
-fi
-
-echo "[pre-push] whatsnew sudah sinkron."
+echo "[pre-push] Lewati sinkronisasi whatsnew lokal (release notes dibuat dinamis di CI)."
