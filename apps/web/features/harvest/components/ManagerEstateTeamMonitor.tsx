@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import { Activity, ArrowUpRight, BarChart3, Building2, ChevronDown, ClipboardList, Gauge, LayoutGrid, Leaf, List, Plus, Search, UserRound, Users } from 'lucide-react';
+import { Activity, ArrowUpRight, BarChart3, Building2, ChevronDown, ClipboardList, Gauge, LayoutGrid, Leaf, List, Search, UserRound, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ALL_COMPANIES_SCOPE, useCompanyScope } from '@/contexts/company-scope-context';
 import { GetHarvestRecordsQuery, GetUsersQuery, useGetHarvestRecordsQuery, useGetUsersQuery, UserRole } from '@/gql/graphql';
 
-type TeamRole = 'Mandor' | 'Asisten' | 'Pemanen';
+type TeamRole = 'Manager' | 'Asisten' | 'Mandor' | 'Pemanen';
 type RoleFilter = 'Semua' | TeamRole;
 type SortMode = 'Performa' | 'Nama' | 'Produksi';
 type TeamMemberSource = 'user' | 'harvest_record';
@@ -39,7 +39,7 @@ interface TeamMember {
   reportsToId?: string | null;
 }
 
-const TEAM_ROLE_ORDER: TeamRole[] = ['Asisten', 'Mandor', 'Pemanen'];
+const TEAM_ROLE_ORDER: TeamRole[] = ['Manager', 'Asisten', 'Mandor', 'Pemanen'];
 const ROLE_FILTERS: RoleFilter[] = ['Semua', ...TEAM_ROLE_ORDER];
 const PERIOD_OPTIONS: Array<{ value: PeriodMode; label: string }> = [
   { value: 'HARI', label: 'Hari Ini' },
@@ -48,6 +48,10 @@ const PERIOD_OPTIONS: Array<{ value: PeriodMode; label: string }> = [
 ];
 
 const ROLE_CLASSES: Record<TeamRole, { badge: string; avatar: string }> = {
+  Manager: {
+    badge: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/50 dark:text-indigo-200',
+    avatar: 'from-indigo-600 to-blue-600',
+  },
   Mandor: {
     badge: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-200',
     avatar: 'from-sky-600 to-cyan-600',
@@ -108,10 +112,14 @@ const isVisibleUserRole = (viewerRole: DashboardRole | null, userRole: UserRole)
   if (viewerRole === 'ASISTEN') {
     return userRole === UserRole.Mandor;
   }
-  return userRole === UserRole.Asisten || userRole === UserRole.Mandor;
+  if (viewerRole === 'MANAGER') {
+    return userRole === UserRole.Asisten || userRole === UserRole.Mandor;
+  }
+  return userRole === UserRole.Manager || userRole === UserRole.Asisten || userRole === UserRole.Mandor;
 };
 
 const mapToTeamRole = (userRole: UserRole): TeamRole | null => {
+  if (userRole === UserRole.Manager) return 'Manager';
   if (userRole === UserRole.Asisten) return 'Asisten';
   if (userRole === UserRole.Mandor) return 'Mandor';
   return null;
@@ -313,6 +321,17 @@ export function ManagerEstateTeamMonitor() {
     return Array.from(unique.values());
   }, [fallbackScopedUsers, hierarchicalTeamUsers]);
 
+  const roleFilters = React.useMemo<RoleFilter[]>(() => {
+    if (normalizedRole === 'AREA_MANAGER') return ROLE_FILTERS;
+    return ROLE_FILTERS.filter((filter) => filter !== 'Manager');
+  }, [normalizedRole]);
+
+  React.useEffect(() => {
+    if (!roleFilters.includes(selectedRole)) {
+      setSelectedRole('Semua');
+    }
+  }, [roleFilters, selectedRole]);
+
   const userMembers = React.useMemo<TeamMember[]>(() => {
     const mapped: TeamMember[] = [];
 
@@ -395,15 +414,15 @@ export function ManagerEstateTeamMonitor() {
   }, [scopedHarvestRecords]);
 
   const members = React.useMemo(() => {
-    const mandorProductionByAsistenId = new Map<string, number>();
+    const mandorProductionBySupervisorId = new Map<string, number>();
     const userMembersWithProduction = userMembers.map(member => {
       if (member.role !== 'Mandor') return member;
 
       const production = Number((mandorProductionByUserId.get(member.rawUserId || '') || 0).toFixed(1));
       if (member.reportsToId) {
-        mandorProductionByAsistenId.set(
+        mandorProductionBySupervisorId.set(
           member.reportsToId,
-          Number(((mandorProductionByAsistenId.get(member.reportsToId) || 0) + production).toFixed(1))
+          Number(((mandorProductionBySupervisorId.get(member.reportsToId) || 0) + production).toFixed(1))
         );
       }
 
@@ -417,7 +436,31 @@ export function ManagerEstateTeamMonitor() {
       if (member.role !== 'Asisten') return member;
       return {
         ...member,
-        productionTon: Number((mandorProductionByAsistenId.get(member.rawUserId || '') || 0).toFixed(1)),
+        productionTon: Number((mandorProductionBySupervisorId.get(member.rawUserId || '') || 0).toFixed(1)),
+      };
+    });
+
+    const asistenProductionByManagerId = new Map<string, number>();
+    asistenMapped.forEach((member) => {
+      if (member.role !== 'Asisten') return;
+      const managerId = (member.reportsToId || '').trim();
+      if (!managerId) return;
+
+      asistenProductionByManagerId.set(
+        managerId,
+        Number(((asistenProductionByManagerId.get(managerId) || 0) + member.productionTon).toFixed(1))
+      );
+    });
+
+    const managerMapped = asistenMapped.map((member) => {
+      if (member.role !== 'Manager') return member;
+      const managerUserId = (member.rawUserId || '').trim();
+      const directMandorTon = mandorProductionBySupervisorId.get(managerUserId) || 0;
+      const asistenTon = asistenProductionByManagerId.get(managerUserId) || 0;
+
+      return {
+        ...member,
+        productionTon: Number((directMandorTon + asistenTon).toFixed(1)),
       };
     });
 
@@ -482,8 +525,9 @@ export function ManagerEstateTeamMonitor() {
 
     const pemanenMapped = Array.from(pemanenById.values());
 
-    const combined = [...asistenMapped, ...pemanenMapped];
+    const combined = [...managerMapped, ...pemanenMapped];
     const maxProductionByRole: Record<TeamRole, number> = {
+      Manager: 0,
       Mandor: 0,
       Asisten: 0,
       Pemanen: 0,
@@ -506,6 +550,7 @@ export function ManagerEstateTeamMonitor() {
   }, [mandorProductionByUserId, scopedHarvestRecords, userMembers]);
 
   const summary = React.useMemo(() => {
+    const totalManager = members.filter(item => item.role === 'Manager').length;
     const totalMandor = members.filter(item => item.role === 'Mandor').length;
     const totalAsisten = members.filter(item => item.role === 'Asisten').length;
     const totalPemanen = members.filter(item => item.role === 'Pemanen').length;
@@ -518,6 +563,7 @@ export function ManagerEstateTeamMonitor() {
 
     return {
       totalTeam,
+      totalManager,
       totalMandor,
       totalAsisten,
       totalPemanen,
@@ -530,6 +576,7 @@ export function ManagerEstateTeamMonitor() {
   const roleCounts = React.useMemo(() => {
     const counts: Record<RoleFilter, number> = {
       Semua: members.length,
+      Manager: 0,
       Mandor: 0,
       Asisten: 0,
       Pemanen: 0,
@@ -604,10 +651,6 @@ export function ManagerEstateTeamMonitor() {
       description: `Evaluasi performa ${member.name} siap diproses.`,
     });
     router.push('/reports');
-  };
-
-  const handleAddTeam = () => {
-    router.push('/users');
   };
 
   const handleSortCycle = () => {
@@ -688,6 +731,10 @@ export function ManagerEstateTeamMonitor() {
 
           <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white/75 px-2.5 py-1 font-semibold text-slate-700 dark:border-white/30 dark:bg-white/15 dark:text-white">
+              <Building2 className="h-3.5 w-3.5" />
+              Manager: {summary.totalManager}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white/75 px-2.5 py-1 font-semibold text-slate-700 dark:border-white/30 dark:bg-white/15 dark:text-white">
               <ClipboardList className="h-3.5 w-3.5" />
               Asisten: {summary.totalAsisten}
             </span>
@@ -765,7 +812,7 @@ export function ManagerEstateTeamMonitor() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {ROLE_FILTERS.map(filter => {
+            {roleFilters.map(filter => {
               const active = selectedRole === filter;
               return (
                 <button
@@ -878,16 +925,6 @@ export function ManagerEstateTeamMonitor() {
             );
           })
         )}
-      </div>
-
-      <div className="pointer-events-none fixed bottom-6 right-6 z-20">
-        <Button
-          className="pointer-events-auto rounded-full bg-emerald-700 px-5 py-6 text-sm font-semibold shadow-lg hover:bg-emerald-800"
-          onClick={handleAddTeam}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Tambah Tim
-        </Button>
       </div>
 
       <Dialog open={Boolean(detailMember)} onOpenChange={(open) => !open && setDetailMember(null)}>

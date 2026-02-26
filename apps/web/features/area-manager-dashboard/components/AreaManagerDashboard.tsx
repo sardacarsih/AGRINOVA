@@ -2,645 +2,660 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useQuery } from '@apollo/client';
+import { useRouter } from 'next/navigation';
+import { gql, useQuery } from '@apollo/client';
 import { RoleDashboardProps } from '@/features/dashboard/types/dashboard';
 import { AreaManagerDashboardLayout } from '@/components/layouts/role-layouts/AreaManagerDashboardLayout';
-import { useAuth } from '@/hooks/use-auth';
 import { ALL_COMPANIES_SCOPE, useCompanyScope } from '@/contexts/company-scope-context';
-import {
-  GET_BKM_POTONG_BUAH_ANALYTICS,
-  type BkmPotongBuahAnalyticsData,
-  type BkmPotongBuahAnalyticsVars,
-} from '@/lib/apollo/queries/bkm-report';
-import { GET_MY_ASSIGNMENTS, type GetMyAssignmentsResponse } from '@/lib/apollo/queries/harvest';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
+import { CompanyHealthStatus, TrendDirection } from '@/gql/graphql';
 import {
   AlertTriangle,
+  ArrowUpRight,
   BarChart3,
-  Building,
   Building2,
-  FileText,
-  Globe,
-  Layers,
+  CalendarDays,
+  Gauge,
   Leaf,
   RefreshCw,
-  Target,
+  TrendingDown,
   TrendingUp,
-  Users,
 } from 'lucide-react';
 
-type CompanyScopeOption = {
-  id: string;
-  name: string;
+type PeriodPreset = 'today' | 'last7Days' | 'monthToDate' | 'custom';
+type MonitorFilter = 'Semua' | 'Active' | 'Alert' | 'Maintenance';
+
+type MonitorDashboardData = {
+  areaManagerDashboard: {
+    stats: {
+      totalCompanies: number;
+      totalEstates: number;
+      totalDivisions: number;
+      totalEmployees: number;
+      todayProduction: number;
+      monthlyProduction: number;
+      monthlyTarget: number;
+      targetAchievement: number;
+      avgEfficiency: number;
+      topPerformingCompany?: string | null;
+    };
+    companyPerformance: Array<{
+      companyId: string;
+      companyName: string;
+      estatesCount: number;
+      todayProduction: number;
+      monthlyProduction: number;
+      targetAchievement: number;
+      efficiencyScore: number;
+      qualityScore: number;
+      trend: TrendDirection;
+      status: CompanyHealthStatus;
+      pendingIssues: number;
+    }>;
+    alerts: Array<{
+      id: string;
+      severity: string;
+      isRead: boolean;
+    }>;
+  };
 };
 
-const ALL_SCOPE = ALL_COMPANIES_SCOPE;
+type MonitorDashboardVars = {
+  dateFrom?: string;
+  dateTo?: string;
+};
 
-const MONTH_OPTIONS = [
-  { value: '01', label: 'Januari' },
-  { value: '02', label: 'Februari' },
-  { value: '03', label: 'Maret' },
-  { value: '04', label: 'April' },
-  { value: '05', label: 'Mei' },
-  { value: '06', label: 'Juni' },
-  { value: '07', label: 'Juli' },
-  { value: '08', label: 'Agustus' },
-  { value: '09', label: 'September' },
-  { value: '10', label: 'Oktober' },
-  { value: '11', label: 'November' },
-  { value: '12', label: 'Desember' },
+type ManagersUnderAreaData = {
+  managersUnderArea: Array<{
+    id: string;
+    name: string;
+    isActive: boolean;
+  }>;
+};
+
+type ManagersUnderAreaVars = {
+  companyId?: string;
+};
+
+type CompanyPerformanceItem = MonitorDashboardData['areaManagerDashboard']['companyPerformance'][number];
+
+const AREA_MANAGER_MONITOR_QUERY = gql`
+  query AreaManagerMonitorDashboard($dateFrom: Time, $dateTo: Time) {
+    areaManagerDashboard(dateFrom: $dateFrom, dateTo: $dateTo) {
+      stats {
+        totalCompanies
+        totalEstates
+        totalDivisions
+        totalEmployees
+        todayProduction
+        monthlyProduction
+        monthlyTarget
+        targetAchievement
+        avgEfficiency
+        topPerformingCompany
+      }
+      companyPerformance {
+        companyId
+        companyName
+        estatesCount
+        todayProduction
+        monthlyProduction
+        targetAchievement
+        efficiencyScore
+        qualityScore
+        trend
+        status
+        pendingIssues
+      }
+      alerts {
+        id
+        severity
+        isRead
+      }
+    }
+  }
+`;
+
+const MANAGERS_UNDER_AREA_QUERY = gql`
+  query ManagersUnderAreaMonitor($companyId: ID) {
+    managersUnderArea(companyId: $companyId) {
+      id
+      name
+      isActive
+    }
+  }
+`;
+
+const FILTER_OPTIONS: readonly MonitorFilter[] = ['Semua', 'Active', 'Alert', 'Maintenance'];
+const PERIOD_OPTIONS: Array<{ value: PeriodPreset; label: string }> = [
+  { value: 'today', label: 'Hari Ini' },
+  { value: 'last7Days', label: '7 Hari' },
+  { value: 'monthToDate', label: 'Bulan Ini' },
+  { value: 'custom', label: 'Custom' },
 ];
 
-const toFiniteNumber = (value: unknown): number => {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : 0;
-  }
-
-  if (typeof value === 'string') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-
-  return 0;
+const STATUS_STYLES: Record<CompanyHealthStatus, { dot: string; badge: string; label: string }> = {
+  [CompanyHealthStatus.Excellent]: {
+    dot: 'bg-emerald-500',
+    badge: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    label: 'Excellent',
+  },
+  [CompanyHealthStatus.Good]: {
+    dot: 'bg-cyan-500',
+    badge: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+    label: 'Good',
+  },
+  [CompanyHealthStatus.Warning]: {
+    dot: 'bg-amber-500',
+    badge: 'bg-amber-50 text-amber-700 border-amber-200',
+    label: 'Warning',
+  },
+  [CompanyHealthStatus.Critical]: {
+    dot: 'bg-rose-500',
+    badge: 'bg-rose-50 text-rose-700 border-rose-200',
+    label: 'Critical',
+  },
 };
 
-const formatNumber = (value: number, maxFractionDigits = 2) =>
+const formatNumber = (value: number, maxFractionDigits = 1) =>
   new Intl.NumberFormat('id-ID', { maximumFractionDigits: maxFractionDigits }).format(value);
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
+const toDateOnly = (value: Date): string => {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
-const formatDateLabel = (dateText: string) => {
-  const raw = dateText.trim();
-  if (!raw) return 'Tanggal tidak diketahui';
-  const firstTen = raw.slice(0, 10);
-  const parsed = new Date(firstTen);
-  if (!Number.isNaN(parsed.getTime())) {
-    return new Intl.DateTimeFormat('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    }).format(parsed);
+const startOfDay = (value: Date): Date => new Date(value.getFullYear(), value.getMonth(), value.getDate());
+const endOfDay = (value: Date): Date => new Date(value.getFullYear(), value.getMonth(), value.getDate(), 23, 59, 59, 999);
+
+const resolveRange = (period: PeriodPreset): { dateFrom: Date; dateTo: Date } => {
+  const now = new Date();
+
+  if (period === 'today') {
+    return { dateFrom: startOfDay(now), dateTo: endOfDay(now) };
   }
-  return raw;
+
+  if (period === 'last7Days') {
+    const from = new Date(now);
+    from.setDate(from.getDate() - 6);
+    return { dateFrom: startOfDay(from), dateTo: endOfDay(now) };
+  }
+
+  const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  return { dateFrom: firstDayOfMonth, dateTo: endOfDay(now) };
+};
+
+const estimateMonthlyTarget = (company: CompanyPerformanceItem): number => {
+  if (company.targetAchievement <= 0) return 0;
+  return company.monthlyProduction / (company.targetAchievement / 100);
 };
 
 function AreaManagerDashboard({ role: _role }: RoleDashboardProps) {
-  const { user } = useAuth();
+  const router = useRouter();
   const {
-    isAreaManager: isAreaManagerScope,
-    availableCompanies: globalCompanyOptions,
+    availableCompanies,
     selectedCompanyId,
-    setSelectedCompanyId,
     selectedCompanyLabel,
+    setSelectedCompanyId,
   } = useCompanyScope();
 
-  const [selectedMonth, setSelectedMonth] = React.useState(() => String(new Date().getMonth() + 1).padStart(2, '0'));
-  const [selectedYear, setSelectedYear] = React.useState(() => String(new Date().getFullYear()));
+  const defaultRange = React.useMemo(() => resolveRange('monthToDate'), []);
+  const [selectedFilter, setSelectedFilter] = React.useState<MonitorFilter>('Semua');
+  const [selectedPeriod, setSelectedPeriod] = React.useState<PeriodPreset>('monthToDate');
+  const [customDateFrom, setCustomDateFrom] = React.useState<string>(toDateOnly(defaultRange.dateFrom));
+  const [customDateTo, setCustomDateTo] = React.useState<string>(toDateOnly(defaultRange.dateTo));
+  const [lastSyncAt, setLastSyncAt] = React.useState<Date | null>(null);
 
-  const currentYear = new Date().getFullYear();
-  const yearOptions = React.useMemo(
-    () => Array.from({ length: 10 }, (_, idx) => String(currentYear - 5 + idx)),
-    [currentYear]
-  );
-
-  const period = `${selectedYear}${selectedMonth}`;
-
-  const {
-    data: assignmentsData,
-    loading: assignmentsLoading,
-    error: assignmentsError,
-    refetch: refetchAssignments,
-  } = useQuery<GetMyAssignmentsResponse>(GET_MY_ASSIGNMENTS, {
-    fetchPolicy: 'cache-first',
-    nextFetchPolicy: 'cache-first',
-  });
-
-  const isAreaManager = isAreaManagerScope || user?.role === 'AREA_MANAGER';
-
-  const assignmentCompanyOptions = React.useMemo<CompanyScopeOption[]>(() => {
-    const assignmentCompanies = assignmentsData?.myAssignments?.companies || [];
-    if (assignmentCompanies.length > 0) {
-      return assignmentCompanies.map((company) => ({
-        id: String(company.id),
-        name: company.name || String(company.id),
-      }));
+  const activeRange = React.useMemo(() => {
+    if (selectedPeriod !== 'custom') {
+      return resolveRange(selectedPeriod);
     }
 
-    const fallbackIds = Array.isArray(user?.assignedCompanies) ? user.assignedCompanies : [];
-    const fallbackNames = Array.isArray(user?.assignedCompanyNames) ? user.assignedCompanyNames : [];
+    const parsedFrom = customDateFrom ? new Date(customDateFrom) : defaultRange.dateFrom;
+    const parsedTo = customDateTo ? new Date(customDateTo) : defaultRange.dateTo;
 
-    return fallbackIds
-      .filter(Boolean)
-      .map((id, index) => ({
-        id,
-        name: fallbackNames[index] || id,
-      }));
-  }, [assignmentsData?.myAssignments?.companies, user?.assignedCompanies, user?.assignedCompanyNames]);
-
-  const companyOptions = React.useMemo<CompanyScopeOption[]>(() => {
-    if (isAreaManager && globalCompanyOptions.length > 0) {
-      return globalCompanyOptions.map((company) => ({
-        id: String(company.id),
-        name: company.name || String(company.id),
-      }));
-    }
-    return assignmentCompanyOptions;
-  }, [assignmentCompanyOptions, globalCompanyOptions, isAreaManager]);
-
-  const estates = React.useMemo(() => assignmentsData?.myAssignments?.estates || [], [assignmentsData?.myAssignments?.estates]);
-  const divisions = React.useMemo(() => assignmentsData?.myAssignments?.divisions || [], [assignmentsData?.myAssignments?.divisions]);
-
-  const estateCompanyById = React.useMemo(() => {
-    const map = new Map<string, string>();
-    estates.forEach((estate) => {
-      const estateId = String(estate.id || '').trim();
-      const companyId = String(estate.companyId || '').trim();
-      if (!estateId || !companyId) return;
-      map.set(estateId, companyId);
-    });
-    return map;
-  }, [estates]);
-
-  const filteredEstates = React.useMemo(() => {
-    if (selectedCompanyId === ALL_SCOPE) return estates;
-    return estates.filter((estate) => String(estate.companyId || '') === selectedCompanyId);
-  }, [estates, selectedCompanyId]);
-
-  const filteredDivisions = React.useMemo(() => {
-    if (selectedCompanyId === ALL_SCOPE) return divisions;
-    return divisions.filter((division) => estateCompanyById.get(String(division.estateId || '')) === selectedCompanyId);
-  }, [divisions, estateCompanyById, selectedCompanyId]);
-
-  const totalBlocks = React.useMemo(
-    () => filteredDivisions.reduce((sum, division) => sum + (division.blocks?.length || 0), 0),
-    [filteredDivisions]
-  );
-
-  const analyticsFilter = React.useMemo<BkmPotongBuahAnalyticsVars['filter']>(() => {
-    const filter: BkmPotongBuahAnalyticsVars['filter'] = {
-      periode: parseInt(period, 10) || 0,
+    return {
+      dateFrom: startOfDay(Number.isNaN(parsedFrom.getTime()) ? defaultRange.dateFrom : parsedFrom),
+      dateTo: endOfDay(Number.isNaN(parsedTo.getTime()) ? defaultRange.dateTo : parsedTo),
     };
+  }, [customDateFrom, customDateTo, defaultRange.dateFrom, defaultRange.dateTo, selectedPeriod]);
 
-    if (selectedCompanyId !== ALL_SCOPE) {
-      filter.companyId = selectedCompanyId;
-    }
-
-    return filter;
-  }, [period, selectedCompanyId]);
+  const queryVariables = React.useMemo<MonitorDashboardVars>(() => ({
+    dateFrom: toDateOnly(activeRange.dateFrom),
+    dateTo: toDateOnly(activeRange.dateTo),
+  }), [activeRange.dateFrom, activeRange.dateTo]);
 
   const {
-    data: analyticsData,
-    loading: analyticsLoading,
-    error: analyticsError,
-    refetch: refetchAnalytics,
-  } = useQuery<BkmPotongBuahAnalyticsData, BkmPotongBuahAnalyticsVars>(GET_BKM_POTONG_BUAH_ANALYTICS, {
-    variables: {
-      filter: analyticsFilter,
-      topN: 8,
-    },
+    data,
+    loading,
+    error,
+    refetch,
+    networkStatus,
+  } = useQuery<MonitorDashboardData, MonitorDashboardVars>(AREA_MANAGER_MONITOR_QUERY, {
+    variables: queryVariables,
     fetchPolicy: 'cache-and-network',
     nextFetchPolicy: 'cache-first',
     notifyOnNetworkStatusChange: true,
   });
 
-  const analytics = analyticsData?.bkmPotongBuahAnalytics;
+  const managerVariables = React.useMemo<ManagersUnderAreaVars>(
+    () => ({
+      companyId: selectedCompanyId === ALL_COMPANIES_SCOPE ? undefined : selectedCompanyId,
+    }),
+    [selectedCompanyId]
+  );
 
-  const summary = React.useMemo(() => {
-    const totalQtyKg = toFiniteNumber(analytics?.summary?.totalQty);
-    const totalCost = toFiniteNumber(analytics?.summary?.totalJumlah);
-    const totalHk = toFiniteNumber(analytics?.summary?.totalHk);
-    const outputPerHk = toFiniteNumber(analytics?.summary?.outputPerHk);
-    const bgm = toFiniteNumber(analytics?.summary?.bgm);
+  const {
+    data: managerData,
+    error: managerError,
+    loading: managersLoading,
+    refetch: refetchManagers,
+  } = useQuery<ManagersUnderAreaData, ManagersUnderAreaVars>(MANAGERS_UNDER_AREA_QUERY, {
+    variables: managerVariables,
+    fetchPolicy: 'cache-and-network',
+    nextFetchPolicy: 'cache-first',
+    notifyOnNetworkStatusChange: true,
+  });
 
-    return {
-      totalRecords: toFiniteNumber(analytics?.totalRecords),
-      totalQtyKg,
-      totalQtyTon: totalQtyKg / 1000,
-      totalCost,
-      totalHk,
-      outputPerHk,
-      bgm,
-      lastWorkerCount: analytics?.daily?.length ? toFiniteNumber(analytics.daily[analytics.daily.length - 1]?.workerCount) : 0,
-    };
-  }, [analytics]);
+  React.useEffect(() => {
+    if (data?.areaManagerDashboard) {
+      setLastSyncAt(new Date());
+    }
+  }, [data?.areaManagerDashboard]);
 
-  const companyStatus = React.useMemo(() => {
-    const companies = analytics?.companies || [];
-    if (companies.length === 0) {
-      return {
-        excellent: 0,
-        good: 0,
-        needsAttention: 0,
-      };
+  const scopedCompanies = React.useMemo(() => {
+    const companies = data?.areaManagerDashboard?.companyPerformance || [];
+    if (selectedCompanyId === ALL_COMPANIES_SCOPE) return companies;
+    return companies.filter((item) => String(item.companyId) === selectedCompanyId);
+  }, [data?.areaManagerDashboard?.companyPerformance, selectedCompanyId]);
+
+  const filteredCompanies = React.useMemo(() => {
+    if (selectedFilter === 'Semua') return scopedCompanies;
+
+    if (selectedFilter === 'Active') {
+      return scopedCompanies.filter((company) => company.status !== CompanyHealthStatus.Critical);
     }
 
-    const totalOutput = companies.reduce((sum, company) => sum + toFiniteNumber(company.outputQty), 0);
-    const averageOutput = totalOutput / companies.length;
+    if (selectedFilter === 'Alert') {
+      return scopedCompanies.filter((company) =>
+        company.status === CompanyHealthStatus.Warning || company.status === CompanyHealthStatus.Critical
+      );
+    }
 
-    return companies.reduce(
-      (acc, company) => {
-        const output = toFiniteNumber(company.outputQty);
-        if (output >= averageOutput * 1.1) {
-          acc.excellent += 1;
-        } else if (output >= averageOutput * 0.9) {
-          acc.good += 1;
-        } else {
-          acc.needsAttention += 1;
-        }
-        return acc;
-      },
-      { excellent: 0, good: 0, needsAttention: 0 }
-    );
-  }, [analytics?.companies]);
+    return [];
+  }, [scopedCompanies, selectedFilter]);
 
-  const topCompanies = React.useMemo(
-    () =>
-      [...(analytics?.companies || [])]
-        .sort((a, b) => toFiniteNumber(b.outputQty) - toFiniteNumber(a.outputQty))
-        .slice(0, 5),
-    [analytics?.companies]
+  const totalTodayProduction = React.useMemo(
+    () => scopedCompanies.reduce((sum, company) => sum + company.todayProduction, 0),
+    [scopedCompanies]
   );
 
-  const latestActivities = React.useMemo(
-    () =>
-      [...(analytics?.daily || [])]
-        .sort((a, b) => b.date.localeCompare(a.date))
-        .slice(0, 6),
-    [analytics?.daily]
+  const totalMonthlyProduction = React.useMemo(
+    () => scopedCompanies.reduce((sum, company) => sum + company.monthlyProduction, 0),
+    [scopedCompanies]
   );
 
-  const activeCompanyCount = React.useMemo(() => {
-    if (selectedCompanyId !== ALL_SCOPE) return 1;
-    return companyOptions.length;
-  }, [companyOptions.length, selectedCompanyId]);
+  const derivedMonthlyTarget = React.useMemo(
+    () => scopedCompanies.reduce((sum, company) => sum + estimateMonthlyTarget(company), 0),
+    [scopedCompanies]
+  );
+
+  const averageEfficiency = React.useMemo(() => {
+    if (scopedCompanies.length === 0) return data?.areaManagerDashboard?.stats?.avgEfficiency || 0;
+    const total = scopedCompanies.reduce((sum, company) => sum + company.efficiencyScore, 0);
+    return total / scopedCompanies.length;
+  }, [data?.areaManagerDashboard?.stats?.avgEfficiency, scopedCompanies]);
+
+  const totalEstates = React.useMemo(() => {
+    if (scopedCompanies.length === 0) return data?.areaManagerDashboard?.stats?.totalEstates || 0;
+    return scopedCompanies.reduce((sum, company) => sum + company.estatesCount, 0);
+  }, [data?.areaManagerDashboard?.stats?.totalEstates, scopedCompanies]);
+
+  const managerCount = React.useMemo(() => {
+    const managers = managerData?.managersUnderArea || [];
+    return managers.filter((manager) => manager.isActive).length;
+  }, [managerData?.managersUnderArea]);
+
+  const targetTon = selectedCompanyId === ALL_COMPANIES_SCOPE
+    ? data?.areaManagerDashboard?.stats?.monthlyTarget || derivedMonthlyTarget
+    : derivedMonthlyTarget;
+
+  const targetPercentage = React.useMemo(() => {
+    if (targetTon <= 0) {
+      return data?.areaManagerDashboard?.stats?.targetAchievement || 0;
+    }
+    return Math.min(100, (totalMonthlyProduction / targetTon) * 100);
+  }, [data?.areaManagerDashboard?.stats?.targetAchievement, targetTon, totalMonthlyProduction]);
+
+  const unreadAlertCount = React.useMemo(() => {
+    const alerts = data?.areaManagerDashboard?.alerts || [];
+    return alerts.filter((alert) => !alert.isRead).length;
+  }, [data?.areaManagerDashboard?.alerts]);
+
+  const lastSyncLabel = React.useMemo(() => {
+    if (!lastSyncAt) return '-';
+    return new Intl.DateTimeFormat('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(lastSyncAt);
+  }, [lastSyncAt]);
+
+  const handlePeriodChange = (period: PeriodPreset) => {
+    setSelectedPeriod(period);
+    if (period !== 'custom') {
+      const range = resolveRange(period);
+      setCustomDateFrom(toDateOnly(range.dateFrom));
+      setCustomDateTo(toDateOnly(range.dateTo));
+    }
+  };
 
   const handleRefresh = React.useCallback(async () => {
-    await Promise.all([refetchAssignments(), refetchAnalytics()]);
-  }, [refetchAssignments, refetchAnalytics]);
+    await Promise.all([refetch(queryVariables), refetchManagers(managerVariables)]);
+  }, [managerVariables, queryVariables, refetch, refetchManagers]);
 
-  const initialLoading = (analyticsLoading && !analyticsData) || (assignmentsLoading && !assignmentsData);
+  const handleViewDetail = React.useCallback(
+    (companyId: string) => {
+      setSelectedCompanyId(companyId);
+      router.push(`/monitor/company/${encodeURIComponent(companyId)}`);
+    },
+    [router, setSelectedCompanyId]
+  );
 
-  if (initialLoading) {
+  const isInitialLoading = loading && !data;
+  const isRefreshing = networkStatus === 4 || managersLoading;
+
+  if (isInitialLoading) {
     return (
       <AreaManagerDashboardLayout>
-        <div className="flex items-center justify-center min-h-[400px]">
-          <RefreshCw className="h-7 w-7 animate-spin text-muted-foreground" />
+        <div className="space-y-4">
+          <div className="h-36 animate-pulse rounded-2xl bg-muted/40" />
+          <div className="grid gap-3 md:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-24 animate-pulse rounded-xl bg-muted/40" />
+            ))}
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-56 animate-pulse rounded-xl bg-muted/40" />
+            ))}
+          </div>
         </div>
       </AreaManagerDashboardLayout>
     );
   }
 
   return (
-    <AreaManagerDashboardLayout>
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Regional Dashboard</h1>
-            <p className="text-muted-foreground">
-              Monitoring real-time kinerja regional lintas perusahaan
-            </p>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Button onClick={handleRefresh} variant="outline">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Refresh Data
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/analytics">
-                <TrendingUp className="h-4 w-4 mr-2" />
-                Analytics
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link href="/reports">
-                <FileText className="h-4 w-4 mr-2" />
-                Reports
-              </Link>
-            </Button>
-          </div>
-        </div>
+    <AreaManagerDashboardLayout
+      title="Multi-Estate Monitoring"
+      description="Ringkasan performa lintas perusahaan berbasis data monitor mobile"
+      showBreadcrumb={false}
+      actions={
+        <Button type="button" variant="outline" size="sm" onClick={handleRefresh}>
+          <RefreshCw className={cn('mr-2 h-4 w-4', isRefreshing && 'animate-spin')} />
+          Refresh
+        </Button>
+      }
+    >
+      <div className="mx-auto w-full max-w-7xl space-y-5 pb-24">
+        <Card className="overflow-hidden border-emerald-300/70 bg-gradient-to-br from-teal-700 via-emerald-700 to-cyan-700 text-white shadow-xl">
+          <CardContent className="relative space-y-4 p-6">
+            <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/15 blur-2xl" />
+            <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-emerald-300/20 blur-2xl" />
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-medium">Filter Regional</CardTitle>
-            <CardDescription>Periode dan cakupan perusahaan untuk dashboard regional</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Bulan</p>
-                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih bulan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MONTH_OPTIONS.map((month) => (
-                      <SelectItem key={month.value} value={month.value}>
-                        {month.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="relative flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1.5">
+                <p className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide">
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  Monitor Regional
+                </p>
+                <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">Multi-Estate Monitoring</h1>
+                <p className="text-sm text-white/85">
+                  Sumber desain mengikuti monitor mobile: ringkasan estate, filter status, dan kartu performa perusahaan.
+                </p>
               </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Tahun</p>
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih tahun" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {yearOptions.map((year) => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Perusahaan</p>
+
+              <div className="space-y-2 rounded-xl border border-white/25 bg-white/10 p-3 backdrop-blur">
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/85">Cakupan Perusahaan</p>
                 <Select value={selectedCompanyId} onValueChange={setSelectedCompanyId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Semua perusahaan" />
+                  <SelectTrigger className="h-9 min-w-[220px] border-white/30 bg-white/10 text-white">
+                    <SelectValue placeholder="Pilih perusahaan" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={ALL_SCOPE}>Semua perusahaan</SelectItem>
-                    {companyOptions.map((company) => (
+                    <SelectItem value={ALL_COMPANIES_SCOPE}>Semua perusahaan</SelectItem>
+                    {availableCompanies.map((company) => (
                       <SelectItem key={company.id} value={company.id}>
                         {company.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-white/80">Scope aktif: {selectedCompanyLabel}</p>
               </div>
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Scope Aktif</p>
-                <div className="h-10 rounded-md border bg-muted/20 px-3 flex items-center text-sm text-muted-foreground">
-                  {selectedCompanyLabel}
-                </div>
+            </div>
+
+            <div className="relative grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-white/25 bg-white/10 p-3 backdrop-blur-sm">
+                <p className="text-xs uppercase tracking-wide text-white/80">Estate</p>
+                <p className="mt-2 text-3xl font-black leading-none">{formatNumber(totalEstates, 0)}</p>
+              </div>
+              <div className="rounded-xl border border-white/25 bg-white/10 p-3 backdrop-blur-sm">
+                <p className="text-xs uppercase tracking-wide text-white/80">Today</p>
+                <p className="mt-2 text-3xl font-black leading-none">{formatNumber(totalTodayProduction)} ton</p>
+              </div>
+              <div className="rounded-xl border border-white/25 bg-white/10 p-3 backdrop-blur-sm">
+                <p className="text-xs uppercase tracking-wide text-white/80">Manager</p>
+                <p className="mt-2 text-3xl font-black leading-none">{formatNumber(managerCount, 0)}</p>
+              </div>
+              <div className="rounded-xl border border-white/25 bg-white/10 p-3 backdrop-blur-sm">
+                <p className="text-xs uppercase tracking-wide text-white/80">Efficiency</p>
+                <p className="mt-2 text-3xl font-black leading-none">{formatNumber(averageEfficiency)}%</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {(assignmentsError || analyticsError) && (
+        <Card className="border-slate-200 bg-white/95 shadow-sm">
+          <CardContent className="space-y-4 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {PERIOD_OPTIONS.map((option) => {
+                  const isActive = selectedPeriod === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => handlePeriodChange(option.value)}
+                      className={cn(
+                        'rounded-full border px-3 py-1.5 text-sm font-medium transition-colors',
+                        isActive
+                          ? 'border-teal-700 bg-teal-700 text-white'
+                          : 'border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100'
+                      )}
+                    >
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                <CalendarDays className="h-3.5 w-3.5" />
+                Last sync: {lastSyncLabel}
+                {isRefreshing && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+              </div>
+            </div>
+
+            {selectedPeriod === 'custom' && (
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-slate-600">Tanggal Mulai</p>
+                  <Input type="date" value={customDateFrom} onChange={(event) => setCustomDateFrom(event.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-slate-600">Tanggal Akhir</p>
+                  <Input type="date" value={customDateTo} onChange={(event) => setCustomDateTo(event.target.value)} />
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2 border-t pt-3">
+              {FILTER_OPTIONS.map((filter) => {
+                const active = selectedFilter === filter;
+                return (
+                  <button
+                    key={filter}
+                    type="button"
+                    onClick={() => setSelectedFilter(filter)}
+                    className={cn(
+                      'rounded-md border-b-2 px-3 py-1 text-sm transition-colors',
+                      active
+                        ? 'border-b-teal-700 text-teal-700'
+                        : 'border-b-transparent text-slate-600 hover:text-slate-900'
+                    )}
+                  >
+                    {filter}
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {(error || managerError) && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              Gagal memuat data dashboard regional.
-              {assignmentsError ? ` Assignments: ${assignmentsError.message}.` : ''}
-              {analyticsError ? ` Analytics: ${analyticsError.message}.` : ''}
+              Gagal memuat data monitor area manager.
+              {error ? ` Dashboard: ${error.message}.` : ''}
+              {managerError ? ` Manager: ${managerError.message}.` : ''}
             </AlertDescription>
           </Alert>
         )}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Multi-Company Overview</CardTitle>
-              <Globe className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatNumber(activeCompanyCount, 0)}</div>
-              <p className="text-xs text-muted-foreground">Perusahaan dalam cakupan aktif</p>
-              <div className="mt-4 grid grid-cols-3 gap-3 text-center">
-                <div>
-                  <p className="text-lg font-semibold text-blue-600">{formatNumber(filteredEstates.length, 0)}</p>
-                  <p className="text-xs text-muted-foreground">Estate</p>
-                </div>
-                <div>
-                  <p className="text-lg font-semibold text-emerald-600">{formatNumber(filteredDivisions.length, 0)}</p>
-                  <p className="text-xs text-muted-foreground">Divisi</p>
-                </div>
-                <div>
-                  <p className="text-lg font-semibold text-violet-600">{formatNumber(totalBlocks, 0)}</p>
-                  <p className="text-xs text-muted-foreground">Blok</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {unreadAlertCount > 0 && (
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Ada {unreadAlertCount} alert regional yang belum dibaca untuk periode aktif.
+            </AlertDescription>
+          </Alert>
+        )}
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Regional Performance</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatNumber(summary.totalQtyTon)} Ton</div>
-              <p className="text-xs text-muted-foreground">Total output periode {period}</p>
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Total Record</span>
-                  <span className="font-medium">{formatNumber(summary.totalRecords, 0)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Total Biaya</span>
-                  <span className="font-medium">{formatCurrency(summary.totalCost)}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {filteredCompanies.length === 0 ? (
+            <Card className="lg:col-span-2 border-dashed">
+              <CardContent className="flex items-center gap-3 p-6 text-sm text-muted-foreground">
+                <Leaf className="h-4 w-4" />
+                Tidak ada company yang sesuai filter monitor saat ini.
+              </CardContent>
+            </Card>
+          ) : (
+            filteredCompanies.map((company) => {
+              const statusStyle = STATUS_STYLES[company.status];
+              const target = estimateMonthlyTarget(company);
+              const progress = target > 0 ? Math.min(100, (company.monthlyProduction / target) * 100) : company.targetAchievement;
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Company Status</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Excellent</span>
-                <Badge variant="outline" className="bg-green-50 text-green-700">
-                  {companyStatus.excellent}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Good</span>
-                <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                  {companyStatus.good}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Needs Attention</span>
-                <Badge variant="outline" className="bg-amber-50 text-amber-700">
-                  {companyStatus.needsAttention}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Regional KPI</CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Output / HK</span>
-                <Badge variant="outline" className="bg-emerald-50 text-emerald-700">
-                  {formatNumber(summary.outputPerHk)} Kg/HK
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Total HK</span>
-                <Badge variant="outline" className="bg-cyan-50 text-cyan-700">
-                  {formatNumber(summary.totalHk)}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">BGM</span>
-                <Badge variant="outline" className="bg-violet-50 text-violet-700">
-                  {formatNumber(summary.bgm)}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Regional Activities</CardTitle>
-              <CardDescription>Aktivitas produksi harian dari data aktual</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {latestActivities.length === 0 ? (
-                <div className="text-sm text-muted-foreground">Belum ada aktivitas untuk periode ini.</div>
-              ) : (
-                <div className="space-y-3">
-                  {latestActivities.map((item) => (
-                    <div key={item.date} className="rounded-lg border p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <Leaf className="h-4 w-4 text-green-600" />
-                          <span className="text-sm font-medium">{formatDateLabel(item.date)}</span>
+              return (
+                <Card key={company.companyId} className="border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+                  <CardContent className="space-y-4 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <div className={cn('mt-1 h-2.5 w-2.5 rounded-full', statusStyle.dot)} />
+                        <div className="rounded-lg bg-teal-50 p-2 text-teal-700">
+                          <Building2 className="h-4 w-4" />
                         </div>
-                        <Badge variant="secondary">{formatNumber(toFiniteNumber(item.workerCount), 0)} pekerja</Badge>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-slate-900">{company.companyName}</p>
+                          <p className="text-xs text-slate-500">{company.estatesCount} estate</p>
+                          <p className="text-xs text-slate-500">Pending issue: {formatNumber(company.pendingIssues, 0)}</p>
+                        </div>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-4 text-xs text-muted-foreground">
-                        <span>Output: {formatNumber(toFiniteNumber(item.outputQty) / 1000)} Ton</span>
-                        <span>Biaya: {formatCurrency(toFiniteNumber(item.totalJumlah))}</span>
-                      </div>
+                      <Badge variant="outline" className={statusStyle.badge}>{statusStyle.label}</Badge>
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Top Company Output</CardTitle>
-              <CardDescription>Peringkat output perusahaan di scope aktif</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {topCompanies.length === 0 ? (
-                <div className="text-sm text-muted-foreground">Belum ada data perusahaan.</div>
-              ) : (
-                topCompanies.map((company, index) => (
-                  <div key={`${company.name}-${index}`} className="rounded-lg border p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium">{company.name}</span>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[11px] text-slate-500">Today&apos;s production</p>
+                        <p className="text-xl font-black leading-none text-slate-900">{formatNumber(company.todayProduction)} ton</p>
                       </div>
-                      <Badge variant="outline">#{index + 1}</Badge>
+                      <div className="text-right">
+                        <p className="text-[11px] text-slate-500">Efficiency</p>
+                        <div className="inline-flex items-center gap-1.5">
+                          {company.trend === TrendDirection.Up ? (
+                            <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+                          ) : company.trend === TrendDirection.Down ? (
+                            <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
+                          ) : (
+                            <ArrowUpRight className="h-3.5 w-3.5 text-slate-500" />
+                          )}
+                          <p className="text-base font-bold text-slate-900">{formatNumber(company.efficiencyScore)}%</p>
+                        </div>
+                      </div>
                     </div>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Output {formatNumber(toFiniteNumber(company.outputQty) / 1000)} Ton
-                    </p>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-slate-500">Target progress</span>
+                        <span className="font-semibold text-slate-800">{formatNumber(progress)}%</span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-teal-600 to-emerald-500 transition-all"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                        <Gauge className="h-3.5 w-3.5" />
+                        Achievement {formatNumber(company.targetAchievement)}%
+                      </span>
+                      <Button variant="outline" size="sm" onClick={() => handleViewDetail(String(company.companyId))}>
+                        View Detail
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Quick Insights</CardTitle>
-              <CardDescription>Ringkasan operasional area terpilih</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Perusahaan Aktif</span>
-                <span className="font-medium">{activeCompanyCount}</span>
+        <div className="sticky bottom-4 z-20">
+          <Card className="border-teal-200 bg-white/95 shadow-xl backdrop-blur">
+            <CardContent className="grid gap-4 p-4 md:grid-cols-[1fr_auto_1fr] md:items-center">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-slate-500">Total Hari Ini</p>
+                <p className="text-3xl font-black leading-none text-slate-900">{formatNumber(totalTodayProduction)} ton</p>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Pemanen Terakhir</span>
-                <span className="font-medium">{formatNumber(summary.lastWorkerCount, 0)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Divisi Terpantau</span>
-                <span className="font-medium">{formatNumber(filteredDivisions.length, 0)}</span>
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Aksi Strategis</CardTitle>
-              <CardDescription>Akses cepat analitik dan pelaporan</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button className="w-full justify-start" variant="outline" asChild>
-                <Link href="/analytics">
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Buka Analytics
-                </Link>
-              </Button>
-              <Button className="w-full justify-start" variant="outline" asChild>
-                <Link href="/reports">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Buka Reports
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
+              <div className="hidden h-10 w-px bg-slate-200 md:block" />
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Coverage Area</CardTitle>
-              <CardDescription>Distribusi unit dalam cakupan area manager</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-2 text-muted-foreground">
-                  <Globe className="h-3.5 w-3.5" />
-                  Company
-                </span>
-                <span className="font-medium">{formatNumber(activeCompanyCount, 0)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-2 text-muted-foreground">
-                  <Building className="h-3.5 w-3.5" />
-                  Estate
-                </span>
-                <span className="font-medium">{formatNumber(filteredEstates.length, 0)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-2 text-muted-foreground">
-                  <Layers className="h-3.5 w-3.5" />
-                  Blok
-                </span>
-                <span className="font-medium">{formatNumber(totalBlocks, 0)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="inline-flex items-center gap-2 text-muted-foreground">
-                  <Users className="h-3.5 w-3.5" />
-                  HK (Periode)
-                </span>
-                <span className="font-medium">{formatNumber(summary.totalHk)}</span>
+              <div className="space-y-1.5">
+                <p className="text-xs text-slate-500">
+                  Target: {formatNumber(targetTon)} ton ({formatNumber(targetPercentage)}%)
+                </p>
+                <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-teal-700 to-emerald-500 transition-all"
+                    style={{ width: `${Math.min(100, targetPercentage)}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <span>Periode: {toDateOnly(activeRange.dateFrom)} - {toDateOnly(activeRange.dateTo)}</span>
+                  <Link href="/reports" className="font-semibold text-teal-700 hover:underline">Buka reports</Link>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -8,6 +8,7 @@ export default function ApprovalsPage() {
   return (
     <ProtectedRoute
       allowedRoles={['MANDOR', 'ASISTEN', 'MANAGER']}
+      requireCleanURLAccess={false}
       fallbackPath="/login"
     >
       <ApprovalsDashboard />
