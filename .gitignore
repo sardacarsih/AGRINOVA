@@ -180,3 +180,11 @@ apps/web/public/*.aab
 *.pfx
 *.jks
 *.keystore
+
+# Local temp/debug artifacts
+/.tmp_*
+apps/golang/.gocache/
+apps/golang/gocache/
+apps/golang/codex-tmp/
+apps/golang/uploads/avatars/
+apps/golang/uploads/harvest_photos/
