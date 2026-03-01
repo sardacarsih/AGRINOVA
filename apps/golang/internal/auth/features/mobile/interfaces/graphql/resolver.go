@@ -280,9 +280,10 @@ func mapAssignmentsToUserAssignments(assignments []sharedDomain.AssignmentDTO) *
 	for _, assignment := range assignments {
 		if assignment.Company != nil && !companyMap[assignment.Company.ID] {
 			companies = append(companies, &master.Company{
-				ID:     assignment.Company.ID,
-				Name:   assignment.Company.Name,
-				Status: master.CompanyStatus(assignment.Company.Status),
+				ID:      assignment.Company.ID,
+				Name:    assignment.Company.Name,
+				LogoURL: assignment.Company.LogoURL,
+				Status:  master.CompanyStatus(assignment.Company.Status),
 			})
 			companyMap[assignment.Company.ID] = true
 		}

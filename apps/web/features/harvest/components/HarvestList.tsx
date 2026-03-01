@@ -44,7 +44,7 @@ import { GraphQLErrorWrapper } from '@/components/ui/graphql-error-handler';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { DeleteHarvestRecordDocument } from '@/gql/graphql';
 import { resolveMediaUrl } from '@/lib/utils/media-url';
-import { useCompanyScope } from '@/contexts/company-scope-context';
+import { ALL_COMPANIES_SCOPE, useCompanyScope } from '@/contexts/company-scope-context';
 import {
   GET_HARVEST_RECORDS,
   GET_MY_ASSIGNMENTS,
@@ -128,6 +128,7 @@ const getHarvestPhotoUrl = (value: unknown): string => {
 interface HarvestListProps {
   onEdit?: (record: any) => void;
   onView?: (record: any) => void;
+  onDateRangeChange?: (dateFrom: string, dateTo: string) => void;
   showActions?: boolean;
   defaultStatus?: 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
   enableDateRangeFilter?: boolean;
@@ -135,6 +136,9 @@ interface HarvestListProps {
   defaultDateTo?: string;
   listTitle?: string;
   pageSize?: number;
+  allowSearchFilter?: boolean;
+  allowStatusFilter?: boolean;
+  allowSortFilter?: boolean;
 }
 
 const statusColors = {
@@ -152,6 +156,7 @@ const statusIcons = {
 export function HarvestList({
   onEdit,
   onView,
+  onDateRangeChange,
   showActions = true,
   defaultStatus = 'ALL',
   enableDateRangeFilter = false,
@@ -159,14 +164,25 @@ export function HarvestList({
   defaultDateTo = '',
   listTitle,
   pageSize,
+  allowSearchFilter = true,
+  allowStatusFilter = true,
+  allowSortFilter = true,
 }: HarvestListProps) {
   const { user } = useAuth();
-  const { selectedCompanyId } = useCompanyScope();
+  const { selectedCompanyId, selectedCompanyLabel } = useCompanyScope();
   const userRole = (user?.role || '').toUpperCase();
   const isMandor = userRole === 'MANDOR';
   const isMandorReadOnly = isMandor;
   const currentUserId = toSafeString(user?.id).trim();
   const canShowManualActions = showActions && !isMandor;
+  const roleSpecificColumn: 'COMPANY' | 'ESTATE' | 'DIVISION' | null =
+    userRole === 'AREA_MANAGER'
+      ? 'COMPANY'
+      : userRole === 'MANAGER'
+        ? 'ESTATE'
+        : userRole === 'ASISTEN' || userRole === 'MANDOR'
+          ? 'DIVISION'
+          : null;
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>(defaultStatus);
   const [sortBy, setSortBy] = useState<'tanggal' | 'createdAt' | 'beratTbs'>('createdAt');
@@ -182,6 +198,11 @@ export function HarvestList({
     [dateFrom, dateTo]
   );
 
+  React.useEffect(() => {
+    if (!enableDateRangeFilter || !onDateRangeChange) return;
+    onDateRangeChange(dateFrom, dateTo);
+  }, [dateFrom, dateTo, enableDateRangeFilter, onDateRangeChange]);
+
   const { data: assignmentsData } = useQuery<GetMyAssignmentsResponse>(GET_MY_ASSIGNMENTS, {
     skip: !shouldLoadAssignments || !user,
     fetchPolicy: 'cache-first',
@@ -196,6 +217,47 @@ export function HarvestList({
       assignments: assignmentsData?.myAssignments,
     });
   }, [assignmentsData?.myAssignments, currentUserId, selectedCompanyId, userRole]);
+
+  const hierarchyContext = React.useMemo(() => {
+    const companyNameById = new Map<string, string>();
+    const estateMetaById = new Map<string, { name: string; companyId: string }>();
+    const divisionMetaById = new Map<string, { name: string; estateId: string }>();
+
+    const assignments = assignmentsData?.myAssignments;
+    const companies = assignments?.companies || [];
+    const estates = assignments?.estates || [];
+    const divisions = assignments?.divisions || [];
+
+    companies.forEach((company) => {
+      const id = toSafeString(company?.id).trim();
+      if (!id) return;
+      companyNameById.set(id, toSafeString(company?.name).trim());
+    });
+
+    estates.forEach((estate) => {
+      const id = toSafeString(estate?.id).trim();
+      if (!id) return;
+      estateMetaById.set(id, {
+        name: toSafeString(estate?.name).trim(),
+        companyId: toSafeString(estate?.companyId).trim(),
+      });
+    });
+
+    divisions.forEach((division) => {
+      const id = toSafeString(division?.id).trim();
+      if (!id) return;
+      divisionMetaById.set(id, {
+        name: toSafeString(division?.name).trim(),
+        estateId: toSafeString(division?.estateId).trim(),
+      });
+    });
+
+    return {
+      companyNameById,
+      estateMetaById,
+      divisionMetaById,
+    };
+  }, [assignmentsData?.myAssignments]);
 
   const { data, loading, error, refetch } = useQuery<GetHarvestRecordsResponse>(GET_HARVEST_RECORDS, {
     variables: harvestQueryVariables,
@@ -416,41 +478,47 @@ export function HarvestList({
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-2">
             {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari blok, divisi, karyawan..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full sm:w-64"
-              />
-            </div>
+            {allowSearchFilter && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Cari blok, divisi, karyawan..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 w-full sm:w-64"
+                />
+              </div>
+            )}
 
             {/* Status Filter */}
-            <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
-              <SelectTrigger className="w-full sm:w-40">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Semua Status</SelectItem>
-                <SelectItem value="PENDING">Pending</SelectItem>
-                <SelectItem value="APPROVED">Approved</SelectItem>
-                <SelectItem value="REJECTED">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
+            {allowStatusFilter && (
+              <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Semua Status</SelectItem>
+                  <SelectItem value="PENDING">Pending</SelectItem>
+                  <SelectItem value="APPROVED">Approved</SelectItem>
+                  <SelectItem value="REJECTED">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
 
             {/* Sort */}
-            <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="createdAt">Terbaru</SelectItem>
-                <SelectItem value="tanggal">Tanggal Panen</SelectItem>
-                <SelectItem value="beratTbs">Berat TBS</SelectItem>
-              </SelectContent>
-            </Select>
+            {allowSortFilter && (
+              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <SelectTrigger className="w-full sm:w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="createdAt">Terbaru</SelectItem>
+                  <SelectItem value="tanggal">Tanggal Panen</SelectItem>
+                  <SelectItem value="beratTbs">Berat TBS</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
 
             {/* Date Range Filter */}
             {enableDateRangeFilter && (
@@ -588,6 +656,9 @@ export function HarvestList({
                 <TableRow>
                   <TableHead>Tanggal</TableHead>
                   <TableHead>Blok</TableHead>
+                  {roleSpecificColumn === 'COMPANY' && <TableHead>Perusahaan</TableHead>}
+                  {roleSpecificColumn === 'ESTATE' && <TableHead>Estate</TableHead>}
+                  {roleSpecificColumn === 'DIVISION' && <TableHead>Divisi</TableHead>}
                   <TableHead>NIK</TableHead>
                   <TableHead>Karyawan</TableHead>
                   <TableHead>Kualitas Buah</TableHead>
@@ -615,6 +686,27 @@ export function HarvestList({
                   const photoUrl = getHarvestPhotoUrl(record.photoUrl ?? record.photo_url);
                   const beratTbs = toSafeNumber(record.beratTbs ?? record.berat_tbs);
                   const jumlahJanjang = toSafeNumber(record.jumlahJanjang ?? record.jumlah_janjang);
+                  const divisionId = toSafeString(
+                    record.block?.division?.id ??
+                    record.divisionId ??
+                    record.division_id
+                  ).trim();
+                  const divisionMeta = hierarchyContext.divisionMetaById.get(divisionId);
+                  const divisionName = sanitizeBlockDisplay(
+                    record.block?.division?.name || divisionMeta?.name || '',
+                    userRole
+                  );
+                  const estateMeta = hierarchyContext.estateMetaById.get(
+                    toSafeString(divisionMeta?.estateId).trim()
+                  );
+                  const estateName = toSafeString(estateMeta?.name).trim();
+                  const companyName = toSafeString(
+                    hierarchyContext.companyNameById.get(toSafeString(estateMeta?.companyId).trim())
+                  ).trim();
+                  const scopedCompanyFallback =
+                    selectedCompanyId && selectedCompanyId !== ALL_COMPANIES_SCOPE
+                      ? toSafeString(selectedCompanyLabel).trim()
+                      : '';
                   const canEdit = canShowManualActions &&
                     userRole === 'MANDOR' &&
                     record.status === 'PENDING' &&
@@ -643,10 +735,27 @@ export function HarvestList({
                             <div className="font-medium">
                               {sanitizeBlockDisplay(record.block?.name, userRole) || 'Blok tidak tersedia'}
                             </div>
-                            {/* Division info removed as it's not in the simple query yet, or needs to be added to query */}
                           </div>
                         </div>
                       </TableCell>
+
+                      {roleSpecificColumn === 'COMPANY' && (
+                        <TableCell>
+                          <span className="text-sm">{companyName || scopedCompanyFallback || '-'}</span>
+                        </TableCell>
+                      )}
+
+                      {roleSpecificColumn === 'ESTATE' && (
+                        <TableCell>
+                          <span className="text-sm">{estateName || '-'}</span>
+                        </TableCell>
+                      )}
+
+                      {roleSpecificColumn === 'DIVISION' && (
+                        <TableCell>
+                          <span className="text-sm">{divisionName || '-'}</span>
+                        </TableCell>
+                      )}
 
                       <TableCell>
                         <span className="font-mono text-xs">{nik || '-'}</span>

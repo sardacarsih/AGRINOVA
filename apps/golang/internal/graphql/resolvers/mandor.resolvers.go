@@ -1630,14 +1630,9 @@ func (r *queryResolver) MandorBlocks(ctx context.Context, divisionID *string) ([
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
-	// Get user's division assignments
-	var assignedDivisionIDs []string
-	if err := r.db.WithContext(ctx).
-		Table("user_division_assignments").
-		Select("division_id").
-		Where("user_id = ? AND is_active = true", userID).
-		Pluck("division_id", &assignedDivisionIDs).Error; err != nil {
-		return nil, fmt.Errorf("failed to get division assignments: %w", err)
+	assignedDivisionIDs, err := r.getMandorAssignedDivisionIDs(ctx, userID)
+	if err != nil {
+		return nil, err
 	}
 
 	// If no division assignments, return empty list
@@ -1648,24 +1643,9 @@ func (r *queryResolver) MandorBlocks(ctx context.Context, divisionID *string) ([
 	// Query blocks available to this mandor
 	var blocks []*master.Block
 	query := r.db.WithContext(ctx).Model(&master.Block{})
-
-	// Filter by specific division if provided
-	if divisionID != nil && *divisionID != "" {
-		// Validate user has access to this division
-		hasAccess := false
-		for _, id := range assignedDivisionIDs {
-			if id == *divisionID {
-				hasAccess = true
-				break
-			}
-		}
-		if !hasAccess {
-			return nil, fmt.Errorf("access denied to division")
-		}
-		query = query.Where("division_id = ?", *divisionID)
-	} else {
-		// Return blocks from all assigned divisions
-		query = query.Where("division_id IN ?", assignedDivisionIDs)
+	query, err = r.applyMandorDivisionScope(query, assignedDivisionIDs, divisionID, "division_id")
+	if err != nil {
+		return nil, err
 	}
 
 	if err := query.Where("is_active = ?", true).Find(&blocks).Error; err != nil {
@@ -1682,6 +1662,14 @@ func (r *queryResolver) MandorEmployees(ctx context.Context, divisionID *string,
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
+	assignedDivisionIDs, err := r.getMandorAssignedDivisionIDs(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(assignedDivisionIDs) == 0 {
+		return []*master.Employee{}, nil
+	}
+
 	// Get user's company_id from context
 	companyID, _ := ctx.Value("company_id").(string)
 
@@ -1694,9 +1682,9 @@ func (r *queryResolver) MandorEmployees(ctx context.Context, divisionID *string,
 		query = query.Where("company_id = ?", companyID)
 	}
 
-	// Filter by division if provided (employees may have division assignment)
-	if divisionID != nil && *divisionID != "" {
-		query = query.Where("division_id = ?", *divisionID)
+	query, err = r.applyMandorDivisionScope(query, assignedDivisionIDs, divisionID, "division_id")
+	if err != nil {
+		return nil, err
 	}
 
 	// Search by name or NIK
@@ -1705,11 +1693,169 @@ func (r *queryResolver) MandorEmployees(ctx context.Context, divisionID *string,
 		query = query.Where("name ILIKE ? OR nik ILIKE ?", searchPattern, searchPattern)
 	}
 
-	if err := query.Where("is_active = ?", true).Limit(50).Find(&employees).Error; err != nil {
-		return nil, fmt.Errorf("failed to get employees: %w", err)
+	query = query.Where("is_active = ?", true).Order("id ASC")
+
+	// Internal pagination to avoid hard cap/truncation and still keep query memory-friendly.
+	const pageSize = 200
+	offset := 0
+	for {
+		var batch []*master.Employee
+		if err := query.Offset(offset).Limit(pageSize).Find(&batch).Error; err != nil {
+			return nil, fmt.Errorf("failed to get employees: %w", err)
+		}
+		if len(batch) == 0 {
+			break
+		}
+
+		employees = append(employees, batch...)
+		offset += len(batch)
+		if len(batch) < pageSize {
+			break
+		}
 	}
 
 	return employees, nil
+}
+
+// MandorDivisionMastersSync is the resolver for the mandorDivisionMastersSync field.
+func (r *queryResolver) MandorDivisionMastersSync(ctx context.Context, updatedSince time.Time) (*auth.UserAssignments, error) {
+	assignments, err := r.MasterResolver.GetMyAssignments(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get assignment masters: %w", err)
+	}
+
+	result := &auth.UserAssignments{
+		Companies: make([]*master.Company, 0),
+		Estates:   make([]*master.Estate, 0),
+		Divisions: make([]*master.Division, 0),
+		Blocks:    make([]*master.Block, 0),
+	}
+
+	if assignments == nil {
+		return result, nil
+	}
+
+	for _, company := range assignments.Companies {
+		if company != nil && company.UpdatedAt.After(updatedSince) {
+			result.Companies = append(result.Companies, company)
+		}
+	}
+
+	for _, estate := range assignments.Estates {
+		if estate != nil && estate.UpdatedAt.After(updatedSince) {
+			result.Estates = append(result.Estates, estate)
+		}
+	}
+
+	for _, division := range assignments.Divisions {
+		if division != nil && division.UpdatedAt.After(updatedSince) {
+			result.Divisions = append(result.Divisions, division)
+		}
+	}
+
+	return result, nil
+}
+
+// MandorBlocksSync is the resolver for the mandorBlocksSync field.
+func (r *queryResolver) MandorBlocksSync(ctx context.Context, divisionID *string, updatedSince time.Time) ([]*master.Block, error) {
+	userID, ok := ctx.Value("user_id").(string)
+	if !ok || userID == "" {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	assignedDivisionIDs, err := r.getMandorAssignedDivisionIDs(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(assignedDivisionIDs) == 0 {
+		return []*master.Block{}, nil
+	}
+
+	var blocks []*master.Block
+	query := r.db.WithContext(ctx).Model(&master.Block{})
+	query, err = r.applyMandorDivisionScope(query, assignedDivisionIDs, divisionID, "division_id")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := query.
+		Where("updated_at > ?", updatedSince).
+		Order("updated_at ASC").
+		Find(&blocks).Error; err != nil {
+		return nil, fmt.Errorf("failed to get incremental blocks: %w", err)
+	}
+
+	return blocks, nil
+}
+
+// MandorEmployeesSync is the resolver for the mandorEmployeesSync field.
+func (r *queryResolver) MandorEmployeesSync(ctx context.Context, divisionID *string, updatedSince time.Time) ([]*master.Employee, error) {
+	userID, ok := ctx.Value("user_id").(string)
+	if !ok || userID == "" {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	assignedDivisionIDs, err := r.getMandorAssignedDivisionIDs(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(assignedDivisionIDs) == 0 {
+		return []*master.Employee{}, nil
+	}
+
+	companyID, _ := ctx.Value("company_id").(string)
+	var employees []*master.Employee
+	query := r.db.WithContext(ctx).Model(&master.Employee{})
+	if companyID != "" {
+		query = query.Where("company_id = ?", companyID)
+	}
+
+	query, err = r.applyMandorDivisionScope(query, assignedDivisionIDs, divisionID, "division_id")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := query.
+		Where("updated_at > ?", updatedSince).
+		Order("updated_at ASC").
+		Find(&employees).Error; err != nil {
+		return nil, fmt.Errorf("failed to get incremental employees: %w", err)
+	}
+
+	return employees, nil
+}
+
+func (r *queryResolver) getMandorAssignedDivisionIDs(ctx context.Context, userID string) ([]string, error) {
+	var assignedDivisionIDs []string
+	if err := r.db.WithContext(ctx).
+		Table("user_division_assignments").
+		Select("division_id").
+		Where("user_id = ? AND is_active = true", userID).
+		Pluck("division_id", &assignedDivisionIDs).Error; err != nil {
+		return nil, fmt.Errorf("failed to get division assignments: %w", err)
+	}
+
+	return assignedDivisionIDs, nil
+}
+
+func (r *queryResolver) applyMandorDivisionScope(query *gorm.DB, assignedDivisionIDs []string, divisionID *string, column string) (*gorm.DB, error) {
+	if len(assignedDivisionIDs) == 0 {
+		return query.Where("1 = 0"), nil
+	}
+
+	if divisionID != nil {
+		trimmedDivisionID := strings.TrimSpace(*divisionID)
+		if trimmedDivisionID != "" {
+			for _, assignedDivisionID := range assignedDivisionIDs {
+				if assignedDivisionID == trimmedDivisionID {
+					return query.Where(fmt.Sprintf("%s = ?", column), trimmedDivisionID), nil
+				}
+			}
+			return nil, fmt.Errorf("access denied to division")
+		}
+	}
+
+	return query.Where(fmt.Sprintf("%s IN ?", column), assignedDivisionIDs), nil
 }
 
 // MandorHistory is the resolver for the mandorHistory field.

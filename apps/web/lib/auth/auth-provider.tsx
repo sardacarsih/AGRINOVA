@@ -67,23 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
   const apolloClient = useApolloClient();
-  
+
   // Initialize GraphQL-only auth service
   const [graphQLAuthService] = useState(() => {
     const service = new GraphQLOnlyAuthService(apolloClient);
     return service;
   });
-  
-  // Debug configuration setup
-  React.useEffect(() => {
-    console.log('ðŸ” Auth Provider Configuration:', {
-      nodeEnv: process.env.NODE_ENV,
-      authMode: 'GRAPHQL_ONLY'
-    });
-  }, []);
-
-  console.log('AuthProvider component rendering');
-
 
   // Check if current route is public (no authentication required)
   const isPublicRoute = useCallback(() => {
@@ -98,47 +87,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Skip authentication checks on public routes (like login page)
       if (isPublicRoute()) {
-        console.log('ðŸ” [AuthProvider] On public route - skipping authentication check');
         return null;
       }
 
-      console.log('ðŸš€ [AuthProvider] Starting GraphQL session restoration...');
-      
       // Step 1: Check for existing cached session first (fast path)
       const currentSession = graphQLAuthService.getCurrentSession();
       if (currentSession?.user && currentSession.expiresAt > new Date()) {
-        console.log('âœ… [AuthProvider] Valid cached session found:', currentSession.user.email);
         return currentSession.user;
       }
-      
+
       // Step 2: For web authentication, check cookies via GraphQL API (no localStorage)
       if (typeof window !== 'undefined') {
-        console.log('ðŸ” [AuthProvider] Checking for cookie-based session...');
-
         // Make API call to validate session and get user data using cookies only
         try {
-          console.log('ðŸª [AuthProvider] Validating session via GraphQL API...');
           const isAuthenticated = await graphQLAuthService.checkAuth();
           if (isAuthenticated) {
             const validatedSession = graphQLAuthService.getCurrentSession();
             if (validatedSession?.user) {
-              console.log('âœ… [AuthProvider] Cookie session validated successfully:', validatedSession.user.email);
               return validatedSession.user;
             }
-          } else {
-            console.log('âŒ [AuthProvider] No valid cookie session found');
           }
         } catch (apiError) {
-          console.warn('âš ï¸ [AuthProvider] Cookie session validation failed:', apiError.message);
+          console.warn('Ã¢Å¡Â Ã¯Â¸Â [AuthProvider] Cookie session validation failed:', apiError.message);
           return null;
         }
       }
-      
-      console.log('âŒ [AuthProvider] No valid session found');
+
       return null;
-      
     } catch (error) {
-      console.error('âŒ [AuthProvider] Session restoration error:', {
+      console.error('Ã¢ÂÅ’ [AuthProvider] Session restoration error:', {
         message: error.message,
         name: error.name
       });
@@ -148,14 +125,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // CRITICAL FIX: Enhanced initialization with improved session restoration
   useEffect(() => {
-    console.log('ðŸ”„ [AuthProvider] Initializing authentication...');
-    
     const initializeAuth = async () => {
       setIsLoading(true);
 
       // Prevent accessing window during SSR
       if (typeof window === 'undefined') {
-        console.log('ðŸ”„ [AuthProvider] SSR mode - skipping initialization');
         setIsLoading(false);
         return;
       }
@@ -172,31 +146,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sessionStorage.removeItem('agrinova_jwt_access');
         sessionStorage.removeItem(LOGOUT_IN_PROGRESS_KEY);
 
-        console.log('ðŸš€ [AuthProvider] Starting cookie-based session restoration...');
-
         // SIMPLIFIED: Direct session validation via cookies (no complex caching logic)
         const restoredUser = await restoreSessionFromGraphQL();
 
         if (restoredUser) {
-          console.log('âœ… [AuthProvider] Cookie session restored successfully:', {
-            email: restoredUser.email,
-            role: restoredUser.role
-          });
           setUser(normalizeUser(restoredUser));
         } else {
-          console.log('âŒ [AuthProvider] No valid session found');
           setUser(null);
         }
-
       } catch (error) {
-        console.error('âŒ [AuthProvider] Initialization error:', {
+        console.error('Ã¢ÂÅ’ [AuthProvider] Initialization error:', {
           message: error.message,
           name: error.name
         });
         setUser(null);
       } finally {
         setIsLoading(false);
-        console.log('âœ… [AuthProvider] Initialization complete');
       }
     };
 
@@ -211,14 +176,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Method to authenticate users (performs GraphQL API call)
   const authenticate = useCallback(async (loginData: { email: string; password: string; rememberMe?: boolean }) => {
     try {
-      console.log('ðŸ” GraphQL-only login - attempting authentication:', loginData.email);
-      
       const response = await graphQLAuthService.login({
         email: loginData.email,
         password: loginData.password,
         rememberMe: loginData.rememberMe ?? false
       });
-      
+
       if (response.success && response.data?.user) {
         if (typeof window !== 'undefined') {
           sessionStorage.removeItem(LOGOUT_IN_PROGRESS_KEY);
@@ -232,15 +195,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: response.data.user.role
         };
 
-        console.log('âœ… GraphQL-only login successful:', normalizedUser.email, normalizedUser.role);
         setUser(normalizedUser);
         return { ...response, data: { ...response.data, user: normalizedUser } };
-      } else {
-        console.log('âŒ GraphQL-only login failed:', response.message);
-        throw new Error(response.message);
       }
+
+      throw new Error(response.message);
     } catch (error) {
-      console.error('âŒ Error during GraphQL-only login:', error);
+      console.error('Ã¢ÂÅ’ Error during GraphQL-only login:', error);
       throw error;
     }
   }, [graphQLAuthService]);
@@ -253,11 +214,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionStorage.removeItem(LOGOUT_RECENT_TS_KEY);
     }
 
-    console.log('ðŸ” Setting user state after successful authentication:', authSession.user.email, authSession.user.role);
     setUser(normalizeUser(authSession.user));
   }, []);
 
-  const logout = useCallback(async (reason = 'Manual logout') => {
+  const logout = useCallback(async () => {
+    let logoutFailure: Error | null = null;
+
     if (typeof window !== 'undefined') {
       const now = Date.now().toString();
       sessionStorage.setItem(LOGOUT_IN_PROGRESS_KEY, 'true');
@@ -268,21 +230,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Immediately clear user state so protected pages unmount before any 401 responses come back.
     setUser(null);
 
-    console.log('GraphQL-only logout - Reason:', reason, 'Timestamp:', new Date().toLocaleTimeString());
-
     try {
-      await graphQLAuthService.logout();
+      const result = await graphQLAuthService.logout();
+      if (!result.success) {
+        logoutFailure = new Error(result.message || 'Logout server gagal');
+      }
     } catch (error) {
       console.error('Error during GraphQL logout:', error);
+      logoutFailure = error instanceof Error ? error : new Error('Logout gagal');
     } finally {
       try {
-        console.log('Clearing Apollo store...');
         await apolloClient.clearStore();
       } catch (clearError) {
         console.warn('Failed to clear Apollo store:', clearError);
       }
 
-      console.log('Clearing authentication state...');
       setUser(null);
 
       if (typeof window !== 'undefined') {
@@ -291,8 +253,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           sessionStorage.removeItem(LOGOUT_MARKER_KEY);
         }, LOGOUT_MARKER_TTL_MS);
       }
+    }
 
-      console.log('GraphQL-only logout complete');
+    if (logoutFailure) {
+      throw logoutFailure;
     }
   }, [graphQLAuthService, apolloClient]);
 
@@ -305,7 +269,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // For now, we'll just update the local state since we don't have a specific GraphQL mutation for this
       const updatedUser = { ...user, ...userData };
       setUser(updatedUser);
-      
+
       // Also update the session in the auth service
       const currentSession = graphQLAuthService.getCurrentSession();
       if (currentSession) {
@@ -315,7 +279,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
       }
     } catch (error: any) {
-      console.error('âŒ Error updating profile:', error);
+      console.error('Ã¢ÂÅ’ Error updating profile:', error);
       throw new Error(error.message || 'Gagal memperbarui profil');
     }
   }, [user, graphQLAuthService]);
@@ -348,7 +312,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return result as unknown as { success: boolean; user?: User; message: string };
     } catch (error: any) {
-      console.error('âŒ Error updating user profile:', error);
+      console.error('Ã¢ÂÅ’ Error updating user profile:', error);
       return {
         success: false,
         message: error.message || 'Gagal memperbarui profil'
@@ -360,7 +324,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       return await graphQLAuthService.changePassword(input);
     } catch (error: any) {
-      console.error('âŒ Error changing password:', error);
+      console.error('Ã¢ÂÅ’ Error changing password:', error);
       return {
         success: false,
         message: error.message || 'Gagal mengubah password'
@@ -376,7 +340,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       return result;
     } catch (error: any) {
-      console.error('âŒ Error logging out from all devices:', error);
+      console.error('Ã¢ÂÅ’ Error logging out from all devices:', error);
       return {
         success: false,
         message: error.message || 'Gagal logout dari semua perangkat'
@@ -386,58 +350,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshSession = useCallback(async (): Promise<boolean> => {
     try {
-      // First check local session
-      const currentSession = graphQLAuthService.getCurrentSession();
-      if (currentSession?.user) {
-        setUser(normalizeUser(currentSession.user));
-        return true;
-      }
+      // Always validate via API so assignment/company scope changes are reflected.
+      const isAuthenticated = await graphQLAuthService.checkAuth(true);
 
-      // Only make API call if user explicitly requests refresh
-      console.log('ðŸ”„ Making API call to refresh session...');
-      const isAuthenticated = await graphQLAuthService.checkAuth();
-      console.log('ðŸ”„ Session refresh result:', isAuthenticated);
-      
       if (isAuthenticated) {
         const newSession = graphQLAuthService.getCurrentSession();
         if (newSession?.user) {
           setUser(normalizeUser(newSession.user));
           return true;
-        } else {
-          console.log('âŒ Session refresh returned true but no user data found');
         }
       }
-      
+
       return false;
     } catch (error) {
-      console.error('âŒ Error refreshing GraphQL session:', error);
+      console.error('Ã¢ÂÅ’ Error refreshing GraphQL session:', error);
       return false;
     }
   }, [graphQLAuthService]);
 
   const isAuthenticated = user !== null;
-  
-  // Debug logging for auth state changes
-  useEffect(() => {
-    console.log('ðŸ” GraphQL-only Auth State Update:', {
-      isLoading,
-      isAuthenticated,
-      user: user?.email || null,
-      role: user?.role || null,
-      authMethod: 'GRAPHQL_ONLY',
-      timestamp: new Date().toLocaleTimeString()
-    });
-  }, [isLoading, isAuthenticated, user]);
 
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        isLoading, 
-        isAuthenticated, 
-        login, 
-        logout, 
-        updateProfile, 
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        isAuthenticated,
+        login,
+        logout,
+        updateProfile,
         updateUserProfile,
         changePassword,
         logoutAllDevices,
@@ -448,4 +389,3 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     </AuthContext.Provider>
   );
 }
-

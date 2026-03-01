@@ -21,27 +21,6 @@ mutation WebLogin($input: WebLoginInput!) {
         name
       }
     }
-    assignments {
-      companies {
-        id
-        name
-        status
-        address
-      }
-      estates {
-        id
-        name
-        companyId
-        location
-        luasHa
-      }
-      divisions {
-        id
-        name
-        code
-        estateId
-      }
-    }
     sessionId
   }
 }

@@ -23,6 +23,8 @@ export const GET_MANAGER_DIVISION_PRODUCTION_BUDGETS = gql`
       targetTon
       plannedCost
       actualCost
+      workflowStatus
+      overrideApproved
       notes
       createdBy
       createdAt
@@ -43,6 +45,8 @@ export const CREATE_MANAGER_DIVISION_PRODUCTION_BUDGET = gql`
       targetTon
       plannedCost
       actualCost
+      workflowStatus
+      overrideApproved
       notes
       createdBy
       createdAt
@@ -63,6 +67,8 @@ export const UPDATE_MANAGER_DIVISION_PRODUCTION_BUDGET = gql`
       targetTon
       plannedCost
       actualCost
+      workflowStatus
+      overrideApproved
       notes
       createdBy
       createdAt
@@ -87,11 +93,15 @@ export interface ManagerDivisionProductionBudget {
   targetTon: number;
   plannedCost: number;
   actualCost: number;
+  workflowStatus: ManagerBudgetWorkflowStatus;
+  overrideApproved: boolean;
   notes?: string | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export type ManagerBudgetWorkflowStatus = 'DRAFT' | 'REVIEW' | 'APPROVED';
 
 export interface ManagerDivisionOption {
   id: string;
@@ -114,6 +124,8 @@ export interface CreateManagerDivisionProductionBudgetInput {
   targetTon: number;
   plannedCost: number;
   actualCost?: number;
+  workflowStatus?: ManagerBudgetWorkflowStatus;
+  overrideApproved?: boolean;
   notes?: string;
 }
 
@@ -124,6 +136,8 @@ export interface UpdateManagerDivisionProductionBudgetInput {
   targetTon?: number;
   plannedCost?: number;
   actualCost?: number;
+  workflowStatus?: ManagerBudgetWorkflowStatus;
+  overrideApproved?: boolean;
   notes?: string;
 }
 

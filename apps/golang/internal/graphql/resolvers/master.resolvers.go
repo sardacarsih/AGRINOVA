@@ -80,6 +80,264 @@ func (r *mutationResolver) DeleteTarifBlok(ctx context.Context, id string) (bool
 	return r.MasterResolver.DeleteTarifBlok(ctx, id)
 }
 
+// CreateTariffRuleOverride is the resolver for the createTariffRuleOverride field.
+func (r *mutationResolver) CreateTariffRuleOverride(ctx context.Context, input generated.CreateTariffRuleOverrideInput) (*generated.TariffRuleOverride, error) {
+	userID, err := r.requireRBACPermission(ctx, "block:update")
+	if err != nil {
+		return nil, err
+	}
+
+	ruleID := strings.TrimSpace(input.RuleID)
+	if ruleID == "" {
+		return nil, fmt.Errorf("ruleId is required")
+	}
+
+	overrideType, err := normalizeTariffOverrideType(input.OverrideType)
+	if err != nil {
+		return nil, err
+	}
+
+	effectiveFrom := normalizeDateTimePointer(input.EffectiveFrom)
+	effectiveTo := normalizeDateTimePointer(input.EffectiveTo)
+	if err := validateTariffOverridePeriod(effectiveFrom, effectiveTo); err != nil {
+		return nil, err
+	}
+
+	if input.TarifUpah == nil && input.Premi == nil && input.TarifPremi1 == nil && input.TarifPremi2 == nil {
+		return nil, fmt.Errorf("minimal salah satu nilai tarif (tarifUpah/premi/tarifPremi1/tarifPremi2) wajib diisi")
+	}
+
+	companyID, err := r.resolveTariffRuleCompanyID(ctx, ruleID)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.validateCompanyScope(ctx, userID, companyID); err != nil {
+		return nil, err
+	}
+
+	isActive := true
+	if input.IsActive != nil {
+		isActive = *input.IsActive
+	}
+
+	if isActive {
+		conflict, err := r.hasTariffOverridePeriodConflict(ctx, ruleID, overrideType, effectiveFrom, effectiveTo, nil)
+		if err != nil {
+			return nil, err
+		}
+		if conflict {
+			return nil, fmt.Errorf("periode override bentrok dengan data override aktif lain untuk tipe %s", overrideType)
+		}
+	}
+
+	now := time.Now()
+	record := &tariffRuleOverrideRow{
+		ID:            uuid.NewString(),
+		RuleID:        ruleID,
+		OverrideType:  string(overrideType),
+		EffectiveFrom: effectiveFrom,
+		EffectiveTo:   effectiveTo,
+		TarifUpah:     input.TarifUpah,
+		Premi:         input.Premi,
+		TarifPremi1:   input.TarifPremi1,
+		TarifPremi2:   input.TarifPremi2,
+		Notes:         normalizeOptionalString(input.Notes),
+		IsActive:      isActive,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+
+	if err := r.db.WithContext(ctx).Table("tariff_rule_overrides").Create(record).Error; err != nil {
+		return nil, fmt.Errorf("failed to create tariff rule override: %w", err)
+	}
+
+	return toGraphQLTariffRuleOverride(record), nil
+}
+
+// UpdateTariffRuleOverride is the resolver for the updateTariffRuleOverride field.
+func (r *mutationResolver) UpdateTariffRuleOverride(ctx context.Context, input generated.UpdateTariffRuleOverrideInput) (*generated.TariffRuleOverride, error) {
+	userID, err := r.requireRBACPermission(ctx, "block:update")
+	if err != nil {
+		return nil, err
+	}
+
+	overrideID := strings.TrimSpace(input.ID)
+	if overrideID == "" {
+		return nil, fmt.Errorf("id is required")
+	}
+
+	existing, err := r.loadTariffRuleOverrideByID(ctx, overrideID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := r.validateCompanyScope(ctx, userID, existing.CompanyID); err != nil {
+		return nil, err
+	}
+
+	nextType := existing.OverrideType
+	if input.OverrideType != nil {
+		validatedType, err := normalizeTariffOverrideType(*input.OverrideType)
+		if err != nil {
+			return nil, err
+		}
+		nextType = string(validatedType)
+	}
+
+	nextFrom := existing.EffectiveFrom
+	if input.EffectiveFrom != nil {
+		nextFrom = normalizeDateTimePointer(input.EffectiveFrom)
+	}
+
+	nextTo := existing.EffectiveTo
+	if input.EffectiveTo != nil {
+		nextTo = normalizeDateTimePointer(input.EffectiveTo)
+	}
+
+	if err := validateTariffOverridePeriod(nextFrom, nextTo); err != nil {
+		return nil, err
+	}
+
+	nextIsActive := existing.IsActive
+	if input.IsActive != nil {
+		nextIsActive = *input.IsActive
+	}
+
+	if nextIsActive {
+		nextEnumType := generated.TariffOverrideType(nextType)
+		conflict, err := r.hasTariffOverridePeriodConflict(ctx, existing.RuleID, nextEnumType, nextFrom, nextTo, &overrideID)
+		if err != nil {
+			return nil, err
+		}
+		if conflict {
+			return nil, fmt.Errorf("periode override bentrok dengan data override aktif lain untuk tipe %s", nextEnumType)
+		}
+	}
+
+	updates := map[string]any{
+		"updated_at": time.Now(),
+	}
+
+	if input.OverrideType != nil {
+		updates["override_type"] = nextType
+	}
+	if input.EffectiveFrom != nil {
+		updates["effective_from"] = nextFrom
+	}
+	if input.EffectiveTo != nil {
+		updates["effective_to"] = nextTo
+	}
+	if input.TarifUpah != nil {
+		updates["tarif_upah"] = input.TarifUpah
+	}
+	if input.Premi != nil {
+		updates["premi"] = input.Premi
+	}
+	if input.TarifPremi1 != nil {
+		updates["tarif_premi1"] = input.TarifPremi1
+	}
+	if input.TarifPremi2 != nil {
+		updates["tarif_premi2"] = input.TarifPremi2
+	}
+	if input.Notes != nil {
+		updates["notes"] = normalizeOptionalString(input.Notes)
+	}
+	if input.IsActive != nil {
+		updates["is_active"] = input.IsActive
+	}
+
+	if err := r.db.WithContext(ctx).Table("tariff_rule_overrides").Where("id = ?", overrideID).Updates(updates).Error; err != nil {
+		return nil, fmt.Errorf("failed to update tariff rule override: %w", err)
+	}
+
+	updated, err := r.loadTariffRuleOverrideByID(ctx, overrideID)
+	if err != nil {
+		return nil, err
+	}
+
+	return toGraphQLTariffRuleOverride(updated), nil
+}
+
+// DeleteTariffRuleOverride is the resolver for the deleteTariffRuleOverride field.
+func (r *mutationResolver) DeleteTariffRuleOverride(ctx context.Context, id string) (bool, error) {
+	userID, err := r.requireRBACPermission(ctx, "block:delete")
+	if err != nil {
+		return false, err
+	}
+
+	overrideID := strings.TrimSpace(id)
+	if overrideID == "" {
+		return false, fmt.Errorf("id is required")
+	}
+
+	existing, err := r.loadTariffRuleOverrideByID(ctx, overrideID)
+	if err != nil {
+		return false, err
+	}
+
+	if err := r.validateCompanyScope(ctx, userID, existing.CompanyID); err != nil {
+		return false, err
+	}
+
+	if err := r.db.WithContext(ctx).Table("tariff_rule_overrides").Where("id = ?", overrideID).Delete(nil).Error; err != nil {
+		return false, fmt.Errorf("failed to delete tariff rule override: %w", err)
+	}
+
+	return true, nil
+}
+
+// CreateLandType is the resolver for the createLandType field.
+func (r *mutationResolver) CreateLandType(ctx context.Context, input master.CreateLandTypeInput) (*generated.LandType, error) {
+	landType, err := r.MasterResolver.CreateLandType(ctx, master.CreateLandTypeInput{
+		Code:        input.Code,
+		Name:        input.Name,
+		Description: input.Description,
+		IsActive:    input.IsActive,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &generated.LandType{
+		ID:          landType.ID,
+		Code:        landType.Code,
+		Name:        landType.Name,
+		Description: landType.Description,
+		IsActive:    landType.IsActive,
+		CreatedAt:   landType.CreatedAt,
+		UpdatedAt:   landType.UpdatedAt,
+	}, nil
+}
+
+// UpdateLandType is the resolver for the updateLandType field.
+func (r *mutationResolver) UpdateLandType(ctx context.Context, input master.UpdateLandTypeInput) (*generated.LandType, error) {
+	landType, err := r.MasterResolver.UpdateLandType(ctx, master.UpdateLandTypeInput{
+		ID:          input.ID,
+		Code:        input.Code,
+		Name:        input.Name,
+		Description: input.Description,
+		IsActive:    input.IsActive,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &generated.LandType{
+		ID:          landType.ID,
+		Code:        landType.Code,
+		Name:        landType.Name,
+		Description: landType.Description,
+		IsActive:    landType.IsActive,
+		CreatedAt:   landType.CreatedAt,
+		UpdatedAt:   landType.UpdatedAt,
+	}, nil
+}
+
+// DeleteLandType is the resolver for the deleteLandType field.
+func (r *mutationResolver) DeleteLandType(ctx context.Context, id string) (bool, error) {
+	return r.MasterResolver.DeleteLandType(ctx, id)
+}
+
 // CreateDivision is the resolver for the createDivision field.
 func (r *mutationResolver) CreateDivision(ctx context.Context, input master.CreateDivisionInput) (*master.Division, error) {
 	return r.MasterResolver.CreateDivision(ctx, input)
@@ -884,9 +1142,354 @@ func (r *queryResolver) Block(ctx context.Context, id string) (*master.Block, er
 	return r.MasterResolver.GetBlock(ctx, id)
 }
 
+// LandTypes is the resolver for the landTypes field.
+func (r *queryResolver) LandTypes(ctx context.Context) ([]*generated.LandType, error) {
+	landTypes, err := r.MasterResolver.GetLandTypes(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*generated.LandType, 0, len(landTypes))
+	for _, landType := range landTypes {
+		if landType == nil {
+			continue
+		}
+		result = append(result, &generated.LandType{
+			ID:          landType.ID,
+			Code:        landType.Code,
+			Name:        landType.Name,
+			Description: landType.Description,
+			IsActive:    landType.IsActive,
+			CreatedAt:   landType.CreatedAt,
+			UpdatedAt:   landType.UpdatedAt,
+		})
+	}
+
+	return result, nil
+}
+
 // TarifBloks is the resolver for the tarifBloks field.
 func (r *queryResolver) TarifBloks(ctx context.Context) ([]*master.TarifBlok, error) {
 	return r.MasterResolver.GetTarifBloks(ctx)
+}
+
+// TariffRuleOverrides is the resolver for the tariffRuleOverrides field.
+func (r *queryResolver) TariffRuleOverrides(ctx context.Context, ruleID *string, overrideType *generated.TariffOverrideType, isActive *bool) ([]*generated.TariffRuleOverride, error) {
+	userID, err := r.requireRBACPermission(ctx, "block:read")
+	if err != nil {
+		return nil, err
+	}
+
+	query := r.db.WithContext(ctx).
+		Table("tariff_rule_overrides tro").
+		Select(`
+			tro.id,
+			tro.rule_id,
+			tro.override_type,
+			tro.effective_from,
+			tro.effective_to,
+			tro.tarif_upah,
+			tro.premi,
+			tro.tarif_premi1,
+			tro.tarif_premi2,
+			tro.notes,
+			tro.is_active,
+			tro.created_at,
+			tro.updated_at,
+			ts.company_id
+		`).
+		Joins("JOIN tariff_scheme_rules tr ON tr.id = tro.rule_id").
+		Joins("JOIN tariff_schemes ts ON ts.id = tr.scheme_id")
+
+	if ruleID != nil && strings.TrimSpace(*ruleID) != "" {
+		query = query.Where("tro.rule_id = ?", strings.TrimSpace(*ruleID))
+	}
+
+	if overrideType != nil {
+		normalizedType, err := normalizeTariffOverrideType(*overrideType)
+		if err != nil {
+			return nil, err
+		}
+		query = query.Where("tro.override_type = ?", string(normalizedType))
+	}
+
+	if isActive != nil {
+		query = query.Where("tro.is_active = ?", *isActive)
+	}
+
+	role := middleware.GetUserRoleFromContext(ctx)
+	if role != auth.UserRoleSuperAdmin {
+		companyIDs, err := r.getAssignedCompanyIDs(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve company scope: %w", err)
+		}
+		if len(companyIDs) == 0 {
+			return []*generated.TariffRuleOverride{}, nil
+		}
+		query = query.Where("ts.company_id IN ?", companyIDs)
+	}
+
+	rows := make([]*tariffRuleOverrideRow, 0)
+	if err := query.
+		Order("tro.rule_id ASC").
+		Order("tro.override_type ASC").
+		Order("COALESCE(tro.effective_from, DATE '1900-01-01') ASC").
+		Find(&rows).Error; err != nil {
+		return nil, fmt.Errorf("failed to get tariff rule overrides: %w", err)
+	}
+
+	result := make([]*generated.TariffRuleOverride, 0, len(rows))
+	for _, row := range rows {
+		if row == nil {
+			continue
+		}
+		result = append(result, toGraphQLTariffRuleOverride(row))
+	}
+
+	return result, nil
+}
+
+// BlockTariffChangeLogs is the resolver for the blockTariffChangeLogs field.
+func (r *queryResolver) BlockTariffChangeLogs(
+	ctx context.Context,
+	companyID *string,
+	blockID *string,
+	search *string,
+	eventType *string,
+	page *int32,
+	limit *int32,
+) (*generated.BlockTariffChangeLogPaginationResponse, error) {
+	userID, err := r.requireRBACPermission(ctx, "block:read")
+	if err != nil {
+		return nil, err
+	}
+
+	pageValue := int32(1)
+	if page != nil && *page > 0 {
+		pageValue = *page
+	}
+
+	limitValue := int32(20)
+	if limit != nil && *limit > 0 {
+		limitValue = *limit
+	}
+	if limitValue > 200 {
+		limitValue = 200
+	}
+
+	role := middleware.GetUserRoleFromContext(ctx)
+
+	companyFilterValue := ""
+	if companyID != nil {
+		companyFilterValue = strings.TrimSpace(*companyID)
+	}
+	if companyFilterValue != "" && role != auth.UserRoleSuperAdmin {
+		if err := r.validateCompanyScope(ctx, userID, companyFilterValue); err != nil {
+			return nil, err
+		}
+	}
+
+	assignedCompanyIDs := make([]string, 0)
+	if role != auth.UserRoleSuperAdmin && companyFilterValue == "" {
+		assignedCompanyIDs, err = r.getAssignedCompanyIDs(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve company scope: %w", err)
+		}
+		if len(assignedCompanyIDs) == 0 {
+			return &generated.BlockTariffChangeLogPaginationResponse{
+				Data: []*generated.BlockTariffChangeLog{},
+				Pagination: &master.Pagination{
+					Page:  pageValue,
+					Limit: limitValue,
+					Total: 0,
+					Pages: 1,
+				},
+			}, nil
+		}
+	}
+
+	blockFilterValue := ""
+	if blockID != nil {
+		blockFilterValue = strings.TrimSpace(*blockID)
+	}
+	searchValue := ""
+	if search != nil {
+		searchValue = strings.TrimSpace(*search)
+	}
+	eventTypeValue := ""
+	if eventType != nil {
+		eventTypeValue = strings.ToUpper(strings.TrimSpace(*eventType))
+	}
+
+	applyFilters := func(query *gorm.DB) *gorm.DB {
+		companyScopeExpr := "COALESCE(l.company_id, e.company_id)"
+
+		if companyFilterValue != "" {
+			query = query.Where(companyScopeExpr+" = ?", companyFilterValue)
+		} else if role != auth.UserRoleSuperAdmin {
+			query = query.Where(companyScopeExpr+" IN ?", assignedCompanyIDs)
+		}
+
+		if blockFilterValue != "" {
+			query = query.Where("l.block_id = ?", blockFilterValue)
+		}
+
+		if searchValue != "" {
+			pattern := "%" + searchValue + "%"
+			query = query.Where(
+				`(b.block_code ILIKE ? OR b.name ILIKE ? OR r.tarif_code ILIKE ? OR r.perlakuan ILIKE ?)`,
+				pattern,
+				pattern,
+				pattern,
+				pattern,
+			)
+		}
+
+		if eventTypeValue != "" {
+			query = query.Where("UPPER(l.event_type) = ?", eventTypeValue)
+		}
+
+		return query
+	}
+
+	baseQuery := r.db.WithContext(ctx).
+		Table("block_tariff_change_logs l").
+		Select(`
+			l.id,
+			l.changed_at,
+			l.event_type,
+			l.changed_by,
+			COALESCE(NULLIF(TRIM(u.name), ''), NULLIF(TRIM(u.username), '')) AS changed_by_name,
+			COALESCE(l.company_id, e.company_id) AS company_id,
+			c.name AS company_name,
+			l.block_id,
+			b.block_code,
+			b.name AS block_name,
+			d.id AS division_id,
+			d.name AS division_name,
+			e.id AS estate_id,
+			e.name AS estate_name,
+			l.rule_id,
+			r.tarif_code,
+			r.perlakuan AS rule_perlakuan,
+			l.override_id,
+			l.override_type,
+			l.effective_from,
+			l.effective_to,
+			l.old_tarif_blok_id,
+			l.new_tarif_blok_id,
+			l.old_values::text AS old_values,
+			l.new_values::text AS new_values
+		`).
+		Joins("LEFT JOIN blocks b ON b.id = l.block_id").
+		Joins("LEFT JOIN divisions d ON d.id = b.division_id").
+		Joins("LEFT JOIN estates e ON e.id = d.estate_id").
+		Joins("LEFT JOIN companies c ON c.id = COALESCE(l.company_id, e.company_id)").
+		Joins("LEFT JOIN tariff_scheme_rules r ON r.id = l.rule_id").
+		Joins("LEFT JOIN users u ON u.id::text = l.changed_by")
+
+	dataQuery := applyFilters(baseQuery.Session(&gorm.Session{}))
+
+	rows := make([]*blockTariffChangeLogRow, 0)
+	if err := dataQuery.
+		Order("l.changed_at DESC").
+		Order("l.id DESC").
+		Offset(int((pageValue - 1) * limitValue)).
+		Limit(int(limitValue)).
+		Find(&rows).Error; err != nil {
+		if isMissingRelationError(err, "block_tariff_change_logs") {
+			return emptyBlockTariffChangeLogPaginationResponse(pageValue, limitValue), nil
+		}
+		return nil, fmt.Errorf("failed to get block tariff change logs: %w", err)
+	}
+
+	countQuery := applyFilters(
+		r.db.WithContext(ctx).
+			Table("block_tariff_change_logs l").
+			Joins("LEFT JOIN blocks b ON b.id = l.block_id").
+			Joins("LEFT JOIN divisions d ON d.id = b.division_id").
+			Joins("LEFT JOIN estates e ON e.id = d.estate_id").
+			Joins("LEFT JOIN companies c ON c.id = COALESCE(l.company_id, e.company_id)").
+			Joins("LEFT JOIN tariff_scheme_rules r ON r.id = l.rule_id"),
+	)
+
+	var total int64
+	if err := countQuery.Count(&total).Error; err != nil {
+		if isMissingRelationError(err, "block_tariff_change_logs") {
+			return emptyBlockTariffChangeLogPaginationResponse(pageValue, limitValue), nil
+		}
+		return nil, fmt.Errorf("failed to count block tariff change logs: %w", err)
+	}
+
+	result := make([]*generated.BlockTariffChangeLog, 0, len(rows))
+	for _, row := range rows {
+		if row == nil {
+			continue
+		}
+		result = append(result, &generated.BlockTariffChangeLog{
+			ID:             row.ID,
+			ChangedAt:      row.ChangedAt,
+			EventType:      row.EventType,
+			ChangedBy:      row.ChangedBy,
+			ChangedByName:  row.ChangedByName,
+			CompanyID:      row.CompanyID,
+			CompanyName:    row.CompanyName,
+			BlockID:        row.BlockID,
+			BlockCode:      row.BlockCode,
+			BlockName:      row.BlockName,
+			DivisionID:     row.DivisionID,
+			DivisionName:   row.DivisionName,
+			EstateID:       row.EstateID,
+			EstateName:     row.EstateName,
+			RuleID:         row.RuleID,
+			TarifCode:      row.TarifCode,
+			RulePerlakuan:  row.RulePerlakuan,
+			OverrideID:     row.OverrideID,
+			OverrideType:   row.OverrideType,
+			EffectiveFrom:  row.EffectiveFrom,
+			EffectiveTo:    row.EffectiveTo,
+			OldTarifBlokID: row.OldTarifBlokID,
+			NewTarifBlokID: row.NewTarifBlokID,
+			OldValues:      row.OldValues,
+			NewValues:      row.NewValues,
+		})
+	}
+
+	totalPages := int32((total + int64(limitValue) - 1) / int64(limitValue))
+	if totalPages == 0 {
+		totalPages = 1
+	}
+
+	return &generated.BlockTariffChangeLogPaginationResponse{
+		Data: result,
+		Pagination: &master.Pagination{
+			Page:  pageValue,
+			Limit: limitValue,
+			Total: int32(total),
+			Pages: totalPages,
+		},
+	}, nil
+}
+
+func isMissingRelationError(err error, relationName string) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	expected := `relation "` + strings.ToLower(strings.TrimSpace(relationName)) + `" does not exist`
+	return strings.Contains(message, "sqlstate 42p01") || strings.Contains(message, expected)
+}
+
+func emptyBlockTariffChangeLogPaginationResponse(pageValue int32, limitValue int32) *generated.BlockTariffChangeLogPaginationResponse {
+	return &generated.BlockTariffChangeLogPaginationResponse{
+		Data: []*generated.BlockTariffChangeLog{},
+		Pagination: &master.Pagination{
+			Page:  pageValue,
+			Limit: limitValue,
+			Total: 0,
+			Pages: 1,
+		},
+	}
 }
 
 // Divisions is the resolver for the divisions field.
@@ -1482,6 +2085,201 @@ func (r *subscriptionResolver) CompanyStatusChanged(ctx context.Context) (<-chan
 // CompanyStatusChange is the resolver for the companyStatusChange subscription field.
 func (r *subscriptionResolver) CompanyStatusChange(ctx context.Context) (<-chan *generated.CompanyPerformanceData, error) {
 	return nil, fmt.Errorf("temporary stub")
+}
+
+type tariffRuleOverrideRow struct {
+	ID            string     `gorm:"column:id"`
+	RuleID        string     `gorm:"column:rule_id"`
+	OverrideType  string     `gorm:"column:override_type"`
+	EffectiveFrom *time.Time `gorm:"column:effective_from"`
+	EffectiveTo   *time.Time `gorm:"column:effective_to"`
+	TarifUpah     *float64   `gorm:"column:tarif_upah"`
+	Premi         *float64   `gorm:"column:premi"`
+	TarifPremi1   *float64   `gorm:"column:tarif_premi1"`
+	TarifPremi2   *float64   `gorm:"column:tarif_premi2"`
+	Notes         *string    `gorm:"column:notes"`
+	IsActive      bool       `gorm:"column:is_active"`
+	CreatedAt     time.Time  `gorm:"column:created_at"`
+	UpdatedAt     time.Time  `gorm:"column:updated_at"`
+	CompanyID     string     `gorm:"column:company_id"`
+}
+
+type blockTariffChangeLogRow struct {
+	ID             string     `gorm:"column:id"`
+	ChangedAt      time.Time  `gorm:"column:changed_at"`
+	EventType      string     `gorm:"column:event_type"`
+	ChangedBy      *string    `gorm:"column:changed_by"`
+	ChangedByName  *string    `gorm:"column:changed_by_name"`
+	CompanyID      *string    `gorm:"column:company_id"`
+	CompanyName    *string    `gorm:"column:company_name"`
+	BlockID        *string    `gorm:"column:block_id"`
+	BlockCode      *string    `gorm:"column:block_code"`
+	BlockName      *string    `gorm:"column:block_name"`
+	DivisionID     *string    `gorm:"column:division_id"`
+	DivisionName   *string    `gorm:"column:division_name"`
+	EstateID       *string    `gorm:"column:estate_id"`
+	EstateName     *string    `gorm:"column:estate_name"`
+	RuleID         *string    `gorm:"column:rule_id"`
+	TarifCode      *string    `gorm:"column:tarif_code"`
+	RulePerlakuan  *string    `gorm:"column:rule_perlakuan"`
+	OverrideID     *string    `gorm:"column:override_id"`
+	OverrideType   *string    `gorm:"column:override_type"`
+	EffectiveFrom  *time.Time `gorm:"column:effective_from"`
+	EffectiveTo    *time.Time `gorm:"column:effective_to"`
+	OldTarifBlokID *string    `gorm:"column:old_tarif_blok_id"`
+	NewTarifBlokID *string    `gorm:"column:new_tarif_blok_id"`
+	OldValues      *string    `gorm:"column:old_values"`
+	NewValues      *string    `gorm:"column:new_values"`
+}
+
+func normalizeTariffOverrideType(value generated.TariffOverrideType) (generated.TariffOverrideType, error) {
+	normalized := generated.TariffOverrideType(strings.ToUpper(strings.TrimSpace(value.String())))
+	if !normalized.IsValid() {
+		return "", fmt.Errorf("overrideType harus salah satu dari NORMAL, HOLIDAY, LEBARAN")
+	}
+	return normalized, nil
+}
+
+func normalizeDateTimePointer(value *time.Time) *time.Time {
+	if value == nil {
+		return nil
+	}
+	year, month, day := value.UTC().Date()
+	normalized := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+	return &normalized
+}
+
+func validateTariffOverridePeriod(effectiveFrom *time.Time, effectiveTo *time.Time) error {
+	if effectiveFrom != nil && effectiveTo != nil && effectiveFrom.After(*effectiveTo) {
+		return fmt.Errorf("effectiveFrom tidak boleh lebih besar dari effectiveTo")
+	}
+	return nil
+}
+
+func toGraphQLTariffRuleOverride(row *tariffRuleOverrideRow) *generated.TariffRuleOverride {
+	if row == nil {
+		return nil
+	}
+
+	overrideType := generated.TariffOverrideType(strings.ToUpper(strings.TrimSpace(row.OverrideType)))
+	if !overrideType.IsValid() {
+		overrideType = generated.TariffOverrideTypeNormal
+	}
+
+	return &generated.TariffRuleOverride{
+		ID:            row.ID,
+		RuleID:        row.RuleID,
+		OverrideType:  overrideType,
+		EffectiveFrom: row.EffectiveFrom,
+		EffectiveTo:   row.EffectiveTo,
+		TarifUpah:     row.TarifUpah,
+		Premi:         row.Premi,
+		TarifPremi1:   row.TarifPremi1,
+		TarifPremi2:   row.TarifPremi2,
+		Notes:         row.Notes,
+		IsActive:      row.IsActive,
+		CreatedAt:     row.CreatedAt,
+		UpdatedAt:     row.UpdatedAt,
+	}
+}
+
+func (r *Resolver) resolveTariffRuleCompanyID(ctx context.Context, ruleID string) (string, error) {
+	var row struct {
+		CompanyID string `gorm:"column:company_id"`
+	}
+
+	err := r.db.WithContext(ctx).
+		Table("tariff_scheme_rules tr").
+		Select("ts.company_id").
+		Joins("JOIN tariff_schemes ts ON ts.id = tr.scheme_id").
+		Where("tr.id = ?", ruleID).
+		Take(&row).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return "", fmt.Errorf("tariff rule tidak ditemukan")
+		}
+		return "", fmt.Errorf("failed to load tariff rule: %w", err)
+	}
+
+	return row.CompanyID, nil
+}
+
+func (r *Resolver) loadTariffRuleOverrideByID(ctx context.Context, overrideID string) (*tariffRuleOverrideRow, error) {
+	var row tariffRuleOverrideRow
+
+	err := r.db.WithContext(ctx).
+		Table("tariff_rule_overrides tro").
+		Select(`
+			tro.id,
+			tro.rule_id,
+			tro.override_type,
+			tro.effective_from,
+			tro.effective_to,
+			tro.tarif_upah,
+			tro.premi,
+			tro.tarif_premi1,
+			tro.tarif_premi2,
+			tro.notes,
+			tro.is_active,
+			tro.created_at,
+			tro.updated_at,
+			ts.company_id
+		`).
+		Joins("JOIN tariff_scheme_rules tr ON tr.id = tro.rule_id").
+		Joins("JOIN tariff_schemes ts ON ts.id = tr.scheme_id").
+		Where("tro.id = ?", overrideID).
+		Take(&row).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("tariff override tidak ditemukan")
+		}
+		return nil, fmt.Errorf("failed to load tariff override: %w", err)
+	}
+
+	return &row, nil
+}
+
+func (r *Resolver) hasTariffOverridePeriodConflict(
+	ctx context.Context,
+	ruleID string,
+	overrideType generated.TariffOverrideType,
+	effectiveFrom *time.Time,
+	effectiveTo *time.Time,
+	excludeID *string,
+) (bool, error) {
+	minDate := time.Date(1900, 1, 1, 0, 0, 0, 0, time.UTC)
+	maxDate := time.Date(2999, 12, 31, 0, 0, 0, 0, time.UTC)
+
+	fromDate := minDate
+	if effectiveFrom != nil {
+		fromDate = *effectiveFrom
+	}
+	toDate := maxDate
+	if effectiveTo != nil {
+		toDate = *effectiveTo
+	}
+
+	query := r.db.WithContext(ctx).
+		Table("tariff_rule_overrides tro").
+		Where("tro.rule_id = ?", ruleID).
+		Where("tro.override_type = ?", string(overrideType)).
+		Where("tro.is_active = ?", true).
+		Where(
+			`COALESCE(tro.effective_from, DATE '1900-01-01') <= ? AND COALESCE(tro.effective_to, DATE '2999-12-31') >= ?`,
+			toDate,
+			fromDate,
+		)
+
+	if excludeID != nil && strings.TrimSpace(*excludeID) != "" {
+		query = query.Where("tro.id <> ?", strings.TrimSpace(*excludeID))
+	}
+
+	var count int64
+	if err := query.Count(&count).Error; err != nil {
+		return false, fmt.Errorf("failed to validate override conflict: %w", err)
+	}
+
+	return count > 0, nil
 }
 
 func (r *Resolver) requireRBACPermission(ctx context.Context, permission string) (string, error) {

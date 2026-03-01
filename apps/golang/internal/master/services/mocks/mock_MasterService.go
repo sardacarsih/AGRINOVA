@@ -506,6 +506,66 @@ func (_c *MockMasterService_CreateEstate_Call) RunAndReturn(run func(context.Con
 	return _c
 }
 
+// CreateLandType provides a mock function with given fields: ctx, req, creatorID
+func (_m *MockMasterService) CreateLandType(ctx context.Context, req *models.CreateLandTypeRequest, creatorID string) (*master.LandType, error) {
+	ret := _m.Called(ctx, req, creatorID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateLandType")
+	}
+
+	var r0 *master.LandType
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *models.CreateLandTypeRequest, string) (*master.LandType, error)); ok {
+		return rf(ctx, req, creatorID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *models.CreateLandTypeRequest, string) *master.LandType); ok {
+		r0 = rf(ctx, req, creatorID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*master.LandType)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *models.CreateLandTypeRequest, string) error); ok {
+		r1 = rf(ctx, req, creatorID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockMasterService_CreateLandType_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateLandType'
+type MockMasterService_CreateLandType_Call struct {
+	*mock.Call
+}
+
+// CreateLandType is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *models.CreateLandTypeRequest
+//   - creatorID string
+func (_e *MockMasterService_Expecter) CreateLandType(ctx interface{}, req interface{}, creatorID interface{}) *MockMasterService_CreateLandType_Call {
+	return &MockMasterService_CreateLandType_Call{Call: _e.mock.On("CreateLandType", ctx, req, creatorID)}
+}
+
+func (_c *MockMasterService_CreateLandType_Call) Run(run func(ctx context.Context, req *models.CreateLandTypeRequest, creatorID string)) *MockMasterService_CreateLandType_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*models.CreateLandTypeRequest), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockMasterService_CreateLandType_Call) Return(_a0 *master.LandType, _a1 error) *MockMasterService_CreateLandType_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockMasterService_CreateLandType_Call) RunAndReturn(run func(context.Context, *models.CreateLandTypeRequest, string) (*master.LandType, error)) *MockMasterService_CreateLandType_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateTarifBlok provides a mock function with given fields: ctx, req, creatorID
 func (_m *MockMasterService) CreateTarifBlok(ctx context.Context, req *models.CreateTarifBlokRequest, creatorID string) (*master.TarifBlok, error) {
 	ret := _m.Called(ctx, req, creatorID)
@@ -754,6 +814,54 @@ func (_c *MockMasterService_DeleteEstate_Call) Return(_a0 error) *MockMasterServ
 }
 
 func (_c *MockMasterService_DeleteEstate_Call) RunAndReturn(run func(context.Context, string, string) error) *MockMasterService_DeleteEstate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteLandType provides a mock function with given fields: ctx, id, deleterID
+func (_m *MockMasterService) DeleteLandType(ctx context.Context, id string, deleterID string) error {
+	ret := _m.Called(ctx, id, deleterID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteLandType")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = rf(ctx, id, deleterID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// MockMasterService_DeleteLandType_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteLandType'
+type MockMasterService_DeleteLandType_Call struct {
+	*mock.Call
+}
+
+// DeleteLandType is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id string
+//   - deleterID string
+func (_e *MockMasterService_Expecter) DeleteLandType(ctx interface{}, id interface{}, deleterID interface{}) *MockMasterService_DeleteLandType_Call {
+	return &MockMasterService_DeleteLandType_Call{Call: _e.mock.On("DeleteLandType", ctx, id, deleterID)}
+}
+
+func (_c *MockMasterService_DeleteLandType_Call) Run(run func(ctx context.Context, id string, deleterID string)) *MockMasterService_DeleteLandType_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockMasterService_DeleteLandType_Call) Return(_a0 error) *MockMasterService_DeleteLandType_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *MockMasterService_DeleteLandType_Call) RunAndReturn(run func(context.Context, string, string) error) *MockMasterService_DeleteLandType_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1463,6 +1571,65 @@ func (_c *MockMasterService_GetEstates_Call) RunAndReturn(run func(context.Conte
 	return _c
 }
 
+// GetLandTypes provides a mock function with given fields: ctx, userID
+func (_m *MockMasterService) GetLandTypes(ctx context.Context, userID string) ([]*master.LandType, error) {
+	ret := _m.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLandTypes")
+	}
+
+	var r0 []*master.LandType
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]*master.LandType, error)); ok {
+		return rf(ctx, userID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []*master.LandType); ok {
+		r0 = rf(ctx, userID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*master.LandType)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockMasterService_GetLandTypes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLandTypes'
+type MockMasterService_GetLandTypes_Call struct {
+	*mock.Call
+}
+
+// GetLandTypes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID string
+func (_e *MockMasterService_Expecter) GetLandTypes(ctx interface{}, userID interface{}) *MockMasterService_GetLandTypes_Call {
+	return &MockMasterService_GetLandTypes_Call{Call: _e.mock.On("GetLandTypes", ctx, userID)}
+}
+
+func (_c *MockMasterService_GetLandTypes_Call) Run(run func(ctx context.Context, userID string)) *MockMasterService_GetLandTypes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(string))
+	})
+	return _c
+}
+
+func (_c *MockMasterService_GetLandTypes_Call) Return(_a0 []*master.LandType, _a1 error) *MockMasterService_GetLandTypes_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockMasterService_GetLandTypes_Call) RunAndReturn(run func(context.Context, string) ([]*master.LandType, error)) *MockMasterService_GetLandTypes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetMasterDataStatistics provides a mock function with given fields: ctx, userID, companyID
 func (_m *MockMasterService) GetMasterDataStatistics(ctx context.Context, userID string, companyID *string) (*models.MasterDataStatistics, error) {
 	ret := _m.Called(ctx, userID, companyID)
@@ -2021,6 +2188,66 @@ func (_c *MockMasterService_UpdateEstate_Call) Return(_a0 *master.Estate, _a1 er
 }
 
 func (_c *MockMasterService_UpdateEstate_Call) RunAndReturn(run func(context.Context, *models.UpdateEstateRequest, string) (*master.Estate, error)) *MockMasterService_UpdateEstate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateLandType provides a mock function with given fields: ctx, req, updaterID
+func (_m *MockMasterService) UpdateLandType(ctx context.Context, req *models.UpdateLandTypeRequest, updaterID string) (*master.LandType, error) {
+	ret := _m.Called(ctx, req, updaterID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateLandType")
+	}
+
+	var r0 *master.LandType
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, *models.UpdateLandTypeRequest, string) (*master.LandType, error)); ok {
+		return rf(ctx, req, updaterID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, *models.UpdateLandTypeRequest, string) *master.LandType); ok {
+		r0 = rf(ctx, req, updaterID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*master.LandType)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, *models.UpdateLandTypeRequest, string) error); ok {
+		r1 = rf(ctx, req, updaterID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// MockMasterService_UpdateLandType_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateLandType'
+type MockMasterService_UpdateLandType_Call struct {
+	*mock.Call
+}
+
+// UpdateLandType is a helper method to define mock.On call
+//   - ctx context.Context
+//   - req *models.UpdateLandTypeRequest
+//   - updaterID string
+func (_e *MockMasterService_Expecter) UpdateLandType(ctx interface{}, req interface{}, updaterID interface{}) *MockMasterService_UpdateLandType_Call {
+	return &MockMasterService_UpdateLandType_Call{Call: _e.mock.On("UpdateLandType", ctx, req, updaterID)}
+}
+
+func (_c *MockMasterService_UpdateLandType_Call) Run(run func(ctx context.Context, req *models.UpdateLandTypeRequest, updaterID string)) *MockMasterService_UpdateLandType_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(context.Context), args[1].(*models.UpdateLandTypeRequest), args[2].(string))
+	})
+	return _c
+}
+
+func (_c *MockMasterService_UpdateLandType_Call) Return(_a0 *master.LandType, _a1 error) *MockMasterService_UpdateLandType_Call {
+	_c.Call.Return(_a0, _a1)
+	return _c
+}
+
+func (_c *MockMasterService_UpdateLandType_Call) RunAndReturn(run func(context.Context, *models.UpdateLandTypeRequest, string) (*master.LandType, error)) *MockMasterService_UpdateLandType_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -1,13 +1,10 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
 import React from 'react';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { Providers } from './providers';
 import { Toaster } from '@/components/ui/sonner';
 import './globals.css';
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: {
@@ -87,7 +84,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} data-scroll-behavior="smooth" suppressHydrationWarning>
-      <body className={inter.className}>
+      <body className="antialiased">
         <NextIntlClientProvider locale={locale} messages={messages}>
           <Providers>
             {children}

@@ -194,12 +194,12 @@ func (r *Resolver) WebLogout(ctx context.Context) (bool, error) {
 
 // Me returns current authenticated user
 func (r *Resolver) Me(ctx context.Context) (*auth.User, error) {
-	sessionID := extractSessionIDFromContext(ctx)
-	if sessionID == "" {
+	sessionToken := extractSessionTokenFromContext(ctx)
+	if sessionToken == "" {
 		return nil, ErrMissingSessionID
 	}
 
-	result, err := r.webAuthService.GetMe(ctx, sessionID)
+	result, err := r.webAuthService.GetMe(ctx, sessionToken)
 	if err != nil {
 		return nil, mapWebAuthError(err)
 	}
@@ -209,12 +209,12 @@ func (r *Resolver) Me(ctx context.Context) (*auth.User, error) {
 
 // CurrentUser returns current user with full company context
 func (r *Resolver) CurrentUser(ctx context.Context) (*auth.WebLoginPayload, error) {
-	sessionID := extractSessionIDFromContext(ctx)
-	if sessionID == "" {
+	sessionToken := extractSessionTokenFromContext(ctx)
+	if sessionToken == "" {
 		return nil, ErrMissingSessionID
 	}
 
-	result, err := r.webAuthService.GetMe(ctx, sessionID)
+	result, err := r.webAuthService.GetMe(ctx, sessionToken)
 	if err != nil {
 		return nil, mapWebAuthError(err)
 	}
@@ -328,9 +328,10 @@ func mapAssignmentsToUserAssignments(assignments []sharedDomain.AssignmentDTO) *
 	for _, assignment := range assignments {
 		if assignment.Company != nil && !companyMap[assignment.Company.ID] {
 			companies = append(companies, &master.Company{
-				ID:     assignment.Company.ID,
-				Name:   assignment.Company.Name,
-				Status: master.CompanyStatus(assignment.Company.Status),
+				ID:      assignment.Company.ID,
+				Name:    assignment.Company.Name,
+				LogoURL: assignment.Company.LogoURL,
+				Status:  master.CompanyStatus(assignment.Company.Status),
 			})
 			companyMap[assignment.Company.ID] = true
 		}
@@ -413,6 +414,10 @@ func getClientUserAgent(ctx context.Context) string {
 }
 
 func extractSessionIDFromContext(ctx context.Context) string {
+	if sessionID, ok := ctx.Value("session_id").(string); ok && sessionID != "" {
+		return sessionID
+	}
+
 	httpCtx := ctx.Value("http")
 	if httpCtx == nil {
 		return ""
@@ -428,15 +433,22 @@ func extractSessionIDFromContext(ctx context.Context) string {
 		return ""
 	}
 
-	cookie, err := request.Cookie("session_id")
-	if err != nil {
-		return ""
+	cookieNames := []string{"session_id", "auth-session"}
+	for _, cookieName := range cookieNames {
+		cookie, err := request.Cookie(cookieName)
+		if err == nil && cookie.Value != "" {
+			return cookie.Value
+		}
 	}
 
-	return cookie.Value
+	return ""
 }
 
 func extractSessionTokenFromContext(ctx context.Context) string {
+	if sessionToken, ok := ctx.Value("session_token").(string); ok && sessionToken != "" {
+		return sessionToken
+	}
+
 	httpCtx := ctx.Value("http")
 	if httpCtx == nil {
 		return ""
@@ -452,12 +464,15 @@ func extractSessionTokenFromContext(ctx context.Context) string {
 		return ""
 	}
 
-	cookie, err := request.Cookie("session_token")
-	if err != nil {
-		return ""
+	cookieNames := []string{"session_id", "auth-session", "session_token"}
+	for _, cookieName := range cookieNames {
+		cookie, err := request.Cookie(cookieName)
+		if err == nil && cookie.Value != "" {
+			return cookie.Value
+		}
 	}
 
-	return cookie.Value
+	return ""
 }
 
 // =============================================================================

@@ -15,6 +15,15 @@ import (
 	"time"
 )
 
+// amEstateAgg is a read-only aggregate projection for one estate.
+type amEstateAgg struct {
+	ID          string  `gorm:"column:id"`
+	Name        string  `gorm:"column:name"`
+	TodayProd   float64 `gorm:"column:today_prod"`
+	MonthlyProd float64 `gorm:"column:monthly_prod"`
+	MonthTarget float64 `gorm:"column:month_target"`
+}
+
 // amCompanyAgg is a read-only aggregate projection for one company.
 type amCompanyAgg struct {
 	ID           string  `gorm:"column:id"`
@@ -25,6 +34,13 @@ type amCompanyAgg struct {
 	TodayProd    float64 `gorm:"column:today_prod"`
 	MonthlyProd  float64 `gorm:"column:monthly_prod"`
 	MonthTarget  float64 `gorm:"column:month_target"`
+}
+
+type amBudgetWorkflowSummaryAgg struct {
+	DraftCount    int32 `gorm:"column:draft_count"`
+	ReviewCount   int32 `gorm:"column:review_count"`
+	ApprovedCount int32 `gorm:"column:approved_count"`
+	TotalCount    int32 `gorm:"column:total_count"`
 }
 
 // areaManagerCompanyIDs returns company IDs assigned to the area manager.
@@ -115,7 +131,12 @@ func dateOnlyString(value time.Time) string {
 // ─── Query Resolvers ─────────────────────────────────────────────────────────
 
 // AreaManagerDashboard is the resolver for the areaManagerDashboard field.
-func (r *queryResolver) AreaManagerDashboard(ctx context.Context, dateFrom *time.Time, dateTo *time.Time) (*generated.AreaManagerDashboardData, error) {
+func (r *queryResolver) AreaManagerDashboard(
+	ctx context.Context,
+	dateFrom *time.Time,
+	dateTo *time.Time,
+	companyID *string,
+) (*generated.AreaManagerDashboardData, error) {
 	userID := strings.TrimSpace(middleware.GetCurrentUserID(ctx))
 	if userID == "" {
 		return nil, fmt.Errorf("authentication required")
@@ -145,12 +166,13 @@ func (r *queryResolver) AreaManagerDashboard(ctx context.Context, dateFrom *time
 	// Empty scope → return minimal valid response (avoids SQL errors on empty IN clause)
 	if len(companyIDs) == 0 {
 		return &generated.AreaManagerDashboardData{
-			User:               &user,
-			Companies:          []*master.Company{},
-			Stats:              &generated.AreaManagerStats{},
-			CompanyPerformance: []*generated.CompanyPerformanceData{},
-			Alerts:             []*generated.RegionalAlert{},
-			ActionItems:        []*generated.AreaManagerActionItem{},
+			User:                  &user,
+			Companies:             []*master.Company{},
+			Stats:                 &generated.AreaManagerStats{},
+			CompanyPerformance:    []*generated.CompanyPerformanceData{},
+			BudgetWorkflowSummary: &generated.AreaManagerBudgetWorkflowSummary{},
+			Alerts:                []*generated.RegionalAlert{},
+			ActionItems:           []*generated.AreaManagerActionItem{},
 		}, nil
 	}
 
@@ -160,7 +182,36 @@ func (r *queryResolver) AreaManagerDashboard(ctx context.Context, dateFrom *time
 		return nil, fmt.Errorf("failed to fetch companies: %w", err)
 	}
 
-	// 4. Aggregate production and structural stats per company
+	workflowCompanyIDs := companyIDs
+	if companyID != nil {
+		targetCompanyID := strings.TrimSpace(*companyID)
+		if targetCompanyID != "" {
+			if !containsString(companyIDs, targetCompanyID) {
+				return nil, fmt.Errorf("company not in scope")
+			}
+			workflowCompanyIDs = []string{targetCompanyID}
+		}
+	}
+
+	// 4. Aggregate budget workflow statuses for current target period.
+	var workflowSummaryRow amBudgetWorkflowSummaryAgg
+	err = r.db.WithContext(ctx).Raw(`
+		SELECT
+			COALESCE(SUM(CASE WHEN b.workflow_status = 'DRAFT' THEN 1 ELSE 0 END), 0)    AS draft_count,
+			COALESCE(SUM(CASE WHEN b.workflow_status = 'REVIEW' THEN 1 ELSE 0 END), 0)   AS review_count,
+			COALESCE(SUM(CASE WHEN b.workflow_status = 'APPROVED' THEN 1 ELSE 0 END), 0) AS approved_count,
+			COALESCE(COUNT(b.id), 0)                                                      AS total_count
+		FROM manager_division_production_budgets b
+		JOIN divisions d ON d.id = b.division_id
+		JOIN estates e ON e.id = d.estate_id
+		WHERE e.company_id IN ?
+		  AND b.period_month = ?
+	`, workflowCompanyIDs, targetPeriod).Scan(&workflowSummaryRow).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to aggregate budget workflow summary: %w", err)
+	}
+
+	// 5. Aggregate production and structural stats per company
 	var rows []amCompanyAgg
 	err = r.db.WithContext(ctx).Raw(`
 		SELECT
@@ -170,15 +221,16 @@ func (r *queryResolver) AreaManagerDashboard(ctx context.Context, dateFrom *time
 			COUNT(DISTINCT d.id)                                                                  AS divs_count,
 			COUNT(DISTINCT uca2.user_id) FILTER (WHERE uca2.is_active = true)                    AS emp_count,
 			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE hr.tanggal = ?::date AND hr.status = 'APPROVED'
+				WHERE DATE(hr.tanggal) = ?::date AND hr.status IN ('APPROVED', 'PENDING')
 			), 0)                                                                                  AS today_prod,
 			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE hr.tanggal >= ?::date
-				  AND hr.tanggal <= ?::date
-				  AND hr.status = 'APPROVED'
+				WHERE DATE(hr.tanggal) >= ?::date
+				  AND DATE(hr.tanggal) <= ?::date
+				  AND hr.status IN ('APPROVED', 'PENDING')
 			), 0)                                                                                  AS monthly_prod,
 			COALESCE(SUM(b.target_ton) FILTER (
 				WHERE b.period_month = ?
+				  AND b.workflow_status = 'APPROVED'
 			), 0)                                                                                  AS month_target
 		FROM companies c
 		JOIN estates e ON e.company_id = c.id
@@ -193,7 +245,7 @@ func (r *queryResolver) AreaManagerDashboard(ctx context.Context, dateFrom *time
 		return nil, fmt.Errorf("failed to aggregate company stats: %w", err)
 	}
 
-	// 5. Build company performance list and aggregate totals
+	// 6. Build company performance list and aggregate totals
 	var (
 		totalEstates     int32
 		totalDivs        int32
@@ -225,21 +277,22 @@ func (r *queryResolver) AreaManagerDashboard(ctx context.Context, dateFrom *time
 		}
 
 		companyPerf = append(companyPerf, &generated.CompanyPerformanceData{
-			CompanyID:         row.ID,
-			CompanyName:       row.Name,
-			EstatesCount:      row.EstatesCount,
-			TodayProduction:   row.TodayProd,
-			MonthlyProduction: row.MonthlyProd,
-			TargetAchievement: achievement,
-			EfficiencyScore:   achievement, // proxy; real efficiency requires labor data
-			QualityScore:      0,           // requires grading data
-			Trend:             computeAmTrend(row.TodayProd, row.MonthlyProd, rangeDays),
-			Status:            computeCompanyStatus(achievement),
-			PendingIssues:     0,
+			CompanyID:          row.ID,
+			CompanyName:        row.Name,
+			EstatesCount:       row.EstatesCount,
+			TodayProduction:    row.TodayProd,
+			MonthlyProduction:  row.MonthlyProd,
+			TargetAchievement:  achievement,
+			EfficiencyScore:    achievement, // proxy; real efficiency requires labor data
+			QualityScore:       0,           // requires grading data
+			Trend:              computeAmTrend(row.TodayProd, row.MonthlyProd, rangeDays),
+			Status:             computeCompanyStatus(achievement),
+			PendingIssues:      0,
+			EstatesPerformance: []*generated.CompanyEstatePerformance{},
 		})
 	}
 
-	// 6. Compute overall achievement
+	// 7. Compute overall achievement
 	overallAchievement := float64(0)
 	if totalMonthTarget > 0 {
 		overallAchievement = totalMonthlyProd / totalMonthTarget * 100
@@ -263,13 +316,21 @@ func (r *queryResolver) AreaManagerDashboard(ctx context.Context, dateFrom *time
 		TopPerformingCompany: topCompanyPtr,
 	}
 
+	workflowSummary := &generated.AreaManagerBudgetWorkflowSummary{
+		Draft:    workflowSummaryRow.DraftCount,
+		Review:   workflowSummaryRow.ReviewCount,
+		Approved: workflowSummaryRow.ApprovedCount,
+		Total:    workflowSummaryRow.TotalCount,
+	}
+
 	return &generated.AreaManagerDashboardData{
-		User:               &user,
-		Companies:          companies,
-		Stats:              stats,
-		CompanyPerformance: companyPerf,
-		Alerts:             []*generated.RegionalAlert{},
-		ActionItems:        []*generated.AreaManagerActionItem{},
+		User:                  &user,
+		Companies:             companies,
+		Stats:                 stats,
+		CompanyPerformance:    companyPerf,
+		BudgetWorkflowSummary: workflowSummary,
+		Alerts:                []*generated.RegionalAlert{},
+		ActionItems:           []*generated.AreaManagerActionItem{},
 	}, nil
 }
 
@@ -297,14 +358,16 @@ func (r *queryResolver) AreaManagerCompanyDetail(ctx context.Context, companyID 
 			COUNT(DISTINCT d.id)                                                                  AS divs_count,
 			COUNT(DISTINCT uca2.user_id) FILTER (WHERE uca2.is_active = true)                    AS emp_count,
 			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE hr.tanggal = CURRENT_DATE AND hr.status = 'APPROVED'
+				WHERE DATE(hr.tanggal) = CURRENT_DATE AND hr.status IN ('APPROVED', 'PENDING')
 			), 0)                                                                                  AS today_prod,
 			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE date_trunc('month', hr.tanggal) = date_trunc('month', NOW())
-				  AND hr.status = 'APPROVED'
+				WHERE DATE(hr.tanggal) >= date_trunc('month', NOW())::date
+				  AND DATE(hr.tanggal) <= CURRENT_DATE
+				  AND hr.status IN ('APPROVED', 'PENDING')
 			), 0)                                                                                  AS monthly_prod,
 			COALESCE(SUM(b.target_ton) FILTER (
 				WHERE b.period_month = to_char(NOW(), 'YYYY-MM')
+				  AND b.workflow_status = 'APPROVED'
 			), 0)                                                                                  AS month_target
 		FROM companies c
 		JOIN estates e ON e.company_id = c.id
@@ -328,18 +391,65 @@ func (r *queryResolver) AreaManagerCompanyDetail(ctx context.Context, companyID 
 		achievement = row.MonthlyProd / row.MonthTarget * 100
 	}
 
+	var estateRows []amEstateAgg
+	err = r.db.WithContext(ctx).Raw(`
+		SELECT
+			e.id,
+			e.name,
+			COALESCE(SUM(hr.berat_tbs) FILTER (
+				WHERE DATE(hr.tanggal) = CURRENT_DATE AND hr.status IN ('APPROVED', 'PENDING')
+			), 0)                                                                                  AS today_prod,
+			COALESCE(SUM(hr.berat_tbs) FILTER (
+				WHERE DATE(hr.tanggal) >= date_trunc('month', NOW())::date
+				  AND DATE(hr.tanggal) <= CURRENT_DATE
+				  AND hr.status IN ('APPROVED', 'PENDING')
+			), 0)                                                                                  AS monthly_prod,
+			COALESCE(SUM(b.target_ton) FILTER (
+				WHERE b.period_month = to_char(NOW(), 'YYYY-MM')
+				  AND b.workflow_status = 'APPROVED'
+			), 0)                                                                                  AS month_target
+		FROM estates e
+		LEFT JOIN divisions d ON d.estate_id = e.id
+		LEFT JOIN harvest_records hr ON hr.estate_id = e.id
+		LEFT JOIN manager_division_production_budgets b ON b.division_id = d.id
+		WHERE e.company_id = ?
+		GROUP BY e.id, e.name
+	`, companyID).Scan(&estateRows).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch estate details: %w", err)
+	}
+
+	estatesPerf := make([]*generated.CompanyEstatePerformance, 0, len(estateRows))
+	for _, er := range estateRows {
+		estAchievement := float64(0)
+		if er.MonthTarget > 0 {
+			estAchievement = er.MonthlyProd / er.MonthTarget * 100
+		}
+
+		estatesPerf = append(estatesPerf, &generated.CompanyEstatePerformance{
+			EstateID:          er.ID,
+			EstateName:        er.Name,
+			TodayProduction:   er.TodayProd,
+			MonthlyProduction: er.MonthlyProd,
+			MonthlyTarget:     er.MonthTarget,
+			TargetAchievement: estAchievement,
+			QualityScore:      0,
+		})
+	}
+
 	return &generated.CompanyPerformanceData{
-		CompanyID:         row.ID,
-		CompanyName:       row.Name,
-		EstatesCount:      row.EstatesCount,
-		TodayProduction:   row.TodayProd,
-		MonthlyProduction: row.MonthlyProd,
-		TargetAchievement: achievement,
-		EfficiencyScore:   achievement,
-		QualityScore:      0,
-		Trend:             computeAmTrend(row.TodayProd, row.MonthlyProd, time.Now().Day()),
-		Status:            computeCompanyStatus(achievement),
-		PendingIssues:     0,
+		CompanyID:          row.ID,
+		CompanyName:        row.Name,
+		EstatesCount:       row.EstatesCount,
+		TodayProduction:    row.TodayProd,
+		MonthlyProduction:  row.MonthlyProd,
+		TargetAchievement:  achievement,
+		EfficiencyScore:    achievement,
+		QualityScore:       0,
+		Trend:              computeAmTrend(row.TodayProd, row.MonthlyProd, time.Now().Day()),
+		Status:             computeCompanyStatus(achievement),
+		PendingIssues:      0,
+		EstatesPerformance: estatesPerf,
 	}, nil
 }
 
@@ -415,14 +525,16 @@ func (r *queryResolver) RegionalAlerts(ctx context.Context, companyID *string, s
 			COUNT(DISTINCT d.id) AS divs_count,
 			0                    AS emp_count,
 			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE hr.tanggal = CURRENT_DATE AND hr.status = 'APPROVED'
+				WHERE DATE(hr.tanggal) = CURRENT_DATE AND hr.status IN ('APPROVED', 'PENDING')
 			), 0)                AS today_prod,
 			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE date_trunc('month', hr.tanggal) = date_trunc('month', NOW())
-				  AND hr.status = 'APPROVED'
+				WHERE DATE(hr.tanggal) >= date_trunc('month', NOW())::date
+				  AND DATE(hr.tanggal) <= CURRENT_DATE
+				  AND hr.status IN ('APPROVED', 'PENDING')
 			), 0)                AS monthly_prod,
 			COALESCE(SUM(b.target_ton) FILTER (
 				WHERE b.period_month = to_char(NOW(), 'YYYY-MM')
+				  AND b.workflow_status = 'APPROVED'
 			), 0)                AS month_target
 		FROM companies c
 		JOIN estates e ON e.company_id = c.id

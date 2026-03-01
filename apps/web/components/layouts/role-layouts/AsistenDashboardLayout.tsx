@@ -18,6 +18,8 @@ interface AsistenDashboardLayoutProps {
   actions?: React.ReactNode;
   showBreadcrumb?: boolean;
   breadcrumbItems?: Array<{ label: string; href?: string }>;
+  contentMaxWidthClass?: string;
+  contentPaddingClass?: string;
 }
 
 export function AsistenDashboardLayout({
@@ -27,6 +29,8 @@ export function AsistenDashboardLayout({
   actions,
   showBreadcrumb = true,
   breadcrumbItems = [],
+  contentMaxWidthClass,
+  contentPaddingClass,
 }: AsistenDashboardLayoutProps) {
   const { user } = useAuth();
   const [isFullscreen, setIsFullscreen] = React.useState(false);
@@ -126,6 +130,8 @@ export function AsistenDashboardLayout({
           orbPrimaryClass="bg-blue-500/12"
           orbSecondaryClass="bg-cyan-500/10"
           dotClass="bg-status-info"
+          maxWidthClass={contentMaxWidthClass}
+          contentPaddingClass={contentPaddingClass}
         >
           {children}
         </RoleLayoutContent>

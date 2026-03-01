@@ -46,8 +46,9 @@ func (m *WebAuthMiddleware) WebSessionMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Extract session ID from cookie
-		cookie, err := c.Request.Cookie("session_id") // Default name, should match config
+		// Extract session token from configured session cookie name.
+		sessionCookieName := m.getSessionCookieName()
+		cookie, err := c.Request.Cookie(sessionCookieName)
 		if err != nil {
 			// No session cookie, continue without auth
 			c.Next()
@@ -118,6 +119,15 @@ func (m *WebAuthMiddleware) WebSessionMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func (m *WebAuthMiddleware) getSessionCookieName() string {
+	if m.cookieService != nil {
+		if name := strings.TrimSpace(m.cookieService.SessionCookieName()); name != "" {
+			return name
+		}
+	}
+	return "session_id"
 }
 
 // map UserDTO to auth.User

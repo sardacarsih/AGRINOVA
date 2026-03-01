@@ -27,10 +27,12 @@ query GetUsers($companyId: String, $role: UserRole, $isActive: Boolean, $search:
       companies {
         id
         name
+        logoUrl
       }
       company {
         id
         name
+        logoUrl
       }
       estates {
         id

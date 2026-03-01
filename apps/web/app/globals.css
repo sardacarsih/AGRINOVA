@@ -41,6 +41,7 @@
     --density-spacing: 1rem;
     --animation-duration: 0.2s;
     --animation-easing: cubic-bezier(0.4, 0, 0.2, 1);
+    --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     
     /* Layout spacing based on density */
     --spacing-xs: 0.25rem;
@@ -151,6 +152,7 @@
   
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
   }
   
   html {

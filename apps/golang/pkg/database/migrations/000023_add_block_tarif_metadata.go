@@ -11,6 +11,15 @@ import (
 func Migration000023AddBlockTarifMetadata(db *gorm.DB) error {
 	log.Println("Running migration: 000023_add_block_tarif_metadata")
 
+	isBaseTable, err := isTarifBlokBaseTable(db)
+	if err != nil {
+		return err
+	}
+	if !isBaseTable {
+		log.Println("Migration 000023 skipped: tarif_blok is not a base table")
+		return nil
+	}
+
 	if err := db.Exec(`
 		DO $$
 		BEGIN
@@ -24,6 +33,13 @@ func Migration000023AddBlockTarifMetadata(db *gorm.DB) error {
 					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 					company_id UUID NOT NULL,
 					perlakuan VARCHAR(100) NOT NULL,
+					keterangan TEXT,
+					tarif_code VARCHAR(20),
+					scheme_type VARCHAR(30),
+					bjr_min_kg NUMERIC(10,2),
+					bjr_max_kg NUMERIC(10,2),
+					target_lebih_kg NUMERIC(14,2),
+					sort_order INTEGER,
 					basis NUMERIC(14,2),
 					tarif_upah NUMERIC(14,2),
 					premi NUMERIC(14,2),
@@ -52,6 +68,27 @@ func Migration000023AddBlockTarifMetadata(db *gorm.DB) error {
 			END IF;
 			IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tarif_blok' AND column_name = 'basis') THEN
 				ALTER TABLE tarif_blok ADD COLUMN basis NUMERIC(14,2);
+			END IF;
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tarif_blok' AND column_name = 'keterangan') THEN
+				ALTER TABLE tarif_blok ADD COLUMN keterangan TEXT;
+			END IF;
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tarif_blok' AND column_name = 'tarif_code') THEN
+				ALTER TABLE tarif_blok ADD COLUMN tarif_code VARCHAR(20);
+			END IF;
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tarif_blok' AND column_name = 'scheme_type') THEN
+				ALTER TABLE tarif_blok ADD COLUMN scheme_type VARCHAR(30);
+			END IF;
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tarif_blok' AND column_name = 'bjr_min_kg') THEN
+				ALTER TABLE tarif_blok ADD COLUMN bjr_min_kg NUMERIC(10,2);
+			END IF;
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tarif_blok' AND column_name = 'bjr_max_kg') THEN
+				ALTER TABLE tarif_blok ADD COLUMN bjr_max_kg NUMERIC(10,2);
+			END IF;
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tarif_blok' AND column_name = 'target_lebih_kg') THEN
+				ALTER TABLE tarif_blok ADD COLUMN target_lebih_kg NUMERIC(14,2);
+			END IF;
+			IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tarif_blok' AND column_name = 'sort_order') THEN
+				ALTER TABLE tarif_blok ADD COLUMN sort_order INTEGER;
 			END IF;
 			IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tarif_blok' AND column_name = 'tarif_upah') THEN
 				ALTER TABLE tarif_blok ADD COLUMN tarif_upah NUMERIC(14,2);

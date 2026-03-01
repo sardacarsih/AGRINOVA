@@ -91,6 +91,64 @@ func (r *SessionRepository) FindActiveSessionsByUser(ctx context.Context, userID
 	return domainSessions, nil
 }
 
+// TryRotateSingleActiveSession updates a single active session in-place when exactly one WEB session exists.
+func (r *SessionRepository) TryRotateSingleActiveSession(ctx context.Context, session *domain.UserSession) (bool, error) {
+	if session == nil {
+		return false, nil
+	}
+
+	var updated SessionModel
+	err := r.db.WithContext(ctx).Raw(`
+WITH candidate AS (
+	SELECT id
+	FROM user_sessions
+	WHERE user_id = ? AND is_active = true AND platform = ?
+	ORDER BY last_activity DESC
+	LIMIT 2
+),
+candidate_count AS (
+	SELECT COUNT(*) AS total
+	FROM candidate
+),
+updated AS (
+	UPDATE user_sessions AS us
+	SET session_token = ?,
+		ip_address = ?,
+		user_agent = ?,
+		expires_at = ?,
+		is_active = ?,
+		login_method = ?,
+		last_activity = ?,
+		updated_at = ?
+	WHERE us.id = (SELECT id FROM candidate LIMIT 1)
+	  AND (SELECT total FROM candidate_count) = 1
+	RETURNING us.*
+)
+SELECT *
+FROM updated
+`,
+		session.UserID,
+		string(session.Platform),
+		session.SessionToken,
+		session.IPAddress,
+		session.UserAgent,
+		session.ExpiresAt,
+		session.IsActive,
+		session.LoginMethod,
+		session.LastActivity,
+		session.UpdatedAt,
+	).Scan(&updated).Error
+	if err != nil {
+		return false, err
+	}
+	if updated.ID == "" {
+		return false, nil
+	}
+
+	*session = *r.toDomainSession(&updated)
+	return true, nil
+}
+
 // UpdateSession updates an existing session
 func (r *SessionRepository) UpdateSession(ctx context.Context, session *domain.UserSession) error {
 	sessionModel := r.fromDomainSession(session)
@@ -107,7 +165,18 @@ func (r *SessionRepository) RevokeSession(ctx context.Context, sessionID string)
 		Model(&SessionModel{}).
 		Where("id::text = ? OR session_token = ?", sessionID, sessionID).
 		Updates(map[string]interface{}{
-			"is_active": false,
+			"is_active":  false,
+			"updated_at": time.Now(),
+		}).Error
+}
+
+// RevokeOtherSessionsByUser deactivates all active sessions for a user except one.
+func (r *SessionRepository) RevokeOtherSessionsByUser(ctx context.Context, userID, excludeSessionID string, platform domain.PlatformType) error {
+	return r.db.WithContext(ctx).
+		Model(&SessionModel{}).
+		Where("user_id = ? AND is_active = true AND platform = ? AND id <> ?", userID, string(platform), excludeSessionID).
+		Updates(map[string]interface{}{
+			"is_active":  false,
 			"updated_at": time.Now(),
 		}).Error
 }
@@ -118,7 +187,7 @@ func (r *SessionRepository) RevokeAllUserSessions(ctx context.Context, userID st
 		Model(&SessionModel{}).
 		Where("user_id = ?", userID).
 		Updates(map[string]interface{}{
-			"is_active": false,
+			"is_active":  false,
 			"updated_at": time.Now(),
 		}).Error
 }
@@ -129,7 +198,7 @@ func (r *SessionRepository) RevokeExpiredSessions(ctx context.Context) error {
 		Model(&SessionModel{}).
 		Where("expires_at < ?", time.Now()).
 		Updates(map[string]interface{}{
-			"is_active": false,
+			"is_active":  false,
 			"updated_at": time.Now(),
 		}).Error
 }
@@ -144,12 +213,12 @@ func (r *SessionRepository) CleanupOldSessions(ctx context.Context, olderThan ti
 
 // SessionModel represents the GORM model for sessions table
 type SessionModel struct {
-	ID           string    `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	UserID       string    `gorm:"not null;index"`
-	DeviceID     *string   `gorm:"index"`
-	SessionToken string    `gorm:"not null;uniqueIndex"`
-	RefreshToken *string   `gorm:"index"`
-	Platform     string    `gorm:"not null"`
+	ID           string  `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	UserID       string  `gorm:"not null;index"`
+	DeviceID     *string `gorm:"index"`
+	SessionToken string  `gorm:"not null;uniqueIndex"`
+	RefreshToken *string `gorm:"index"`
+	Platform     string  `gorm:"not null"`
 	IPAddress    string
 	UserAgent    string
 	LastActivity time.Time `gorm:"index"`

@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -36,15 +38,17 @@ type PasswordConfig struct {
 	KeyLength   uint32 // 32 bytes
 }
 
+const (
+	argon2MemoryEnv      = "AGRINOVA_AUTH_ARGON2_MEMORY_KB"
+	argon2IterationsEnv  = "AGRINOVA_AUTH_ARGON2_ITERATIONS"
+	argon2ParallelismEnv = "AGRINOVA_AUTH_ARGON2_PARALLELISM"
+	argon2SaltLengthEnv  = "AGRINOVA_AUTH_ARGON2_SALT_LENGTH"
+	argon2KeyLengthEnv   = "AGRINOVA_AUTH_ARGON2_KEY_LENGTH"
+)
+
 // NewPasswordService creates a new password service with secure defaults
 func NewPasswordService() *PasswordService {
-	return &PasswordService{
-		memory:      64 * 1024, // 64MB
-		iterations:  3,         // 3 iterations
-		parallelism: 2,         // 2 threads
-		saltLength:  16,        // 16 bytes salt
-		keyLength:   32,        // 32 bytes key
-	}
+	return NewPasswordServiceWithConfig(loadPasswordConfigFromEnv(defaultPasswordConfig()))
 }
 
 // NewPasswordServiceWithConfig creates a new password service with custom config
@@ -56,6 +60,53 @@ func NewPasswordServiceWithConfig(config PasswordConfig) *PasswordService {
 		saltLength:  config.SaltLength,
 		keyLength:   config.KeyLength,
 	}
+}
+
+func defaultPasswordConfig() PasswordConfig {
+	return PasswordConfig{
+		Memory:      64 * 1024,
+		Iterations:  3,
+		Parallelism: 2,
+		SaltLength:  16,
+		KeyLength:   32,
+	}
+}
+
+func loadPasswordConfigFromEnv(config PasswordConfig) PasswordConfig {
+	config.Memory = envUint32(argon2MemoryEnv, config.Memory)
+	config.Iterations = envUint32(argon2IterationsEnv, config.Iterations)
+	config.Parallelism = envUint8(argon2ParallelismEnv, config.Parallelism)
+	config.SaltLength = envUint32(argon2SaltLengthEnv, config.SaltLength)
+	config.KeyLength = envUint32(argon2KeyLengthEnv, config.KeyLength)
+	return config
+}
+
+func envUint32(key string, fallback uint32) uint32 {
+	value, ok := os.LookupEnv(key)
+	if !ok || value == "" {
+		return fallback
+	}
+
+	parsed, err := strconv.ParseUint(value, 10, 32)
+	if err != nil || parsed == 0 {
+		return fallback
+	}
+
+	return uint32(parsed)
+}
+
+func envUint8(key string, fallback uint8) uint8 {
+	value, ok := os.LookupEnv(key)
+	if !ok || value == "" {
+		return fallback
+	}
+
+	parsed, err := strconv.ParseUint(value, 10, 8)
+	if err != nil || parsed == 0 {
+		return fallback
+	}
+
+	return uint8(parsed)
 }
 
 // HashPassword generates a secure hash of the password using Argon2id

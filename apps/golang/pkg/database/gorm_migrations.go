@@ -31,7 +31,6 @@ func AutoMigrateWithGORM(db *gorm.DB) error {
 		&auth.User{},
 		&master.Estate{},
 		&master.Division{},
-		&master.TarifBlok{},
 		&master.Block{},
 		&mandor.HarvestRecord{},
 	); err != nil {

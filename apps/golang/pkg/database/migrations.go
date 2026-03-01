@@ -36,7 +36,6 @@ func AutoMigrate(db *gorm.DB) error {
 		&auth.User{},
 		&master.Estate{},
 		&master.Division{},
-		&master.TarifBlok{},
 		&master.Block{},
 		&master.Vehicle{},
 		&master.VehicleTax{},
@@ -193,10 +192,32 @@ func AutoMigrate(db *gorm.DB) error {
 	}
 
 	if err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS land_types (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			code VARCHAR(50) NOT NULL UNIQUE,
+			name VARCHAR(100) NOT NULL,
+			description TEXT,
+			is_active BOOLEAN DEFAULT true,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		)
+	`).Error; err != nil {
+		return fmt.Errorf("failed to create land_types table: %w", err)
+	}
+
+	if err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS tarif_blok (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			company_id UUID NOT NULL,
 			perlakuan VARCHAR(100) NOT NULL,
+			keterangan TEXT,
+			land_type_id UUID,
+			tarif_code VARCHAR(20),
+			scheme_type VARCHAR(30),
+			bjr_min_kg NUMERIC(10,2),
+			bjr_max_kg NUMERIC(10,2),
+			target_lebih_kg NUMERIC(14,2),
+			sort_order INTEGER,
 			basis NUMERIC(14,2),
 			tarif_upah NUMERIC(14,2),
 			premi NUMERIC(14,2),
@@ -223,6 +244,7 @@ func AutoMigrate(db *gorm.DB) error {
 			status VARCHAR(10) DEFAULT 'INTI',
 			istm CHAR(1) DEFAULT 'N',
 			perlakuan VARCHAR(100),
+			land_type_id UUID,
 			tarif_blok_id UUID,
 			created_at TIMESTAMP WITH TIME ZONE,
 			updated_at TIMESTAMP WITH TIME ZONE,
@@ -686,6 +708,9 @@ func AutoMigrate(db *gorm.DB) error {
 	if err := db.Exec("ALTER TABLE tarif_blok ADD CONSTRAINT fk_tarif_blok_company FOREIGN KEY (company_id) REFERENCES companies(id)").Error; err != nil {
 		log.Printf("Note: Foreign key constraint for tarif_blok company may already exist: %v", err)
 	}
+	if err := db.Exec("ALTER TABLE tarif_blok ADD CONSTRAINT fk_tarif_blok_land_type FOREIGN KEY (land_type_id) REFERENCES land_types(id)").Error; err != nil {
+		log.Printf("Note: Foreign key constraint for tarif_blok land_type may already exist: %v", err)
+	}
 
 	// Estate foreign keys
 	if err := db.Exec("ALTER TABLE divisions ADD CONSTRAINT fk_estates_divisions FOREIGN KEY (estate_id) REFERENCES estates(id)").Error; err != nil {
@@ -703,6 +728,9 @@ func AutoMigrate(db *gorm.DB) error {
 	// Division foreign keys
 	if err := db.Exec("ALTER TABLE blocks ADD CONSTRAINT fk_divisions_blocks FOREIGN KEY (division_id) REFERENCES divisions(id)").Error; err != nil {
 		log.Printf("Note: Foreign key constraint for blocks may already exist: %v", err)
+	}
+	if err := db.Exec("ALTER TABLE blocks ADD CONSTRAINT fk_blocks_land_type FOREIGN KEY (land_type_id) REFERENCES land_types(id)").Error; err != nil {
+		log.Printf("Note: Foreign key constraint for blocks land_type may already exist: %v", err)
 	}
 
 	if err := db.Exec("ALTER TABLE user_division_assignments ADD CONSTRAINT fk_user_division_assignments_user FOREIGN KEY (user_id) REFERENCES users(id)").Error; err != nil {
@@ -1006,6 +1034,51 @@ func AutoMigrate(db *gorm.DB) error {
 	// Create bridge mapping table for BKM source identifiers to companies.
 	if err := migrations.Migration000046CreateBkmCompanyBridge(db); err != nil {
 		return fmt.Errorf("failed migration 000046 create bkm company bridge: %w", err)
+	}
+
+	// Add tarif_blok.keterangan and seed supplier BJR tarif templates.
+	if err := migrations.Migration000047SeedTarifBlokBJRTemplate(db); err != nil {
+		return fmt.Errorf("failed migration 000047 seed tarif blok BJR template: %w", err)
+	}
+
+	// Add land_types master and enforce land_type_id FK on blocks/tarif_blok.
+	if err := migrations.Migration000048AddLandTypesAndTarifBlockAlignment(db); err != nil {
+		return fmt.Errorf("failed migration 000048 add land types and tarif alignment: %w", err)
+	}
+
+	// Collapse land_types into two grouped types as business taxonomy.
+	if err := migrations.Migration000049CollapseLandTypesToTwoGroups(db); err != nil {
+		return fmt.Errorf("failed migration 000049 collapse land types to two groups: %w", err)
+	}
+
+	// Create normalized tariff schema tables (header/detail/override) and backfill from tarif_blok.
+	if err := migrations.Migration000050CreateTariffSchemeTables(db); err != nil {
+		return fmt.Errorf("failed migration 000050 create tariff scheme tables: %w", err)
+	}
+
+	// Remove physical tarif_blok table and keep compatibility through view + triggers.
+	if err := migrations.Migration000051DropTarifBlokTableCreateView(db); err != nil {
+		return fmt.Errorf("failed migration 000051 drop tarif_blok table and create compatibility view: %w", err)
+	}
+
+	// Track tariff changes per block with audit logs and reporting views.
+	if err := migrations.Migration000052CreateBlockTariffChangeLogs(db); err != nil {
+		return fmt.Errorf("failed migration 000052 create block tariff change logs: %w", err)
+	}
+
+	// Create manager block production budget table with unique block+period constraint.
+	if err := migrations.Migration000053CreateManagerBlockProductionBudgets(db); err != nil {
+		return fmt.Errorf("failed migration 000053 create manager block production budgets: %w", err)
+	}
+
+	// Add workflow status and override controls for division budget control tower.
+	if err := migrations.Migration000054AddManagerDivisionBudgetWorkflow(db); err != nil {
+		return fmt.Errorf("failed migration 000054 add manager division budget workflow: %w", err)
+	}
+
+	// Add workflow status controls for manager block budget proposals and approvals.
+	if err := migrations.Migration000055AddManagerBlockBudgetWorkflow(db); err != nil {
+		return fmt.Errorf("failed migration 000055 add manager block budget workflow: %w", err)
 	}
 
 	legacyMasterColumns, err := hasLegacyMasterColumns(db)

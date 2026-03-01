@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"agrinovagraphql/server/internal/graphql/domain/auth"
 	"agrinovagraphql/server/internal/master/models"
@@ -42,6 +43,12 @@ type MasterRepository interface {
 	CreateTarifBlok(ctx context.Context, tarifBlok *models.TarifBlok) error
 	GetTarifBlokByID(ctx context.Context, id string) (*models.TarifBlok, error)
 	GetTarifBloks(ctx context.Context, companyIDs []string) ([]*models.TarifBlok, error)
+	CreateLandType(ctx context.Context, landType *models.LandType) error
+	GetLandTypes(ctx context.Context, isActive *bool) ([]*models.LandType, error)
+	GetLandTypeByID(ctx context.Context, id string) (*models.LandType, error)
+	GetLandTypeByCode(ctx context.Context, code string) (*models.LandType, error)
+	UpdateLandType(ctx context.Context, landType *models.LandType) error
+	DeleteLandType(ctx context.Context, id string) error
 	ExistsTarifBlokByCompanyAndPerlakuan(ctx context.Context, companyID, perlakuan string, excludeID *string) (bool, error)
 	UpdateTarifBlok(ctx context.Context, tarifBlok *models.TarifBlok) error
 	DeleteTarifBlok(ctx context.Context, id string) error
@@ -229,7 +236,9 @@ func (r *masterRepository) CreateBlock(ctx context.Context, block *models.Block)
 func (r *masterRepository) GetBlockByID(ctx context.Context, id string) (*models.Block, error) {
 	var block models.Block
 	err := r.db.WithContext(ctx).
+		Preload("LandType").
 		Preload("TarifBlok").
+		Preload("TarifBlok.LandType").
 		Preload("Division").
 		Preload("Division.Estate").
 		Preload("Division.Estate.Company").
@@ -244,7 +253,9 @@ func (r *masterRepository) GetBlockByID(ctx context.Context, id string) (*models
 func (r *masterRepository) GetBlocks(ctx context.Context, filters *models.MasterFilters) ([]*models.Block, error) {
 	var blocks []*models.Block
 	query := r.db.WithContext(ctx).
+		Preload("LandType").
 		Preload("TarifBlok").
+		Preload("TarifBlok.LandType").
 		Preload("Division").
 		Preload("Division.Estate").
 		Preload("Division.Estate.Company")
@@ -260,7 +271,9 @@ func (r *masterRepository) GetBlocks(ctx context.Context, filters *models.Master
 func (r *masterRepository) GetBlocksByDivisionID(ctx context.Context, divisionID string) ([]*models.Block, error) {
 	var blocks []*models.Block
 	err := r.db.WithContext(ctx).
+		Preload("LandType").
 		Preload("TarifBlok").
+		Preload("TarifBlok.LandType").
 		Preload("Division").
 		Preload("Division.Estate").
 		Preload("Division.Estate.Company").
@@ -271,7 +284,9 @@ func (r *masterRepository) GetBlocksByDivisionID(ctx context.Context, divisionID
 
 func (r *masterRepository) UpdateBlock(ctx context.Context, block *models.Block) error {
 	block.UpdatedAt = time.Now()
-	return r.db.WithContext(ctx).Save(block).Error
+	return r.db.WithContext(ctx).
+		Omit(clause.Associations).
+		Save(block).Error
 }
 
 func (r *masterRepository) DeleteBlock(ctx context.Context, id string) error {
@@ -294,6 +309,7 @@ func (r *masterRepository) GetTarifBlokByID(ctx context.Context, id string) (*mo
 	var tarifBlok models.TarifBlok
 	err := r.db.WithContext(ctx).
 		Preload("Company").
+		Preload("LandType").
 		Where("id = ?", id).
 		First(&tarifBlok).Error
 	if err != nil {
@@ -306,6 +322,7 @@ func (r *masterRepository) GetTarifBloks(ctx context.Context, companyIDs []strin
 	var tarifBloks []*models.TarifBlok
 	query := r.db.WithContext(ctx).
 		Preload("Company").
+		Preload("LandType").
 		Where("is_active = ?", true)
 
 	if len(companyIDs) > 0 {
@@ -316,6 +333,46 @@ func (r *masterRepository) GetTarifBloks(ctx context.Context, companyIDs []strin
 		Order("perlakuan ASC").
 		Find(&tarifBloks).Error
 	return tarifBloks, err
+}
+
+func (r *masterRepository) CreateLandType(ctx context.Context, landType *models.LandType) error {
+	return r.db.WithContext(ctx).Create(landType).Error
+}
+
+func (r *masterRepository) GetLandTypes(ctx context.Context, isActive *bool) ([]*models.LandType, error) {
+	var landTypes []*models.LandType
+	query := r.db.WithContext(ctx).Model(&models.LandType{})
+	if isActive != nil {
+		query = query.Where("is_active = ?", *isActive)
+	}
+
+	err := query.Order("code ASC").Find(&landTypes).Error
+	return landTypes, err
+}
+
+func (r *masterRepository) GetLandTypeByID(ctx context.Context, id string) (*models.LandType, error) {
+	var landType models.LandType
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&landType).Error; err != nil {
+		return nil, err
+	}
+	return &landType, nil
+}
+
+func (r *masterRepository) GetLandTypeByCode(ctx context.Context, code string) (*models.LandType, error) {
+	var landType models.LandType
+	if err := r.db.WithContext(ctx).Where("UPPER(TRIM(code)) = UPPER(TRIM(?))", code).First(&landType).Error; err != nil {
+		return nil, err
+	}
+	return &landType, nil
+}
+
+func (r *masterRepository) UpdateLandType(ctx context.Context, landType *models.LandType) error {
+	landType.UpdatedAt = time.Now()
+	return r.db.WithContext(ctx).Save(landType).Error
+}
+
+func (r *masterRepository) DeleteLandType(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Delete(&models.LandType{}, "id = ?", id).Error
 }
 
 func (r *masterRepository) ExistsTarifBlokByCompanyAndPerlakuan(ctx context.Context, companyID, perlakuan string, excludeID *string) (bool, error) {

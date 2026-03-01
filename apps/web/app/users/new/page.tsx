@@ -42,7 +42,9 @@ export default function NewUserPage() {
     } = useUserFormData({
         companyId: currentCompanyId,
         loadAllCompanies: isSuperAdmin,
-        loadAllUsers: isSuperAdmin,
+        // Keep manager candidates complete (especially ASISTEN for MANDOR)
+        // and rely on backend access controls for tenant scoping.
+        loadAllUsers: true,
         onlyActiveUsers: true,
         fallbackCompanies: currentCompanyId ? [{ id: currentCompanyId, name: fallbackCompanyName }] : [],
     });

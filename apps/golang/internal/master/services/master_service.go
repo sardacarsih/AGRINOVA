@@ -38,6 +38,10 @@ type MasterService interface {
 	CreateBlock(ctx context.Context, req *models.CreateBlockRequest, creatorID string) (*models.Block, error)
 	GetBlockByID(ctx context.Context, id string, userID string) (*models.Block, error)
 	GetBlocks(ctx context.Context, filters *models.MasterFilters, userID string) ([]*models.Block, error)
+	GetLandTypes(ctx context.Context, userID string) ([]*models.LandType, error)
+	CreateLandType(ctx context.Context, req *models.CreateLandTypeRequest, creatorID string) (*models.LandType, error)
+	UpdateLandType(ctx context.Context, req *models.UpdateLandTypeRequest, updaterID string) (*models.LandType, error)
+	DeleteLandType(ctx context.Context, id string, deleterID string) error
 	GetTarifBloks(ctx context.Context, userID string) ([]*models.TarifBlok, error)
 	CreateTarifBlok(ctx context.Context, req *models.CreateTarifBlokRequest, creatorID string) (*models.TarifBlok, error)
 	UpdateTarifBlok(ctx context.Context, req *models.UpdateTarifBlokRequest, updaterID string) (*models.TarifBlok, error)
@@ -140,9 +144,523 @@ func buildCreateBlockValidationError(err error) *models.MasterDataError {
 	case "TarifBlokID":
 		message = "tarif_blok_id harus UUID valid"
 		field = "tarif_blok_id"
+	case "LandTypeID":
+		message = "land_type_id harus UUID valid"
+		field = "land_type_id"
 	}
 
 	return models.NewMasterDataError(models.ErrCodeInvalidInput, message, field)
+}
+
+func buildCreateTarifBlokValidationError(err error) *models.MasterDataError {
+	validationErrors, ok := err.(validator.ValidationErrors)
+	if !ok || len(validationErrors) == 0 {
+		return models.NewMasterDataError(models.ErrCodeInvalidInput, "invalid input data", "")
+	}
+
+	first := validationErrors[0]
+	field := first.Field()
+	tag := first.Tag()
+
+	message := "invalid input data"
+	switch field {
+	case "CompanyID":
+		if tag == "uuid" {
+			message = "company_id harus UUID valid"
+		} else {
+			message = "company_id wajib diisi"
+		}
+		field = "company_id"
+	case "Perlakuan":
+		if tag == "max" {
+			message = "perlakuan maksimal 100 karakter"
+		} else {
+			message = "perlakuan wajib diisi"
+		}
+		field = "perlakuan"
+	case "LandTypeID":
+		message = "land_type_id harus UUID valid"
+		field = "land_type_id"
+	case "TarifCode":
+		message = "tarif_code harus 1-20 karakter"
+		field = "tarif_code"
+	case "SchemeType":
+		message = "scheme_type harus 1-50 karakter"
+		field = "scheme_type"
+	case "BJRMinKg":
+		message = "bjr_min_kg tidak boleh negatif"
+		field = "bjr_min_kg"
+	case "BJRMaxKg":
+		message = "bjr_max_kg tidak boleh negatif"
+		field = "bjr_max_kg"
+	case "SortOrder":
+		message = "sort_order harus antara 0-9999"
+		field = "sort_order"
+	case "Basis":
+		message = "basis tidak boleh negatif"
+		field = "basis"
+	case "TarifUpah":
+		message = "tarif_upah tidak boleh negatif"
+		field = "tarif_upah"
+	case "Premi":
+		message = "premi tidak boleh negatif"
+		field = "premi"
+	case "TarifPremi1":
+		message = "tarif_premi1 tidak boleh negatif"
+		field = "tarif_premi1"
+	case "TarifPremi2":
+		message = "tarif_premi2 tidak boleh negatif"
+		field = "tarif_premi2"
+	}
+
+	return models.NewMasterDataError(models.ErrCodeInvalidInput, message, field)
+}
+
+func normalizeOptionalUUIDPtr(value **string) {
+	if value == nil || *value == nil {
+		return
+	}
+	trimmed := strings.TrimSpace(**value)
+	if trimmed == "" {
+		*value = nil
+		return
+	}
+	*value = &trimmed
+}
+
+func normalizeLandTypeCode(code string) string {
+	return strings.ToUpper(strings.TrimSpace(code))
+}
+
+func normalizeSchemeCode(code *string) string {
+	if code == nil || strings.TrimSpace(*code) == "" {
+		return "GENERAL"
+	}
+	return strings.ToUpper(strings.TrimSpace(*code))
+}
+
+func normalizeTarifCode(code *string) string {
+	if code == nil {
+		return ""
+	}
+	return strings.ToUpper(strings.TrimSpace(*code))
+}
+
+func schemeNameFromCode(code string) string {
+	switch strings.ToUpper(strings.TrimSpace(code)) {
+	case "KATEGORI_BJR":
+		return "Kategori BJR"
+	case "BEDA_LAHAN":
+		return "Beda Lahan"
+	case "GENERAL":
+		return "General"
+	default:
+		readable := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(code)), "_", " ")
+		if readable == "" {
+			return "General"
+		}
+		return strings.ToUpper(readable[:1]) + readable[1:]
+	}
+}
+
+func shouldSkipTariffProjectionSync(err error) bool {
+	if err == nil {
+		return false
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, `relation "tariff_schemes" does not exist`) ||
+		strings.Contains(lower, `relation "tariff_scheme_rules" does not exist`) ||
+		strings.Contains(lower, `relation "tariff_rule_overrides" does not exist`) ||
+		strings.Contains(lower, "tariff_schemes does not exist") ||
+		strings.Contains(lower, "tariff_scheme_rules does not exist") ||
+		strings.Contains(lower, "tariff_rule_overrides does not exist")
+}
+
+func (s *masterService) syncTariffProjectionFromTarifBlok(ctx context.Context, tarifBlok *models.TarifBlok) error {
+	if tarifBlok == nil {
+		return nil
+	}
+
+	tx := s.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to start transaction for tariff projection sync: %w", tx.Error)
+	}
+	defer func() {
+		if recover() != nil {
+			tx.Rollback()
+		}
+	}()
+
+	schemeCode := normalizeSchemeCode(tarifBlok.SchemeType)
+	schemeName := schemeNameFromCode(schemeCode)
+	tarifCode := normalizeTarifCode(tarifBlok.TarifCode)
+	if tarifCode == "" {
+		tx.Rollback()
+		return models.NewMasterDataError(models.ErrCodeInvalidInput, "tarif_code wajib diisi", "tarifCode")
+	}
+
+	var schemeID string
+	err := tx.Raw(`
+		SELECT id
+		FROM tariff_schemes
+		WHERE company_id = ?
+		  AND COALESCE(land_type_id, '00000000-0000-0000-0000-000000000000'::uuid)
+		      = COALESCE(?::uuid, '00000000-0000-0000-0000-000000000000'::uuid)
+		  AND LOWER(TRIM(scheme_code)) = LOWER(TRIM(?))
+		LIMIT 1
+	`, tarifBlok.CompanyID, tarifBlok.LandTypeID, schemeCode).Scan(&schemeID).Error
+	if err != nil {
+		tx.Rollback()
+		if shouldSkipTariffProjectionSync(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to query tariff scheme: %w", err)
+	}
+
+	if strings.TrimSpace(schemeID) == "" {
+		err = tx.Raw(`
+			INSERT INTO tariff_schemes (
+				id,
+				company_id,
+				land_type_id,
+				scheme_code,
+				scheme_name,
+				description,
+				is_active,
+				created_at,
+				updated_at
+			) VALUES (
+				gen_random_uuid(),
+				?,
+				?,
+				?,
+				?,
+				?,
+				?,
+				NOW(),
+				NOW()
+			)
+			RETURNING id
+		`,
+			tarifBlok.CompanyID,
+			tarifBlok.LandTypeID,
+			schemeCode,
+			schemeName,
+			"Auto-generated from tarif_blok source",
+			tarifBlok.IsActive,
+		).Scan(&schemeID).Error
+		if err != nil {
+			tx.Rollback()
+			if shouldSkipTariffProjectionSync(err) {
+				return nil
+			}
+			return fmt.Errorf("failed to insert tariff scheme: %w", err)
+		}
+	}
+
+	err = tx.Exec(`
+		INSERT INTO tariff_scheme_rules (
+			id,
+			scheme_id,
+			tarif_code,
+			perlakuan,
+			keterangan,
+			bjr_min_kg,
+			bjr_max_kg,
+			basis,
+			tarif_upah,
+			premi,
+			target_lebih_kg,
+			tarif_premi1,
+			tarif_premi2,
+			sort_order,
+			is_active,
+			created_at,
+			updated_at
+		) VALUES (
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			NOW(),
+			NOW()
+		)
+		ON CONFLICT (id) DO UPDATE SET
+			scheme_id = EXCLUDED.scheme_id,
+			tarif_code = EXCLUDED.tarif_code,
+			perlakuan = EXCLUDED.perlakuan,
+			keterangan = EXCLUDED.keterangan,
+			bjr_min_kg = EXCLUDED.bjr_min_kg,
+			bjr_max_kg = EXCLUDED.bjr_max_kg,
+			basis = EXCLUDED.basis,
+			tarif_upah = EXCLUDED.tarif_upah,
+			premi = EXCLUDED.premi,
+			target_lebih_kg = EXCLUDED.target_lebih_kg,
+			tarif_premi1 = EXCLUDED.tarif_premi1,
+			tarif_premi2 = EXCLUDED.tarif_premi2,
+			sort_order = EXCLUDED.sort_order,
+			is_active = EXCLUDED.is_active,
+			updated_at = NOW()
+	`,
+		tarifBlok.ID,
+		schemeID,
+		tarifCode,
+		tarifBlok.Perlakuan,
+		tarifBlok.Keterangan,
+		tarifBlok.BJRMinKg,
+		tarifBlok.BJRMaxKg,
+		tarifBlok.Basis,
+		tarifBlok.TarifUpah,
+		tarifBlok.Premi,
+		tarifBlok.TargetLebih,
+		tarifBlok.TarifPremi1,
+		tarifBlok.TarifPremi2,
+		tarifBlok.SortOrder,
+		tarifBlok.IsActive,
+	).Error
+	if err != nil {
+		tx.Rollback()
+		if shouldSkipTariffProjectionSync(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to upsert tariff scheme rule: %w", err)
+	}
+
+	err = tx.Exec(`
+		DELETE FROM tariff_rule_overrides
+		WHERE rule_id = ?
+		  AND effective_from IS NULL
+		  AND effective_to IS NULL
+		  AND override_type IN ('NORMAL', 'HOLIDAY', 'LEBARAN')
+	`, tarifBlok.ID).Error
+	if err != nil {
+		tx.Rollback()
+		if shouldSkipTariffProjectionSync(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to clear default tariff overrides: %w", err)
+	}
+
+	err = tx.Exec(`
+		INSERT INTO tariff_rule_overrides (
+			rule_id,
+			override_type,
+			effective_from,
+			effective_to,
+			tarif_upah,
+			premi,
+			tarif_premi1,
+			tarif_premi2,
+			notes,
+			is_active,
+			created_at,
+			updated_at
+		) VALUES (
+			?,
+			'NORMAL',
+			NULL,
+			NULL,
+			?,
+			?,
+			?,
+			?,
+			'Default rate from tarif_blok',
+			?,
+			NOW(),
+			NOW()
+		)
+	`,
+		tarifBlok.ID,
+		tarifBlok.TarifUpah,
+		tarifBlok.Premi,
+		tarifBlok.TarifPremi1,
+		tarifBlok.TarifPremi2,
+		tarifBlok.IsActive,
+	).Error
+	if err != nil {
+		tx.Rollback()
+		if shouldSkipTariffProjectionSync(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to insert normal override: %w", err)
+	}
+
+	if tarifBlok.TarifLibur != nil {
+		err = tx.Exec(`
+			INSERT INTO tariff_rule_overrides (
+				rule_id,
+				override_type,
+				effective_from,
+				effective_to,
+				tarif_upah,
+				notes,
+				is_active,
+				created_at,
+				updated_at
+			) VALUES (
+				?,
+				'HOLIDAY',
+				NULL,
+				NULL,
+				?,
+				'Holiday override from tarif_blok.tarif_libur',
+				?,
+				NOW(),
+				NOW()
+			)
+		`, tarifBlok.ID, tarifBlok.TarifLibur, tarifBlok.IsActive).Error
+		if err != nil {
+			tx.Rollback()
+			if shouldSkipTariffProjectionSync(err) {
+				return nil
+			}
+			return fmt.Errorf("failed to insert holiday override: %w", err)
+		}
+	}
+
+	if tarifBlok.TarifLebaran != nil {
+		err = tx.Exec(`
+			INSERT INTO tariff_rule_overrides (
+				rule_id,
+				override_type,
+				effective_from,
+				effective_to,
+				tarif_upah,
+				notes,
+				is_active,
+				created_at,
+				updated_at
+			) VALUES (
+				?,
+				'LEBARAN',
+				NULL,
+				NULL,
+				?,
+				'Lebaran override from tarif_blok.tarif_lebaran',
+				?,
+				NOW(),
+				NOW()
+			)
+		`, tarifBlok.ID, tarifBlok.TarifLebaran, tarifBlok.IsActive).Error
+		if err != nil {
+			tx.Rollback()
+			if shouldSkipTariffProjectionSync(err) {
+				return nil
+			}
+			return fmt.Errorf("failed to insert lebaran override: %w", err)
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		if shouldSkipTariffProjectionSync(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to commit tariff projection sync: %w", err)
+	}
+
+	return nil
+}
+
+func (s *masterService) deleteTariffProjectionByRuleID(ctx context.Context, ruleID string) error {
+	tx := s.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to start transaction for tariff projection delete: %w", tx.Error)
+	}
+	defer func() {
+		if recover() != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.Exec(`DELETE FROM tariff_scheme_rules WHERE id = ?`, ruleID).Error; err != nil {
+		tx.Rollback()
+		if shouldSkipTariffProjectionSync(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to delete tariff scheme rule: %w", err)
+	}
+
+	if err := tx.Exec(`
+		DELETE FROM tariff_schemes s
+		WHERE NOT EXISTS (
+			SELECT 1 FROM tariff_scheme_rules r WHERE r.scheme_id = s.id
+		)
+	`).Error; err != nil {
+		tx.Rollback()
+		if shouldSkipTariffProjectionSync(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to cleanup empty tariff schemes: %w", err)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		if shouldSkipTariffProjectionSync(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to commit tariff projection delete: %w", err)
+	}
+
+	return nil
+}
+
+func (s *masterService) resolveLandTypeFromInput(ctx context.Context, landTypeID *string, schemeType *string) (*models.LandType, error) {
+	if landTypeID == nil && schemeType == nil {
+		return nil, nil
+	}
+
+	var byID *models.LandType
+	if landTypeID != nil {
+		lt, err := s.repo.GetLandTypeByID(ctx, *landTypeID)
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, models.NewMasterDataError(models.ErrCodeNotFound, "land type tidak ditemukan", "landTypeId")
+			}
+			return nil, fmt.Errorf("failed to get land type by id: %w", err)
+		}
+		byID = lt
+	}
+
+	if schemeType != nil {
+		lt, err := s.repo.GetLandTypeByCode(ctx, *schemeType)
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, models.NewMasterDataError(models.ErrCodeNotFound, "schemeType tidak ditemukan pada land_types", "schemeType")
+			}
+			return nil, fmt.Errorf("failed to get land type by code: %w", err)
+		}
+		if byID != nil && byID.ID != lt.ID {
+			return nil, models.NewMasterDataError(
+				models.ErrCodeBusinessRuleViolation,
+				"landTypeId dan schemeType tidak konsisten",
+				"landTypeId",
+			)
+		}
+		return lt, nil
+	}
+
+	return byID, nil
+}
+
+func ensureLandTypeMatch(blockLandTypeID *string, tarifLandTypeID *string) *models.MasterDataError {
+	if blockLandTypeID != nil && tarifLandTypeID != nil && *blockLandTypeID != *tarifLandTypeID {
+		return models.NewMasterDataError(
+			models.ErrCodeBusinessRuleViolation,
+			"tipe lahan block harus sama dengan tipe lahan tarif",
+			"tarifBlokId",
+		)
+	}
+	return nil
 }
 
 // Company operations
@@ -614,6 +1132,7 @@ func (s *masterService) CreateBlock(ctx context.Context, req *models.CreateBlock
 	if req.TarifBlokID != nil && strings.TrimSpace(*req.TarifBlokID) == "" {
 		req.TarifBlokID = nil
 	}
+	normalizeOptionalUUIDPtr(&req.LandTypeID)
 
 	// Compatibility guard:
 	// some running builds may still have BlockCode tagged as required.
@@ -645,6 +1164,15 @@ func (s *masterService) CreateBlock(ctx context.Context, req *models.CreateBlock
 		return nil, err
 	}
 
+	if req.LandTypeID != nil {
+		if _, err := s.repo.GetLandTypeByID(ctx, *req.LandTypeID); err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, models.NewMasterDataError(models.ErrCodeNotFound, "land type tidak ditemukan", "landTypeId")
+			}
+			return nil, fmt.Errorf("failed to get land type: %w", err)
+		}
+	}
+
 	if err := s.ensureBlockSequenceUniqueInEstate(ctx, blockCompanyID, req.DivisionID, req.BlockCode, nil); err != nil {
 		return nil, err
 	}
@@ -668,6 +1196,12 @@ func (s *masterService) CreateBlock(ctx context.Context, req *models.CreateBlock
 				"tarifBlokId",
 			)
 		}
+		if matchErr := ensureLandTypeMatch(req.LandTypeID, tarifBlok.LandTypeID); matchErr != nil {
+			return nil, matchErr
+		}
+		if req.LandTypeID == nil && tarifBlok.LandTypeID != nil {
+			req.LandTypeID = tarifBlok.LandTypeID
+		}
 		perlakuan = &tarifBlok.Perlakuan
 	}
 
@@ -681,6 +1215,7 @@ func (s *masterService) CreateBlock(ctx context.Context, req *models.CreateBlock
 		Status:       req.Status,
 		ISTM:         req.ISTM,
 		Perlakuan:    perlakuan,
+		LandTypeID:   req.LandTypeID,
 		TarifBlokID:  req.TarifBlokID,
 		DivisionID:   req.DivisionID,
 		CreatedAt:    time.Now(),
@@ -747,6 +1282,187 @@ func (s *masterService) GetBlocks(ctx context.Context, filters *models.MasterFil
 	return s.repo.GetBlocks(ctx, filters)
 }
 
+func (s *masterService) GetLandTypes(ctx context.Context, userID string) ([]*models.LandType, error) {
+	if _, err := s.getUserByID(ctx, userID); err != nil {
+		return nil, err
+	}
+	activeOnly := true
+	return s.repo.GetLandTypes(ctx, &activeOnly)
+}
+
+func (s *masterService) CreateLandType(ctx context.Context, req *models.CreateLandTypeRequest, creatorID string) (*models.LandType, error) {
+	req.Code = normalizeLandTypeCode(req.Code)
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Description != nil {
+		trimmed := strings.TrimSpace(*req.Description)
+		if trimmed == "" {
+			req.Description = nil
+		} else {
+			req.Description = &trimmed
+		}
+	}
+
+	if err := s.validator.Struct(req); err != nil {
+		return nil, models.NewMasterDataError(models.ErrCodeInvalidInput, "invalid input data", "")
+	}
+	if _, err := s.getUserByID(ctx, creatorID); err != nil {
+		return nil, err
+	}
+
+	existing, err := s.repo.GetLandTypeByCode(ctx, req.Code)
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return nil, fmt.Errorf("failed to validate land type uniqueness: %w", err)
+	}
+	if err == nil && existing != nil {
+		return nil, models.NewMasterDataError(
+			models.ErrCodeDuplicateEntry,
+			"kode land type sudah digunakan",
+			"code",
+		)
+	}
+
+	isActive := true
+	if req.IsActive != nil {
+		isActive = *req.IsActive
+	}
+
+	landType := &models.LandType{
+		ID:          uuid.New().String(),
+		Code:        req.Code,
+		Name:        req.Name,
+		Description: req.Description,
+		IsActive:    isActive,
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	if err := s.repo.CreateLandType(ctx, landType); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate") || strings.Contains(err.Error(), "unique") {
+			return nil, models.NewMasterDataError(
+				models.ErrCodeDuplicateEntry,
+				"kode land type sudah digunakan",
+				"code",
+			)
+		}
+		return nil, fmt.Errorf("failed to create land type: %w", err)
+	}
+
+	return s.repo.GetLandTypeByID(ctx, landType.ID)
+}
+
+func (s *masterService) UpdateLandType(ctx context.Context, req *models.UpdateLandTypeRequest, updaterID string) (*models.LandType, error) {
+	if req.Code != nil {
+		normalized := normalizeLandTypeCode(*req.Code)
+		req.Code = &normalized
+	}
+	if req.Name != nil {
+		trimmed := strings.TrimSpace(*req.Name)
+		req.Name = &trimmed
+	}
+	if req.Description != nil {
+		trimmed := strings.TrimSpace(*req.Description)
+		req.Description = &trimmed
+	}
+
+	if err := s.validator.Struct(req); err != nil {
+		return nil, models.NewMasterDataError(models.ErrCodeInvalidInput, "invalid input data", "")
+	}
+	if _, err := s.getUserByID(ctx, updaterID); err != nil {
+		return nil, err
+	}
+
+	landType, err := s.repo.GetLandTypeByID(ctx, req.ID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, models.NewMasterDataError(models.ErrCodeNotFound, "land type tidak ditemukan", "id")
+		}
+		return nil, fmt.Errorf("failed to get land type: %w", err)
+	}
+
+	if req.Code != nil {
+		existing, findErr := s.repo.GetLandTypeByCode(ctx, *req.Code)
+		if findErr != nil && findErr != gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("failed to validate land type uniqueness: %w", findErr)
+		}
+		if findErr == nil && existing != nil && existing.ID != landType.ID {
+			return nil, models.NewMasterDataError(
+				models.ErrCodeDuplicateEntry,
+				"kode land type sudah digunakan",
+				"code",
+			)
+		}
+		landType.Code = *req.Code
+	}
+
+	if req.Name != nil {
+		landType.Name = *req.Name
+	}
+	if req.Description != nil {
+		if *req.Description == "" {
+			landType.Description = nil
+		} else {
+			landType.Description = req.Description
+		}
+	}
+	if req.IsActive != nil {
+		landType.IsActive = *req.IsActive
+	}
+
+	if err := s.repo.UpdateLandType(ctx, landType); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate") || strings.Contains(err.Error(), "unique") {
+			return nil, models.NewMasterDataError(
+				models.ErrCodeDuplicateEntry,
+				"kode land type sudah digunakan",
+				"code",
+			)
+		}
+		return nil, fmt.Errorf("failed to update land type: %w", err)
+	}
+
+	return s.repo.GetLandTypeByID(ctx, landType.ID)
+}
+
+func (s *masterService) DeleteLandType(ctx context.Context, id string, deleterID string) error {
+	if _, err := s.getUserByID(ctx, deleterID); err != nil {
+		return err
+	}
+
+	if _, err := s.repo.GetLandTypeByID(ctx, id); err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return models.NewMasterDataError(models.ErrCodeNotFound, "land type tidak ditemukan", "id")
+		}
+		return fmt.Errorf("failed to get land type: %w", err)
+	}
+
+	var blockCount int64
+	if err := s.db.WithContext(ctx).Table("blocks").Where("land_type_id = ?", id).Count(&blockCount).Error; err != nil {
+		return fmt.Errorf("failed to validate land type usage in blocks: %w", err)
+	}
+
+	var tarifCount int64
+	if err := s.db.WithContext(ctx).Table("tarif_blok").Where("land_type_id = ?", id).Count(&tarifCount).Error; err != nil {
+		return fmt.Errorf("failed to validate land type usage in tarif blok: %w", err)
+	}
+
+	if blockCount > 0 || tarifCount > 0 {
+		return models.NewMasterDataError(
+			models.ErrCodeDependencyExists,
+			fmt.Sprintf(
+				"Land type tidak dapat dihapus karena masih digunakan oleh %d blok dan %d tarif blok.",
+				blockCount,
+				tarifCount,
+			),
+			"id",
+		)
+	}
+
+	if err := s.repo.DeleteLandType(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete land type: %w", err)
+	}
+
+	return nil
+}
+
 func (s *masterService) GetTarifBloks(ctx context.Context, userID string) ([]*models.TarifBlok, error) {
 	user, err := s.getUserByID(ctx, userID)
 	if err != nil {
@@ -789,15 +1505,173 @@ func (s *masterService) GetTarifBloks(ctx context.Context, userID string) ([]*mo
 	return s.repo.GetTarifBloks(ctx, companyIDs)
 }
 
+func (s *masterService) resolveCreateTarifBlokCompanyScope(
+	ctx context.Context,
+	creatorID string,
+	requestedCompanyID string,
+) (string, error) {
+	trimmedRequested := strings.TrimSpace(requestedCompanyID)
+
+	user, err := s.getUserByID(ctx, creatorID)
+	if err != nil {
+		return "", err
+	}
+	roleFromContext := auth.UserRole("")
+	if roleValue := ctx.Value("user_role"); roleValue != nil {
+		switch role := roleValue.(type) {
+		case auth.UserRole:
+			roleFromContext = role
+		case string:
+			roleFromContext = auth.UserRole(strings.TrimSpace(role))
+		}
+	}
+	userRole := user.Role
+	if roleFromContext != "" {
+		userRole = roleFromContext
+	}
+
+	// Super admin can target any company.
+	if userRole == auth.UserRoleSuperAdmin {
+		return trimmedRequested, nil
+	}
+
+	// Only hard-enforce company scope for COMPANY_ADMIN.
+	if userRole != auth.UserRoleCompanyAdmin {
+		return trimmedRequested, nil
+	}
+
+	assignments, err := s.repo.GetUserCompanyAssignments(ctx, creatorID)
+	if err != nil {
+		return "", err
+	}
+
+	activeCompanyIDSet := make(map[string]struct{}, len(assignments))
+	activeCompanyIDs := make([]string, 0, len(assignments))
+	for _, assignment := range assignments {
+		if assignment == nil || !assignment.IsActive {
+			continue
+		}
+
+		companyID := strings.TrimSpace(assignment.CompanyID)
+		if companyID == "" {
+			continue
+		}
+
+		if _, exists := activeCompanyIDSet[companyID]; exists {
+			continue
+		}
+
+		activeCompanyIDSet[companyID] = struct{}{}
+		activeCompanyIDs = append(activeCompanyIDs, companyID)
+	}
+
+	if len(activeCompanyIDs) == 0 {
+		return "", models.NewMasterDataError(
+			models.ErrCodePermissionDenied,
+			"company admin tidak memiliki assignment company aktif",
+			"company_id",
+		)
+	}
+
+	if scopedCompanyID, ok := ctx.Value("company_id").(string); ok {
+		scopedCompanyID = strings.TrimSpace(scopedCompanyID)
+		if scopedCompanyID != "" {
+			if _, allowed := activeCompanyIDSet[scopedCompanyID]; !allowed {
+				return "", models.NewMasterDataError(
+					models.ErrCodePermissionDenied,
+					"company_id pada session tidak termasuk assignment aktif",
+					"company_id",
+				)
+			}
+
+			if trimmedRequested != "" && trimmedRequested != scopedCompanyID {
+				return "", models.NewMasterDataError(
+					models.ErrCodePermissionDenied,
+					"company_id tidak sesuai scope company admin",
+					"company_id",
+				)
+			}
+
+			return scopedCompanyID, nil
+		}
+	}
+
+	if trimmedRequested != "" {
+		if _, allowed := activeCompanyIDSet[trimmedRequested]; !allowed {
+			return "", models.NewMasterDataError(
+				models.ErrCodePermissionDenied,
+				"company_id tidak termasuk assignment aktif user",
+				"company_id",
+			)
+		}
+		return trimmedRequested, nil
+	}
+
+	if len(activeCompanyIDs) == 1 {
+		return activeCompanyIDs[0], nil
+	}
+
+	return "", models.NewMasterDataError(
+		models.ErrCodeInvalidInput,
+		"company_id wajib diisi untuk company admin yang memiliki lebih dari satu assignment aktif",
+		"company_id",
+	)
+}
+
 func (s *masterService) CreateTarifBlok(ctx context.Context, req *models.CreateTarifBlokRequest, creatorID string) (*models.TarifBlok, error) {
+	resolvedCompanyID, err := s.resolveCreateTarifBlokCompanyScope(ctx, creatorID, req.CompanyID)
+	if err != nil {
+		return nil, err
+	}
+	req.CompanyID = resolvedCompanyID
+
 	req.Perlakuan = strings.TrimSpace(req.Perlakuan)
+	normalizeOptionalUUIDPtr(&req.LandTypeID)
+	if req.Keterangan != nil {
+		trimmed := strings.TrimSpace(*req.Keterangan)
+		req.Keterangan = &trimmed
+	}
+	if req.TarifCode != nil {
+		normalized := strings.ToUpper(strings.TrimSpace(*req.TarifCode))
+		req.TarifCode = &normalized
+	}
+	if req.SchemeType != nil {
+		normalized := strings.ToUpper(strings.TrimSpace(*req.SchemeType))
+		req.SchemeType = &normalized
+	}
+	if req.BJRMinKg != nil && req.BJRMaxKg != nil && *req.BJRMinKg >= *req.BJRMaxKg {
+		return nil, models.NewMasterDataError(
+			models.ErrCodeInvalidInput,
+			"bjr_min_kg harus lebih kecil dari bjr_max_kg",
+			"bjr_min_kg",
+		)
+	}
+	if req.TarifCode == nil || strings.TrimSpace(*req.TarifCode) == "" {
+		return nil, models.NewMasterDataError(
+			models.ErrCodeInvalidInput,
+			"tarif_code wajib diisi",
+			"tarifCode",
+		)
+	}
 
 	if err := s.validator.Struct(req); err != nil {
-		return nil, models.NewMasterDataError(models.ErrCodeInvalidInput, "invalid input data", "")
+		return nil, buildCreateTarifBlokValidationError(err)
 	}
 
 	if err := s.ValidateCompanyAccess(ctx, creatorID, req.CompanyID); err != nil {
 		return nil, err
+	}
+
+	resolvedLandType, err := s.resolveLandTypeFromInput(ctx, req.LandTypeID, req.SchemeType)
+	if err != nil {
+		return nil, err
+	}
+	if resolvedLandType != nil {
+		req.LandTypeID = &resolvedLandType.ID
+		if req.SchemeType == nil || strings.TrimSpace(*req.SchemeType) == "" {
+			code := resolvedLandType.Code
+			req.SchemeType = &code
+		}
 	}
 
 	alreadyExists, err := s.repo.ExistsTarifBlokByCompanyAndPerlakuan(ctx, req.CompanyID, req.Perlakuan, nil)
@@ -812,6 +1686,42 @@ func (s *masterService) CreateTarifBlok(ctx context.Context, req *models.CreateT
 		)
 	}
 
+	if req.TarifCode != nil && req.LandTypeID != nil {
+		var duplicateCount int64
+		if err := s.db.WithContext(ctx).
+			Table("tarif_blok").
+			Where("company_id = ?", req.CompanyID).
+			Where("land_type_id = ?", *req.LandTypeID).
+			Where("LOWER(TRIM(tarif_code)) = LOWER(TRIM(?))", *req.TarifCode).
+			Count(&duplicateCount).Error; err != nil {
+			return nil, fmt.Errorf("failed to validate tarif code uniqueness: %w", err)
+		}
+		if duplicateCount > 0 {
+			return nil, models.NewMasterDataError(
+				models.ErrCodeDuplicateEntry,
+				"tarif_code already exists for this land type in company",
+				"tarifCode",
+			)
+		}
+	} else if req.TarifCode != nil && req.SchemeType != nil {
+		var duplicateCount int64
+		if err := s.db.WithContext(ctx).
+			Table("tarif_blok").
+			Where("company_id = ?", req.CompanyID).
+			Where("LOWER(TRIM(scheme_type)) = LOWER(TRIM(?))", *req.SchemeType).
+			Where("LOWER(TRIM(tarif_code)) = LOWER(TRIM(?))", *req.TarifCode).
+			Count(&duplicateCount).Error; err != nil {
+			return nil, fmt.Errorf("failed to validate tarif code uniqueness by scheme type: %w", err)
+		}
+		if duplicateCount > 0 {
+			return nil, models.NewMasterDataError(
+				models.ErrCodeDuplicateEntry,
+				"tarif_code already exists for this scheme in company",
+				"tarifCode",
+			)
+		}
+	}
+
 	isActive := true
 	if req.IsActive != nil {
 		isActive = *req.IsActive
@@ -821,6 +1731,14 @@ func (s *masterService) CreateTarifBlok(ctx context.Context, req *models.CreateT
 		ID:           uuid.New().String(),
 		CompanyID:    req.CompanyID,
 		Perlakuan:    req.Perlakuan,
+		Keterangan:   req.Keterangan,
+		LandTypeID:   req.LandTypeID,
+		TarifCode:    req.TarifCode,
+		SchemeType:   req.SchemeType,
+		BJRMinKg:     req.BJRMinKg,
+		BJRMaxKg:     req.BJRMaxKg,
+		TargetLebih:  req.TargetLebih,
+		SortOrder:    req.SortOrder,
 		Basis:        req.Basis,
 		TarifUpah:    req.TarifUpah,
 		Premi:        req.Premi,
@@ -844,6 +1762,10 @@ func (s *masterService) CreateTarifBlok(ctx context.Context, req *models.CreateT
 		return nil, fmt.Errorf("failed to create tarif blok: %w", err)
 	}
 
+	if err := s.syncTariffProjectionFromTarifBlok(ctx, tarifBlok); err != nil {
+		return nil, fmt.Errorf("failed to sync tariff scheme projection: %w", err)
+	}
+
 	return s.repo.GetTarifBlokByID(ctx, tarifBlok.ID)
 }
 
@@ -852,9 +1774,29 @@ func (s *masterService) UpdateTarifBlok(ctx context.Context, req *models.UpdateT
 		trimmed := strings.TrimSpace(*req.Perlakuan)
 		req.Perlakuan = &trimmed
 	}
+	normalizeOptionalUUIDPtr(&req.LandTypeID)
+	if req.Keterangan != nil {
+		trimmed := strings.TrimSpace(*req.Keterangan)
+		req.Keterangan = &trimmed
+	}
+	if req.TarifCode != nil {
+		normalized := strings.ToUpper(strings.TrimSpace(*req.TarifCode))
+		req.TarifCode = &normalized
+	}
+	if req.SchemeType != nil {
+		normalized := strings.ToUpper(strings.TrimSpace(*req.SchemeType))
+		req.SchemeType = &normalized
+	}
+	if req.BJRMinKg != nil && req.BJRMaxKg != nil && *req.BJRMinKg >= *req.BJRMaxKg {
+		return nil, models.NewMasterDataError(
+			models.ErrCodeInvalidInput,
+			"bjr_min_kg harus lebih kecil dari bjr_max_kg",
+			"bjr_min_kg",
+		)
+	}
 
 	if err := s.validator.Struct(req); err != nil {
-		return nil, models.NewMasterDataError(models.ErrCodeInvalidInput, "invalid input data", "")
+		return nil, buildCreateTarifBlokValidationError(err)
 	}
 
 	tarifBlok, err := s.repo.GetTarifBlokByID(ctx, req.ID)
@@ -878,6 +1820,37 @@ func (s *masterService) UpdateTarifBlok(ctx context.Context, req *models.UpdateT
 	if req.Perlakuan != nil {
 		tarifBlok.Perlakuan = *req.Perlakuan
 	}
+	if req.Keterangan != nil {
+		tarifBlok.Keterangan = req.Keterangan
+	}
+	if req.LandTypeID != nil {
+		tarifBlok.LandTypeID = req.LandTypeID
+	}
+	if req.TarifCode != nil {
+		tarifBlok.TarifCode = req.TarifCode
+	}
+	if req.SchemeType != nil {
+		tarifBlok.SchemeType = req.SchemeType
+	}
+
+	resolvedLandType, err := s.resolveLandTypeFromInput(ctx, tarifBlok.LandTypeID, tarifBlok.SchemeType)
+	if err != nil {
+		return nil, err
+	}
+	if resolvedLandType != nil {
+		tarifBlok.LandTypeID = &resolvedLandType.ID
+		if tarifBlok.SchemeType == nil || strings.TrimSpace(*tarifBlok.SchemeType) == "" {
+			code := resolvedLandType.Code
+			tarifBlok.SchemeType = &code
+		}
+	}
+	if tarifBlok.TarifCode == nil || strings.TrimSpace(*tarifBlok.TarifCode) == "" {
+		return nil, models.NewMasterDataError(
+			models.ErrCodeInvalidInput,
+			"tarif_code wajib diisi",
+			"tarifCode",
+		)
+	}
 
 	if req.CompanyID != nil || req.Perlakuan != nil {
 		alreadyExists, err := s.repo.ExistsTarifBlokByCompanyAndPerlakuan(
@@ -894,6 +1867,65 @@ func (s *masterService) UpdateTarifBlok(ctx context.Context, req *models.UpdateT
 				models.ErrCodeDuplicateEntry,
 				"perlakuan already exists for this company",
 				"perlakuan",
+			)
+		}
+	}
+
+	if req.BJRMinKg != nil {
+		tarifBlok.BJRMinKg = req.BJRMinKg
+	}
+	if req.BJRMaxKg != nil {
+		tarifBlok.BJRMaxKg = req.BJRMaxKg
+	}
+	if req.TargetLebih != nil {
+		tarifBlok.TargetLebih = req.TargetLebih
+	}
+	if req.SortOrder != nil {
+		tarifBlok.SortOrder = req.SortOrder
+	}
+
+	if tarifBlok.BJRMinKg != nil && tarifBlok.BJRMaxKg != nil && *tarifBlok.BJRMinKg >= *tarifBlok.BJRMaxKg {
+		return nil, models.NewMasterDataError(
+			models.ErrCodeInvalidInput,
+			"bjr_min_kg harus lebih kecil dari bjr_max_kg",
+			"bjr_min_kg",
+		)
+	}
+
+	if tarifBlok.TarifCode != nil && tarifBlok.LandTypeID != nil {
+		var duplicateCount int64
+		if err := s.db.WithContext(ctx).
+			Table("tarif_blok").
+			Where("company_id = ?", tarifBlok.CompanyID).
+			Where("land_type_id = ?", *tarifBlok.LandTypeID).
+			Where("LOWER(TRIM(tarif_code)) = LOWER(TRIM(?))", *tarifBlok.TarifCode).
+			Where("id <> ?", tarifBlok.ID).
+			Count(&duplicateCount).Error; err != nil {
+			return nil, fmt.Errorf("failed to validate tarif code uniqueness: %w", err)
+		}
+		if duplicateCount > 0 {
+			return nil, models.NewMasterDataError(
+				models.ErrCodeDuplicateEntry,
+				"tarif_code already exists for this land type in company",
+				"tarifCode",
+			)
+		}
+	} else if tarifBlok.TarifCode != nil && tarifBlok.SchemeType != nil {
+		var duplicateCount int64
+		if err := s.db.WithContext(ctx).
+			Table("tarif_blok").
+			Where("company_id = ?", tarifBlok.CompanyID).
+			Where("LOWER(TRIM(scheme_type)) = LOWER(TRIM(?))", *tarifBlok.SchemeType).
+			Where("LOWER(TRIM(tarif_code)) = LOWER(TRIM(?))", *tarifBlok.TarifCode).
+			Where("id <> ?", tarifBlok.ID).
+			Count(&duplicateCount).Error; err != nil {
+			return nil, fmt.Errorf("failed to validate tarif code uniqueness by scheme type: %w", err)
+		}
+		if duplicateCount > 0 {
+			return nil, models.NewMasterDataError(
+				models.ErrCodeDuplicateEntry,
+				"tarif_code already exists for this scheme in company",
+				"tarifCode",
 			)
 		}
 	}
@@ -934,6 +1966,19 @@ func (s *masterService) UpdateTarifBlok(ctx context.Context, req *models.UpdateT
 		return nil, fmt.Errorf("failed to update tarif blok: %w", err)
 	}
 
+	// Keep denormalized blocks.perlakuan aligned with the linked tariff rule.
+	if err := s.db.WithContext(ctx).
+		Table("blocks").
+		Where("tarif_blok_id = ?", tarifBlok.ID).
+		Where("perlakuan IS DISTINCT FROM ?", tarifBlok.Perlakuan).
+		Update("perlakuan", tarifBlok.Perlakuan).Error; err != nil {
+		return nil, fmt.Errorf("failed to sync block perlakuan from tarif blok: %w", err)
+	}
+
+	if err := s.syncTariffProjectionFromTarifBlok(ctx, tarifBlok); err != nil {
+		return nil, fmt.Errorf("failed to sync tariff scheme projection: %w", err)
+	}
+
 	return s.repo.GetTarifBlokByID(ctx, tarifBlok.ID)
 }
 
@@ -969,6 +2014,10 @@ func (s *masterService) DeleteTarifBlok(ctx context.Context, id string, deleterI
 		return fmt.Errorf("failed to delete tarif blok: %w", err)
 	}
 
+	if err := s.deleteTariffProjectionByRuleID(ctx, id); err != nil {
+		return fmt.Errorf("failed to delete tariff scheme projection: %w", err)
+	}
+
 	return nil
 }
 
@@ -997,6 +2046,11 @@ func (s *masterService) UpdateBlock(ctx context.Context, req *models.UpdateBlock
 			req.ISTM = &normalizedISTM
 		}
 	}
+	normalizeOptionalUUIDPtr(&req.LandTypeID)
+	if req.TarifBlokID != nil {
+		trimmedTarifID := strings.TrimSpace(*req.TarifBlokID)
+		req.TarifBlokID = &trimmedTarifID
+	}
 
 	// Validate input
 	if err := s.validator.Struct(req); err != nil {
@@ -1020,6 +2074,15 @@ func (s *masterService) UpdateBlock(ctx context.Context, req *models.UpdateBlock
 	blockCompanyID, _, err := s.getDivisionScopeIDs(ctx, block.DivisionID)
 	if err != nil {
 		return nil, err
+	}
+
+	if req.LandTypeID != nil {
+		if _, err := s.repo.GetLandTypeByID(ctx, *req.LandTypeID); err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, models.NewMasterDataError(models.ErrCodeNotFound, "land type tidak ditemukan", "landTypeId")
+			}
+			return nil, fmt.Errorf("failed to get land type: %w", err)
+		}
 	}
 
 	if req.BlockCode != nil {
@@ -1055,10 +2118,14 @@ func (s *masterService) UpdateBlock(ctx context.Context, req *models.UpdateBlock
 	if req.ISTM != nil {
 		block.ISTM = *req.ISTM
 	}
+	if req.LandTypeID != nil {
+		block.LandTypeID = req.LandTypeID
+	}
 	if req.TarifBlokID != nil {
 		if *req.TarifBlokID == "" {
 			block.TarifBlokID = nil
 			block.Perlakuan = nil
+			block.TarifBlok = nil
 		} else {
 			tarifBlok, err := s.repo.GetTarifBlokByID(ctx, *req.TarifBlokID)
 			if err != nil {
@@ -1074,8 +2141,32 @@ func (s *masterService) UpdateBlock(ctx context.Context, req *models.UpdateBlock
 					"tarifBlokId",
 				)
 			}
-			block.TarifBlokID = req.TarifBlokID
+			if matchErr := ensureLandTypeMatch(block.LandTypeID, tarifBlok.LandTypeID); matchErr != nil {
+				return nil, matchErr
+			}
+			if block.LandTypeID == nil && tarifBlok.LandTypeID != nil {
+				block.LandTypeID = tarifBlok.LandTypeID
+			}
+			nextTarifID := tarifBlok.ID
+			block.TarifBlokID = &nextTarifID
 			block.Perlakuan = &tarifBlok.Perlakuan
+			block.TarifBlok = tarifBlok
+		}
+	}
+
+	if block.TarifBlokID != nil && strings.TrimSpace(*block.TarifBlokID) != "" {
+		tarifBlok, err := s.repo.GetTarifBlokByID(ctx, *block.TarifBlokID)
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, models.NewMasterDataError(models.ErrCodeNotFound, "tarif blok tidak ditemukan", "tarifBlokId")
+			}
+			return nil, fmt.Errorf("failed to get tarif blok: %w", err)
+		}
+		if matchErr := ensureLandTypeMatch(block.LandTypeID, tarifBlok.LandTypeID); matchErr != nil {
+			return nil, matchErr
+		}
+		if block.LandTypeID == nil && tarifBlok.LandTypeID != nil {
+			block.LandTypeID = tarifBlok.LandTypeID
 		}
 	}
 

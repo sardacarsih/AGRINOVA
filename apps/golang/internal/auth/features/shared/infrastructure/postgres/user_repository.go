@@ -22,7 +22,7 @@ type UserRepository struct {
 
 // NewUserRepository creates new PostgreSQL user repository
 func NewUserRepository(db *gorm.DB) *UserRepository {
-	return &UserRepository{db: db.Debug()}
+	return &UserRepository{db: db}
 }
 
 // FindByID finds user by ID
@@ -101,6 +101,37 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*domain
 		}).
 		Where("email = ?", email).
 		First(&user).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return r.toDomainUser(&user), nil
+}
+
+// FindAuthByIdentifier finds the auth subset of a user by username or email.
+func (r *UserRepository) FindAuthByIdentifier(ctx context.Context, identifier string) (*domain.User, error) {
+	var user UserModel
+	err := r.db.WithContext(ctx).
+		Select([]string{
+			"id",
+			"username",
+			"name",
+			"email",
+			"phone",
+			"avatar_url",
+			"password",
+			"role",
+			"is_active",
+			"manager_id",
+			"created_at",
+			"updated_at",
+		}).
+		Where("(username = ? OR email = ?)", identifier, identifier).
+		Take(&user).Error
 
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -764,6 +795,7 @@ func (r *UserRepository) toDomainUser(user *UserModel) *domain.User {
 			domainAssignment.Company = &domain.Company{
 				ID:      assignment.Company.ID,
 				Name:    assignment.Company.Name,
+				LogoURL: assignment.Company.LogoURL,
 				Status:  assignment.Company.Status,
 				Address: assignment.Company.Address,
 				Phone:   assignment.Company.Phone,
@@ -778,6 +810,7 @@ func (r *UserRepository) toDomainUser(user *UserModel) *domain.User {
 				domainAssignment.Company = &domain.Company{
 					ID:      comp.ID,
 					Name:    comp.Name,
+					LogoURL: comp.LogoURL,
 					Status:  comp.Status,
 					Address: comp.Address,
 					Phone:   comp.Phone,

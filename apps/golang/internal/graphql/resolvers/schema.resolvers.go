@@ -171,7 +171,7 @@ func (r *queryResolver) NotificationSummary(ctx context.Context) (*models.Notifi
 // Field resolvers (return nil for now - gqlgen will auto-generate needed resolvers)
 
 // Block returns generated.BlockResolver implementation.
-func (r *Resolver) Block() generated.BlockResolver { return nil }
+func (r *Resolver) Block() generated.BlockResolver { return &blockResolver{r} }
 
 // Company returns generated.CompanyResolver implementation.
 func (r *Resolver) Company() generated.CompanyResolver { return nil }

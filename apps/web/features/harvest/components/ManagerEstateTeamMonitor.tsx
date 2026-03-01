@@ -150,15 +150,22 @@ export function ManagerEstateTeamMonitor() {
 
   const currentUserId = (user?.id || '').trim();
   const normalizedRole = normalizeDashboardRole(user?.role);
-  const companyId = effectiveCompanyId || user?.companyId || user?.assignedCompanies?.[0];
+  const resolvedCompanyId = React.useMemo(() => {
+    if (normalizedRole === 'AREA_MANAGER') {
+      return effectiveCompanyId;
+    }
+    return effectiveCompanyId || user?.companyId || user?.assignedCompanies?.[0];
+  }, [effectiveCompanyId, normalizedRole, user?.assignedCompanies, user?.companyId]);
+
+  const usersQueryVariables = React.useMemo(() => ({
+    isActive: true,
+    limit: 1000,
+    offset: 0,
+    ...(resolvedCompanyId ? { companyId: resolvedCompanyId } : {}),
+  }), [resolvedCompanyId]);
 
   const { data: usersData, loading: isLoadingUsers } = useGetUsersQuery({
-    variables: {
-      companyId: companyId || undefined,
-      isActive: true,
-      limit: 1000,
-      offset: 0,
-    },
+    variables: usersQueryVariables,
     fetchPolicy: 'cache-and-network',
   });
 
@@ -625,20 +632,20 @@ export function ManagerEstateTeamMonitor() {
   const isLoading = isLoadingUsers || isLoadingHarvest;
   const selectedPeriodLabel = PERIOD_OPTIONS.find(option => option.value === periodMode)?.label ?? '30 Hari';
   const roleViewLabel = React.useMemo(() => {
-    if (normalizedRole === 'AREA_MANAGER') return 'Area Manager View';
-    if (normalizedRole === 'ASISTEN') return 'Asisten View';
-    if (normalizedRole === 'MANAGER') return 'Manager View';
-    return 'Team View';
+    if (normalizedRole === 'AREA_MANAGER') return 'Tampilan Area Manager';
+    if (normalizedRole === 'ASISTEN') return 'Tampilan Asisten';
+    if (normalizedRole === 'MANAGER') return 'Tampilan Manager';
+    return 'Tampilan Tim';
   }, [normalizedRole]);
   const scopeLabel = React.useMemo(() => {
     if (normalizedRole === 'AREA_MANAGER') {
       if (selectedCompanyId === ALL_COMPANIES_SCOPE) {
-        return 'Semua perusahaan dalam assignment';
+        return 'Semua perusahaan dalam penugasan';
       }
       return selectedCompanyLabel || 'Perusahaan terpilih';
     }
 
-    return selectedCompanyLabel || 'Scope perusahaan user';
+    return selectedCompanyLabel || 'Cakupan perusahaan pengguna';
   }, [normalizedRole, selectedCompanyId, selectedCompanyLabel]);
 
   const handleDetail = (member: TeamMember) => {
@@ -687,7 +694,7 @@ export function ManagerEstateTeamMonitor() {
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-white/80 px-2.5 py-1 text-emerald-900 dark:border-white/30 dark:bg-white/10 dark:text-white">
                   <Building2 className="h-3.5 w-3.5" />
-                  Scope: {scopeLabel}
+                  Cakupan: {scopeLabel}
                 </span>
               </div>
             </div>
@@ -793,7 +800,7 @@ export function ManagerEstateTeamMonitor() {
                   'rounded-md p-2 transition-colors',
                   !isGridView ? 'bg-emerald-700 text-white' : 'text-slate-500 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700'
                 )}
-                aria-label="List view"
+                aria-label="Tampilan daftar"
               >
                 <List className="h-4 w-4" />
               </button>
@@ -804,7 +811,7 @@ export function ManagerEstateTeamMonitor() {
                   'rounded-md p-2 transition-colors',
                   isGridView ? 'bg-emerald-700 text-white' : 'text-slate-500 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700'
                 )}
-                aria-label="Grid view"
+                aria-label="Tampilan grid"
               >
                 <LayoutGrid className="h-4 w-4" />
               </button>
@@ -887,7 +894,7 @@ export function ManagerEstateTeamMonitor() {
                     </span>
                     {member.source === 'harvest_record' && (
                       <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-700 dark:bg-slate-700 dark:text-slate-100">
-                        Dari Harvest
+                        Dari Panen
                       </span>
                     )}
                   </div>
@@ -935,12 +942,12 @@ export function ManagerEstateTeamMonitor() {
           {detailMember && (
             <div className="space-y-2 text-sm">
               <p><span className="font-semibold">Nama:</span> {detailMember.name}</p>
-              <p><span className="font-semibold">Role:</span> {detailMember.role}</p>
+              <p><span className="font-semibold">Peran:</span> {detailMember.role}</p>
               <p><span className="font-semibold">Divisi:</span> {detailMember.division}</p>
               <p><span className="font-semibold">Performa:</span> {detailMember.performance.toFixed(1)}%</p>
               <p><span className="font-semibold">Produksi:</span> {detailMember.productionTon.toFixed(1)} ton</p>
-              <p><span className="font-semibold">Status:</span> {detailMember.isActive ? 'Active' : 'Inactive'}</p>
-              <p><span className="font-semibold">Sumber Data:</span> {detailMember.source === 'user' ? 'User Management' : 'Harvest Record'}</p>
+              <p><span className="font-semibold">Status:</span> {detailMember.isActive ? 'Aktif' : 'Nonaktif'}</p>
+              <p><span className="font-semibold">Sumber Data:</span> {detailMember.source === 'user' ? 'Manajemen Pengguna' : 'Catatan Panen'}</p>
               {detailMember.estateNames.length > 0 && (
                 <p><span className="font-semibold">Estate:</span> {detailMember.estateNames.join(', ')}</p>
               )}

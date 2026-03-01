@@ -68,6 +68,25 @@ export const GET_HARVEST_STATISTICS = gql`
   }
 `;
 
+// Lightweight query source for client-side stats aggregation.
+export const GET_HARVEST_STATS_SOURCE = gql`
+  query GetHarvestStatsSource($dateFrom: Time, $dateTo: Time) {
+    harvestRecords(dateFrom: $dateFrom, dateTo: $dateTo) {
+      id
+      tanggal
+      status
+      beratTbs
+      jumlahJanjang
+      jjgMatang
+      jjgMentah
+      jjgLewatMatang
+      jjgBusukAbnormal
+      jjgTangkaiPanjang
+      totalBrondolan
+    }
+  }
+`;
+
 // Query to get harvest records by status
 export const GET_HARVEST_RECORDS_BY_STATUS = gql`
   ${HARVEST_RECORD_FRAGMENT}
@@ -341,6 +360,24 @@ export interface GetHarvestRecordsByStatusResponse {
 
 export interface GetHarvestStatisticsResponse {
   harvestStatistics: HarvestStatistics;
+}
+
+export interface HarvestStatsSourceRecord {
+  id: string;
+  tanggal: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  beratTbs: number;
+  jumlahJanjang: number;
+  jjgMatang?: number | null;
+  jjgMentah?: number | null;
+  jjgLewatMatang?: number | null;
+  jjgBusukAbnormal?: number | null;
+  jjgTangkaiPanjang?: number | null;
+  totalBrondolan?: number | null;
+}
+
+export interface GetHarvestStatsSourceResponse {
+  harvestRecords: HarvestStatsSourceRecord[];
 }
 
 export interface GetHarvestRecordResponse {

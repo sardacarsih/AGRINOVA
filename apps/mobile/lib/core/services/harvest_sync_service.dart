@@ -1317,6 +1317,37 @@ class HarvestSyncService {
     return pending.length;
   }
 
+  /// Get latest sync error messages for pending/failed harvest records.
+  Future<List<String>> getRecentSyncErrorMessages({int limit = 3}) async {
+    final currentMandorId = await _getCurrentMandorIdForSync();
+    if (currentMandorId == null) {
+      return const [];
+    }
+
+    final safeLimit = limit < 1 ? 1 : limit;
+    final rows = await _databaseService.query(
+      'harvest_records',
+      columns: const ['sync_error_message'],
+      where:
+          "mandor_id = ? AND needs_sync = 1 AND sync_error_message IS NOT NULL AND TRIM(sync_error_message) != ''",
+      whereArgs: [currentMandorId],
+      orderBy: 'last_sync_attempt DESC, updated_at DESC',
+      limit: safeLimit,
+    );
+
+    final seen = <String>{};
+    final messages = <String>[];
+    for (final row in rows) {
+      final message = row['sync_error_message']?.toString().trim() ?? '';
+      if (message.isEmpty || seen.contains(message)) {
+        continue;
+      }
+      seen.add(message);
+      messages.add(message);
+    }
+    return messages;
+  }
+
   /// Retry failed syncs (with exponential backoff based on retry count)
   Future<void> retryFailedSyncs({int maxRetries = 5}) async {
     final currentMandorId = await _getCurrentMandorIdForSync();

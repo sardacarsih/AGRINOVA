@@ -20,16 +20,20 @@ import (
 var managerBudgetPeriodRegex = regexp.MustCompile(`^\d{4}-(0[1-9]|1[0-2])$`)
 
 type managerDivisionProductionBudgetWrite struct {
-	ID          string    `gorm:"column:id"`
-	DivisionID  string    `gorm:"column:division_id"`
-	PeriodMonth string    `gorm:"column:period_month"`
-	TargetTon   float64   `gorm:"column:target_ton"`
-	PlannedCost float64   `gorm:"column:planned_cost"`
-	ActualCost  float64   `gorm:"column:actual_cost"`
-	Notes       *string   `gorm:"column:notes"`
-	CreatedBy   string    `gorm:"column:created_by"`
-	CreatedAt   time.Time `gorm:"column:created_at"`
-	UpdatedAt   time.Time `gorm:"column:updated_at"`
+	ID                 string     `gorm:"column:id"`
+	DivisionID         string     `gorm:"column:division_id"`
+	PeriodMonth        string     `gorm:"column:period_month"`
+	TargetTon          float64    `gorm:"column:target_ton"`
+	PlannedCost        float64    `gorm:"column:planned_cost"`
+	ActualCost         float64    `gorm:"column:actual_cost"`
+	WorkflowStatus     string     `gorm:"column:workflow_status"`
+	OverrideApproved   bool       `gorm:"column:override_approved"`
+	OverrideApprovedBy *string    `gorm:"column:override_approved_by"`
+	OverrideApprovedAt *time.Time `gorm:"column:override_approved_at"`
+	Notes              *string    `gorm:"column:notes"`
+	CreatedBy          string     `gorm:"column:created_by"`
+	CreatedAt          time.Time  `gorm:"column:created_at"`
+	UpdatedAt          time.Time  `gorm:"column:updated_at"`
 }
 
 func (managerDivisionProductionBudgetWrite) TableName() string {
@@ -37,19 +41,21 @@ func (managerDivisionProductionBudgetWrite) TableName() string {
 }
 
 type managerDivisionProductionBudgetRead struct {
-	ID            string    `gorm:"column:id"`
-	DivisionID    string    `gorm:"column:division_id"`
-	DivisionName  string    `gorm:"column:division_name"`
-	EstateID      string    `gorm:"column:estate_id"`
-	EstateName    string    `gorm:"column:estate_name"`
-	PeriodMonth   string    `gorm:"column:period_month"`
-	TargetTon     float64   `gorm:"column:target_ton"`
-	PlannedCost   float64   `gorm:"column:planned_cost"`
-	ActualCost    float64   `gorm:"column:actual_cost"`
-	Notes         *string   `gorm:"column:notes"`
-	CreatedByName string    `gorm:"column:created_by_name"`
-	CreatedAt     time.Time `gorm:"column:created_at"`
-	UpdatedAt     time.Time `gorm:"column:updated_at"`
+	ID               string    `gorm:"column:id"`
+	DivisionID       string    `gorm:"column:division_id"`
+	DivisionName     string    `gorm:"column:division_name"`
+	EstateID         string    `gorm:"column:estate_id"`
+	EstateName       string    `gorm:"column:estate_name"`
+	PeriodMonth      string    `gorm:"column:period_month"`
+	TargetTon        float64   `gorm:"column:target_ton"`
+	PlannedCost      float64   `gorm:"column:planned_cost"`
+	ActualCost       float64   `gorm:"column:actual_cost"`
+	WorkflowStatus   string    `gorm:"column:workflow_status"`
+	OverrideApproved bool      `gorm:"column:override_approved"`
+	Notes            *string   `gorm:"column:notes"`
+	CreatedByName    string    `gorm:"column:created_by_name"`
+	CreatedAt        time.Time `gorm:"column:created_at"`
+	UpdatedAt        time.Time `gorm:"column:updated_at"`
 }
 
 type managerDivisionOptionRead struct {
@@ -94,8 +100,51 @@ func (r *Resolver) applyManagerDivisionScope(query *gorm.DB, userID string, role
 		`, trimmedUserID, trimmedUserID, trimmedUserID)
 	}
 
-	// MANAGER and other roles: strictly follow explicit division/estate assignments.
-	// No company-assignment fallback for manager scope.
+	// MANAGER: primary scope comes from estate assignments, so all divisions under assigned estates are visible.
+	// Fallback to explicit division assignments only when no active estate assignment exists.
+	if role == auth.UserRoleManager {
+		return query.Where(`
+			(
+				EXISTS (
+					SELECT 1
+					FROM user_estate_assignments uea
+					WHERE uea.user_id = ?
+					  AND uea.estate_id = d.estate_id
+					  AND uea.is_active = true
+				)
+				OR (
+					NOT EXISTS (
+						SELECT 1
+						FROM user_estate_assignments uea_any
+						WHERE uea_any.user_id = ?
+						  AND uea_any.is_active = true
+					)
+					AND EXISTS (
+						SELECT 1
+						FROM user_division_assignments uda
+						WHERE uda.user_id = ?
+						  AND uda.division_id = d.id
+						  AND uda.is_active = true
+					)
+				)
+			)
+		`, trimmedUserID, trimmedUserID, trimmedUserID)
+	}
+
+	// ASISTEN/MANDOR: only show divisions that are explicitly assigned.
+	if role == auth.UserRoleAsisten || role == auth.UserRoleMandor {
+		return query.Where(`
+			EXISTS (
+				SELECT 1
+				FROM user_division_assignments uda
+				WHERE uda.user_id = ?
+				  AND uda.division_id = d.id
+				  AND uda.is_active = true
+			)
+		`, trimmedUserID)
+	}
+
+	// Fallback for other manager-area pages that reuse this helper: allow division or estate assignment.
 	return query.Where(`
 		(
 			EXISTS (
@@ -129,6 +178,8 @@ func (r *Resolver) managerBudgetScopedQuery(ctx context.Context, userID string, 
 			b.target_ton,
 			b.planned_cost,
 			b.actual_cost,
+			b.workflow_status,
+			b.override_approved,
 			b.notes,
 			COALESCE(NULLIF(u.name, ''), u.username, '-') AS created_by_name,
 			b.created_at,
@@ -173,6 +224,32 @@ func normalizeManagerBudgetNotes(raw *string) *string {
 		return nil
 	}
 	return &trimmed
+}
+
+func normalizeManagerBudgetWorkflowStatus(raw *generated.ManagerBudgetWorkflowStatus) (string, error) {
+	if raw == nil {
+		return string(generated.ManagerBudgetWorkflowStatusDraft), nil
+	}
+	status := strings.TrimSpace(string(*raw))
+	switch status {
+	case string(generated.ManagerBudgetWorkflowStatusDraft),
+		string(generated.ManagerBudgetWorkflowStatusReview),
+		string(generated.ManagerBudgetWorkflowStatusApproved):
+		return status, nil
+	default:
+		return "", fmt.Errorf("workflowStatus tidak valid")
+	}
+}
+
+func toManagerBudgetWorkflowStatus(raw string) generated.ManagerBudgetWorkflowStatus {
+	switch strings.TrimSpace(raw) {
+	case string(generated.ManagerBudgetWorkflowStatusReview):
+		return generated.ManagerBudgetWorkflowStatusReview
+	case string(generated.ManagerBudgetWorkflowStatusApproved):
+		return generated.ManagerBudgetWorkflowStatusApproved
+	default:
+		return generated.ManagerBudgetWorkflowStatusDraft
+	}
 }
 
 func (r *Resolver) managerBudgetDuplicateExists(
@@ -222,19 +299,21 @@ func convertManagerBudgetToGraphQL(row *managerDivisionProductionBudgetRead) *ge
 	}
 
 	return &generated.ManagerDivisionProductionBudget{
-		ID:           row.ID,
-		DivisionID:   row.DivisionID,
-		DivisionName: row.DivisionName,
-		EstateID:     row.EstateID,
-		EstateName:   row.EstateName,
-		Period:       row.PeriodMonth,
-		TargetTon:    row.TargetTon,
-		PlannedCost:  row.PlannedCost,
-		ActualCost:   row.ActualCost,
-		Notes:        row.Notes,
-		CreatedBy:    createdBy,
-		CreatedAt:    row.CreatedAt,
-		UpdatedAt:    row.UpdatedAt,
+		ID:               row.ID,
+		DivisionID:       row.DivisionID,
+		DivisionName:     row.DivisionName,
+		EstateID:         row.EstateID,
+		EstateName:       row.EstateName,
+		Period:           row.PeriodMonth,
+		TargetTon:        row.TargetTon,
+		PlannedCost:      row.PlannedCost,
+		ActualCost:       row.ActualCost,
+		WorkflowStatus:   toManagerBudgetWorkflowStatus(row.WorkflowStatus),
+		OverrideApproved: row.OverrideApproved,
+		Notes:            row.Notes,
+		CreatedBy:        createdBy,
+		CreatedAt:        row.CreatedAt,
+		UpdatedAt:        row.UpdatedAt,
 	}
 }
 
@@ -1235,6 +1314,14 @@ func (r *mutationResolver) CreateManagerDivisionProductionBudget(ctx context.Con
 	if actualCost < 0 {
 		return nil, fmt.Errorf("actualCost tidak boleh negatif")
 	}
+	workflowStatus, err := normalizeManagerBudgetWorkflowStatus(input.WorkflowStatus)
+	if err != nil {
+		return nil, err
+	}
+	overrideApproved := input.OverrideApproved != nil && *input.OverrideApproved
+	if workflowStatus != string(generated.ManagerBudgetWorkflowStatusApproved) {
+		overrideApproved = false
+	}
 
 	role := middleware.GetUserRoleFromContext(ctx)
 	canAccess, err := r.managerCanAccessDivision(ctx, userID, divisionID, role)
@@ -1254,17 +1341,27 @@ func (r *mutationResolver) CreateManagerDivisionProductionBudget(ctx context.Con
 	}
 
 	now := time.Now()
+	var overrideApprovedBy *string
+	var overrideApprovedAt *time.Time
+	if overrideApproved {
+		overrideApprovedBy = &userID
+		overrideApprovedAt = &now
+	}
 	record := &managerDivisionProductionBudgetWrite{
-		ID:          uuid.NewString(),
-		DivisionID:  divisionID,
-		PeriodMonth: periodMonth,
-		TargetTon:   input.TargetTon,
-		PlannedCost: input.PlannedCost,
-		ActualCost:  actualCost,
-		Notes:       normalizeManagerBudgetNotes(input.Notes),
-		CreatedBy:   userID,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		ID:                 uuid.NewString(),
+		DivisionID:         divisionID,
+		PeriodMonth:        periodMonth,
+		TargetTon:          input.TargetTon,
+		PlannedCost:        input.PlannedCost,
+		ActualCost:         actualCost,
+		WorkflowStatus:     workflowStatus,
+		OverrideApproved:   overrideApproved,
+		OverrideApprovedBy: overrideApprovedBy,
+		OverrideApprovedAt: overrideApprovedAt,
+		Notes:              normalizeManagerBudgetNotes(input.Notes),
+		CreatedBy:          userID,
+		CreatedAt:          now,
+		UpdatedAt:          now,
 	}
 
 	if err := r.db.WithContext(ctx).Table(record.TableName()).Create(record).Error; err != nil {
@@ -1335,6 +1432,20 @@ func (r *mutationResolver) UpdateManagerDivisionProductionBudget(ctx context.Con
 	if nextActualCost < 0 {
 		return nil, fmt.Errorf("actualCost tidak boleh negatif")
 	}
+	nextWorkflowStatus := strings.TrimSpace(existing.WorkflowStatus)
+	if input.WorkflowStatus != nil {
+		nextWorkflowStatus, err = normalizeManagerBudgetWorkflowStatus(input.WorkflowStatus)
+		if err != nil {
+			return nil, err
+		}
+	}
+	nextOverrideApproved := existing.OverrideApproved
+	if input.OverrideApproved != nil {
+		nextOverrideApproved = *input.OverrideApproved
+	}
+	if nextWorkflowStatus != string(generated.ManagerBudgetWorkflowStatusApproved) {
+		nextOverrideApproved = false
+	}
 
 	nextNotes := existing.Notes
 	if input.Notes != nil {
@@ -1358,14 +1469,26 @@ func (r *mutationResolver) UpdateManagerDivisionProductionBudget(ctx context.Con
 		return nil, fmt.Errorf("budget untuk divisi dan periode tersebut sudah ada")
 	}
 
+	var nextOverrideApprovedBy *string
+	var nextOverrideApprovedAt *time.Time
+	if nextOverrideApproved {
+		now := time.Now()
+		nextOverrideApprovedBy = &userID
+		nextOverrideApprovedAt = &now
+	}
+
 	updates := map[string]interface{}{
-		"division_id":  nextDivisionID,
-		"period_month": nextPeriod,
-		"target_ton":   nextTargetTon,
-		"planned_cost": nextPlannedCost,
-		"actual_cost":  nextActualCost,
-		"notes":        nextNotes,
-		"updated_at":   time.Now(),
+		"division_id":          nextDivisionID,
+		"period_month":         nextPeriod,
+		"target_ton":           nextTargetTon,
+		"planned_cost":         nextPlannedCost,
+		"actual_cost":          nextActualCost,
+		"workflow_status":      nextWorkflowStatus,
+		"override_approved":    nextOverrideApproved,
+		"override_approved_by": nextOverrideApprovedBy,
+		"override_approved_at": nextOverrideApprovedAt,
+		"notes":                nextNotes,
+		"updated_at":           time.Now(),
 	}
 
 	if err := r.db.WithContext(ctx).

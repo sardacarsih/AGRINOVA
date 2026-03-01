@@ -114,5 +114,7 @@ type CookieService interface {
 
 // RateLimiter defines interface for rate limiting
 type RateLimiter interface {
+	Blocked(key string) (bool, time.Duration)
 	Allow(key string) (bool, time.Duration)
+	Reset(key string)
 }

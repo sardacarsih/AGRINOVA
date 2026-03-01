@@ -129,20 +129,23 @@ func (r *AuthResolver) DeviceRenew(ctx context.Context, input auth.DeviceRenewIn
 
 // Logout handles user logout
 func (r *AuthResolver) Logout(ctx context.Context) (bool, error) {
-	// 1. Check for Web Session (via Cookie)
-	// We check if the request has the session cookie using middleware helper or direct check
-	// Note: We need to access the request cookies. The WebResolver.WebLogout does this.
-	// But how do we *know* if it's a web request without trying?
-	// We can check if "http" context has the cookie.
-
+	// 1. Check for active web session from middleware context.
 	isWeb := false
-	httpCtx := ctx.Value("http")
-	if httpCtx != nil {
-		if httpContext, ok := httpCtx.(map[string]interface{}); ok {
-			if req, ok := httpContext["request"].(*http.Request); ok {
-				// Check for session_id cookie
-				if _, err := req.Cookie("session_id"); err == nil {
-					isWeb = true
+	if sessionID, ok := ctx.Value("session_id").(string); ok && sessionID != "" {
+		isWeb = true
+	} else {
+		// Fallback for cases where middleware could not populate context (e.g. stale cookie).
+		httpCtx := ctx.Value("http")
+		if httpCtx != nil {
+			if httpContext, ok := httpCtx.(map[string]interface{}); ok {
+				if req, ok := httpContext["request"].(*http.Request); ok {
+					cookieNames := []string{"session_id", "auth-session"}
+					for _, cookieName := range cookieNames {
+						if _, err := req.Cookie(cookieName); err == nil {
+							isWeb = true
+							break
+						}
+					}
 				}
 			}
 		}
@@ -599,6 +602,7 @@ func (r *AuthResolver) toGraphQLUser(u *sharedDomain.User) *auth.User {
 				companyAssignment.Company = &master.Company{
 					ID:      assignment.Company.ID,
 					Name:    assignment.Company.Name,
+					LogoURL: assignment.Company.LogoURL,
 					Address: assignment.Company.Address,
 					Phone:   assignment.Company.Phone,
 				}

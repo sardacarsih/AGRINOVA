@@ -43,6 +43,22 @@ export class GraphQLOnlyAuthService {
     this.apolloClient = apolloClient;
   }
 
+  private extractErrorMessage(error: any, fallback: string): string {
+    const graphQLErrorMessage =
+      error?.graphQLErrors?.[0]?.message ||
+      error?.networkError?.result?.errors?.[0]?.message;
+
+    if (typeof graphQLErrorMessage === 'string' && graphQLErrorMessage.trim()) {
+      return graphQLErrorMessage;
+    }
+
+    if (typeof error?.message === 'string' && error.message.trim()) {
+      return error.message;
+    }
+
+    return fallback;
+  }
+
   private enrichUserWithCompanyContext(user: any, assignmentCompanies?: Array<{ id: string; name: string }>): any {
     const primaryCompany =
       user?.company ||
@@ -107,12 +123,10 @@ export class GraphQLOnlyAuthService {
   async login(data: LoginFormData): Promise<LoginResponse> {
     try {
       const { email, password, rememberMe } = data;
-      console.log('[GraphQLOnlyAuthService] Attempting login with:', { email, rememberMe });
 
       // Check client-side lockout
       const lockoutCheck = this.checkLockout(email);
       if (lockoutCheck.isLocked) {
-        console.log('[GraphQLOnlyAuthService] Account locked for user:', email);
         return {
           success: false,
           message: `Akun terkunci. Coba lagi dalam ${lockoutCheck.remainingTime} menit.`,
@@ -132,33 +146,36 @@ export class GraphQLOnlyAuthService {
         password,
       };
 
-      console.log('[GraphQLOnlyAuthService] Calling GraphQL webLogin mutation');
-
       // Execute GraphQL webLogin mutation
       const result = await this.apolloClient.mutate({
         mutation: WEB_LOGIN_MUTATION,
         variables: { input: webLoginInput }
       });
 
-      console.log('[GraphQLOnlyAuthService] Login response:', result);
-
       if (result.data && result.data.webLogin) {
-        console.log('[GraphQLOnlyAuthService] WebLogin successful');
         // Reset login attempts on successful login
         this.resetLoginAttempts(email);
 
         const webLoginPayload: WebLoginPayload = result.data.webLogin;
-        console.log('[GraphQLOnlyAuthService] WebLogin payload:', webLoginPayload);
 
         if (!webLoginPayload.success) {
           throw new Error(webLoginPayload.message || 'Login failed');
         }
+        if (!webLoginPayload.user) {
+          throw new Error(webLoginPayload.message || 'Login failed');
+        }
+
+        // Prevent cross-account stale UI data when users switch accounts
+        // without a clean logout flow.
+        await this.apolloClient.clearStore().catch((clearError) => {
+          console.warn('[GraphQLOnlyAuthService] Failed to clear Apollo store after login:', clearError);
+        });
 
         // Keep role in original format from backend (SUPER_ADMIN)
         const normalizedUser = this.enrichUserWithCompanyContext({
           ...webLoginPayload.user,
           role: webLoginPayload.user.role as UserRole
-        }, webLoginPayload.assignments?.companies as Array<{ id: string; name: string }>);
+        });
 
         // Create GraphQL-based auth session (for WebLogin, tokens are handled via cookies)
         const graphQLSession: GraphQLAuthSession = {
@@ -177,7 +194,6 @@ export class GraphQLOnlyAuthService {
 
         // Store current session
         this.currentSession = graphQLSession;
-        console.log('[GraphQLOnlyAuthService] Session stored:', graphQLSession);
 
         // Cache session for fast page reload recovery
         this.cacheSessionToStorage(graphQLSession);
@@ -203,7 +219,6 @@ export class GraphQLOnlyAuthService {
         };
       }
 
-      console.log('[GraphQLOnlyAuthService] Login failed - no data returned');
       this.incrementFailedAttempts(email);
 
       return {
@@ -249,9 +264,13 @@ export class GraphQLOnlyAuthService {
       }
 
       // Call GraphQL logout mutation
-      await this.apolloClient.mutate({
+      const result = await this.apolloClient.mutate({
         mutation: LOGOUT_MUTATION
       });
+
+      if (result?.data?.logout !== true) {
+        throw new Error('Server logout did not complete');
+      }
 
       // Clear tokens and session
       this.clearSession();
@@ -267,8 +286,11 @@ export class GraphQLOnlyAuthService {
       this.clearSession();
 
       return {
-        success: true,
-        message: 'Logout berhasil.',
+        success: false,
+        message: this.extractErrorMessage(
+          error,
+          'Sesi lokal ditutup, tetapi logout server gagal. Silakan login ulang.'
+        ),
       };
     }
   }
@@ -330,8 +352,6 @@ export class GraphQLOnlyAuthService {
 
   // Update current session (for AuthProvider integration)
   updateCurrentSession(session: GraphQLAuthSession): void {
-    console.log('[GraphQLOnlyAuthService] Updating current session:', session.user?.username, session.user?.role);
-
     // Preserve role format from backend (UPPERCASE) - frontend now expects uppercase too
     const normalizedSession = {
       ...session,
@@ -345,21 +365,17 @@ export class GraphQLOnlyAuthService {
   }
 
   // Check authentication status
-  async checkAuth(): Promise<boolean> {
+  async checkAuth(forceNetwork = false): Promise<boolean> {
     try {
-      console.log('[GraphQLOnlyAuthService] Checking authentication...');
-
       // Step 1: Check for valid cached session first (fast path)
-      if (this.currentSession?.isAuthenticated && this.currentSession.expiresAt > new Date()) {
-        console.log('[GraphQLOnlyAuthService] Using valid cached session');
+      if (!forceNetwork && this.currentSession?.isAuthenticated && this.currentSession.expiresAt > new Date()) {
         return true;
       }
 
       // Step 2: Try to restore from sessionStorage cache (immediate page reload recovery)
-      if (typeof window !== 'undefined' && !this.currentSession) {
+      if (!forceNetwork && typeof window !== 'undefined' && !this.currentSession) {
         const cachedSession = this.restoreSessionFromStorage();
         if (cachedSession) {
-          console.log('[GraphQLOnlyAuthService] Restored session from storage cache');
           return true;
         }
       }
@@ -376,8 +392,6 @@ export class GraphQLOnlyAuthService {
           fetchPolicy: 'network-only', // Always fetch from network to validate auth
           errorPolicy: 'all'
         });
-
-        console.log('[GraphQLOnlyAuthService] CurrentUser query result:', currentUserResult);
 
         const currentUserPayload = currentUserResult?.data?.currentUser;
         const currentUserData = currentUserPayload?.user;
@@ -405,7 +419,6 @@ export class GraphQLOnlyAuthService {
             isAuthenticated: true,
           };
 
-          console.log('[GraphQLOnlyAuthService] Authentication validated with GraphQL API (cookie-based)');
           this.cacheSessionToStorage(this.currentSession);
           this.startSessionMonitoring();
           return true;
@@ -417,8 +430,6 @@ export class GraphQLOnlyAuthService {
           fetchPolicy: 'network-only',
           errorPolicy: 'all'
         });
-        console.log('[GraphQLOnlyAuthService] ME Query fallback result:', meResult);
-
         if (meResult.data && meResult.data.me) {
           const user = meResult.data.me;
           const normalizedUser = this.enrichUserWithCompanyContext({
@@ -444,7 +455,6 @@ export class GraphQLOnlyAuthService {
           return true;
         }
 
-        console.log('[GraphQLOnlyAuthService] No user data returned from currentUser or ME_QUERY');
       } catch (apiError: any) {
         console.error('[GraphQLOnlyAuthService] API validation failed:', apiError);
         // Check if it's an authentication error
@@ -453,7 +463,6 @@ export class GraphQLOnlyAuthService {
           if (graphQLError.message.includes('session not found') ||
             graphQLError.message.includes('unauthorized') ||
             graphQLError.message.includes('no token found')) {
-            console.log('[GraphQLOnlyAuthService] Session expired or invalid');
             this.clearSession();
             return false;
           }
@@ -461,7 +470,6 @@ export class GraphQLOnlyAuthService {
 
         // For other errors, we might be offline, so keep cached session if available
         if (this.currentSession?.isAuthenticated) {
-          console.log('[GraphQLOnlyAuthService] Network error but session cached, keeping authenticated');
           return true;
         }
 
@@ -523,7 +531,6 @@ export class GraphQLOnlyAuthService {
           cachedAt: new Date().toISOString(),
         };
         sessionStorage.setItem('agrinova_graphql_session_cache', JSON.stringify(sessionData));
-        console.log('[GraphQLOnlyAuthService] Session cached to storage');
       }
     } catch (error) {
       console.warn('[GraphQLOnlyAuthService] Failed to cache session:', error);
@@ -543,8 +550,6 @@ export class GraphQLOnlyAuthService {
 
           // Use cache if it's less than 5 minutes old and not expired
           if (cacheAge < 5 * 60 * 1000 && expiresAt > new Date()) {
-            console.log('[GraphQLOnlyAuthService] Restored valid session from cache (age:', Math.round(cacheAge / 1000), 'seconds)');
-
             const storedTokens = this.getStoredTokens();
             if (storedTokens.accessToken && storedTokens.refreshToken) {
               // MIGRATION FIX: Convert any legacy lowercase roles to uppercase
@@ -571,7 +576,6 @@ export class GraphQLOnlyAuthService {
               return this.currentSession;
             }
           } else {
-            console.log('[GraphQLOnlyAuthService] Session cache expired or no tokens, clearing...');
             this.clearSessionCache();
           }
         }
@@ -608,8 +612,6 @@ export class GraphQLOnlyAuthService {
       // Refresh 2 minutes before expiry (13 minutes for 15-minute tokens)
       const refreshTime = Math.max(timeUntilExpiry - 2 * 60 * 1000, 30 * 1000); // Minimum 30 seconds
 
-      console.log('[GraphQLOnlyAuthService] Scheduling token refresh in', Math.round(refreshTime / 1000), 'seconds');
-
       this.refreshTokenTimeout = setTimeout(async () => {
         await this.refreshTokenSilently();
       }, refreshTime);
@@ -622,8 +624,6 @@ export class GraphQLOnlyAuthService {
       if (!this.apolloClient) {
         throw new Error('Apollo Client not initialized');
       }
-
-      console.log('[GraphQLOnlyAuthService] Validating session via cookies...');
 
       // For cookie-based auth, we don't use refresh tokens.
       const currentUserResult = await this.apolloClient.query({
@@ -651,7 +651,6 @@ export class GraphQLOnlyAuthService {
           this.currentSession.expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
           this.cacheSessionToStorage(this.currentSession);
           this.scheduleTokenRefresh();
-          console.log('[GraphQLOnlyAuthService] Session validated successfully');
         }
         return;
       }
@@ -676,7 +675,6 @@ export class GraphQLOnlyAuthService {
           this.currentSession.expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
           this.cacheSessionToStorage(this.currentSession);
           this.scheduleTokenRefresh();
-          console.log('[GraphQLOnlyAuthService] Session validated successfully via ME_QUERY fallback');
         }
         return;
       }
@@ -701,7 +699,6 @@ export class GraphQLOnlyAuthService {
     // Check session every 5 minutes
     this.sessionCheckInterval = setInterval(async () => {
       if (this.currentSession && this.currentSession.expiresAt <= new Date()) {
-        console.log('[GraphQLOnlyAuthService] Session expired, attempting refresh...');
         await this.refreshTokenSilently();
       }
     }, 5 * 60 * 1000); // 5 minutes
@@ -826,9 +823,13 @@ export class GraphQLOnlyAuthService {
 
       console.log('[GraphQLOnlyAuthService] Logging out from all devices');
 
-      await this.apolloClient.mutate({
+      const result = await this.apolloClient.mutate({
         mutation: LOGOUT_ALL_DEVICES_MUTATION
       });
+
+      if (result?.data?.logoutAllDevices !== true) {
+        throw new Error('Server failed to revoke all active sessions');
+      }
 
       // Clear local session
       this.clearSession();
@@ -840,12 +841,12 @@ export class GraphQLOnlyAuthService {
     } catch (error: any) {
       console.error('[GraphQLOnlyAuthService] Logout all devices error:', error);
 
-      // Even if API call fails, clear local session for security
-      this.clearSession();
-
       return {
-        success: true,
-        message: 'Logout berhasil'
+        success: false,
+        message: this.extractErrorMessage(
+          error,
+          'Gagal logout dari semua perangkat. Silakan coba lagi.'
+        ),
       };
     }
   }

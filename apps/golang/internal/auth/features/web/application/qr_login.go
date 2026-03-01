@@ -306,48 +306,11 @@ func (s *Service) createWebSessionForUser(
 	if user == nil || !user.IsActive {
 		return nil, ErrInvalidCredentials
 	}
+	userDTO := sharedDomain.ToUserDTO(user)
 
-	assignments, err := s.assignmentRepo.FindWithDetails(ctx, user.ID)
+	session, err := s.issueWebSession(ctx, user.ID, ipAddress, userAgent, s.config.SessionDuration, loginMethod)
 	if err != nil {
 		return nil, err
-	}
-
-	companies := s.extractUniqueCompanies(assignments)
-	assignmentsDTO := s.convertAssignments(assignments)
-	userDTO := s.enrichUserWithPrimaryCompany(sharedDomain.ToUserDTO(user), assignmentsDTO, companies)
-
-	session := &sharedDomain.UserSession{
-		ID:           generateID(),
-		UserID:       user.ID,
-		SessionToken: generateSecureToken(),
-		Platform:     sharedDomain.PlatformWeb,
-		IPAddress:    stripPort(ipAddress),
-		UserAgent:    userAgent,
-		ExpiresAt:    time.Now().Add(s.config.SessionDuration),
-		IsActive:     true,
-		LoginMethod:  loginMethod,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-	}
-
-	if err := s.sessionRepo.CreateSession(ctx, session); err != nil {
-		return nil, err
-	}
-
-	activeSessions, err := s.sessionRepo.FindActiveSessionsByUser(ctx, user.ID)
-	if err != nil {
-		return nil, err
-	}
-	for _, activeSession := range activeSessions {
-		if activeSession == nil {
-			continue
-		}
-		if activeSession.Platform != sharedDomain.PlatformWeb || activeSession.ID == session.ID {
-			continue
-		}
-		if err := s.sessionRepo.RevokeSession(ctx, activeSession.ID); err != nil {
-			return nil, err
-		}
 	}
 
 	csrfToken, err := s.cookieService.GenerateCSRFToken()
@@ -371,11 +334,9 @@ func (s *Service) createWebSessionForUser(
 	})
 
 	return &webDomain.WebLoginResult{
-		SessionID:   session.ID,
-		User:        userDTO,
-		Companies:   companies,
-		Assignments: assignmentsDTO,
-		ExpiresAt:   session.ExpiresAt,
+		SessionID: session.ID,
+		User:      userDTO,
+		ExpiresAt: session.ExpiresAt,
 	}, nil
 }
 

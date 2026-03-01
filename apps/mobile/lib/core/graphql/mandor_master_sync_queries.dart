@@ -9,6 +9,8 @@ class MandorMasterSyncQueries {
           id
           code
           name
+          isActive
+          updatedAt
         }
         estates {
           id
@@ -16,12 +18,48 @@ class MandorMasterSyncQueries {
           name
           companyId
           luasHa
+          isActive
+          updatedAt
         }
         divisions {
           id
           name
           code
           estateId
+          isActive
+          updatedAt
+        }
+      }
+    }
+  ''';
+
+  /// Query to fetch only changed assignment masters since the provided cursor
+  static const String getAssignmentMastersIncremental = '''
+    query MandorDivisionMastersSync(\$updatedSince: Time!) {
+      mandorDivisionMastersSync(updatedSince: \$updatedSince) {
+        companies {
+          id
+          code
+          name
+          isActive
+          updatedAt
+        }
+        estates {
+          id
+          code
+          name
+          companyId
+          luasHa
+          isActive
+          updatedAt
+        }
+        divisions {
+          id
+          name
+          code
+          estateId
+          isActive
+          updatedAt
         }
       }
     }
@@ -56,6 +94,43 @@ class MandorMasterSyncQueries {
         cropType
         plantingYear
         divisionId
+        isActive
+        createdAt
+        updatedAt
+      }
+    }
+  ''';
+
+  /// Query to fetch only changed blocks since the provided cursor
+  static const String getBlocksIncremental = '''
+    query MandorBlocksSync(\$divisionId: ID, \$updatedSince: Time!) {
+      mandorBlocksSync(divisionId: \$divisionId, updatedSince: \$updatedSince) {
+        id
+        blockCode
+        name
+        luasHa
+        cropType
+        plantingYear
+        divisionId
+        isActive
+        createdAt
+        updatedAt
+      }
+    }
+  ''';
+
+  /// Query to fetch only changed employees since the provided cursor
+  static const String getEmployeesIncremental = '''
+    query MandorEmployeesSync(\$divisionId: ID, \$updatedSince: Time!) {
+      mandorEmployeesSync(divisionId: \$divisionId, updatedSince: \$updatedSince) {
+        id
+        nik
+        name
+        role
+        companyId
+        divisionId
+        photoUrl
+        isActive
         createdAt
         updatedAt
       }

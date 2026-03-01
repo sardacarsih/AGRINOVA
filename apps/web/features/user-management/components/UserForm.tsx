@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
+import { useQuery } from '@apollo/client/react';
 import {
     CircleAlert,
     UserCog,
@@ -20,13 +21,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Badge } from '@/components/ui/badge';
-import { User, UserRole } from '@/gql/graphql';
+import { GetUsersDocument, User, UserRole } from '@/gql/graphql';
 import { LOGIN_PASSWORD_MIN_LENGTH } from '@/lib/auth/validation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useEstates } from '@/features/master-data/hooks/useEstates';
 import { useDivisions } from '@/features/master-data/hooks/useDivisions';
+import { useAuth } from '@/hooks/use-auth';
 
 const ROLE_REQUIRES_COMPANY = new Set<UserRole>([
     UserRole.CompanyAdmin,
@@ -61,6 +63,10 @@ const ROLE_ALLOWED_MANAGER_ROLES: Record<UserRole, UserRole[]> = {
     [UserRole.Timbangan]: [UserRole.Manager],
     [UserRole.Grading]: [UserRole.Manager],
 };
+
+const ROLE_ALLOW_EMPTY_MANAGER = new Set<UserRole>([
+    UserRole.AreaManager,
+]);
 
 const normalizeIds = (ids?: Array<string | null | undefined> | null): string[] => {
     const cleaned = (ids || [])
@@ -138,7 +144,7 @@ const userFormSchema = z.object({
         });
     }
 
-    if (values.role !== UserRole.AreaManager && !values.managerId) {
+    if (!ROLE_ALLOW_EMPTY_MANAGER.has(values.role) && !values.managerId) {
         ctx.addIssue({
             code: z.ZodIssueCode.custom,
             message: `Atasan langsung wajib diisi untuk role ${values.role}`,
@@ -193,6 +199,7 @@ export function UserForm({
     title,
     description,
 }: UserFormProps) {
+    const { user: currentUser } = useAuth();
     const isEditing = Boolean(initialData?.id);
     const companyIdsInputKey = JSON.stringify((initialData as any)?.companyIds || []);
     const companiesEntityKey = JSON.stringify(
@@ -293,27 +300,59 @@ export function UserForm({
     const selectedEstateIds = form.watch('estateIds') || [];
     const selectedDivisionIds = form.watch('divisionIds') || [];
 
-    const managerRolesForSelectedRole = ROLE_ALLOWED_MANAGER_ROLES[selectedRole] || [];
+    const isCompanyAdminContext =
+        companySelectionReadOnly || currentUser?.role === UserRole.CompanyAdmin;
+
+    const managerRolesForSelectedRole = useMemo(
+        () => ROLE_ALLOWED_MANAGER_ROLES[selectedRole] || [],
+        [selectedRole]
+    );
     const isManagerRequired = selectedRole !== UserRole.AreaManager;
+    const managerRoleFilter =
+        managerRolesForSelectedRole.length === 1 ? managerRolesForSelectedRole[0] : undefined;
+    const shouldSkipRoleFilterForManagerQuery =
+        isCompanyAdminContext &&
+        selectedRole === UserRole.Manager &&
+        managerRoleFilter === UserRole.AreaManager;
+
+    const { data: managerUsersData } = useQuery(GetUsersDocument, {
+        variables: {
+            role: shouldSkipRoleFilterForManagerQuery ? undefined : managerRoleFilter,
+            isActive: true,
+            limit: 1000,
+            companyId: selectedCompanyIds.length === 1 ? selectedCompanyIds[0] : undefined,
+        },
+        skip: managerRolesForSelectedRole.length === 0,
+        // Refresh from network first to avoid stale candidate options after role/company changes.
+        fetchPolicy: 'network-only',
+        nextFetchPolicy: 'cache-first',
+    });
+
+    const managerSourceUsers = useMemo(() => {
+        const queriedUsers = managerUsersData?.users?.users || [];
+        return queriedUsers.length > 0 ? queriedUsers : users;
+    }, [managerUsersData?.users?.users, users]);
+
     const managerCandidates = useMemo(
         () =>
-            users.filter((u) => {
+            managerSourceUsers.filter((u) => {
                 if (u.id === initialData?.id) return false;
                 if (!managerRolesForSelectedRole.includes(u.role)) return false;
-                if (!u.isActive) return false;
+                if (u.isActive === false) return false;
                 return true;
             }),
-        [users, initialData?.id, managerRolesForSelectedRole]
+        [managerSourceUsers, initialData?.id, managerRolesForSelectedRole]
     );
 
     useEffect(() => {
         if (!selectedManagerId) return;
+        if (managerRolesForSelectedRole.length === 0) return;
 
         const managerStillValid = managerCandidates.some((u) => u.id === selectedManagerId);
         if (!managerStillValid) {
             form.setValue('managerId', null, { shouldValidate: true });
         }
-    }, [form, selectedManagerId, managerCandidates]);
+    }, [form, selectedManagerId, managerCandidates, managerRolesForSelectedRole.length]);
 
     const selectedManager = useMemo(
         () => managerCandidates.find((candidate) => candidate.id === selectedManagerId) || null,
@@ -336,9 +375,7 @@ export function UserForm({
     const managerRoleHint =
         managerRolesForSelectedRole.length > 0
             ? `Atasan untuk role ${selectedRole} hanya: ${managerRolesForSelectedRole.join(', ')}. ${isManagerRequired ? 'Wajib dipilih.' : 'Opsional.'}`
-            : isManagerRequired
-                ? `Role ${selectedRole} wajib memiliki atasan langsung.`
-                : `Role ${selectedRole} tidak memerlukan atasan langsung.`;
+            : `Role ${selectedRole} tidak memerlukan atasan langsung.`;
 
     const selectedCompanyCount = selectedCompanyIds.length;
     const selectedEstateCount = selectedEstateIds.length;
@@ -359,6 +396,13 @@ export function UserForm({
         // Validation logic for password on create
         if (!isEditing && !values.password?.trim()) {
             form.setError('password', { message: 'Password wajib diisi untuk user baru' });
+            return;
+        }
+
+        if (isManagerRequired && !values.managerId) {
+            form.setError('managerId', {
+                message: `Atasan langsung wajib diisi untuk role ${values.role}`,
+            });
             return;
         }
 

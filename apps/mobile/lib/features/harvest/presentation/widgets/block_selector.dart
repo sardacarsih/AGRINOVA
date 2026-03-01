@@ -55,7 +55,7 @@ class BlockSelector extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Pastikan Anda terhubung ke internet',
+            'Lakukan sinkronisasi data master terlebih dahulu',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Colors.grey[500],
             ),

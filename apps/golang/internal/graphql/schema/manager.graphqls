@@ -458,6 +458,12 @@ type EfficiencyMetrics {
 """
 ManagerDivisionProductionBudget represents monthly production budget per division.
 """
+enum ManagerBudgetWorkflowStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+}
+
 type ManagerDivisionProductionBudget {
   id: ID!
   divisionId: ID!
@@ -468,6 +474,8 @@ type ManagerDivisionProductionBudget {
   targetTon: Float!
   plannedCost: Float!
   actualCost: Float!
+  workflowStatus: ManagerBudgetWorkflowStatus!
+  overrideApproved: Boolean!
   notes: String
   createdBy: String!
   createdAt: Time!
@@ -490,6 +498,8 @@ input CreateManagerDivisionProductionBudgetInput {
   targetTon: Float!
   plannedCost: Float!
   actualCost: Float
+  workflowStatus: ManagerBudgetWorkflowStatus
+  overrideApproved: Boolean
   notes: String
 }
 
@@ -500,6 +510,66 @@ input UpdateManagerDivisionProductionBudgetInput {
   targetTon: Float
   plannedCost: Float
   actualCost: Float
+  workflowStatus: ManagerBudgetWorkflowStatus
+  overrideApproved: Boolean
+  notes: String
+}
+
+"""
+ManagerBlockProductionBudget represents monthly production budget per block.
+"""
+type ManagerBlockProductionBudget {
+  id: ID!
+  blockId: ID!
+  blockCode: String!
+  blockName: String!
+  divisionId: ID!
+  divisionName: String!
+  estateId: ID!
+  estateName: String!
+  period: String!
+  targetTon: Float!
+  plannedCost: Float!
+  actualCost: Float!
+  workflowStatus: ManagerBudgetWorkflowStatus!
+  notes: String
+  createdById: ID!
+  createdBy: String!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"""
+ManagerBlockOption represents manager-scoped block option for form inputs.
+"""
+type ManagerBlockOption {
+  id: ID!
+  blockCode: String!
+  name: String!
+  divisionId: ID!
+  divisionName: String!
+  estateId: ID!
+  estateName: String!
+}
+
+input CreateManagerBlockProductionBudgetInput {
+  blockId: ID!
+  period: String!
+  targetTon: Float!
+  plannedCost: Float!
+  actualCost: Float
+  workflowStatus: ManagerBudgetWorkflowStatus
+  notes: String
+}
+
+input UpdateManagerBlockProductionBudgetInput {
+  id: ID!
+  blockId: ID
+  period: String
+  targetTon: Float
+  plannedCost: Float
+  actualCost: Float
+  workflowStatus: ManagerBudgetWorkflowStatus
   notes: String
 }
 
@@ -569,6 +639,16 @@ extend type Query {
 
   "Get divisions under manager assigned estates"
   managerDivisionOptions: [ManagerDivisionOption!]! @requireAuth @hasRole(roles: [MANAGER])
+
+  "Get manager scoped block production budgets"
+  managerBlockProductionBudgets(
+    blockId: ID
+    divisionId: ID
+    period: String
+  ): [ManagerBlockProductionBudget!]! @requireAuth @hasRole(roles: [MANAGER, AREA_MANAGER, ASISTEN, MANDOR])
+
+  "Get blocks under manager assigned estates/divisions"
+  managerBlockOptions(divisionId: ID): [ManagerBlockOption!]! @requireAuth @hasRole(roles: [MANAGER, ASISTEN, MANDOR])
 }
 
 extend type Mutation {
@@ -584,6 +664,19 @@ extend type Mutation {
 
   "Delete manager division production budget"
   deleteManagerDivisionProductionBudget(id: ID!): Boolean! @requireAuth @hasRole(roles: [MANAGER])
+
+  "Create manager block production budget"
+  createManagerBlockProductionBudget(
+    input: CreateManagerBlockProductionBudgetInput!
+  ): ManagerBlockProductionBudget! @requireAuth @hasRole(roles: [MANAGER, ASISTEN, MANDOR])
+
+  "Update manager block production budget"
+  updateManagerBlockProductionBudget(
+    input: UpdateManagerBlockProductionBudgetInput!
+  ): ManagerBlockProductionBudget! @requireAuth @hasRole(roles: [MANAGER, ASISTEN, MANDOR])
+
+  "Delete manager block production budget"
+  deleteManagerBlockProductionBudget(id: ID!): Boolean! @requireAuth @hasRole(roles: [MANAGER, ASISTEN, MANDOR])
 }
 
 # =============================================================================

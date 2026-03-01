@@ -629,9 +629,18 @@ extend type Query {
   # Mandor Blocks/Employees Queries (for input form)
   "Get blocks available for mandor"
   mandorBlocks(divisionId: ID): [Block!]! @requireAuth @hasRole(roles: [MANDOR])
-  
+
+  "Get changed assignment masters for mandor since last sync"
+  mandorDivisionMastersSync(updatedSince: Time!): UserAssignments! @requireAuth @hasRole(roles: [MANDOR])
+
+  "Get changed blocks available for mandor since last sync"
+  mandorBlocksSync(divisionId: ID, updatedSince: Time!): [Block!]! @requireAuth @hasRole(roles: [MANDOR])
+
   "Get employees available for mandor"
   mandorEmployees(divisionId: ID, search: String): [Employee!]! @requireAuth @hasRole(roles: [MANDOR])
+
+  "Get changed employees available for mandor since last sync"
+  mandorEmployeesSync(divisionId: ID, updatedSince: Time!): [Employee!]! @requireAuth @hasRole(roles: [MANDOR])
   
   # Mandor History Queries
   "Get mandor harvest history"

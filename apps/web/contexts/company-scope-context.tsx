@@ -98,7 +98,7 @@ const writeStoredAreaManagerScope = (value: string) => {
 };
 
 export function CompanyScopeProvider({ children }: { children: React.ReactNode }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, refreshSession } = useAuth();
 
   const normalizedRole = normalizeText(user?.role).toUpperCase();
   const isAreaManager = normalizedRole === 'AREA_MANAGER';
@@ -108,6 +108,54 @@ export function CompanyScopeProvider({ children }: { children: React.ReactNode }
   const isMultiCompany = availableCompanies.length > 1;
 
   const [selectedCompanyId, setSelectedCompanyIdState] = React.useState<string>(ALL_COMPANIES_SCOPE);
+  const isRefreshingSessionRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!isAuthenticated || !isAreaManager) return;
+    if (typeof window === 'undefined') return;
+
+    let isMounted = true;
+
+    const syncSession = async () => {
+      if (isRefreshingSessionRef.current) return;
+      if (document.visibilityState === 'hidden') return;
+
+      isRefreshingSessionRef.current = true;
+      try {
+        await refreshSession();
+      } finally {
+        if (isMounted) {
+          isRefreshingSessionRef.current = false;
+        }
+      }
+    };
+
+    void syncSession();
+
+    const handleFocus = () => {
+      void syncSession();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void syncSession();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    const intervalId = window.setInterval(() => {
+      void syncSession();
+    }, 120000);
+
+    return () => {
+      isMounted = false;
+      isRefreshingSessionRef.current = false;
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.clearInterval(intervalId);
+    };
+  }, [isAreaManager, isAuthenticated, refreshSession]);
 
   React.useEffect(() => {
     if (!isAuthenticated || !user) {

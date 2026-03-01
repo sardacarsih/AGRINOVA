@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { gql } from 'graphql-tag';
 import { useApolloClient, useMutation, useQuery } from '@apollo/client/react';
+import { useRouter } from 'next/navigation';
 import { CompanyAdminDashboardLayout } from '@/components/layouts/role-layouts/CompanyAdminDashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,13 +23,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,9 +47,19 @@ import {
 } from '@/features/master-data/utils/xlsx-import';
 
 interface CompanyAdminBlocksPageProps {
-  user?: any;
+  user?: AuthUserLike | null;
   locale?: string;
   withLayout?: boolean;
+}
+
+interface UserCompanyRef {
+  id?: string | null;
+}
+
+interface AuthUserLike {
+  companyId?: string | null;
+  company?: UserCompanyRef | null;
+  companies?: Array<UserCompanyRef | null> | null;
 }
 
 interface CompanyNode {
@@ -76,10 +80,30 @@ interface DivisionNode {
   estateId: string;
 }
 
+interface LandTypeNode {
+  id: string;
+  code: string;
+  name: string;
+  isActive: boolean;
+}
+
 interface TarifBlokNode {
   id: string;
   companyId: string;
   perlakuan: string;
+  keterangan?: string | null;
+  tarifCode?: string | null;
+  schemeType?: string | null;
+  landTypeId?: string | null;
+  bjrMinKg?: number | null;
+  bjrMaxKg?: number | null;
+  targetLebihKg?: number | null;
+  basis?: number | null;
+  tarifUpah?: number | null;
+  premi?: number | null;
+  tarifPremi1?: number | null;
+  tarifPremi2?: number | null;
+  landType?: LandTypeNode | null;
   isActive: boolean;
 }
 
@@ -93,6 +117,8 @@ interface BlockNode {
   status: string;
   istm: string;
   perlakuan?: string | null;
+  landTypeId?: string | null;
+  landType?: LandTypeNode | null;
   tarifBlokId?: string | null;
   tarifBlok?: TarifBlokNode | null;
   divisionId: string;
@@ -197,11 +223,27 @@ const GET_BLOCKS_PAGINATED = gql`
       status
       istm
       perlakuan
+      landTypeId
+      landType {
+        id
+        code
+        name
+        isActive
+      }
       tarifBlokId
       tarifBlok {
         id
         companyId
         perlakuan
+        tarifCode
+        schemeType
+        landTypeId
+        landType {
+          id
+          code
+          name
+          isActive
+        }
         isActive
       }
       divisionId
@@ -236,6 +278,35 @@ const GET_TARIF_BLOKS = gql`
       id
       companyId
       perlakuan
+      keterangan
+      tarifCode
+      schemeType
+      landTypeId
+      bjrMinKg
+      bjrMaxKg
+      targetLebihKg
+      basis
+      tarifUpah
+      premi
+      tarifPremi1
+      tarifPremi2
+      landType {
+        id
+        code
+        name
+        isActive
+      }
+      isActive
+    }
+  }
+`;
+
+const GET_LAND_TYPES = gql`
+  query GetLandTypesForBlockForm {
+    landTypes {
+      id
+      code
+      name
       isActive
     }
   }
@@ -253,16 +324,9 @@ const CREATE_BLOCK = gql`
       status
       istm
       perlakuan
+      landTypeId
       tarifBlokId
-      tarifBlok {
-        id
-        perlakuan
-      }
       divisionId
-      division {
-        id
-        name
-      }
       createdAt
       updatedAt
     }
@@ -281,16 +345,9 @@ const UPDATE_BLOCK = gql`
       status
       istm
       perlakuan
+      landTypeId
       tarifBlokId
-      tarifBlok {
-        id
-        perlakuan
-      }
       divisionId
-      division {
-        id
-        name
-      }
       createdAt
       updatedAt
     }
@@ -334,12 +391,46 @@ function mapDeleteBlockErrorMessage(message?: string): string {
   return rawMessage || 'Gagal menghapus blok.';
 }
 
+function schemeTypeLabel(schemeType?: string | null): string {
+  if (!schemeType) return '-';
+  const normalized = schemeType.trim();
+  if (!normalized) return '-';
+  return normalized.replace(/_/g, ' ').toUpperCase();
+}
+
+function resolveSchemeType(tarif?: TarifBlokNode | null): string | null {
+  if (!tarif) return null;
+  return tarif.schemeType || tarif.landType?.code || null;
+}
+
+interface MutationErrorLike {
+  message?: string;
+  graphQLErrors?: Array<{ message?: string }>;
+  networkError?: {
+    result?: {
+      errors?: Array<{ message?: string }>;
+    };
+  };
+}
+
+function extractErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+  const candidate = error as MutationErrorLike;
+  return (
+    candidate.graphQLErrors?.[0]?.message ||
+    candidate.networkError?.result?.errors?.[0]?.message ||
+    candidate.message ||
+    fallback
+  );
+}
+
 export default function CompanyAdminBlocksPage({ user, withLayout = true }: CompanyAdminBlocksPageProps) {
+  const router = useRouter();
   const { toast } = useToast();
   const apolloClient = useApolloClient();
   const [search, setSearch] = useState('');
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [editingBlock, setEditingBlock] = useState<BlockNode | null>(null);
   const [deletingBlock, setDeletingBlock] = useState<BlockNode | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [isDownloadingTemplate, setIsDownloadingTemplate] = useState(false);
@@ -348,68 +439,34 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const [formBlockCode, setFormBlockCode] = useState('');
-  const [formName, setFormName] = useState('');
-  const [formDivisionId, setFormDivisionId] = useState('');
-  const [formLuasHa, setFormLuasHa] = useState('');
-  const [formCropType, setFormCropType] = useState('');
-  const [formPlantingYear, setFormPlantingYear] = useState('');
-  const [formStatus, setFormStatus] = useState<'INTI' | 'KKPA'>('INTI');
-  const [formISTM, setFormISTM] = useState<'Y' | 'N'>('N');
-  const [formTarifBlokID, setFormTarifBlokID] = useState('');
-
   const {
     data: companyData,
     loading: loadingCompanies,
+    error: companyError,
     refetch: refetchCompanies,
   } = useQuery<{ companies: { data: CompanyNode[] } }>(GET_COMPANY_CONTEXT);
-  const { data: estateData, loading: loadingEstates, refetch: refetchEstates } = useQuery<{
+  const {
+    data: estateData,
+    loading: loadingEstates,
+    error: estateError,
+    refetch: refetchEstates,
+  } = useQuery<{
     estates: EstateNode[];
   }>(GET_ESTATES);
-  const { data: divisionData, loading: loadingDivisions, refetch: refetchDivisions } = useQuery<{
+  const {
+    data: divisionData,
+    loading: loadingDivisions,
+    error: divisionError,
+    refetch: refetchDivisions,
+  } = useQuery<{
     divisions: DivisionNode[];
   }>(GET_DIVISIONS);
-  const { data: tarifBlokData, loading: loadingTarifBloks } = useQuery<{
+  const { data: tarifBlokData, loading: loadingTarifBloks, error: tarifBlokError } = useQuery<{
     tarifBloks: TarifBlokNode[];
   }>(GET_TARIF_BLOKS);
-
-  const [createBlock, { loading: creating }] = useMutation(CREATE_BLOCK, {
-    onCompleted: () => {
-      toast({
-        title: 'Block created',
-        description: 'Blok berhasil dibuat.',
-      });
-      setIsCreateOpen(false);
-      resetForm();
-      refetchBlocks();
-    },
-    onError: (error) => {
-      toast({
-        title: 'Create failed',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
-
-  const [updateBlock, { loading: updating }] = useMutation(UPDATE_BLOCK, {
-    onCompleted: () => {
-      toast({
-        title: 'Block updated',
-        description: 'Blok berhasil diperbarui.',
-      });
-      setEditingBlock(null);
-      resetForm();
-      refetchBlocks();
-    },
-    onError: (error) => {
-      toast({
-        title: 'Update failed',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
+  const { data: landTypeData, loading: loadingLandTypes, error: landTypeError } = useQuery<{ landTypes: LandTypeNode[] }>(
+    GET_LAND_TYPES,
+  );
 
   const [deleteBlock, { loading: deleting }] = useMutation(DELETE_BLOCK, {
     onCompleted: () => {
@@ -445,10 +502,12 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
     [currentCompanyId, trimmedSearch, currentPage, pageSize],
   );
 
-  const { data: blockData, loading: loadingBlocks, refetch: refetchBlocks } = useQuery<{
+  const { data: blockData, loading: loadingBlocks, error: blocksError, refetch: refetchBlocks } = useQuery<{
     blocksPaginated: BlocksPaginatedPayload;
   }>(GET_BLOCKS_PAGINATED, {
     variables: blockQueryVariables,
+    fetchPolicy: 'cache-and-network',
+    nextFetchPolicy: 'cache-first',
   });
 
   const estates = useMemo(() => {
@@ -473,8 +532,54 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
     const filtered = currentCompanyId
       ? base.filter((tarif) => tarif.companyId === currentCompanyId)
       : base;
-    return filtered.sort((a, b) => Number(b.isActive) - Number(a.isActive));
+    return filtered.sort((a, b) => {
+      if (a.isActive !== b.isActive) {
+        return Number(b.isActive) - Number(a.isActive);
+      }
+      const schemeOrder = (a.schemeType || '').localeCompare(b.schemeType || '');
+      if (schemeOrder !== 0) return schemeOrder;
+      return (a.tarifCode || '').localeCompare(b.tarifCode || '');
+    });
   }, [tarifBlokData?.tarifBloks, currentCompanyId]);
+  const landTypes = useMemo(() => landTypeData?.landTypes || [], [landTypeData?.landTypes]);
+  const templateDivision = useMemo(() => {
+    if (divisions.length === 0) return null;
+    return divisions.find((division) => Boolean(division.code?.trim())) || divisions[0];
+  }, [divisions]);
+  const templateTarif = useMemo(() => {
+    if (tarifBloks.length === 0) return null;
+    return tarifBloks.find((tarif) => tarif.isActive) || tarifBloks[0];
+  }, [tarifBloks]);
+  const isImportReferenceLoading =
+    loadingCompanies ||
+    loadingEstates ||
+    loadingDivisions ||
+    loadingBlocks ||
+    loadingTarifBloks ||
+    loadingLandTypes;
+  const queryErrorMessage = useMemo(() => {
+    const firstError =
+      companyError ||
+      estateError ||
+      divisionError ||
+      landTypeError ||
+      tarifBlokError ||
+      blocksError;
+
+    if (!firstError?.message) return null;
+    return `Gagal memuat data blok: ${firstError.message}`;
+  }, [blocksError, companyError, divisionError, estateError, landTypeError, tarifBlokError]);
+  const tarifCoverageByLandType = useMemo(() => {
+    return landTypes
+      .map((landType) => {
+        const rules = tarifBloks.filter(
+          (tarif) => tarif.landTypeId === landType.id && tarif.isActive,
+        );
+        return { landType, rules };
+      })
+      .filter((entry) => entry.rules.length > 0)
+      .sort((a, b) => a.landType.code.localeCompare(b.landType.code));
+  }, [landTypes, tarifBloks]);
 
   const blocks = blockData?.blocksPaginated?.data || [];
   const blockPagination = blockData?.blocksPaginated?.pagination;
@@ -498,134 +603,6 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
   useEffect(() => {
     setCurrentPage(1);
   }, [currentCompanyId]);
-
-  function resetForm() {
-    setFormBlockCode('');
-    setFormName('');
-    setFormDivisionId('');
-    setFormLuasHa('');
-    setFormCropType('');
-    setFormPlantingYear('');
-    setFormStatus('INTI');
-    setFormISTM('N');
-    setFormTarifBlokID('');
-  }
-
-  function openCreateDialog() {
-    resetForm();
-    setIsCreateOpen(true);
-  }
-
-  function openEditDialog(block: BlockNode) {
-    setEditingBlock(block);
-    setFormBlockCode(block.blockCode);
-    setFormName(block.name);
-    setFormDivisionId(block.divisionId);
-    setFormLuasHa(block.luasHa === null || block.luasHa === undefined ? '' : String(block.luasHa));
-    setFormCropType(block.cropType || '');
-    setFormPlantingYear(
-      block.plantingYear === null || block.plantingYear === undefined
-        ? ''
-        : String(block.plantingYear),
-    );
-    setFormStatus(block.status === 'KKPA' ? 'KKPA' : 'INTI');
-    setFormISTM(block.istm === 'Y' ? 'Y' : 'N');
-    setFormTarifBlokID(block.tarifBlokId || block.tarifBlok?.id || '');
-  }
-
-  function parseLuasHaInput(): number | undefined {
-    if (!formLuasHa.trim()) return undefined;
-    const num = Number(formLuasHa);
-    if (Number.isNaN(num)) {
-      throw new Error('Luas Ha harus berupa angka.');
-    }
-    return num;
-  }
-
-  function parsePlantingYearInput(): number | undefined {
-    if (!formPlantingYear.trim()) return undefined;
-    const num = Number(formPlantingYear);
-    if (Number.isNaN(num)) {
-      throw new Error('Tahun tanam harus berupa angka.');
-    }
-    return num;
-  }
-
-  async function handleCreate() {
-    if (!formName.trim() || !formDivisionId) {
-      toast({
-        title: 'Validation',
-        description: 'Nama dan divisi wajib diisi.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      const luasHa = parseLuasHaInput();
-      const plantingYear = parsePlantingYearInput();
-      await createBlock({
-        variables: {
-          input: {
-            // Backend akan generate block code otomatis berdasarkan kode divisi + nomor urut.
-            blockCode: '',
-            name: formName.trim(),
-            divisionId: formDivisionId,
-            luasHa: luasHa ?? null,
-            cropType: formCropType.trim() || null,
-            plantingYear: plantingYear ?? null,
-            status: formStatus,
-            istm: formISTM,
-            tarifBlokId: formTarifBlokID,
-          },
-        },
-      });
-    } catch (error: any) {
-      toast({
-        title: 'Validation',
-        description: error.message || 'Input tidak valid.',
-        variant: 'destructive',
-      });
-    }
-  }
-
-  async function handleUpdate() {
-    if (!editingBlock) return;
-    if (!formBlockCode.trim() || !formName.trim()) {
-      toast({
-        title: 'Validation',
-        description: 'Kode blok dan nama wajib diisi.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    try {
-      const luasHa = parseLuasHaInput();
-      const plantingYear = parsePlantingYearInput();
-      await updateBlock({
-        variables: {
-          input: {
-            id: editingBlock.id,
-            blockCode: formBlockCode.trim(),
-            name: formName.trim(),
-            luasHa: luasHa ?? null,
-            cropType: formCropType.trim() || null,
-            plantingYear: plantingYear ?? null,
-            status: formStatus,
-            istm: formISTM,
-            tarifBlokId: formTarifBlokID,
-          },
-        },
-      });
-    } catch (error: any) {
-      toast({
-        title: 'Validation',
-        description: error.message || 'Input tidak valid.',
-        variant: 'destructive',
-      });
-    }
-  }
 
   function parseStatus(value: string): 'INTI' | 'KKPA' | null {
     if (!value) {
@@ -669,12 +646,9 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
     return sequence;
   }
 
-  function getImportMutationErrorReason(error: any): string {
-    const graphQLErrorMessage = error?.graphQLErrors?.[0]?.message;
-    const networkGraphQLErrorMessage = error?.networkError?.result?.errors?.[0]?.message;
-    const fallbackMessage = error?.message;
+  function getImportMutationErrorReason(error: unknown): string {
     const baseMessage =
-      String(graphQLErrorMessage || networkGraphQLErrorMessage || fallbackMessage || 'gagal diproses.')
+      String(extractErrorMessage(error, 'gagal diproses.'))
         .replace(/^GraphQL error:\s*/i, '')
         .trim();
 
@@ -1067,7 +1041,7 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
             }
             created += 1;
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
           addFailed(excelRow, recordLabel, getImportMutationErrorReason(error));
         }
       }
@@ -1094,10 +1068,10 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
           variant: 'destructive',
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Import gagal',
-        description: error?.message || 'Gagal membaca file XLSX.',
+        description: extractErrorMessage(error, 'Gagal membaca file XLSX.'),
         variant: 'destructive',
       });
     } finally {
@@ -1115,44 +1089,50 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
   async function handleDownloadTemplate() {
     setIsDownloadingTemplate(true);
     try {
+      const divisionID = templateDivision?.id || '';
+      const divisionCode = templateDivision?.code || '';
+      const divisionName = templateDivision?.name || '';
+      const tarifID = templateTarif?.id || '';
+      const perlakuan = templateTarif?.perlakuan || '';
+
       await downloadXlsxTemplate('template_import_blok.xlsx', [
         {
           block_code: '',
-          name: 'Blok 01',
-          division_id: '',
-          division_code: 'DIV-A',
-          division_name: '',
+          name: 'Contoh Blok A',
+          division_id: divisionID,
+          division_code: divisionCode,
+          division_name: divisionName,
           luas_ha: 12.5,
           crop_type: 'Sawit',
           planting_year: 2019,
           status: 'INTI',
           istm: 'N',
-          tarif_blok_id: '',
-          perlakuan: 'Perawatan Standar',
+          tarif_blok_id: tarifID,
+          perlakuan,
         },
         {
           block_code: '',
-          name: 'Blok 02',
-          division_id: '',
-          division_code: '',
-          division_name: 'Divisi B',
-          luas_ha: '',
-          crop_type: '',
-          planting_year: '',
+          name: 'Contoh Blok B',
+          division_id: divisionID,
+          division_code: divisionCode,
+          division_name: divisionName,
+          luas_ha: 10,
+          crop_type: 'Sawit',
+          planting_year: 2020,
           status: 'KKPA',
           istm: 'Y',
-          tarif_blok_id: '',
-          perlakuan: '',
+          tarif_blok_id: tarifID,
+          perlakuan,
         },
       ]);
       toast({
         title: 'Template diunduh',
         description: 'Template import blok berhasil diunduh.',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Gagal mengunduh template',
-        description: error?.message || 'Terjadi kesalahan saat membuat file template.',
+        description: extractErrorMessage(error, 'Terjadi kesalahan saat membuat file template.'),
         variant: 'destructive',
       });
     } finally {
@@ -1160,7 +1140,14 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
     }
   }
 
-  const LayoutWrapper: React.ComponentType<any> = withLayout ? CompanyAdminDashboardLayout : React.Fragment;
+  type LayoutWrapperProps = {
+    children: React.ReactNode;
+    title?: string;
+    description?: string;
+  };
+  const LayoutWrapper: React.ComponentType<LayoutWrapperProps> = withLayout
+    ? CompanyAdminDashboardLayout
+    : ({ children }) => <>{children}</>;
   const layoutProps = withLayout
     ? {
         title: 'Block Management',
@@ -1175,7 +1162,7 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
           <Button
             variant="outline"
             onClick={handleDownloadTemplate}
-            disabled={isDownloadingTemplate}
+            disabled={isDownloadingTemplate || isImportReferenceLoading}
           >
             {isDownloadingTemplate ? (
               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -1194,7 +1181,7 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
           <Button
             variant="outline"
             onClick={() => importInputRef.current?.click()}
-            disabled={isImporting || loadingDivisions || loadingBlocks}
+            disabled={isImporting || isImportReferenceLoading}
           >
             {isImporting ? (
               <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -1215,11 +1202,17 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
             <RefreshCw className="mr-2 h-4 w-4" />
             Refresh
           </Button>
-          <Button onClick={openCreateDialog}>
+          <Button onClick={() => router.push('/blocks/new')}>
             <Plus className="mr-2 h-4 w-4" />
             New Block
           </Button>
         </div>
+
+        {queryErrorMessage && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            {queryErrorMessage}
+          </div>
+        )}
 
         <Card>
           <CardHeader>
@@ -1307,6 +1300,40 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
               />
             </div>
 
+            <div className="rounded-md border bg-muted/20 p-3">
+              <p className="text-sm font-medium">Mapping aktif Tipe Lahan ke Rule Tarif</p>
+              <p className="text-xs text-muted-foreground">
+                Blok mengikuti rule tarif sesuai tipe lahan. Pilih rule saat create/edit blok.
+              </p>
+              {loadingLandTypes || loadingTarifBloks ? (
+                <p className="mt-2 text-xs text-muted-foreground">Memuat mapping...</p>
+              ) : tarifCoverageByLandType.length === 0 ? (
+                <p className="mt-2 text-xs text-destructive">
+                  Belum ada rule tarif aktif. Lengkapi dulu di tab Tarif Blok.
+                </p>
+              ) : (
+                <div className="mt-3 grid gap-2 md:grid-cols-2">
+                  {tarifCoverageByLandType.map((entry) => (
+                    <div key={entry.landType.id} className="rounded-md border bg-background p-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Badge variant="secondary">
+                          {entry.landType.code} - {entry.landType.name}
+                        </Badge>
+                        <Badge variant="outline">{entry.rules.length} rules</Badge>
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {entry.rules
+                          .slice(0, 3)
+                          .map((rule) => rule.tarifCode || '-')
+                          .join(', ')}
+                        {entry.rules.length > 3 ? ', ...' : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="overflow-x-auto rounded-md border bg-background">
               <Table>
                 <TableHeader>
@@ -1314,30 +1341,40 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
                     <TableHead>Code</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Division (A-Z)</TableHead>
+                    <TableHead>Tipe Lahan</TableHead>
+                    <TableHead>Rule Tarif</TableHead>
+                    <TableHead>Perlakuan</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>ISTM</TableHead>
-                    <TableHead>Perlakuan</TableHead>
                     <TableHead className="text-right">Luas (Ha)</TableHead>
                     <TableHead className="text-right">Planting Year</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {queryErrorMessage && !loadingBlocks && (
+                    <TableRow>
+                      <TableCell colSpan={11} className="text-destructive">
+                        {queryErrorMessage}
+                      </TableCell>
+                    </TableRow>
+                  )}
                   {(loadingCompanies ||
                     loadingEstates ||
                     loadingDivisions ||
                     loadingBlocks) && (
                     <TableRow>
-                      <TableCell colSpan={9}>Loading blocks...</TableCell>
+                      <TableCell colSpan={11}>Loading blocks...</TableCell>
                     </TableRow>
                   )}
                   {!loadingCompanies &&
                     !loadingEstates &&
                     !loadingDivisions &&
                     !loadingBlocks &&
+                    !queryErrorMessage &&
                     blocks.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={9}>No blocks found.</TableCell>
+                        <TableCell colSpan={11}>No blocks found.</TableCell>
                       </TableRow>
                     )}
                   {blocks.map((block) => (
@@ -1350,6 +1387,32 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
                         {block.division?.name || divisionNameByID.get(block.divisionId) || '-'}
                       </TableCell>
                       <TableCell>
+                        {block.landType ? (
+                          <Badge variant="secondary">{block.landType.code} - {block.landType.name}</Badge>
+                        ) : block.tarifBlok?.landType ? (
+                          <Badge variant="secondary">
+                            {block.tarifBlok.landType.code} - {block.tarifBlok.landType.name}
+                          </Badge>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {block.tarifBlok ? (
+                          <div className="space-y-1">
+                            <Badge variant="outline">
+                              {(block.tarifBlok.tarifCode || '-').toUpperCase()}
+                            </Badge>
+                            <p className="text-xs text-muted-foreground">
+                              {schemeTypeLabel(resolveSchemeType(block.tarifBlok))}
+                            </p>
+                          </div>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell>{block.tarifBlok?.perlakuan || block.perlakuan || '-'}</TableCell>
+                      <TableCell>
                         <Badge variant={block.status === 'KKPA' ? 'secondary' : 'default'}>
                           {block.status || '-'}
                         </Badge>
@@ -1359,7 +1422,6 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
                           {block.istm || '-'}
                         </Badge>
                       </TableCell>
-                      <TableCell>{block.perlakuan || block.tarifBlok?.perlakuan || '-'}</TableCell>
                       <TableCell className="text-right">
                         {block.luasHa === null || block.luasHa === undefined
                           ? '-'
@@ -1372,7 +1434,11 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="outline" size="sm" onClick={() => openEditDialog(block)}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => router.push(`/blocks/${block.id}/edit`)}
+                          >
                             <Pencil className="mr-1 h-3.5 w-3.5" />
                             Edit
                           </Button>
@@ -1439,190 +1505,12 @@ export default function CompanyAdminBlocksPage({ user, withLayout = true }: Comp
         </Card>
       </div>
 
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Block</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-              Kode blok dibuat otomatis saat simpan (format: kode divisi + nomor urut).
-            </div>
-            <Input
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              placeholder="Block name"
-            />
-            <Select value={formDivisionId} onValueChange={setFormDivisionId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select division" />
-              </SelectTrigger>
-              <SelectContent>
-                {divisions.map((division) => (
-                  <SelectItem key={division.id} value={division.id}>
-                    {division.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              value={formLuasHa}
-              onChange={(e) => setFormLuasHa(e.target.value)}
-              placeholder="Luas Ha (optional)"
-            />
-            <Input
-              value={formPlantingYear}
-              onChange={(e) => setFormPlantingYear(e.target.value)}
-              placeholder="Planting year (optional)"
-            />
-            <Input
-              value={formCropType}
-              onChange={(e) => setFormCropType(e.target.value)}
-              placeholder="Crop type (optional)"
-            />
-            <Select
-              value={formStatus}
-              onValueChange={(value) => setFormStatus(value as 'INTI' | 'KKPA')}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="INTI">INTI</SelectItem>
-                <SelectItem value="KKPA">KKPA</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={formISTM}
-              onValueChange={(value) => setFormISTM(value as 'Y' | 'N')}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="ISTM" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Y">Y</SelectItem>
-                <SelectItem value="N">N</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={formTarifBlokID || '__NONE__'}
-              onValueChange={(value) => setFormTarifBlokID(value === '__NONE__' ? '' : value)}
-              disabled={loadingTarifBloks}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Perlakuan (Master Tarif Blok)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__NONE__">- Pilih Perlakuan -</SelectItem>
-                {tarifBloks.map((tarif) => (
-                  <SelectItem key={tarif.id} value={tarif.id}>
-                    {tarif.perlakuan}{!tarif.isActive ? ' (INACTIVE)' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreate} disabled={creating}>
-              {creating ? 'Saving...' : 'Create'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={!!editingBlock} onOpenChange={(open) => !open && setEditingBlock(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Block</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <Input
-              value={formBlockCode}
-              onChange={(e) => setFormBlockCode(e.target.value)}
-              placeholder="Block code"
-            />
-            <Input
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              placeholder="Block name"
-            />
-            <Input
-              value={formLuasHa}
-              onChange={(e) => setFormLuasHa(e.target.value)}
-              placeholder="Luas Ha (optional)"
-            />
-            <Input
-              value={formPlantingYear}
-              onChange={(e) => setFormPlantingYear(e.target.value)}
-              placeholder="Planting year (optional)"
-            />
-            <Input
-              value={formCropType}
-              onChange={(e) => setFormCropType(e.target.value)}
-              placeholder="Crop type (optional)"
-            />
-            <Select
-              value={formStatus}
-              onValueChange={(value) => setFormStatus(value as 'INTI' | 'KKPA')}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="INTI">INTI</SelectItem>
-                <SelectItem value="KKPA">KKPA</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={formISTM}
-              onValueChange={(value) => setFormISTM(value as 'Y' | 'N')}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="ISTM" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Y">Y</SelectItem>
-                <SelectItem value="N">N</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={formTarifBlokID || '__NONE__'}
-              onValueChange={(value) => setFormTarifBlokID(value === '__NONE__' ? '' : value)}
-              disabled={loadingTarifBloks}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Perlakuan (Master Tarif Blok)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__NONE__">- Pilih Perlakuan -</SelectItem>
-                {tarifBloks.map((tarif) => (
-                  <SelectItem key={tarif.id} value={tarif.id}>
-                    {tarif.perlakuan}{!tarif.isActive ? ' (INACTIVE)' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingBlock(null)}>
-              Cancel
-            </Button>
-            <Button onClick={handleUpdate} disabled={updating}>
-              {updating ? 'Saving...' : 'Update'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <AlertDialog open={!!deletingBlock} onOpenChange={(open) => !open && setDeletingBlock(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete block?</AlertDialogTitle>
             <AlertDialogDescription>
-              Blok "{deletingBlock?.name}" akan dihapus permanen.
+              Blok &quot;{deletingBlock?.name}&quot; akan dihapus permanen.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -309,6 +309,12 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
   }, [childrenByManagerId, currentRole, currentUserId, userById, users]);
 
   const chartData = React.useMemo<ChartNode[]>(() => {
+    type CompanyReference = {
+      key: string;
+      label: string;
+      logoUrl: string;
+    };
+
     const formatAssignments = (
       items: Array<{ name?: string | null } | null | undefined> | null | undefined
     ): string => {
@@ -320,17 +326,77 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
       return names.length > 0 ? names.join(', ') : '-';
     };
 
-    const toCompanyChartNode = (ownerUserId: string, companyName: string, children: ChartNode[]): ChartNode => ({
+    const slugify = (value: string): string => {
+      const slug = value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      return slug || 'unknown';
+    };
+
+    const extractCompanyReferences = (user: QueryUser): CompanyReference[] => {
+      const refs = new Map<string, CompanyReference>();
+      const addReference = (id?: string | null, name?: string | null, logoUrl?: string | null) => {
+        const normalizedId = typeof id === 'string' ? id.trim() : '';
+        const normalizedName = typeof name === 'string' ? name.trim() : '';
+        const normalizedLogoUrl = typeof logoUrl === 'string' ? logoUrl.trim() : '';
+        if (!normalizedId && !normalizedName) return;
+
+        const key = normalizedId || `name:${normalizedName.toLowerCase()}`;
+        const existingReference = refs.get(key);
+        if (existingReference) {
+          if (!existingReference.logoUrl && normalizedLogoUrl) {
+            refs.set(key, {
+              ...existingReference,
+              logoUrl: normalizedLogoUrl,
+            });
+          }
+          return;
+        }
+
+        refs.set(key, {
+          key,
+          label: normalizedName || normalizedId,
+          logoUrl: normalizedLogoUrl,
+        });
+      };
+
+      addReference(user.company?.id, user.company?.name, user.company?.logoUrl);
+      (user.companies ?? []).forEach((company) => addReference(company?.id, company?.name, company?.logoUrl));
+
+      const normalizedCompanyId = user.companyId?.trim();
+      if (normalizedCompanyId && !refs.has(normalizedCompanyId)) {
+        addReference(normalizedCompanyId, user.company?.name ?? normalizedCompanyId, user.company?.logoUrl);
+      }
+
+      if (refs.size === 0) {
+        return [{ key: 'unknown', label: '-', logoUrl: '' }];
+      }
+
+      return Array.from(refs.values()).sort((a, b) => a.label.localeCompare(b.label, 'id-ID'));
+    };
+
+    const getPrimaryCompanyReference = (user: QueryUser): CompanyReference => {
+      return extractCompanyReferences(user)[0];
+    };
+
+    const toCompanyChartNode = (
+      ownerUserId: string,
+      companyKey: string,
+      companyName: string,
+      companyLogoUrl: string,
+      children: ChartNode[]
+    ): ChartNode => ({
       name: companyName,
       attributes: {
-        id: `company-${ownerUserId}-${companyName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        id: `company-${ownerUserId}-${slugify(companyKey)}`,
         nodeType: 'company',
         role: 'COMPANY',
         username: '-',
         company: companyName,
         estates: '-',
         divisions: '-',
-        avatar: '',
+        avatar: companyLogoUrl,
         isCurrent: 'no',
         directReports: children.length,
       },
@@ -338,13 +404,52 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
     });
 
     const toUserChartNode = (node: OrgNode): ChartNode => {
-      const companyName = node.user.company?.name || node.user.companies?.[0]?.name || '-';
       const normalizedRole = String(node.user.role || '').trim().toUpperCase().replace(/[\s-]+/g, '_');
-      const childUserNodes = node.children.map(toUserChartNode);
-      const chartChildren =
-        normalizedRole === 'AREA_MANAGER'
-          ? [toCompanyChartNode(node.user.id, companyName, childUserNodes)]
-          : childUserNodes;
+      const companyReferences = extractCompanyReferences(node.user);
+      const companyName = companyReferences.map((company) => company.label).join(', ');
+      const childUserNodes = node.children.map((child) => ({
+        child,
+        chartNode: toUserChartNode(child),
+      }));
+      let chartChildren = childUserNodes.map((item) => item.chartNode);
+
+      if (normalizedRole === 'AREA_MANAGER') {
+        const groupedByCompany = new Map<string, { label: string; logoUrl: string; children: ChartNode[] }>();
+        const assignedCompanyKeys = new Set<string>(companyReferences.map((company) => company.key));
+
+        companyReferences.forEach((company) => {
+          groupedByCompany.set(company.key, {
+            label: company.label,
+            logoUrl: company.logoUrl,
+            children: [],
+          });
+        });
+
+        childUserNodes.forEach(({ child, chartNode }) => {
+          const childCompany = getPrimaryCompanyReference(child.user);
+          if (!groupedByCompany.has(childCompany.key)) {
+            groupedByCompany.set(childCompany.key, {
+              label: childCompany.label,
+              logoUrl: childCompany.logoUrl,
+              children: [],
+            });
+          }
+
+          const existingGroup = groupedByCompany.get(childCompany.key);
+          if (!existingGroup) return;
+          if (!existingGroup.logoUrl && childCompany.logoUrl) {
+            existingGroup.logoUrl = childCompany.logoUrl;
+          }
+          existingGroup.children.push(chartNode);
+        });
+
+        chartChildren = Array.from(groupedByCompany.entries())
+          .filter(([companyKey, group]) => group.children.length > 0 || assignedCompanyKeys.has(companyKey))
+          .sort((a, b) => a[1].label.localeCompare(b[1].label, 'id-ID'))
+          .map(([companyKey, group]) =>
+            toCompanyChartNode(node.user.id, companyKey, group.label, group.logoUrl, group.children)
+          );
+      }
 
       return {
         name: node.user.name,
@@ -414,15 +519,36 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
       const isCurrent = String(attributes.isCurrent || 'no') === 'yes';
       const directReports = Number(attributes.directReports || 0);
       const hasChildren = Array.isArray(nodeDatum.children) && nodeDatum.children.length > 0;
+      const isCollapsed = Boolean(nodeDatum.__rd3t?.collapsed);
+      const nodeToggleLabel = hasChildren
+        ? `${isCollapsed ? 'Expand' : 'Collapse'} ${isCompanyNode ? 'company' : 'user'} node ${nodeName}`
+        : undefined;
+      const handleNodeToggle = () => {
+        if (!hasChildren) return;
+        toggleNode();
+      };
+      const handleNodeToggleKeyDown = (event: React.KeyboardEvent<SVGGElement>) => {
+        if (!hasChildren) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          toggleNode();
+        }
+      };
 
       return (
-        <g>
+        <g
+          role={hasChildren ? 'button' : undefined}
+          tabIndex={hasChildren ? 0 : undefined}
+          aria-label={nodeToggleLabel}
+          aria-expanded={hasChildren ? !isCollapsed : undefined}
+          onClick={hasChildren ? handleNodeToggle : undefined}
+          onKeyDown={hasChildren ? handleNodeToggleKeyDown : undefined}
+        >
           <circle
             r={14}
             fill={isCompanyNode ? '#0f766e' : isCurrent ? '#2563eb' : '#94a3b8'}
             stroke="#ffffff"
             strokeWidth={2}
-            onClick={toggleNode}
             style={{ cursor: hasChildren ? 'pointer' : 'default' }}
           />
 
@@ -437,10 +563,13 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
               {isCompanyNode ? (
                 <>
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-start gap-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full border border-teal-200 bg-teal-100">
-                        <Building2 className="h-4 w-4 text-teal-700" />
-                      </div>
+                      <div className="flex min-w-0 items-start gap-2">
+                      <Avatar className="h-8 w-8 border border-teal-200 bg-teal-100">
+                        <AvatarImage src={avatar || undefined} alt={nodeName} />
+                        <AvatarFallback className="bg-teal-100 text-teal-700">
+                          <Building2 className="h-4 w-4" />
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="min-w-0">
                         <p className="truncate text-xs font-semibold text-foreground">{nodeName}</p>
                         <p className="truncate text-[11px] text-muted-foreground">Level Company</p>
@@ -497,14 +626,18 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
                     </Badge>
                   </div>
 
-                  <p className="mt-2 truncate text-[11px] text-muted-foreground">Perusahaan: {company}</p>
+                  {!normalizedRole && (
+                    <p className="mt-2 truncate text-[11px] text-muted-foreground">Perusahaan: {company}</p>
+                  )}
                   {normalizedRole === 'MANAGER' && (
-                    <p className="mt-1 truncate text-[11px] text-muted-foreground">Estates: {estates}</p>
+                    <p className="mt-2 truncate text-[11px] text-muted-foreground">Estate: {estates}</p>
+                  )}
+                  {(normalizedRole === 'ASISTEN' || normalizedRole === 'MANDOR') && (
+                    <p className="mt-2 truncate text-[11px] text-muted-foreground">Estate: {estates}</p>
                   )}
                   {(normalizedRole === 'ASISTEN' || normalizedRole === 'MANDOR') && (
                     <p className="mt-1 truncate text-[11px] text-muted-foreground">Divisi: {divisions}</p>
                   )}
-
                   <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
                     <span>Direct Reports: {directReports}</span>
                     {hasChildren && (

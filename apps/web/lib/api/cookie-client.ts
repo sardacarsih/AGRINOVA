@@ -65,8 +65,6 @@ class CookieApiClient {
    */
   async login(request: CookieLoginRequest): Promise<ApiResponse<CookieLoginResponse>> {
     try {
-      console.log('🔍 [CookieApiClient] GraphQL webLogin attempt:', { username: request.username });
-
       // Validate input parameters
       if (!request.username || request.username.trim() === '') {
         console.error('❌ [CookieApiClient] Missing or empty username/identifier');
@@ -90,28 +88,7 @@ class CookieApiClient {
         identifier: identifier,
         password: request.password,
       };
-
-      console.log('🔍 [CookieApiClient] Prepared webLoginInput:', {
-        identifier: webLoginInput.identifier,
-        password: '[REDACTED]', // Don't log passwords
-        identifierType: typeof webLoginInput.identifier,
-        identifierLength: webLoginInput.identifier.length,
-        identifierValue: JSON.stringify(webLoginInput.identifier)
-      });
-
       const mutationVariables = { input: webLoginInput };
-      console.log('🔍 [CookieApiClient] GraphQL mutation variables:', {
-        input: {
-          identifier: webLoginInput.identifier,
-          password: '[REDACTED]'
-        }
-      });
-      console.log('🔍 [CookieApiClient] Variables stringified:', JSON.stringify({
-        input: {
-          identifier: webLoginInput.identifier,
-          password: '[REDACTED]'
-        }
-      }));
 
       // Execute GraphQL webLogin mutation
       const response = await apolloClient.mutate({
@@ -121,42 +98,20 @@ class CookieApiClient {
         fetchPolicy: 'no-cache', // Always fetch fresh data
       });
 
-      console.log('🔍 [CookieApiClient] Full GraphQL response structure:', {
-        data: response.data,
-        errors: response.errors,
-        extensions: response.extensions
-      });
-      console.log('🔍 [CookieApiClient] Raw response data:', response.data);
-      console.log('🔍 [CookieApiClient] Response data keys:', response.data ? Object.keys(response.data) : 'No data');
-      console.log('🔍 [CookieApiClient] Response data type:', typeof response.data);
-      console.log('🔍 [CookieApiClient] Response data JSON:', JSON.stringify(response.data, null, 2));
-
-      if (response.errors && response.errors.length > 0) {
-        console.log('🔍 [CookieApiClient] GraphQL errors found:', response.errors);
-        response.errors.forEach((error, index) => {
-          console.log(`🔍 [CookieApiClient] Error ${index}:`, {
-            message: error.message,
-            locations: error.locations,
-            path: error.path,
-            extensions: error.extensions
-          });
-        });
-      }
-
       const { data } = response;
-      console.log('🔍 [CookieApiClient] Checking data.webLogin existence:', {
-        'data exists': !!data,
-        'data type': typeof data,
-        'data.webLogin exists': !!(data && data.webLogin),
-        'data.webLogin type': data && data.webLogin ? typeof data.webLogin : 'undefined'
-      });
 
       if (data && data.webLogin) {
         const webLoginPayload: WebLoginPayload = data.webLogin;
-        console.log('✅ [CookieApiClient] GraphQL webLogin successful:', webLoginPayload);
 
         // Check if webLogin was successful
         if (webLoginPayload.success) {
+          if (!webLoginPayload.user) {
+            return {
+              success: false,
+              message: webLoginPayload.message || 'Login berhasil tetapi data pengguna tidak tersedia.',
+            };
+          }
+
           // WebLogin already returns the success status and proper data structure
           const responseData: CookieLoginResponse = {
             user: {
@@ -166,7 +121,7 @@ class CookieApiClient {
             },
             message: webLoginPayload.message,
             // No expiresAt in webLogin as it uses cookies
-            companies: webLoginPayload.assignments?.companies || [],
+            companies: webLoginPayload.user.companies || (webLoginPayload.user.company ? [webLoginPayload.user.company] : []),
             sessionId: webLoginPayload.sessionId,
           };
 
@@ -175,20 +130,15 @@ class CookieApiClient {
             message: responseData.message,
             data: responseData,
           };
-        } else {
-          // Login failed but GraphQL response was successful
-          console.log('❌ [CookieApiClient] Login failed on server:', webLoginPayload.message);
-          return {
-            success: false,
-            message: webLoginPayload.message || 'Login gagal. Periksa username dan password Anda.',
-          };
         }
+
+        // Login failed but GraphQL response was successful
+        return {
+          success: false,
+          message: webLoginPayload.message || 'Login gagal. Periksa username dan password Anda.',
+        };
       }
 
-      console.log('❌ [CookieApiClient] No webLogin data returned from GraphQL');
-      console.log('❌ [CookieApiClient] Data exists:', !!data);
-      console.log('❌ [CookieApiClient] Data.webLogin exists:', !!(data && data.webLogin));
-      console.log('❌ [CookieApiClient] Raw data:', data);
       return {
         success: false,
         message: 'Login gagal. Periksa username dan password Anda.',
@@ -327,7 +277,7 @@ class CookieApiClient {
           permissions: this.getRolePermissions(payload.user.role),
         },
         message: payload.message,
-        companies: payload.assignments?.companies || [],
+        companies: payload.user.companies || (payload.user.company ? [payload.user.company] : []),
         sessionId: payload.sessionId,
       };
 

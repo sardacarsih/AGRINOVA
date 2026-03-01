@@ -408,6 +408,45 @@ class HarvestRepositoryImpl implements HarvestRepository {
     return currentMandorId;
   }
 
+  Future<String?> _getCurrentCompanyIdOrNull() async {
+    final user = await UnifiedSecureStorageService.getUserInfo();
+    if (user == null) {
+      return null;
+    }
+
+    final directCompanyId = user.companyId?.trim();
+    if (directCompanyId != null && directCompanyId.isNotEmpty) {
+      return directCompanyId;
+    }
+
+    final effectiveCompanies = user.getEffectiveCompanies();
+    for (final companyId in effectiveCompanies) {
+      final trimmed = companyId.trim();
+      if (trimmed.isNotEmpty) {
+        return trimmed;
+      }
+    }
+
+    return null;
+  }
+
+  Future<List<String>> _getAssignedDivisionIdsOrEmpty() async {
+    final user = await UnifiedSecureStorageService.getUserInfo();
+    if (user == null) {
+      return const [];
+    }
+
+    final divisionIds = <String>{};
+    for (final divisionId in user.getEffectiveDivisions()) {
+      final trimmed = divisionId.trim();
+      if (trimmed.isNotEmpty) {
+        divisionIds.add(trimmed);
+      }
+    }
+
+    return divisionIds.toList(growable: false);
+  }
+
   Map<String, String> _resolveDuplicateKey(Harvest harvest) {
     final employeeId = harvest.employeeId.trim();
     final blockId = harvest.blockId.trim();
@@ -785,20 +824,51 @@ class HarvestRepositoryImpl implements HarvestRepository {
       {String? query, String? divisionId}) async {
     await _ensureOnlineAccess();
     try {
-      String whereClause = 'e.is_active = 1';
-      List<dynamic> whereArgs = [];
-
-      if (divisionId != null && divisionId.isNotEmpty) {
-        whereClause += ' AND e.division_id = ?';
-        whereArgs.add(divisionId);
+      final currentCompanyId = await _getCurrentCompanyIdOrNull();
+      if (currentCompanyId == null || currentCompanyId.isEmpty) {
+        _logger.w(
+          'getEmployees: companyId user login tidak ditemukan, kembalikan list kosong untuk mencegah data lintas perusahaan.',
+        );
+        return [];
       }
 
-      if (query != null && query.isNotEmpty) {
+      final assignedDivisionIds = await _getAssignedDivisionIdsOrEmpty();
+      if (assignedDivisionIds.isEmpty) {
+        _logger.w(
+          'getEmployees: assignment divisi mandor kosong, kembalikan list kosong untuk mencegah data stale.',
+        );
+        return [];
+      }
+
+      final normalizedDivisionId = divisionId?.trim();
+      if (normalizedDivisionId != null &&
+          normalizedDivisionId.isNotEmpty &&
+          !assignedDivisionIds.contains(normalizedDivisionId)) {
+        _logger.w(
+          'getEmployees: requested division berada di luar assignment, kembalikan list kosong. divisionId=$normalizedDivisionId',
+        );
+        return [];
+      }
+
+      final scopedDivisionIds =
+          normalizedDivisionId != null && normalizedDivisionId.isNotEmpty
+          ? <String>[normalizedDivisionId]
+          : assignedDivisionIds;
+      final divisionPlaceholders = List.filled(
+        scopedDivisionIds.length,
+        '?',
+      ).join(', ');
+      String whereClause =
+          'e.is_active = 1 AND e.company_id = ? AND e.division_id IN ($divisionPlaceholders)';
+      final whereArgs = <dynamic>[currentCompanyId, ...scopedDivisionIds];
+
+      if (query != null && query.trim().isNotEmpty) {
         whereClause +=
             ' AND (e.full_name LIKE ? OR e.employee_code LIKE ? OR COALESCE(d.name, \'\') LIKE ?)';
-        whereArgs.add('%$query%');
-        whereArgs.add('%$query%');
-        whereArgs.add('%$query%');
+        final keyword = '%${query.trim()}%';
+        whereArgs.add(keyword);
+        whereArgs.add(keyword);
+        whereArgs.add(keyword);
       }
 
       final db = await _databaseService.database;
@@ -864,18 +934,49 @@ class HarvestRepositoryImpl implements HarvestRepository {
   Future<List<Block>> getBlocks({String? query, String? divisionId}) async {
     await _ensureOnlineAccess();
     try {
-      String whereClause = 'b.is_active = 1';
-      List<dynamic> whereArgs = [];
-
-      if (divisionId != null && divisionId.isNotEmpty) {
-        whereClause += ' AND b.division_id = ?';
-        whereArgs.add(divisionId);
+      final currentCompanyId = await _getCurrentCompanyIdOrNull();
+      if (currentCompanyId == null || currentCompanyId.isEmpty) {
+        _logger.w(
+          'getBlocks: companyId user login tidak ditemukan, kembalikan list kosong untuk mencegah data lintas perusahaan.',
+        );
+        return [];
       }
 
-      if (query != null && query.isNotEmpty) {
+      final assignedDivisionIds = await _getAssignedDivisionIdsOrEmpty();
+      if (assignedDivisionIds.isEmpty) {
+        _logger.w(
+          'getBlocks: assignment divisi mandor kosong, kembalikan list kosong untuk mencegah data stale.',
+        );
+        return [];
+      }
+
+      final normalizedDivisionId = divisionId?.trim();
+      if (normalizedDivisionId != null &&
+          normalizedDivisionId.isNotEmpty &&
+          !assignedDivisionIds.contains(normalizedDivisionId)) {
+        _logger.w(
+          'getBlocks: requested division berada di luar assignment, kembalikan list kosong. divisionId=$normalizedDivisionId',
+        );
+        return [];
+      }
+
+      final scopedDivisionIds =
+          normalizedDivisionId != null && normalizedDivisionId.isNotEmpty
+          ? <String>[normalizedDivisionId]
+          : assignedDivisionIds;
+      final divisionPlaceholders = List.filled(
+        scopedDivisionIds.length,
+        '?',
+      ).join(', ');
+      String whereClause =
+          'b.is_active = 1 AND e.company_id = ? AND b.division_id IN ($divisionPlaceholders)';
+      final whereArgs = <dynamic>[currentCompanyId, ...scopedDivisionIds];
+
+      if (query != null && query.trim().isNotEmpty) {
         whereClause += ' AND (b.name LIKE ? OR b.code LIKE ?)';
-        whereArgs.add('%$query%');
-        whereArgs.add('%$query%');
+        final keyword = '%${query.trim()}%';
+        whereArgs.add(keyword);
+        whereArgs.add(keyword);
       }
 
       final db = await _databaseService.database;

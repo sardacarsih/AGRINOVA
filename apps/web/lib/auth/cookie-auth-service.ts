@@ -106,12 +106,10 @@ class CookieAuthService {
   async login(data: LoginFormData): Promise<LoginResponse> {
     try {
       const { email, password, rememberMe } = data;
-      console.log('🔍 [CookieAuthService] Attempting login with:', { email, rememberMe });
 
       // Check client-side lockout
       const lockoutCheck = this.checkLockout(email);
       if (lockoutCheck.isLocked) {
-        console.log('🔒 [CookieAuthService] Account locked for user:', email);
         return {
           success: false,
           message: `Akun terkunci. Coba lagi dalam ${lockoutCheck.remainingTime} menit.`,
@@ -131,11 +129,6 @@ class CookieAuthService {
       }
 
       // Make API call to cookie-based login endpoint
-      console.log('🔍 [CookieAuthService] Calling API login endpoint with:', {
-        email: email,
-        emailType: typeof email,
-        emailLength: email.length
-      });
       const response = await cookieApiClient.login({
         username: email.trim(),
         password,
@@ -143,11 +136,7 @@ class CookieAuthService {
         platform: 'WEB',
       });
 
-      console.log('🔍 [CookieAuthService] Login response:', response);
-
       if (response.success && response.data) {
-        console.log('✅ [CookieAuthService] Login successful (GraphQL or REST fallback)');
-
         // Prevent false-positive login states when cookies/session are not yet active.
         const serverSessionReady = await this.verifyServerSessionAfterLogin();
         if (!serverSessionReady) {
@@ -162,28 +151,14 @@ class CookieAuthService {
         this.resetLoginAttempts(email);
 
         const loginData = response.data;
-        console.log('🔍 [CookieAuthService] Login data:', loginData);
-        
-        // Cookies are handled automatically by the browser with HttpOnly and SameSite='strict'
-        console.log('🍪 [CookieAuthService] Using pure cookie authentication - HttpOnly cookies only');
         
         // Ensure user has permissions from role-based mapping if not provided by API
         const userData = loginData.user;
-        console.log('🔍 [CookieAuthService] User data before permissions check:', userData);
         
         // Handle both GraphQL and REST response formats
         const hasGraphQLFields = loginData.companies && loginData.sessionId;
-        if (hasGraphQLFields) {
-          console.log('🚀 [CookieAuthService] Processing GraphQL response format');
-          console.log('🔍 [CookieAuthService] Companies data:', loginData.companies);
-          console.log('🔍 [CookieAuthService] Session ID:', loginData.sessionId);
-        } else {
-          console.log('🔄 [CookieAuthService] Processing REST API response format');
-          console.log('🔍 [CookieAuthService] Expires at:', loginData.expiresAt);
-        }
         
         // Always ensure user has complete role-based permissions (merge with API permissions)
-        console.log('🔍 [CookieAuthService] Ensuring complete permissions for role:', userData.role);
         const { ROLE_PERMISSIONS } = await import('@/types/auth');
         // Use role directly - roles are now consistent with backend format (uppercase)
         const roleBasedPermissions = ROLE_PERMISSIONS[userData.role] || [];
@@ -193,13 +168,6 @@ class CookieAuthService {
         const mergedPermissions = [...new Set([...existingPermissions, ...roleBasedPermissions])];
         
         userData.permissions = mergedPermissions;
-        console.log('🔍 [CookieAuthService] Complete permissions for role:', {
-          role: userData.role,
-          existingPermissions,
-          roleBasedPermissions: roleBasedPermissions.slice(0, 3) + (roleBasedPermissions.length > 3 ? '...' : ''),
-          finalPermissions: mergedPermissions.slice(0, 5) + (mergedPermissions.length > 5 ? '...' : ''),
-          totalPermissions: mergedPermissions.length
-        });
 
         // Create cookie-based auth session with flexible expiration handling
         let sessionExpiry: Date;
@@ -228,12 +196,6 @@ class CookieAuthService {
 
         // Store current session
         this.currentSession = cookieSession;
-        console.log('✅ [CookieAuthService] Session stored successfully:', {
-          username: cookieSession.user.username,
-          role: cookieSession.user.role,
-          expiresAt: cookieSession.expiresAt,
-          hasCompanies: !!(cookieSession.user as any).companies
-        });
 
         // Cache session for fast page reload recovery
         this.cacheSessionToStorage(cookieSession);
@@ -262,7 +224,6 @@ class CookieAuthService {
         };
       }
 
-      console.log('❌ [CookieAuthService] Login failed with response:', response);
       // If login failed, increment attempts
       this.incrementFailedAttempts(email);
 

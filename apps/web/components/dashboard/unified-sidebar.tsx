@@ -55,7 +55,7 @@ const roleBasedNavigation = {
     ],
     harvest: [
       { name: "Record Sync Mobile", href: "/harvest", icon: ClipboardList, current: false },
-      { name: "Histori Panen", href: "/harvest/history", icon: Clock, current: false },
+      { name: "Budget Blok", href: "/budget-blok", icon: LayoutGrid, current: false },
     ]
   },
   ASISTEN: {
@@ -72,6 +72,7 @@ const roleBasedNavigation = {
       { name: "Struktur Organisasi", href: "/struktur-organisasi", icon: Users, current: false },
       { name: "Karyawan", href: "/users", icon: Users, current: false },
       { name: "Laporan Panen", href: "/harvest", icon: FileText, current: false },
+      { name: "Budget Blok", href: "/budget-blok", icon: LayoutGrid, current: false },
     ]
   },
   MANAGER: {
@@ -88,6 +89,7 @@ const roleBasedNavigation = {
     management: [
       { name: "Struktur Organisasi", href: "/struktur-organisasi", icon: Users, current: false },
       { name: "Budget Divisi", href: "/budget-divisi", icon: Users, current: false },
+      { name: "Budget Blok", href: "/budget-blok", icon: LayoutGrid, current: false },
       { name: "Laporan", href: "/reports", icon: BarChart3, current: false },
       { name: "Analytics", href: "/analytics", icon: BarChart3, current: false },
     ]
@@ -282,8 +284,7 @@ export function UnifiedSidebar({ userRole, userName: _userName, companyName, isC
       return false
     }
 
-    // Prefer the most specific matching path to avoid multiple active items,
-    // e.g. "/harvest" and "/harvest/history" being active at the same time.
+    // Prefer the most specific matching path to avoid multiple active items.
     const hasMoreSpecificMatch = sectionItems.some((item) => {
       const itemHref = normalizeHref(item.href)
       if (itemHref === normalizedHref) return false

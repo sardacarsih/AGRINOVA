@@ -628,6 +628,14 @@ class AuthUser extends Equatable {
       }
     }
 
+    String? companyName = json['companyName'] as String?;
+    if (companyName == null && json['company'] != null) {
+      final company = json['company'];
+      if (company is Map<String, dynamic>) {
+        companyName = company['name'] as String? ?? company['nama'] as String?;
+      }
+    }
+
     // Parse managerName - handle nested manager object from GraphQL
     String? managerName = json['managerName'] as String?;
     String? managerId = json['managerId'] as String?;
@@ -648,7 +656,7 @@ class AuthUser extends Equatable {
       email: json['email'] as String?,
       role: json['role'] as String,
       companyId: json['companyId'] as String?,
-      companyName: json['companyName'] as String?,
+      companyName: companyName,
       managerId: managerId,
       managerName: managerName,
       permissions: permissions,
@@ -816,59 +824,44 @@ class JWTLoginResponse extends Equatable {
               (json['offlineExpiresAt'] as int) * 1000);
     }
 
-    // Extract estate and division names from assignments to merge into user
-    String? estateName;
-    String? divisionName;
-    String? assignedCompanyId;
-    String? assignedCompanyName;
-    final assignments = json['assignments'];
-    if (assignments != null && assignments is Map<String, dynamic>) {
-      // Get first company (for non-Area Manager roles, there's only 1)
-      final companies = assignments['companies'];
-      if (companies != null && companies is List && companies.isNotEmpty) {
-        final firstCompany = companies.first;
-        if (firstCompany is Map<String, dynamic>) {
-          assignedCompanyId = firstCompany['id'] as String?;
-          assignedCompanyName = firstCompany['name'] as String? ??
-              firstCompany['nama'] as String?;
-        }
-      }
+    // Normalize user payload so legacy callers do not depend on root-level
+    // assignments just to derive company/estate/division labels.
+    final mergedUserData = Map<String, dynamic>.from(userData as Map<String, dynamic>);
 
-      // Get first estate name
-      final estates = assignments['estates'];
-      if (estates != null && estates is List && estates.isNotEmpty) {
-        final firstEstate = estates.first;
-        if (firstEstate is Map<String, dynamic>) {
-          estateName =
-              firstEstate['name'] as String? ?? firstEstate['nama'] as String?;
-        }
+    final company = mergedUserData['company'];
+    if (company is Map<String, dynamic>) {
+      final companyId = company['id'] as String?;
+      final companyName = company['name'] as String? ?? company['nama'] as String?;
+      if (companyId != null && mergedUserData['companyId'] == null) {
+        mergedUserData['companyId'] = companyId;
       }
+      if (companyName != null && mergedUserData['companyName'] == null) {
+        mergedUserData['companyName'] = companyName;
+      }
+    }
 
-      // Get first division name
-      final divisions = assignments['divisions'];
-      if (divisions != null && divisions is List && divisions.isNotEmpty) {
-        final firstDivision = divisions.first;
-        if (firstDivision is Map<String, dynamic>) {
-          divisionName = firstDivision['name'] as String? ??
-              firstDivision['nama'] as String?;
+    final estates = mergedUserData['estates'];
+    if (estates is List && estates.isNotEmpty) {
+      final firstEstate = estates.first;
+      if (firstEstate is Map<String, dynamic>) {
+        final estateName =
+            firstEstate['name'] as String? ?? firstEstate['nama'] as String?;
+        if (estateName != null && mergedUserData['estate'] == null) {
+          mergedUserData['estate'] = estateName;
         }
       }
     }
 
-    // Merge estate/division/company into userData before parsing
-    final mergedUserData =
-        Map<String, dynamic>.from(userData as Map<String, dynamic>);
-    if (assignedCompanyId != null && mergedUserData['companyId'] == null) {
-      mergedUserData['companyId'] = assignedCompanyId;
-    }
-    if (assignedCompanyName != null && mergedUserData['companyName'] == null) {
-      mergedUserData['companyName'] = assignedCompanyName;
-    }
-    if (estateName != null && mergedUserData['estate'] == null) {
-      mergedUserData['estate'] = estateName;
-    }
-    if (divisionName != null && mergedUserData['division'] == null) {
-      mergedUserData['division'] = divisionName;
+    final divisions = mergedUserData['divisions'];
+    if (divisions is List && divisions.isNotEmpty) {
+      final firstDivision = divisions.first;
+      if (firstDivision is Map<String, dynamic>) {
+        final divisionName =
+            firstDivision['name'] as String? ?? firstDivision['nama'] as String?;
+        if (divisionName != null && mergedUserData['division'] == null) {
+          mergedUserData['division'] = divisionName;
+        }
+      }
     }
 
     return JWTLoginResponse(

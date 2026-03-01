@@ -318,6 +318,8 @@ models:
     model: agrinovagraphql/server/internal/graphql/domain/master.CreateBlockInput
   CreateTarifBlokInput:
     model: agrinovagraphql/server/internal/graphql/domain/master.CreateTarifBlokInput
+  CreateLandTypeInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.CreateLandTypeInput
   UpdateCompanyInput:
     model: agrinovagraphql/server/internal/graphql/domain/master.UpdateCompanyInput
   UpdateEstateInput:
@@ -328,6 +330,8 @@ models:
     model: agrinovagraphql/server/internal/graphql/domain/master.UpdateBlockInput
   UpdateTarifBlokInput:
     model: agrinovagraphql/server/internal/graphql/domain/master.UpdateTarifBlokInput
+  UpdateLandTypeInput:
+    model: agrinovagraphql/server/internal/graphql/domain/master.UpdateLandTypeInput
   Employee:
     model: agrinovagraphql/server/internal/graphql/domain/master.Employee
   CreateEmployeeInput:

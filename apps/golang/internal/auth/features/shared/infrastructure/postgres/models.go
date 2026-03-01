@@ -36,6 +36,7 @@ func (UserModel) TableName() string {
 type CompanyModel struct {
 	ID        string    `gorm:"primaryKey;type:uuid"` // Simplified for test compatibility
 	Name      string    `gorm:"column:name;not null"`
+	LogoURL   *string   `gorm:"column:logo_url"`
 	Status    string    `gorm:"column:status;default:'Active'"`
 	Address   *string   `gorm:"column:address"`
 	Phone     *string   `gorm:"column:phone"`

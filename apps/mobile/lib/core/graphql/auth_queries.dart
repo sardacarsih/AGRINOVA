@@ -21,6 +21,19 @@ class AuthQueries {
           avatar
           role
           isActive
+          companyId
+          company {
+            id
+            name
+          }
+          estates {
+            id
+            name
+          }
+          divisions {
+            id
+            name
+          }
           managerId
           manager {
             id
@@ -73,6 +86,19 @@ class AuthQueries {
           avatar
           role
           isActive
+          companyId
+          company {
+            id
+            name
+          }
+          estates {
+            id
+            name
+          }
+          divisions {
+            id
+            name
+          }
           managerId
         }
         assignments {
@@ -117,6 +143,19 @@ class AuthQueries {
           avatar
           role
           isActive
+          companyId
+          company {
+            id
+            name
+          }
+          estates {
+            id
+            name
+          }
+          divisions {
+            id
+            name
+          }
           managerId
         }
         assignments {

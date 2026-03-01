@@ -33,21 +33,6 @@ export const WEB_LOGIN_MUTATION = gql`
           name
         }
       }
-      assignments {
-        companies {
-          id
-          name
-          status
-          address
-        }
-        estates {
-          id
-          name
-          companyId
-          location
-          luasHa
-        }
-      }
       sessionId
       message
     }
@@ -129,21 +114,6 @@ export const CONSUME_WEB_QR_LOGIN_MUTATION = gql`
         manager {
           id
           name
-        }
-      }
-      assignments {
-        companies {
-          id
-          name
-          status
-          address
-        }
-        estates {
-          id
-          name
-          companyId
-          location
-          luasHa
         }
       }
       sessionId
@@ -392,9 +362,9 @@ export interface WebLoginInput {
 // WebLogin response payload
 export interface WebLoginPayload {
   success: boolean;
-  user: User;
-  assignments: UserAssignments;
-  sessionId: string;
+  user?: User;
+  assignments?: UserAssignments;
+  sessionId?: string;
   message: string;
 }
 

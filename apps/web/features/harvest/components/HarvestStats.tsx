@@ -12,20 +12,75 @@ import {
   CheckCircle,
   XCircle,
   Calendar,
-  Clock
+  Clock,
+  Leaf,
 } from 'lucide-react';
 import { useQuery } from '@apollo/client/react';
 import { useAuth } from '@/hooks/use-auth';
-import { GET_HARVEST_STATISTICS, type GetHarvestStatisticsResponse } from '@/lib/apollo/queries/harvest';
+import { GET_HARVEST_STATS_SOURCE, type GetHarvestStatsSourceResponse } from '@/lib/apollo/queries/harvest';
+import { buildHarvestDateVariables } from '@/features/harvest/utils/harvest-query-params';
 
 interface HarvestStatsProps {
   className?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
-export function HarvestStats({ className }: HarvestStatsProps) {
+const EMPTY_STATS = {
+  total: 0,
+  pending: 0,
+  approved: 0,
+  rejected: 0,
+  totalWeight: 0,
+  totalBunches: 0,
+  todayRecords: 0,
+  todayWeight: 0,
+  weeklyRecords: 0,
+  weeklyWeight: 0,
+  avgWeightPerRecord: 0,
+  avgBunchesPerRecord: 0,
+  approvalRate: 0,
+  trendData: {
+    weightTrend: 0,
+    recordsTrend: 0,
+  },
+  quality: {
+    totalQualityBunches: 0,
+    ripeBunches: 0,
+    rawBunches: 0,
+    overripeBunches: 0,
+    rottenBunches: 0,
+    longStalkBunches: 0,
+    looseFruits: 0,
+    ripeRate: 0,
+    defectRate: 0,
+    hasQualityData: false,
+  },
+};
+
+function parseRecordDate(rawDate: string): Date | null {
+  const parsedDate = new Date(rawDate);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null;
+  }
+  return parsedDate;
+}
+
+function addDays(baseDate: Date, days: number): Date {
+  const nextDate = new Date(baseDate);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+}
+
+export function HarvestStats({ className, dateFrom, dateTo }: HarvestStatsProps) {
   const { user } = useAuth();
   const userRole = (user?.role || '').toUpperCase();
-  const { data, loading, error, refetch } = useQuery<GetHarvestStatisticsResponse>(GET_HARVEST_STATISTICS, {
+  const queryVariables = React.useMemo(
+    () => buildHarvestDateVariables(dateFrom, dateTo),
+    [dateFrom, dateTo]
+  );
+  const { data, loading, error, refetch } = useQuery<GetHarvestStatsSourceResponse>(GET_HARVEST_STATS_SOURCE, {
+    variables: queryVariables,
     pollInterval: 60000,
     errorPolicy: 'all',
     notifyOnNetworkStatusChange: true,
@@ -42,6 +97,140 @@ export function HarvestStats({ className }: HarvestStatsProps) {
       err.extensions?.code === 'UNAUTHENTICATED'
     );
   }) ?? false;
+
+  const stats = React.useMemo(() => {
+    const records = data?.harvestRecords ?? [];
+    if (records.length === 0) {
+      return EMPTY_STATS;
+    }
+
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const tomorrowStart = addDays(todayStart, 1);
+
+    const currentWeekStart = addDays(todayStart, -6);
+    const previousWeekStart = addDays(currentWeekStart, -7);
+    const previousWeekEnd = currentWeekStart;
+
+    let pending = 0;
+    let approved = 0;
+    let rejected = 0;
+    let totalWeight = 0;
+    let totalBunches = 0;
+    let ripeBunches = 0;
+    let rawBunches = 0;
+    let overripeBunches = 0;
+    let rottenBunches = 0;
+    let longStalkBunches = 0;
+    let looseFruits = 0;
+
+    let todayRecords = 0;
+    let todayWeight = 0;
+    let weeklyRecords = 0;
+    let weeklyWeight = 0;
+    let previousWeeklyRecords = 0;
+    let previousWeeklyWeight = 0;
+
+    for (const record of records) {
+      const recordWeight = Number(record.beratTbs) || 0;
+      const recordBunches = Number(record.jumlahJanjang) || 0;
+      const recordRipeBunches = Number(record.jjgMatang ?? 0) || 0;
+      const recordRawBunches = Number(record.jjgMentah ?? 0) || 0;
+      const recordOverripeBunches = Number(record.jjgLewatMatang ?? 0) || 0;
+      const recordRottenBunches = Number(record.jjgBusukAbnormal ?? 0) || 0;
+      const recordLongStalkBunches = Number(record.jjgTangkaiPanjang ?? 0) || 0;
+      const recordLooseFruits = Number(record.totalBrondolan ?? 0) || 0;
+
+      totalWeight += recordWeight;
+      totalBunches += recordBunches;
+      ripeBunches += recordRipeBunches;
+      rawBunches += recordRawBunches;
+      overripeBunches += recordOverripeBunches;
+      rottenBunches += recordRottenBunches;
+      longStalkBunches += recordLongStalkBunches;
+      looseFruits += recordLooseFruits;
+
+      if (record.status === 'PENDING') pending += 1;
+      if (record.status === 'APPROVED') approved += 1;
+      if (record.status === 'REJECTED') rejected += 1;
+
+      const recordDate = parseRecordDate(record.tanggal);
+      if (!recordDate) continue;
+
+      if (recordDate >= todayStart && recordDate < tomorrowStart) {
+        todayRecords += 1;
+        todayWeight += recordWeight;
+      }
+
+      if (recordDate >= currentWeekStart && recordDate < tomorrowStart) {
+        weeklyRecords += 1;
+        weeklyWeight += recordWeight;
+      }
+
+      if (recordDate >= previousWeekStart && recordDate < previousWeekEnd) {
+        previousWeeklyRecords += 1;
+        previousWeeklyWeight += recordWeight;
+      }
+    }
+
+    const total = records.length;
+    const avgWeightPerRecord = total > 0 ? totalWeight / total : 0;
+    const avgBunchesPerRecord = total > 0 ? totalBunches / total : 0;
+    const processedRecords = approved + rejected;
+    const approvalRate = processedRecords > 0 ? (approved / processedRecords) * 100 : 0;
+    const totalQualityBunches = ripeBunches + rawBunches + overripeBunches + rottenBunches + longStalkBunches;
+    const defectiveBunches = rawBunches + overripeBunches + rottenBunches + longStalkBunches;
+    const hasQualityData = totalQualityBunches > 0 || looseFruits > 0;
+    const ripeRate = totalQualityBunches > 0 ? (ripeBunches / totalQualityBunches) * 100 : 0;
+    const defectRate = totalQualityBunches > 0 ? (defectiveBunches / totalQualityBunches) * 100 : 0;
+
+    const recordsTrend =
+      previousWeeklyRecords > 0
+        ? ((weeklyRecords - previousWeeklyRecords) / previousWeeklyRecords) * 100
+        : weeklyRecords > 0
+          ? 100
+          : 0;
+
+    const weightTrend =
+      previousWeeklyWeight > 0
+        ? ((weeklyWeight - previousWeeklyWeight) / previousWeeklyWeight) * 100
+        : weeklyWeight > 0
+          ? 100
+          : 0;
+
+    return {
+      total,
+      pending,
+      approved,
+      rejected,
+      totalWeight,
+      totalBunches,
+      todayRecords,
+      todayWeight,
+      weeklyRecords,
+      weeklyWeight,
+      avgWeightPerRecord,
+      avgBunchesPerRecord,
+      approvalRate,
+      trendData: {
+        recordsTrend,
+        weightTrend,
+      },
+      quality: {
+        totalQualityBunches,
+        ripeBunches,
+        rawBunches,
+        overripeBunches,
+        rottenBunches,
+        longStalkBunches,
+        looseFruits,
+        ripeRate,
+        defectRate,
+        hasQualityData,
+      },
+    };
+  }, [data?.harvestRecords]);
 
   // Show loading only for initial load, not for auth errors
   if (loading && !data && !error) {
@@ -96,68 +285,6 @@ export function HarvestStats({ className }: HarvestStatsProps) {
     );
   }
 
-  const harvestStats = data?.harvestStatistics;
-  const stats = !harvestStats
-    ? {
-      total: 0,
-      pending: 0,
-      approved: 0,
-      rejected: 0,
-      totalWeight: 0,
-      totalBunches: 0,
-      todayRecords: 0,
-      todayWeight: 0,
-      weeklyRecords: 0,
-      weeklyWeight: 0,
-      avgWeightPerRecord: 0,
-      avgBunchesPerRecord: 0,
-      approvalRate: 0,
-      trendData: {
-        weightTrend: 0,
-        recordsTrend: 0,
-      }
-    }
-    : (() => {
-      const total = harvestStats.totalRecords;
-      const pending = harvestStats.pendingRecords;
-      const approved = harvestStats.approvedRecords;
-      const rejected = harvestStats.rejectedRecords;
-      const totalWeight = harvestStats.totalBeratTbs;
-      const totalBunches = harvestStats.totalJanjang;
-      const avgWeightPerRecord = harvestStats.averagePerRecord || 0;
-      const avgBunchesPerRecord = total > 0 ? totalBunches / total : 0;
-
-      const processedRecords = approved + rejected;
-      const approvalRate = processedRecords > 0 ? (approved / processedRecords) * 100 : 0;
-
-      const todayRecords = 0;
-      const todayWeight = 0;
-      const weeklyRecords = 0;
-      const weeklyWeight = 0;
-      const recordsTrend = 0;
-      const weightTrend = 0;
-
-      return {
-        total,
-        pending,
-        approved,
-        rejected,
-        totalWeight,
-        totalBunches,
-        todayRecords,
-        todayWeight,
-        weeklyRecords,
-        weeklyWeight,
-        avgWeightPerRecord,
-        avgBunchesPerRecord,
-        approvalRate,
-        trendData: {
-          recordsTrend,
-          weightTrend,
-        }
-      };
-    })();
-
   const TrendIcon = ({ trend }: { trend: number }) => {
     if (trend > 0) return <TrendingUp className="h-3 w-3 text-green-600" />;
     if (trend < 0) return <TrendingDown className="h-3 w-3 text-red-600" />;
@@ -165,7 +292,7 @@ export function HarvestStats({ className }: HarvestStatsProps) {
   };
 
   // Show empty state when no data available  
-  if (!loading && (!data?.harvestStatistics || !data.harvestStatistics.totalRecords)) {
+  if (!loading && stats.total === 0) {
     return (
       <div className="space-y-4">
         {/* Empty State Message */}
@@ -329,25 +456,7 @@ export function HarvestStats({ className }: HarvestStatsProps) {
 
   return (
     <div className="space-y-4">
-      {/* TPH System Status Alert - Visible for ASISTEN, MANAGER, and higher roles */}
-      {userRole && ['ASISTEN', 'MANAGER', 'AREA_MANAGER', 'COMPANY_ADMIN', 'SUPER_ADMIN'].includes(userRole) && (
-        <Alert className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
-          <Package className="h-4 w-4 text-blue-600" />
-          <AlertDescription>
-            <div className="flex items-center justify-between">
-              <span className="text-blue-800 font-medium">
-                TPH (Tempat Penumpukan Hasil) System Enhanced - Real-time location tracking active
-              </span>
-              <Badge className="bg-blue-600 text-white">Live</Badge>
-            </div>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className={`grid gap-4 md:grid-cols-2 ${userRole && ['ASISTEN', 'MANAGER', 'AREA_MANAGER', 'COMPANY_ADMIN', 'SUPER_ADMIN'].includes(userRole)
-        ? 'lg:grid-cols-4'
-        : 'lg:grid-cols-3'
-        } ${className}`}>
+      <div className={`grid gap-4 md:grid-cols-2 lg:grid-cols-4 ${className}`}>
         {/* Today's Harvest */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -425,44 +534,41 @@ export function HarvestStats({ className }: HarvestStatsProps) {
           </CardContent>
         </Card>
 
-        {/* TPH Performance - Visible for ASISTEN, MANAGER, and higher roles */}
-        {userRole && ['ASISTEN', 'MANAGER', 'AREA_MANAGER', 'COMPANY_ADMIN', 'SUPER_ADMIN'].includes(userRole) && (
-          <Card className="relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-purple-100 to-blue-100 rounded-bl-full opacity-50"></div>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">TPH Performance</CardTitle>
-              <Package className="h-4 w-4 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600">
-                {stats.avgWeightPerRecord.toFixed(2)} kg
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Rata-rata per TPH entry
-              </p>
-              <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
-                <div className="text-center p-2 bg-purple-50 rounded">
-                  <div className="font-semibold text-purple-600">
-                    {(stats.totalWeight / 1000).toFixed(1)}t
-                  </div>
-                  <div className="text-muted-foreground">Total via TPH</div>
-                </div>
-                <div className="text-center p-2 bg-blue-50 rounded">
-                  <div className="font-semibold text-blue-600">
-                    {Math.floor(stats.totalBunches / 100)}+
-                  </div>
-                  <div className="text-muted-foreground">TPH Used</div>
-                </div>
-              </div>
-              <div className="mt-2 p-2 bg-gradient-to-r from-purple-50 to-blue-50 rounded border">
-                <div className="flex items-center gap-1 text-xs text-purple-700">
-                  <Package className="h-3 w-3" />
-                  <span className="font-medium">Enhanced TPH tracking active</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* TBS Quality */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Kualitas TBS</CardTitle>
+            <Leaf className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600">
+              {stats.quality.hasQualityData ? `${stats.quality.ripeRate.toFixed(1)}%` : '-'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Persentase buah matang
+            </p>
+            <div className="flex gap-2 mt-3">
+              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 text-xs">
+                Matang {stats.quality.ripeBunches}
+              </Badge>
+              <Badge variant="outline" className="bg-amber-50 text-amber-700 text-xs">
+                Cacat {(
+                  stats.quality.rawBunches +
+                  stats.quality.overripeBunches +
+                  stats.quality.rottenBunches +
+                  stats.quality.longStalkBunches
+                )}
+              </Badge>
+              <Badge variant="outline" className="bg-slate-50 text-slate-700 text-xs">
+                Brondolan {stats.quality.looseFruits}
+              </Badge>
+            </div>
+            <div className="text-xs text-muted-foreground mt-2">
+              Defect rate: {stats.quality.defectRate.toFixed(1)}%
+            </div>
+          </CardContent>
+        </Card>
+
       </div>
     </div>
   );

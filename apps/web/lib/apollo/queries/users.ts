@@ -29,10 +29,12 @@ export const GET_USERS = gql`
         company {
           id
           name
+          logoUrl
         }
         companies {
           id
           name
+          logoUrl
         }
         estates {
           id
@@ -236,6 +238,7 @@ export interface User {
 export interface Company {
   id: string;
   name: string;
+  logoUrl?: string;
 }
 
 export interface Estate {

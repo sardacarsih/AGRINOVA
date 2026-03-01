@@ -44,6 +44,19 @@ type Estate {
 }
 
 """
+LandType represents master classification used by block and tariff.
+"""
+type LandType {
+  id: ID!
+  code: String!
+  name: String!
+  description: String
+  isActive: Boolean!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"""
 Block represents a plantation block within a division.
 """
 type Block {
@@ -56,6 +69,8 @@ type Block {
   status: String!
   istm: String!
   perlakuan: String
+  landTypeId: ID
+  landType: LandType
   tarifBlokId: ID
   tarifBlok: TarifBlok
   divisionId: String!
@@ -74,6 +89,15 @@ type TarifBlok {
   companyId: String!
   company: Company
   perlakuan: String!
+  keterangan: String
+  landTypeId: ID
+  landType: LandType
+  tarifCode: String
+  schemeType: String
+  bjrMinKg: Float
+  bjrMaxKg: Float
+  targetLebihKg: Float
+  sortOrder: Int
   basis: Float
   tarifUpah: Float
   premi: Float
@@ -84,6 +108,73 @@ type TarifBlok {
   isActive: Boolean!
   createdAt: Time!
   updatedAt: Time!
+}
+
+"""
+TariffOverrideType defines override context for tariff rule.
+"""
+enum TariffOverrideType {
+  NORMAL
+  HOLIDAY
+  LEBARAN
+}
+
+"""
+TariffRuleOverride stores contextual tariff override with optional period.
+"""
+type TariffRuleOverride {
+  id: ID!
+  ruleId: ID!
+  overrideType: TariffOverrideType!
+  effectiveFrom: Time
+  effectiveTo: Time
+  tarifUpah: Float
+  premi: Float
+  tarifPremi1: Float
+  tarifPremi2: Float
+  notes: String
+  isActive: Boolean!
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"""
+BlockTariffChangeLog represents audit trail for tariff changes impacting blocks.
+"""
+type BlockTariffChangeLog {
+  id: ID!
+  changedAt: Time!
+  eventType: String!
+  changedBy: ID
+  changedByName: String
+  companyId: ID
+  companyName: String
+  blockId: ID
+  blockCode: String
+  blockName: String
+  divisionId: ID
+  divisionName: String
+  estateId: ID
+  estateName: String
+  ruleId: ID
+  tarifCode: String
+  rulePerlakuan: String
+  overrideId: ID
+  overrideType: String
+  effectiveFrom: Time
+  effectiveTo: Time
+  oldTarifBlokId: ID
+  newTarifBlokId: ID
+  oldValues: JSON
+  newValues: JSON
+}
+
+"""
+BlockTariffChangeLogPaginationResponse represents paginated block tariff change logs.
+"""
+type BlockTariffChangeLogPaginationResponse {
+  data: [BlockTariffChangeLog!]!
+  pagination: Pagination!
 }
 
 """
@@ -215,6 +306,7 @@ input CreateBlockInput {
   plantingYear: Int
   status: String
   istm: String
+  landTypeId: ID
   tarifBlokId: ID
   divisionId: String!
 }
@@ -228,12 +320,21 @@ input UpdateBlockInput {
   plantingYear: Int
   status: String
   istm: String
+  landTypeId: ID
   tarifBlokId: ID
 }
 
 input CreateTarifBlokInput {
   companyId: ID!
   perlakuan: String!
+  keterangan: String
+  landTypeId: ID
+  tarifCode: String
+  schemeType: String
+  bjrMinKg: Float
+  bjrMaxKg: Float
+  targetLebihKg: Float
+  sortOrder: Int
   basis: Float
   tarifUpah: Float
   premi: Float
@@ -248,6 +349,14 @@ input UpdateTarifBlokInput {
   id: ID!
   companyId: ID
   perlakuan: String
+  keterangan: String
+  landTypeId: ID
+  tarifCode: String
+  schemeType: String
+  bjrMinKg: Float
+  bjrMaxKg: Float
+  targetLebihKg: Float
+  sortOrder: Int
   basis: Float
   tarifUpah: Float
   premi: Float
@@ -255,6 +364,47 @@ input UpdateTarifBlokInput {
   tarifPremi2: Float
   tarifLibur: Float
   tarifLebaran: Float
+  isActive: Boolean
+}
+
+input CreateTariffRuleOverrideInput {
+  ruleId: ID!
+  overrideType: TariffOverrideType!
+  effectiveFrom: Time
+  effectiveTo: Time
+  tarifUpah: Float
+  premi: Float
+  tarifPremi1: Float
+  tarifPremi2: Float
+  notes: String
+  isActive: Boolean
+}
+
+input UpdateTariffRuleOverrideInput {
+  id: ID!
+  overrideType: TariffOverrideType
+  effectiveFrom: Time
+  effectiveTo: Time
+  tarifUpah: Float
+  premi: Float
+  tarifPremi1: Float
+  tarifPremi2: Float
+  notes: String
+  isActive: Boolean
+}
+
+input CreateLandTypeInput {
+  code: String!
+  name: String!
+  description: String
+  isActive: Boolean
+}
+
+input UpdateLandTypeInput {
+  id: ID!
+  code: String
+  name: String
+  description: String
   isActive: Boolean
 }
 
@@ -331,8 +481,21 @@ extend type Query {
   ): BlockPaginationResponse!
   "Get a specific block by ID"
   block(id: ID!): Block
+  "Retrieve land type master data used for block and tariff"
+  landTypes: [LandType!]!
   "Retrieve master tariff/treatment data for blocks"
   tarifBloks: [TarifBlok!]!
+  "Retrieve tariff rule overrides (NORMAL/HOLIDAY/LEBARAN) with optional period"
+  tariffRuleOverrides(ruleId: ID, overrideType: TariffOverrideType, isActive: Boolean): [TariffRuleOverride!]!
+  "Retrieve block tariff change logs with pagination and optional filters"
+  blockTariffChangeLogs(
+    companyId: ID
+    blockId: ID
+    search: String
+    eventType: String
+    page: Int = 1
+    limit: Int = 20
+  ): BlockTariffChangeLogPaginationResponse!
   
   # Division Management Queries
   "Retrieve all divisions"
@@ -370,6 +533,12 @@ extend type Mutation {
   createTarifBlok(input: CreateTarifBlokInput!): TarifBlok!
   updateTarifBlok(input: UpdateTarifBlokInput!): TarifBlok!
   deleteTarifBlok(id: ID!): Boolean!
+  createTariffRuleOverride(input: CreateTariffRuleOverrideInput!): TariffRuleOverride!
+  updateTariffRuleOverride(input: UpdateTariffRuleOverrideInput!): TariffRuleOverride!
+  deleteTariffRuleOverride(id: ID!): Boolean!
+  createLandType(input: CreateLandTypeInput!): LandType!
+  updateLandType(input: UpdateLandTypeInput!): LandType!
+  deleteLandType(id: ID!): Boolean!
   
   # Division mutations
   createDivision(input: CreateDivisionInput!): Division!

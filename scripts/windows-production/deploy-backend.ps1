@@ -81,12 +81,15 @@ function Get-TargetRelease {
     )
 
     if ($TagInput -eq "latest") {
-        $listUri = "https://api.github.com/repos/$Owner/$Repo/releases?per_page=30"
+        $listUri = "https://api.github.com/repos/$Owner/$Repo/releases?per_page=100"
         $releases = Invoke-GitHubApi -Uri $listUri
         $candidate = $releases |
             Where-Object {
-                -not $_.draft -and $_.tag_name -like "backend/v*.*.*"
+                -not $_.draft -and $_.tag_name -match "^backend/v\d+\.\d+\.\d+$"
             } |
+            Sort-Object `
+                @{ Expression = { [version](($_.tag_name -replace "^backend/v", "")) }; Descending = $true }, `
+                @{ Expression = { if ($_.published_at) { [DateTime]$_.published_at } else { [DateTime]::MinValue } }; Descending = $true } |
             Select-Object -First 1
 
         if ($null -eq $candidate) {

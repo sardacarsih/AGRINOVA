@@ -11,6 +11,7 @@ type UserRepository interface {
 	FindByID(ctx context.Context, id string) (*User, error)
 	FindByUsername(ctx context.Context, username string) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
+	FindAuthByIdentifier(ctx context.Context, identifier string) (*User, error)
 	FindByIdentifier(ctx context.Context, identifier string) (*User, error) // username or email
 
 	// Filtered queries
@@ -31,10 +32,12 @@ type SessionRepository interface {
 	FindSessionByToken(ctx context.Context, token string) (*UserSession, error)
 	FindSessionByID(ctx context.Context, id string) (*UserSession, error)
 	FindActiveSessionsByUser(ctx context.Context, userID string) ([]*UserSession, error)
+	TryRotateSingleActiveSession(ctx context.Context, session *UserSession) (bool, error)
 
 	// Session management
 	UpdateSession(ctx context.Context, session *UserSession) error
 	RevokeSession(ctx context.Context, sessionID string) error
+	RevokeOtherSessionsByUser(ctx context.Context, userID, excludeSessionID string, platform PlatformType) error
 	RevokeAllUserSessions(ctx context.Context, userID string) error
 	RevokeExpiredSessions(ctx context.Context) error
 

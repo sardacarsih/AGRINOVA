@@ -94,11 +94,17 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
   }
 
   Future<void> _loadData() async {
-    // Data master already scoped by server assignments during sync.
-    // Avoid strict local division filtering to prevent empty dropdowns
-    // when assignment payload uses a different division identifier format.
-    context.read<HarvestBloc>().add(const HarvestEmployeesLoadRequested());
-    context.read<HarvestBloc>().add(const HarvestBlocksLoadRequested());
+    final normalizedDivisionId = widget.divisionId.trim();
+    final scopedDivisionId = normalizedDivisionId.isEmpty
+        ? null
+        : normalizedDivisionId;
+
+    context.read<HarvestBloc>().add(
+      HarvestEmployeesLoadRequested(divisionId: scopedDivisionId),
+    );
+    context.read<HarvestBloc>().add(
+      HarvestBlocksLoadRequested(divisionId: scopedDivisionId),
+    );
   }
 
   Future<void> _getCurrentLocation() async {

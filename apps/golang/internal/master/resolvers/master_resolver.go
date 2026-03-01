@@ -337,6 +337,7 @@ func (r *MasterResolver) CreateBlock(ctx context.Context, input master.CreateBlo
 		PlantingYear: int32PtrToIntPtr(input.PlantingYear),
 		Status:       stringFromPtr(input.Status),
 		ISTM:         stringFromPtr(input.ISTM),
+		LandTypeID:   input.LandTypeID,
 		TarifBlokID:  input.TarifBlokID,
 		DivisionID:   input.DivisionID,
 	}
@@ -368,6 +369,7 @@ func (r *MasterResolver) UpdateBlock(ctx context.Context, input master.UpdateBlo
 		PlantingYear: int32PtrToIntPtr(input.PlantingYear),
 		Status:       input.Status,
 		ISTM:         input.ISTM,
+		LandTypeID:   input.LandTypeID,
 		TarifBlokID:  input.TarifBlokID,
 	}
 
@@ -463,6 +465,97 @@ func (r *MasterResolver) GetTarifBloks(ctx context.Context) ([]*master.TarifBlok
 	return result, nil
 }
 
+func (r *MasterResolver) GetLandTypes(ctx context.Context) ([]*master.LandType, error) {
+	userID, err := r.getUserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := r.requirePermission(ctx, "block:read"); err != nil {
+		return nil, err
+	}
+
+	landTypes, err := r.MasterService.GetLandTypes(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*master.LandType, len(landTypes))
+	for i, landType := range landTypes {
+		result[i] = r.convertLandTypeToGraphQL(landType)
+	}
+
+	return result, nil
+}
+
+func (r *MasterResolver) CreateLandType(ctx context.Context, input master.CreateLandTypeInput) (*master.LandType, error) {
+	userID, err := r.getUserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := r.requirePermission(ctx, "block:create"); err != nil {
+		return nil, err
+	}
+
+	req := &models.CreateLandTypeRequest{
+		Code:        input.Code,
+		Name:        input.Name,
+		Description: input.Description,
+		IsActive:    input.IsActive,
+	}
+
+	landType, err := r.MasterService.CreateLandType(ctx, req, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.convertLandTypeToGraphQL(landType), nil
+}
+
+func (r *MasterResolver) UpdateLandType(ctx context.Context, input master.UpdateLandTypeInput) (*master.LandType, error) {
+	userID, err := r.getUserIDFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := r.requirePermission(ctx, "block:update"); err != nil {
+		return nil, err
+	}
+
+	req := &models.UpdateLandTypeRequest{
+		ID:          input.ID,
+		Code:        input.Code,
+		Name:        input.Name,
+		Description: input.Description,
+		IsActive:    input.IsActive,
+	}
+
+	landType, err := r.MasterService.UpdateLandType(ctx, req, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.convertLandTypeToGraphQL(landType), nil
+}
+
+func (r *MasterResolver) DeleteLandType(ctx context.Context, id string) (bool, error) {
+	userID, err := r.getUserIDFromContext(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	if err := r.requirePermission(ctx, "block:delete"); err != nil {
+		return false, err
+	}
+
+	if err := r.MasterService.DeleteLandType(ctx, id, userID); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
 func (r *MasterResolver) CreateTarifBlok(ctx context.Context, input master.CreateTarifBlokInput) (*master.TarifBlok, error) {
 	userID, err := r.getUserIDFromContext(ctx)
 	if err != nil {
@@ -476,6 +569,14 @@ func (r *MasterResolver) CreateTarifBlok(ctx context.Context, input master.Creat
 	req := &models.CreateTarifBlokRequest{
 		CompanyID:    input.CompanyID,
 		Perlakuan:    input.Perlakuan,
+		Keterangan:   input.Keterangan,
+		LandTypeID:   input.LandTypeID,
+		TarifCode:    input.TarifCode,
+		SchemeType:   input.SchemeType,
+		BJRMinKg:     input.BJRMinKg,
+		BJRMaxKg:     input.BJRMaxKg,
+		TargetLebih:  input.TargetLebih,
+		SortOrder:    input.SortOrder,
 		Basis:        input.Basis,
 		TarifUpah:    input.TarifUpah,
 		Premi:        input.Premi,
@@ -508,6 +609,14 @@ func (r *MasterResolver) UpdateTarifBlok(ctx context.Context, input master.Updat
 		ID:           input.ID,
 		CompanyID:    input.CompanyID,
 		Perlakuan:    input.Perlakuan,
+		Keterangan:   input.Keterangan,
+		LandTypeID:   input.LandTypeID,
+		TarifCode:    input.TarifCode,
+		SchemeType:   input.SchemeType,
+		BJRMinKg:     input.BJRMinKg,
+		BJRMaxKg:     input.BJRMaxKg,
+		TargetLebih:  input.TargetLebih,
+		SortOrder:    input.SortOrder,
 		Basis:        input.Basis,
 		TarifUpah:    input.TarifUpah,
 		Premi:        input.Premi,
@@ -926,6 +1035,7 @@ func (r *MasterResolver) convertBlockToGraphQL(block *models.Block) *master.Bloc
 		Status:       block.Status,
 		ISTM:         block.ISTM,
 		Perlakuan:    block.Perlakuan,
+		LandTypeID:   block.LandTypeID,
 		TarifBlokID:  block.TarifBlokID,
 		DivisionID:   block.DivisionID,
 		IsActive:     block.IsActive,
@@ -935,6 +1045,9 @@ func (r *MasterResolver) convertBlockToGraphQL(block *models.Block) *master.Bloc
 
 	if block.TarifBlok != nil {
 		result.TarifBlok = r.convertTarifBlokToGraphQL(block.TarifBlok)
+	}
+	if block.LandType != nil {
+		result.LandType = r.convertLandTypeToGraphQL(block.LandType)
 	}
 
 	if block.Division != nil {
@@ -977,6 +1090,7 @@ func (r *MasterResolver) convertDivisionToGraphQL(division *models.Division) *ma
 			Status:       block.Status,
 			ISTM:         block.ISTM,
 			Perlakuan:    block.Perlakuan,
+			LandTypeID:   block.LandTypeID,
 			TarifBlokID:  block.TarifBlokID,
 			DivisionID:   block.DivisionID,
 			IsActive:     block.IsActive,
@@ -997,6 +1111,14 @@ func (r *MasterResolver) convertTarifBlokToGraphQL(tarifBlok *models.TarifBlok) 
 		ID:           tarifBlok.ID,
 		CompanyID:    tarifBlok.CompanyID,
 		Perlakuan:    tarifBlok.Perlakuan,
+		Keterangan:   tarifBlok.Keterangan,
+		LandTypeID:   tarifBlok.LandTypeID,
+		TarifCode:    tarifBlok.TarifCode,
+		SchemeType:   tarifBlok.SchemeType,
+		BJRMinKg:     tarifBlok.BJRMinKg,
+		BJRMaxKg:     tarifBlok.BJRMaxKg,
+		TargetLebih:  tarifBlok.TargetLebih,
+		SortOrder:    tarifBlok.SortOrder,
 		Basis:        tarifBlok.Basis,
 		TarifUpah:    tarifBlok.TarifUpah,
 		Premi:        tarifBlok.Premi,
@@ -1012,8 +1134,26 @@ func (r *MasterResolver) convertTarifBlokToGraphQL(tarifBlok *models.TarifBlok) 
 	if tarifBlok.Company != nil {
 		result.Company = r.convertCompanyToGraphQL(tarifBlok.Company)
 	}
+	if tarifBlok.LandType != nil {
+		result.LandType = r.convertLandTypeToGraphQL(tarifBlok.LandType)
+	}
 
 	return result
+}
+
+func (r *MasterResolver) convertLandTypeToGraphQL(landType *models.LandType) *master.LandType {
+	if landType == nil {
+		return nil
+	}
+	return &master.LandType{
+		ID:          landType.ID,
+		Code:        landType.Code,
+		Name:        landType.Name,
+		Description: landType.Description,
+		IsActive:    landType.IsActive,
+		CreatedAt:   landType.CreatedAt,
+		UpdatedAt:   landType.UpdatedAt,
+	}
 }
 
 func (r *MasterResolver) convertUserToGraphQL(user *auth.User) *auth.User {

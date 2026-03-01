@@ -13,6 +13,7 @@ type CompanyStatus = master.CompanyStatus
 type Estate = master.Estate
 type Block = master.Block
 type Division = master.Division
+type LandType = master.LandType
 type TarifBlok = master.TarifBlok
 type Vehicle = master.Vehicle
 type VehicleTax = master.VehicleTax
@@ -140,6 +141,7 @@ type CreateBlockRequest struct {
 	PlantingYear *int     `json:"planting_year,omitempty" validate:"omitempty,gte=1900,lte=2100"`
 	Status       string   `json:"status,omitempty" validate:"omitempty,oneof=INTI KKPA"`
 	ISTM         string   `json:"istm,omitempty" validate:"omitempty,oneof=Y N"`
+	LandTypeID   *string  `json:"land_type_id,omitempty" validate:"omitempty,uuid"`
 	TarifBlokID  *string  `json:"tarif_blok_id,omitempty" validate:"omitempty,uuid"`
 	DivisionID   string   `json:"division_id" validate:"required,uuid"`
 }
@@ -154,13 +156,39 @@ type UpdateBlockRequest struct {
 	PlantingYear *int     `json:"planting_year,omitempty" validate:"omitempty,gte=1900,lte=2100"`
 	Status       *string  `json:"status,omitempty" validate:"omitempty,oneof=INTI KKPA"`
 	ISTM         *string  `json:"istm,omitempty" validate:"omitempty,oneof=Y N"`
+	LandTypeID   *string  `json:"land_type_id,omitempty" validate:"omitempty,uuid"`
 	TarifBlokID  *string  `json:"tarif_blok_id,omitempty" validate:"omitempty,uuid"`
+}
+
+// CreateLandTypeRequest represents the input for creating a land type.
+type CreateLandTypeRequest struct {
+	Code        string  `json:"code" validate:"required,min=1,max=50"`
+	Name        string  `json:"name" validate:"required,min=1,max=100"`
+	Description *string `json:"description,omitempty" validate:"omitempty,max=1000"`
+	IsActive    *bool   `json:"is_active,omitempty"`
+}
+
+// UpdateLandTypeRequest represents the input for updating a land type.
+type UpdateLandTypeRequest struct {
+	ID          string  `json:"id" validate:"required,uuid"`
+	Code        *string `json:"code,omitempty" validate:"omitempty,min=1,max=50"`
+	Name        *string `json:"name,omitempty" validate:"omitempty,min=1,max=100"`
+	Description *string `json:"description,omitempty" validate:"omitempty,max=1000"`
+	IsActive    *bool   `json:"is_active,omitempty"`
 }
 
 // CreateTarifBlokRequest represents the input for creating a tarif blok.
 type CreateTarifBlokRequest struct {
 	CompanyID    string   `json:"company_id" validate:"required,uuid"`
 	Perlakuan    string   `json:"perlakuan" validate:"required,min=1,max=100"`
+	Keterangan   *string  `json:"keterangan,omitempty" validate:"omitempty,max=1000"`
+	LandTypeID   *string  `json:"land_type_id,omitempty" validate:"omitempty,uuid"`
+	TarifCode    *string  `json:"tarif_code,omitempty" validate:"omitempty,min=1,max=20"`
+	SchemeType   *string  `json:"scheme_type,omitempty" validate:"omitempty,min=1,max=50"`
+	BJRMinKg     *float64 `json:"bjr_min_kg,omitempty" validate:"omitempty,gte=0"`
+	BJRMaxKg     *float64 `json:"bjr_max_kg,omitempty" validate:"omitempty,gte=0"`
+	TargetLebih  *float64 `json:"target_lebih_kg,omitempty" validate:"omitempty,gte=0"`
+	SortOrder    *int32   `json:"sort_order,omitempty" validate:"omitempty,gte=0,lte=9999"`
 	Basis        *float64 `json:"basis,omitempty" validate:"omitempty,gte=0"`
 	TarifUpah    *float64 `json:"tarif_upah,omitempty" validate:"omitempty,gte=0"`
 	Premi        *float64 `json:"premi,omitempty" validate:"omitempty,gte=0"`
@@ -176,6 +204,14 @@ type UpdateTarifBlokRequest struct {
 	ID           string   `json:"id" validate:"required,uuid"`
 	CompanyID    *string  `json:"company_id,omitempty" validate:"omitempty,uuid"`
 	Perlakuan    *string  `json:"perlakuan,omitempty" validate:"omitempty,min=1,max=100"`
+	Keterangan   *string  `json:"keterangan,omitempty" validate:"omitempty,max=1000"`
+	LandTypeID   *string  `json:"land_type_id,omitempty" validate:"omitempty,uuid"`
+	TarifCode    *string  `json:"tarif_code,omitempty" validate:"omitempty,min=1,max=20"`
+	SchemeType   *string  `json:"scheme_type,omitempty" validate:"omitempty,min=1,max=50"`
+	BJRMinKg     *float64 `json:"bjr_min_kg,omitempty" validate:"omitempty,gte=0"`
+	BJRMaxKg     *float64 `json:"bjr_max_kg,omitempty" validate:"omitempty,gte=0"`
+	TargetLebih  *float64 `json:"target_lebih_kg,omitempty" validate:"omitempty,gte=0"`
+	SortOrder    *int32   `json:"sort_order,omitempty" validate:"omitempty,gte=0,lte=9999"`
 	Basis        *float64 `json:"basis,omitempty" validate:"omitempty,gte=0"`
 	TarifUpah    *float64 `json:"tarif_upah,omitempty" validate:"omitempty,gte=0"`
 	Premi        *float64 `json:"premi,omitempty" validate:"omitempty,gte=0"`

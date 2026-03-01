@@ -693,6 +693,10 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
       final pendingBefore = await harvestSync.getPendingSyncCount();
       await harvestSync.syncNow();
       final pendingAfter = await harvestSync.getPendingSyncCount();
+      final failedAfter = await harvestSync.getFailedSyncCount();
+      final recentErrors = await harvestSync.getRecentSyncErrorMessages(
+        limit: 1,
+      );
       final syncedCount = (pendingBefore - pendingAfter).clamp(
         0,
         pendingBefore,
@@ -701,12 +705,22 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
       setState(() {
         if (pendingBefore == 0) {
           _lastHarvestSyncResult = 'Tidak ada data panen yang perlu dikirim';
-        } else if (syncedCount > 0) {
+        } else if (syncedCount > 0 && pendingAfter == 0) {
           _lastHarvestSyncResult =
               'Berhasil: $syncedCount data panen berhasil dikirim ke server';
+        } else if (syncedCount > 0) {
+          _lastHarvestSyncResult =
+              'Sebagian berhasil: $syncedCount data terkirim, '
+              '$pendingAfter data masih menunggu upload'
+              '${failedAfter > 0 ? ' ($failedAfter gagal).' : '.'}';
+        } else if (recentErrors.isNotEmpty) {
+          final compactReason = _compactSyncError(recentErrors.first);
+          _lastHarvestSyncResult =
+              'Upload belum berhasil. Penyebab: $compactReason';
         } else {
           _lastHarvestSyncResult =
-              'Sinkronisasi selesai, belum ada data yang berhasil dikirim';
+              'Sinkronisasi selesai, belum ada data yang berhasil dikirim. '
+              'Periksa data panen dan coba lagi.';
         }
         _lastSyncTime = DateTime.now();
       });
@@ -723,6 +737,19 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
       setState(() => _isSyncingHarvest = false);
       await _refreshSyncIndicators();
     }
+  }
+
+  String _compactSyncError(String rawError) {
+    var value = rawError.trim();
+    if (value.isEmpty) {
+      return 'alasan tidak tersedia';
+    }
+
+    value = value.replaceFirst(
+      RegExp(r'^Invalid sync payload:\s*', caseSensitive: false),
+      '',
+    );
+    return value.length <= 140 ? value : '${value.substring(0, 137)}...';
   }
 
   Future<void> _pullApprovalUpdates() async {

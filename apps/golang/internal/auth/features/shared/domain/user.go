@@ -49,6 +49,7 @@ type UserDTO struct {
 type Company struct {
 	ID      string
 	Name    string
+	LogoURL *string
 	Status  string
 	Address *string
 	Phone   *string
@@ -58,6 +59,7 @@ type Company struct {
 type CompanyDTO struct {
 	ID      string  `json:"id"`
 	Name    string  `json:"name"`
+	LogoURL *string `json:"logoUrl,omitempty"`
 	Status  string  `json:"status"`
 	Address *string `json:"address"`
 	Phone   *string `json:"phone"`
@@ -260,6 +262,7 @@ func ToCompanyDTO(company *Company) CompanyDTO {
 	return CompanyDTO{
 		ID:      company.ID,
 		Name:    company.Name,
+		LogoURL: company.LogoURL,
 		Status:  company.Status,
 		Address: company.Address,
 		Phone:   company.Phone,

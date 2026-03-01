@@ -133,7 +133,9 @@ func main() {
 	router := gin.New()
 
 	// Global middleware
-	router.Use(gin.Logger())
+	if envFlagEnabled("AGRINOVA_HTTP_ACCESS_LOG") {
+		router.Use(gin.Logger())
+	}
 	router.Use(gin.Recovery())
 	router.Use(corsMiddleware(cfg.CORS.AllowedOrigins))
 	router.Use(securityHeadersMiddleware())
@@ -427,6 +429,11 @@ func startSessionCleanupWorker(ctx context.Context, log *logger.Logger, sessionR
 	}()
 
 	log.Info("Session cleanup worker started (interval: %s, retention: %s)", cleanupInterval, inactiveRetention)
+}
+
+func envFlagEnabled(key string) bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
+	return value == "1" || value == "true" || value == "yes" || value == "on"
 }
 
 // Services contains all authentication services for GraphQL

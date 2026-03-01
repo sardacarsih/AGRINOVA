@@ -192,6 +192,39 @@ func (Division) TableName() string {
 	return "divisions"
 }
 
+// LandType represents a master data classification for land/tariff dimension.
+type LandType struct {
+	ID          string    `json:"id" gorm:"primaryKey;column:id;type:uuid;default:gen_random_uuid()"`
+	Code        string    `json:"code" gorm:"column:code;type:varchar(50);uniqueIndex;not null"`
+	Name        string    `json:"name" gorm:"column:name;type:varchar(100);not null"`
+	Description *string   `json:"description,omitempty" gorm:"column:description;type:text"`
+	IsActive    bool      `json:"isActive" gorm:"column:is_active;default:true"`
+	CreatedAt   time.Time `json:"createdAt" gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt   time.Time `json:"updatedAt" gorm:"column:updated_at;autoUpdateTime"`
+}
+
+// TableName specifies the table name for GORM.
+func (LandType) TableName() string {
+	return "land_types"
+}
+
+// CreateLandTypeInput for creating land types.
+type CreateLandTypeInput struct {
+	Code        string  `json:"code"`
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+	IsActive    *bool   `json:"isActive,omitempty"`
+}
+
+// UpdateLandTypeInput for updating land types.
+type UpdateLandTypeInput struct {
+	ID          string  `json:"id"`
+	Code        *string `json:"code,omitempty"`
+	Name        *string `json:"name,omitempty"`
+	Description *string `json:"description,omitempty"`
+	IsActive    *bool   `json:"isActive,omitempty"`
+}
+
 // CreateDivisionInput for creating divisions.
 type CreateDivisionInput struct {
 	Name     string `json:"name"`
@@ -212,6 +245,15 @@ type TarifBlok struct {
 	CompanyID    string    `json:"companyId" gorm:"column:company_id;type:uuid;not null;index;uniqueIndex:uq_tarif_blok_company_perlakuan,priority:1"`
 	Company      *Company  `json:"company,omitempty" gorm:"foreignKey:CompanyID;references:ID"`
 	Perlakuan    string    `json:"perlakuan" gorm:"column:perlakuan;type:varchar(100);not null;uniqueIndex:uq_tarif_blok_company_perlakuan,priority:2"`
+	Keterangan   *string   `json:"keterangan,omitempty" gorm:"column:keterangan;type:text"`
+	LandTypeID   *string   `json:"landTypeId,omitempty" gorm:"column:land_type_id;type:uuid;index:idx_tarif_blok_land_type_id"`
+	LandType     *LandType `json:"landType,omitempty" gorm:"foreignKey:LandTypeID;references:ID"`
+	TarifCode    *string   `json:"tarifCode,omitempty" gorm:"column:tarif_code;type:varchar(20);index:idx_tarif_blok_code"`
+	SchemeType   *string   `json:"schemeType,omitempty" gorm:"column:scheme_type;type:varchar(30);index:idx_tarif_blok_scheme"`
+	BJRMinKg     *float64  `json:"bjrMinKg,omitempty" gorm:"column:bjr_min_kg;type:numeric(10,2)"`
+	BJRMaxKg     *float64  `json:"bjrMaxKg,omitempty" gorm:"column:bjr_max_kg;type:numeric(10,2)"`
+	TargetLebih  *float64  `json:"targetLebihKg,omitempty" gorm:"column:target_lebih_kg;type:numeric(14,2)"`
+	SortOrder    *int32    `json:"sortOrder,omitempty" gorm:"column:sort_order"`
 	Basis        *float64  `json:"basis,omitempty" gorm:"column:basis;type:numeric(14,2)"`
 	TarifUpah    *float64  `json:"tarifUpah,omitempty" gorm:"column:tarif_upah;type:numeric(14,2)"`
 	Premi        *float64  `json:"premi,omitempty" gorm:"column:premi;type:numeric(14,2)"`
@@ -245,8 +287,10 @@ type Block struct {
 	Status       string     `json:"status" gorm:"column:status;type:varchar(10);default:INTI"`
 	ISTM         string     `json:"istm" gorm:"column:istm;type:char(1);default:N"`
 	Perlakuan    *string    `json:"perlakuan,omitempty" gorm:"column:perlakuan"`
+	LandTypeID   *string    `json:"landTypeId,omitempty" gorm:"column:land_type_id;type:uuid;index:idx_blocks_land_type_id"`
+	LandType     *LandType  `json:"landType,omitempty" gorm:"foreignKey:LandTypeID;references:ID"`
 	TarifBlokID  *string    `json:"tarifBlokId,omitempty" gorm:"column:tarif_blok_id;type:uuid"`
-	TarifBlok    *TarifBlok `json:"tarifBlok,omitempty" gorm:"foreignKey:TarifBlokID;references:ID"`
+	TarifBlok    *TarifBlok `json:"tarifBlok,omitempty" gorm:"foreignKey:TarifBlokID;references:ID;constraint:false"`
 	DivisionID   string     `json:"divisionId" gorm:"column:division_id;type:uuid"`
 	Division     *Division  `json:"division" gorm:"foreignKey:DivisionID;references:ID"`
 	IsActive     bool       `json:"isActive" gorm:"column:is_active;default:true"`
@@ -268,6 +312,7 @@ type CreateBlockInput struct {
 	PlantingYear *int32   `json:"plantingYear,omitempty"`
 	Status       *string  `json:"status,omitempty"`
 	ISTM         *string  `json:"istm,omitempty"`
+	LandTypeID   *string  `json:"landTypeId,omitempty"`
 	TarifBlokID  *string  `json:"tarifBlokId,omitempty"`
 	DivisionID   string   `json:"divisionId"`
 }
@@ -282,6 +327,7 @@ type UpdateBlockInput struct {
 	PlantingYear *int32   `json:"plantingYear,omitempty"`
 	Status       *string  `json:"status,omitempty"`
 	ISTM         *string  `json:"istm,omitempty"`
+	LandTypeID   *string  `json:"landTypeId,omitempty"`
 	TarifBlokID  *string  `json:"tarifBlokId,omitempty"`
 }
 
@@ -289,6 +335,14 @@ type UpdateBlockInput struct {
 type CreateTarifBlokInput struct {
 	CompanyID    string   `json:"companyId"`
 	Perlakuan    string   `json:"perlakuan"`
+	Keterangan   *string  `json:"keterangan,omitempty"`
+	LandTypeID   *string  `json:"landTypeId,omitempty"`
+	TarifCode    *string  `json:"tarifCode,omitempty"`
+	SchemeType   *string  `json:"schemeType,omitempty"`
+	BJRMinKg     *float64 `json:"bjrMinKg,omitempty"`
+	BJRMaxKg     *float64 `json:"bjrMaxKg,omitempty"`
+	TargetLebih  *float64 `json:"targetLebihKg,omitempty"`
+	SortOrder    *int32   `json:"sortOrder,omitempty"`
 	Basis        *float64 `json:"basis,omitempty"`
 	TarifUpah    *float64 `json:"tarifUpah,omitempty"`
 	Premi        *float64 `json:"premi,omitempty"`
@@ -304,6 +358,14 @@ type UpdateTarifBlokInput struct {
 	ID           string   `json:"id"`
 	CompanyID    *string  `json:"companyId,omitempty"`
 	Perlakuan    *string  `json:"perlakuan,omitempty"`
+	Keterangan   *string  `json:"keterangan,omitempty"`
+	LandTypeID   *string  `json:"landTypeId,omitempty"`
+	TarifCode    *string  `json:"tarifCode,omitempty"`
+	SchemeType   *string  `json:"schemeType,omitempty"`
+	BJRMinKg     *float64 `json:"bjrMinKg,omitempty"`
+	BJRMaxKg     *float64 `json:"bjrMaxKg,omitempty"`
+	TargetLebih  *float64 `json:"targetLebihKg,omitempty"`
+	SortOrder    *int32   `json:"sortOrder,omitempty"`
 	Basis        *float64 `json:"basis,omitempty"`
 	TarifUpah    *float64 `json:"tarifUpah,omitempty"`
 	Premi        *float64 `json:"premi,omitempty"`
@@ -448,14 +510,14 @@ func (VehicleTax) TableName() string {
 
 // VehicleTaxDocument stores tax supporting files.
 type VehicleTaxDocument struct {
-	ID           string     `json:"id" gorm:"primaryKey;column:id;type:uuid;default:gen_random_uuid()"`
-	VehicleTaxID string     `json:"vehicleTaxId" gorm:"column:vehicle_tax_id;type:uuid;not null;index"`
-	DocumentType string     `json:"documentType" gorm:"column:document_type;type:varchar(30);not null"`
-	FilePath     string     `json:"filePath" gorm:"column:file_path;type:text;not null"`
-	UploadedBy   *int64     `json:"uploadedBy,omitempty" gorm:"column:uploaded_by;type:bigint"`
-	UploadedAt   time.Time  `json:"uploadedAt" gorm:"column:uploaded_at;not null;default:now()"`
-	CreatedAt    time.Time  `json:"createdAt" gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt    time.Time  `json:"updatedAt" gorm:"column:updated_at;autoUpdateTime"`
+	ID           string    `json:"id" gorm:"primaryKey;column:id;type:uuid;default:gen_random_uuid()"`
+	VehicleTaxID string    `json:"vehicleTaxId" gorm:"column:vehicle_tax_id;type:uuid;not null;index"`
+	DocumentType string    `json:"documentType" gorm:"column:document_type;type:varchar(30);not null"`
+	FilePath     string    `json:"filePath" gorm:"column:file_path;type:text;not null"`
+	UploadedBy   *int64    `json:"uploadedBy,omitempty" gorm:"column:uploaded_by;type:bigint"`
+	UploadedAt   time.Time `json:"uploadedAt" gorm:"column:uploaded_at;not null;default:now()"`
+	CreatedAt    time.Time `json:"createdAt" gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt    time.Time `json:"updatedAt" gorm:"column:updated_at;autoUpdateTime"`
 }
 
 func (VehicleTaxDocument) TableName() string {
