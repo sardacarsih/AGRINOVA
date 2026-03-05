@@ -133,26 +133,22 @@ func (s *HierarchyService) RegisterDeviceToken(ctx context.Context, userID, toke
 	// Check if token already exists
 	var existing models.UserDeviceToken
 	err := s.db.WithContext(ctx).
+		Unscoped().
 		Where("token = ?", token).
 		First(&existing).Error
 
 	if err == nil {
-		// Token exists, update it if user is different
-		if existing.UserID != userID {
-			existing.UserID = userID
-			existing.Platform = platform
-			existing.DeviceID = deviceID
-			existing.IsActive = true
-			return s.db.WithContext(ctx).Save(&existing).Error
-		}
-		// Same user, just ensure it's active
+		// Token exists (including soft-deleted), revive/update it in place.
 		return s.db.WithContext(ctx).
+			Unscoped().
 			Model(&existing).
 			Updates(map[string]interface{}{
+				"user_id":    userID,
 				"is_active":  true,
 				"platform":   platform,
 				"device_id":  deviceID,
 				"updated_at": s.db.NowFunc(),
+				"deleted_at": nil,
 			}).Error
 	}
 

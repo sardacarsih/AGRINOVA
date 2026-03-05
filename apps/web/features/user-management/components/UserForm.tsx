@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Badge } from '@/components/ui/badge';
-import { GetUsersDocument, User, UserRole } from '@/gql/graphql';
+import { GetUsersDocument, MandorType, User, UserRole } from '@/gql/graphql';
 import { LOGIN_PASSWORD_MIN_LENGTH } from '@/lib/auth/validation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -68,6 +68,11 @@ const ROLE_ALLOW_EMPTY_MANAGER = new Set<UserRole>([
     UserRole.AreaManager,
 ]);
 
+const MANDOR_TYPE_LABELS: Record<MandorType, string> = {
+    [MandorType.Panen]: 'Mandor Panen',
+    [MandorType.Perawatan]: 'Mandor Perawatan',
+};
+
 const normalizeIds = (ids?: Array<string | null | undefined> | null): string[] => {
     const cleaned = (ids || [])
         .filter((id): id is string => typeof id === 'string')
@@ -94,6 +99,7 @@ const userFormSchema = z.object({
             `Password minimal ${LOGIN_PASSWORD_MIN_LENGTH} karakter`
         ),
     role: z.nativeEnum(UserRole),
+    mandorType: z.nativeEnum(MandorType).optional().nullable(),
     managerId: z.string().optional().nullable(),
     companyIds: z.array(z.string()).optional(),
     estateIds: z.array(z.string()).optional(),
@@ -141,6 +147,14 @@ const userFormSchema = z.object({
             code: z.ZodIssueCode.custom,
             message: `Role ${values.role} wajib ada divisi`,
             path: ['divisionIds'],
+        });
+    }
+
+    if (values.role === UserRole.Mandor && !values.mandorType) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Role MANDOR wajib memilih tipe kerja',
+            path: ['mandorType'],
         });
     }
 
@@ -261,6 +275,7 @@ export function UserForm({
         phoneNumber: initialData?.phoneNumber || '',
         password: '',
         role: (initialData?.role as UserRole) || UserRole.Mandor,
+        mandorType: (initialData as any)?.effectiveMandorType || null,
         managerId:
             initialData?.managerId ||
             (initialData as any)?.manager_id ||
@@ -276,6 +291,7 @@ export function UserForm({
         initialData?.email,
         initialData?.phoneNumber,
         initialData?.role,
+        (initialData as any)?.effectiveMandorType,
         initialData?.managerId,
         (initialData as any)?.manager_id,
         (initialData as any)?.manager?.id,
@@ -295,10 +311,17 @@ export function UserForm({
     }, [form, initialValues]);
 
     const selectedRole = form.watch('role');
+    const selectedMandorType = form.watch('mandorType');
     const selectedManagerId = form.watch('managerId');
     const selectedCompanyIds = form.watch('companyIds') || [];
     const selectedEstateIds = form.watch('estateIds') || [];
     const selectedDivisionIds = form.watch('divisionIds') || [];
+
+    useEffect(() => {
+        if (selectedRole === UserRole.Mandor) return;
+        if (!form.getValues('mandorType')) return;
+        form.setValue('mandorType', null, { shouldValidate: true, shouldDirty: true });
+    }, [form, selectedRole]);
 
     const isCompanyAdminContext =
         companySelectionReadOnly || currentUser?.role === UserRole.CompanyAdmin;
@@ -370,7 +393,10 @@ export function UserForm({
     );
 
     const selectedRoleData = roles.find((r) => r.role === selectedRole);
-    const selectedRoleName = selectedRoleData?.name || selectedRole;
+    const selectedRoleName =
+        selectedRole === UserRole.Mandor && selectedMandorType
+            ? MANDOR_TYPE_LABELS[selectedMandorType]
+            : selectedRoleData?.name || selectedRole;
     const selectedRoleDescription = selectedRoleData?.description || 'Akses pengguna standar';
     const managerRoleHint =
         managerRolesForSelectedRole.length > 0
@@ -408,6 +434,7 @@ export function UserForm({
 
         const normalizedValues = {
             ...values,
+            mandorType: values.role === UserRole.Mandor ? values.mandorType : null,
             companyIds: normalizeIds(values.companyIds),
             estateIds: normalizeIds(values.estateIds),
             divisionIds: normalizeIds(values.divisionIds),
@@ -579,6 +606,36 @@ export function UserForm({
                                             )}
                                         />
 
+                                        {selectedRole === UserRole.Mandor && (
+                                            <FormField
+                                                control={form.control}
+                                                name="mandorType"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-slate-700 font-medium">Tipe Mandor *</FormLabel>
+                                                        <Select
+                                                            onValueChange={(value) => field.onChange(value as MandorType)}
+                                                            value={field.value || ''}
+                                                        >
+                                                            <FormControl>
+                                                                <SelectTrigger className="bg-slate-50 border-slate-200">
+                                                                    <SelectValue placeholder="Pilih tipe mandor" />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                <SelectItem value={MandorType.Panen}>Mandor Panen</SelectItem>
+                                                                <SelectItem value={MandorType.Perawatan}>Mandor Perawatan</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <FormDescription>
+                                                            Subtype ini menentukan akses halaman panen atau perawatan untuk role MANDOR.
+                                                        </FormDescription>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
+
                                         <FormField
                                             control={form.control}
                                             name="managerId"
@@ -696,6 +753,11 @@ export function UserForm({
                                         <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                                             {selectedRoleDescription}
                                         </p>
+                                        {selectedRole === UserRole.Mandor && selectedMandorType && (
+                                            <p className="text-xs text-amber-700 mt-2">
+                                                Tipe aktif: {selectedMandorType === MandorType.Panen ? 'PANEN' : 'PERAWATAN'}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-50">

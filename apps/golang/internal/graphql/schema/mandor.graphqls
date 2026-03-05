@@ -782,10 +782,34 @@ input RejectHarvestInput {
 }
 
 # Harvest queries
+
+"""
+Paginated response for harvest records.
+"""
+type HarvestRecordsPaginatedResponse {
+  "Harvest records for current page"
+  data: [HarvestRecord!]!
+  "Total number of records matching filters"
+  totalCount: Int!
+  "Whether there are more records after this page"
+  hasMore: Boolean!
+}
+
 extend type Query {
   # Harvest Data Queries
   "Retrieve all harvest records"
   harvestRecords(dateFrom: Time, dateTo: Time): [HarvestRecord!]! @requireAuth @hasRole(roles: [MANDOR, ASISTEN, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+  "Retrieve harvest records with server-side pagination"
+  harvestRecordsPaginated(
+    page: Int = 1
+    limit: Int = 10
+    status: HarvestStatus
+    search: String
+    sortBy: String
+    sortDir: String
+    dateFrom: Time
+    dateTo: Time
+  ): HarvestRecordsPaginatedResponse! @requireAuth @hasRole(roles: [MANDOR, ASISTEN, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
   "Get a specific harvest record by ID"
   harvestRecord(id: ID!): HarvestRecord @requireAuth @hasRole(roles: [MANDOR, ASISTEN, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
   "Filter harvest records by approval status"

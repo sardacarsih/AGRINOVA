@@ -902,13 +902,6 @@ type CreateGradingRecordInput struct {
 	GradingDate          time.Time `json:"gradingDate"`
 }
 
-type CreateHerbisidaUsageInput struct {
-	PerawatanRecordID string  `json:"perawatanRecordId"`
-	JenisHerbisida    string  `json:"jenisHerbisida"`
-	JumlahLiter       float64 `json:"jumlahLiter"`
-	HargaPerLiter     float64 `json:"hargaPerLiter"`
-}
-
 type CreateManagerBlockProductionBudgetInput struct {
 	BlockID        string                       `json:"blockId"`
 	Period         string                       `json:"period"`
@@ -991,6 +984,15 @@ type CreatePKSRecordInput struct {
 	NomorDo         string      `json:"nomorDo"`
 }
 
+type CreatePerawatanMaterialUsageInput struct {
+	PerawatanRecordID string                    `json:"perawatanRecordId"`
+	MaterialCategory  PerawatanMaterialCategory `json:"materialCategory"`
+	MaterialName      string                    `json:"materialName"`
+	Quantity          float64                   `json:"quantity"`
+	Unit              PerawatanMaterialUnit     `json:"unit"`
+	UnitPrice         float64                   `json:"unitPrice"`
+}
+
 type CreatePerawatanRecordInput struct {
 	BlockID            string         `json:"blockId"`
 	JenisPerawatan     JenisPerawatan `json:"jenisPerawatan"`
@@ -1000,13 +1002,6 @@ type CreatePerawatanRecordInput struct {
 	PupukDigunakan     *string        `json:"pupukDigunakan,omitempty"`
 	HerbisidaDigunakan *string        `json:"herbisidaDigunakan,omitempty"`
 	Catatan            *string        `json:"catatan,omitempty"`
-}
-
-type CreatePupukUsageInput struct {
-	PerawatanRecordID string  `json:"perawatanRecordId"`
-	JenisPupuk        string  `json:"jenisPupuk"`
-	JumlahKg          float64 `json:"jumlahKg"`
-	HargaPerKg        float64 `json:"hargaPerKg"`
 }
 
 type CreateTariffRuleOverrideInput struct {
@@ -1259,17 +1254,14 @@ type GradingApprovalInput struct {
 	RejectionReason *string `json:"rejectionReason,omitempty"`
 }
 
-// Herbisida (Herbicide) usage record.
-type HerbisidaUsage struct {
-	ID                string           `json:"id"`
-	PerawatanRecordID string           `json:"perawatanRecordId"`
-	PerawatanRecord   *PerawatanRecord `json:"perawatanRecord"`
-	JenisHerbisida    string           `json:"jenisHerbisida"`
-	JumlahLiter       float64          `json:"jumlahLiter"`
-	HargaPerLiter     float64          `json:"hargaPerLiter"`
-	TotalBiaya        float64          `json:"totalBiaya"`
-	CreatedAt         time.Time        `json:"createdAt"`
-	UpdatedAt         time.Time        `json:"updatedAt"`
+// Paginated response for harvest records.
+type HarvestRecordsPaginatedResponse struct {
+	// Harvest records for current page
+	Data []*mandor.HarvestRecord `json:"data"`
+	// Total number of records matching filters
+	TotalCount int32 `json:"totalCount"`
+	// Whether there are more records after this page
+	HasMore bool `json:"hasMore"`
 }
 
 // JWTTokenFilterInput allows filtering JWT token records.
@@ -1541,6 +1533,21 @@ type PKSRecord struct {
 	UpdatedAt       time.Time             `json:"updatedAt"`
 }
 
+// Generic material usage record attached to a maintenance transaction.
+type PerawatanMaterialUsage struct {
+	ID                string                    `json:"id"`
+	PerawatanRecordID string                    `json:"perawatanRecordId"`
+	PerawatanRecord   *PerawatanRecord          `json:"perawatanRecord"`
+	MaterialCategory  PerawatanMaterialCategory `json:"materialCategory"`
+	MaterialName      string                    `json:"materialName"`
+	Quantity          float64                   `json:"quantity"`
+	Unit              PerawatanMaterialUnit     `json:"unit"`
+	UnitPrice         float64                   `json:"unitPrice"`
+	TotalCost         float64                   `json:"totalCost"`
+	CreatedAt         time.Time                 `json:"createdAt"`
+	UpdatedAt         time.Time                 `json:"updatedAt"`
+}
+
 // PerawatanRecord represents maintenance activities on plantation blocks.
 type PerawatanRecord struct {
 	ID                 string          `json:"id"`
@@ -1579,19 +1586,6 @@ type PlatformStats struct {
 	StorageUsedGb float64 `json:"storageUsedGb"`
 	// Storage limit (GB)
 	StorageLimitGb float64 `json:"storageLimitGb"`
-}
-
-// Pupuk (Fertilizer) usage record.
-type PupukUsage struct {
-	ID                string           `json:"id"`
-	PerawatanRecordID string           `json:"perawatanRecordId"`
-	PerawatanRecord   *PerawatanRecord `json:"perawatanRecord"`
-	JenisPupuk        string           `json:"jenisPupuk"`
-	JumlahKg          float64          `json:"jumlahKg"`
-	HargaPerKg        float64          `json:"hargaPerKg"`
-	TotalBiaya        float64          `json:"totalBiaya"`
-	CreatedAt         time.Time        `json:"createdAt"`
-	UpdatedAt         time.Time        `json:"updatedAt"`
 }
 
 type Query struct {
@@ -2482,6 +2476,15 @@ type UpdatePKSRecordInput struct {
 	NomorDo       *string      `json:"nomorDo,omitempty"`
 }
 
+type UpdatePerawatanMaterialUsageInput struct {
+	ID               string                     `json:"id"`
+	MaterialCategory *PerawatanMaterialCategory `json:"materialCategory,omitempty"`
+	MaterialName     *string                    `json:"materialName,omitempty"`
+	Quantity         *float64                   `json:"quantity,omitempty"`
+	Unit             *PerawatanMaterialUnit     `json:"unit,omitempty"`
+	UnitPrice        *float64                   `json:"unitPrice,omitempty"`
+}
+
 type UpdatePerawatanRecordInput struct {
 	ID                 string           `json:"id"`
 	JenisPerawatan     *JenisPerawatan  `json:"jenisPerawatan,omitempty"`
@@ -2539,6 +2542,7 @@ type UserCompanyAssignment struct {
 	ID                string                  `json:"id"`
 	UserID            string                  `json:"userId"`
 	CompanyID         string                  `json:"companyId"`
+	MandorType        *auth.MandorType        `json:"mandorType,omitempty"`
 	Company           *master.Company         `json:"company"`
 	EstateAssignments []*UserEstateAssignment `json:"estateAssignments,omitempty"`
 	IsActive          bool                    `json:"isActive"`
@@ -3531,6 +3535,118 @@ func (e *PKSKualitas) UnmarshalJSON(b []byte) error {
 }
 
 func (e PKSKualitas) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Material category used in maintenance work.
+type PerawatanMaterialCategory string
+
+const (
+	PerawatanMaterialCategoryPupuk     PerawatanMaterialCategory = "PUPUK"
+	PerawatanMaterialCategoryHerbisida PerawatanMaterialCategory = "HERBISIDA"
+)
+
+var AllPerawatanMaterialCategory = []PerawatanMaterialCategory{
+	PerawatanMaterialCategoryPupuk,
+	PerawatanMaterialCategoryHerbisida,
+}
+
+func (e PerawatanMaterialCategory) IsValid() bool {
+	switch e {
+	case PerawatanMaterialCategoryPupuk, PerawatanMaterialCategoryHerbisida:
+		return true
+	}
+	return false
+}
+
+func (e PerawatanMaterialCategory) String() string {
+	return string(e)
+}
+
+func (e *PerawatanMaterialCategory) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PerawatanMaterialCategory(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PerawatanMaterialCategory", str)
+	}
+	return nil
+}
+
+func (e PerawatanMaterialCategory) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *PerawatanMaterialCategory) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e PerawatanMaterialCategory) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Measurement unit for maintenance material usage.
+type PerawatanMaterialUnit string
+
+const (
+	PerawatanMaterialUnitKg    PerawatanMaterialUnit = "KG"
+	PerawatanMaterialUnitLiter PerawatanMaterialUnit = "LITER"
+)
+
+var AllPerawatanMaterialUnit = []PerawatanMaterialUnit{
+	PerawatanMaterialUnitKg,
+	PerawatanMaterialUnitLiter,
+}
+
+func (e PerawatanMaterialUnit) IsValid() bool {
+	switch e {
+	case PerawatanMaterialUnitKg, PerawatanMaterialUnitLiter:
+		return true
+	}
+	return false
+}
+
+func (e PerawatanMaterialUnit) String() string {
+	return string(e)
+}
+
+func (e *PerawatanMaterialUnit) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PerawatanMaterialUnit(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PerawatanMaterialUnit", str)
+	}
+	return nil
+}
+
+func (e PerawatanMaterialUnit) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *PerawatanMaterialUnit) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e PerawatanMaterialUnit) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

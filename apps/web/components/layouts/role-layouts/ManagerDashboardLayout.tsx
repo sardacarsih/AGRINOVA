@@ -29,8 +29,8 @@ export function ManagerDashboardLayout({
   actions,
   showBreadcrumb = true,
   breadcrumbItems = [],
-  contentMaxWidthClass = 'max-w-7xl',
-  contentPaddingClass = 'p-4 sm:p-6 lg:p-8',
+  contentMaxWidthClass = 'max-w-none',
+  contentPaddingClass = 'px-2 py-4 sm:px-3 sm:py-5 lg:px-4 lg:py-6',
 }: ManagerDashboardLayoutProps) {
   const { user } = useAuth();
   const [isFullscreen, setIsFullscreen] = React.useState(false);

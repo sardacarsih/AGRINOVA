@@ -241,7 +241,7 @@ export default function CompanyAdminEstatesPage({ user }: CompanyAdminEstatesPag
   const companies = companyData?.companies?.data || [];
   const companyIdFromUser =
     user?.companyId || user?.company?.id || user?.companies?.[0]?.id || null;
-  const currentCompanyId = companyIdFromUser || companies[0]?.id || null;
+  const currentCompanyId = companyIdFromUser;
 
   const estates = useMemo(() => {
     const base = estateData?.estates || [];

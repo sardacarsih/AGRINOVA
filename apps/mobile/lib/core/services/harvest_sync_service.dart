@@ -33,6 +33,37 @@ class PullServerUpdatesResult {
   bool get cursorAdvanced => nextCursor.isAfter(previousCursor);
 }
 
+class HarvestPushResult {
+  final int pendingBefore;
+  final int pendingAfter;
+  final int failedAfter;
+  final int syncedCount;
+  final List<String> recentErrors;
+
+  const HarvestPushResult({
+    required this.pendingBefore,
+    required this.pendingAfter,
+    required this.failedAfter,
+    required this.syncedCount,
+    required this.recentErrors,
+  });
+
+  bool get didPushFreshHarvestData => syncedCount > 0;
+  bool get shouldSkipImmediatePull => didPushFreshHarvestData;
+}
+
+class HarvestBiDirectionalSyncResult {
+  final HarvestPushResult pushResult;
+  final PullServerUpdatesResult? pullResult;
+  final bool skippedImmediatePull;
+
+  const HarvestBiDirectionalSyncResult({
+    required this.pushResult,
+    required this.pullResult,
+    required this.skippedImmediatePull,
+  });
+}
+
 enum _ServerUpdateApplyStatus { applied, missingLocal, invalidPayload, failed }
 
 class _ServerUpdateApplyResult {
@@ -67,6 +98,10 @@ class HarvestSyncService {
   /// 1. Push local changes to server (CREATE/UPDATE)
   /// 2. Pull server updates (approval status changes)
   Future<void> syncNow() async {
+    await syncNowWithResult();
+  }
+
+  Future<HarvestBiDirectionalSyncResult> syncNowWithResult() async {
     _logger.i('Starting Harvest (Mandor) Bi-directional Sync...');
 
     try {
@@ -76,12 +111,32 @@ class HarvestSyncService {
       }
 
       // Step 1: Push local changes to server
-      await _pushLocalChanges();
+      final pushResult = await _pushLocalChangesWithResult();
 
       // Step 2: Pull server updates (approval status)
-      await pullServerUpdates();
-
-      _logger.i('Bi-directional sync completed successfully');
+      if (pushResult.shouldSkipImmediatePull) {
+        _logger.i(
+          'Skipping immediate pull after successful harvest push (${pushResult.syncedCount} records uploaded).',
+        );
+        final syncResult = HarvestBiDirectionalSyncResult(
+          pushResult: pushResult,
+          pullResult: null,
+          skippedImmediatePull: true,
+        );
+        _logger.i('Bi-directional sync completed successfully');
+        return syncResult;
+      } else {
+        final pullResult = await _pullServerUpdatesWithResult(
+          skipAuthCheck: true,
+        );
+        final syncResult = HarvestBiDirectionalSyncResult(
+          pushResult: pushResult,
+          pullResult: pullResult,
+          skippedImmediatePull: false,
+        );
+        _logger.i('Bi-directional sync completed successfully');
+        return syncResult;
+      }
     } catch (e, st) {
       _logger.e('Harvest Sync Critical Error: $e');
       final userMessage = SyncErrorMessageHelper.toUserMessage(
@@ -92,15 +147,29 @@ class HarvestSyncService {
     }
   }
 
-  /// Push local unsynced harvest records to server
-  Future<void> _pushLocalChanges() async {
+  Future<HarvestPushResult> pushLocalChangesWithResult() async {
+    final hasValidAuth = await _ensureAuthWithTier();
+    if (!hasValidAuth) {
+      throw Exception(_reloginMessage);
+    }
+    return _pushLocalChangesWithResult();
+  }
+
+  Future<HarvestPushResult> _pushLocalChangesWithResult() async {
+    final pendingBefore = await getPendingSyncCount();
     _logger.i('Pushing local harvest changes to server...');
 
     // 1. Get unsynced harvests from harvest_records table
     final unsynced = await _getUnsyncedHarvestsLocally();
     if (unsynced.isEmpty) {
       _logger.i('No harvest records to push.');
-      return;
+      return HarvestPushResult(
+        pendingBefore: pendingBefore,
+        pendingAfter: pendingBefore,
+        failedAfter: await getFailedSyncCount(),
+        syncedCount: 0,
+        recentErrors: const [],
+      );
     }
 
     _logger.i('Found ${unsynced.length} unsynced harvest records.');
@@ -146,7 +215,14 @@ class HarvestSyncService {
 
     if (validRecords.isEmpty) {
       _logger.w('No valid harvest payloads to push after local validation.');
-      return;
+      final pendingAfter = await getPendingSyncCount();
+      return HarvestPushResult(
+        pendingBefore: pendingBefore,
+        pendingAfter: pendingAfter,
+        failedAfter: await getFailedSyncCount(),
+        syncedCount: (pendingBefore - pendingAfter).clamp(0, pendingBefore),
+        recentErrors: await getRecentSyncErrorMessages(limit: 1),
+      );
     }
 
     final serverRecords = validRecords.map(_toServerSyncRecord).toList();
@@ -204,6 +280,15 @@ class HarvestSyncService {
     } else {
       _logger.w('Harvest Push returned null data');
     }
+
+    final pendingAfter = await getPendingSyncCount();
+    return HarvestPushResult(
+      pendingBefore: pendingBefore,
+      pendingAfter: pendingAfter,
+      failedAfter: await getFailedSyncCount(),
+      syncedCount: (pendingBefore - pendingAfter).clamp(0, pendingBefore),
+      recentErrors: await getRecentSyncErrorMessages(limit: 1),
+    );
   }
 
   /// Pull server updates (approval status changes) for MANDOR's harvest records
@@ -214,12 +299,20 @@ class HarvestSyncService {
 
   /// Pull server updates and return detailed counters for UI/reporting.
   Future<PullServerUpdatesResult> pullServerUpdatesWithResult() async {
+    return _pullServerUpdatesWithResult(skipAuthCheck: false);
+  }
+
+  Future<PullServerUpdatesResult> _pullServerUpdatesWithResult({
+    required bool skipAuthCheck,
+  }) async {
     _logger.i('Pulling server updates for harvest records...');
 
     try {
-      final hasValidAuth = await _ensureAuthWithTier();
-      if (!hasValidAuth) {
-        throw Exception(_reloginMessage);
+      if (!skipAuthCheck) {
+        final hasValidAuth = await _ensureAuthWithTier();
+        if (!hasValidAuth) {
+          throw Exception(_reloginMessage);
+        }
       }
 
       final currentMandorId = await _getCurrentMandorIdForSync();

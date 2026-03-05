@@ -24,6 +24,60 @@ type PanenService struct {
 	repo *panenRepos.PanenRepository
 }
 
+type harvestSyncLookupCacheKey struct{}
+
+type optionalStringCacheValue struct {
+	value  *string
+	cached bool
+}
+
+type employeeDivisionCacheValue struct {
+	divisionID   *string
+	divisionName *string
+	cached       bool
+}
+
+type harvestSyncLookupCache struct {
+	mandorValidity   map[string]bool
+	blockValidity    map[string]bool
+	blockScopes      map[string]*harvestScope
+	employeeNik      map[string]optionalStringCacheValue
+	employeeDivision map[string]employeeDivisionCacheValue
+	companyByMandor  map[string]optionalStringCacheValue
+	estateByMandor   map[string]optionalStringCacheValue
+}
+
+func newHarvestSyncLookupCache() *harvestSyncLookupCache {
+	return &harvestSyncLookupCache{
+		mandorValidity:   make(map[string]bool),
+		blockValidity:    make(map[string]bool),
+		blockScopes:      make(map[string]*harvestScope),
+		employeeNik:      make(map[string]optionalStringCacheValue),
+		employeeDivision: make(map[string]employeeDivisionCacheValue),
+		companyByMandor:  make(map[string]optionalStringCacheValue),
+		estateByMandor:   make(map[string]optionalStringCacheValue),
+	}
+}
+
+// WithHarvestSyncLookupCache attaches a request-scoped lookup cache used by sync write paths.
+func WithHarvestSyncLookupCache(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if existing, ok := ctx.Value(harvestSyncLookupCacheKey{}).(*harvestSyncLookupCache); ok && existing != nil {
+		return ctx
+	}
+	return context.WithValue(ctx, harvestSyncLookupCacheKey{}, newHarvestSyncLookupCache())
+}
+
+func getHarvestSyncLookupCache(ctx context.Context) *harvestSyncLookupCache {
+	if ctx == nil {
+		return nil
+	}
+	cache, _ := ctx.Value(harvestSyncLookupCacheKey{}).(*harvestSyncLookupCache)
+	return cache
+}
+
 func NewPanenService(db *gorm.DB) *PanenService {
 	return &PanenService{
 		db:   db,
@@ -33,6 +87,20 @@ func NewPanenService(db *gorm.DB) *PanenService {
 
 // CreateHarvestRecord creates a new harvest record
 func (s *PanenService) CreateHarvestRecord(ctx context.Context, input mandor.CreateHarvestRecordInput) (*models.HarvestRecord, error) {
+	return s.createHarvestRecord(ctx, input, true)
+}
+
+// CreateHarvestRecordForSync creates a harvest record using the sync write path
+// and skips reloading heavy associations after insert.
+func (s *PanenService) CreateHarvestRecordForSync(ctx context.Context, input mandor.CreateHarvestRecordInput) (*models.HarvestRecord, error) {
+	return s.createHarvestRecord(ctx, input, false)
+}
+
+func (s *PanenService) createHarvestRecord(
+	ctx context.Context,
+	input mandor.CreateHarvestRecordInput,
+	hydrateAssociations bool,
+) (*models.HarvestRecord, error) {
 	karyawanID := normalizeOptionalUUID(input.KaryawanID)
 	employeeDivisionID := normalizeOptionalUUID(input.EmployeeDivisionID)
 	employeeDivisionName := normalizeOptionalText(input.EmployeeDivisionName)
@@ -101,7 +169,11 @@ func (s *PanenService) CreateHarvestRecord(ctx context.Context, input mandor.Cre
 	}
 
 	// Validate business rules
-	if err := s.repo.ValidateHarvestRecord(ctx, record); err != nil {
+	if !hydrateAssociations {
+		if err := s.validateHarvestRecordForSync(ctx, record, scope); err != nil {
+			return nil, err
+		}
+	} else if err := s.validateHarvestRecord(ctx, record); err != nil {
 		return nil, err
 	}
 
@@ -111,6 +183,11 @@ func (s *PanenService) CreateHarvestRecord(ctx context.Context, input mandor.Cre
 			return nil, mappedErr
 		}
 		return nil, fmt.Errorf("failed to create harvest record: %w", err)
+	}
+
+	if !hydrateAssociations {
+		record.Karyawan = displayHarvestWorker(record.Karyawan, record.Nik, record.KaryawanID)
+		return record, nil
 	}
 
 	// Fetch created record with associations
@@ -131,9 +208,22 @@ func (s *PanenService) GetByLocalID(ctx context.Context, localID, mandorID strin
 	return s.repo.GetByLocalID(ctx, localID, mandorID)
 }
 
+// GetByLocalIDLight retrieves a harvest record by local ID without loading associations.
+func (s *PanenService) GetByLocalIDLight(ctx context.Context, localID, mandorID string) (*models.HarvestRecord, error) {
+	if localID == "" || mandorID == "" {
+		return nil, fmt.Errorf("localID and mandorID are required")
+	}
+	return s.repo.GetByLocalIDLight(ctx, localID, mandorID)
+}
+
 // GetHarvestRecords retrieves harvest records with optional filters
 func (s *PanenService) GetHarvestRecords(ctx context.Context, filters *models.HarvestFilters) ([]*models.HarvestRecord, error) {
 	return s.repo.GetHarvestRecords(ctx, filters)
+}
+
+// CountHarvestRecords counts harvest records matching filters (no pagination).
+func (s *PanenService) CountHarvestRecords(ctx context.Context, filters *models.HarvestFilters) (int64, error) {
+	return s.repo.CountHarvestRecords(ctx, filters)
 }
 
 // GetHarvestRecord retrieves a specific harvest record by ID
@@ -143,6 +233,23 @@ func (s *PanenService) GetHarvestRecord(ctx context.Context, id string) (*models
 	}
 
 	record, err := s.repo.GetHarvestRecordByID(ctx, id)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, models.NewHarvestError(models.ErrHarvestNotFound, "Record panen tidak ditemukan", "id")
+		}
+		return nil, fmt.Errorf("failed to fetch harvest record: %w", err)
+	}
+
+	return record, nil
+}
+
+// GetHarvestRecordLight retrieves a harvest record by ID without preloading associations.
+func (s *PanenService) GetHarvestRecordLight(ctx context.Context, id string) (*models.HarvestRecord, error) {
+	if id == "" {
+		return nil, models.NewHarvestError(models.ErrHarvestNotFound, "ID harvest record tidak boleh kosong", "id")
+	}
+
+	record, err := s.repo.GetHarvestRecordByIDLight(ctx, id)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, models.NewHarvestError(models.ErrHarvestNotFound, "Record panen tidak ditemukan", "id")
@@ -172,6 +279,20 @@ func (s *PanenService) GetHarvestRecordsByStatus(ctx context.Context, status man
 
 // UpdateHarvestRecord updates an existing harvest record
 func (s *PanenService) UpdateHarvestRecord(ctx context.Context, input mandor.UpdateHarvestRecordInput) (*models.HarvestRecord, error) {
+	return s.updateHarvestRecord(ctx, input, true)
+}
+
+// UpdateHarvestRecordForSync updates a harvest record using the sync write path
+// and skips reloading heavy associations after update.
+func (s *PanenService) UpdateHarvestRecordForSync(ctx context.Context, input mandor.UpdateHarvestRecordInput) (*models.HarvestRecord, error) {
+	return s.updateHarvestRecord(ctx, input, false)
+}
+
+func (s *PanenService) updateHarvestRecord(
+	ctx context.Context,
+	input mandor.UpdateHarvestRecordInput,
+	hydrateAssociations bool,
+) (*models.HarvestRecord, error) {
 	// Check if record can be modified
 	if err := s.repo.CanModifyHarvestRecord(ctx, input.ID); err != nil {
 		return nil, err
@@ -247,7 +368,13 @@ func (s *PanenService) UpdateHarvestRecord(ctx context.Context, input mandor.Upd
 	}
 
 	// Update record
-	updatedRecord, err := s.repo.UpdateHarvestRecord(ctx, input.ID, updates)
+	var updatedRecord *models.HarvestRecord
+	var err error
+	if hydrateAssociations {
+		updatedRecord, err = s.repo.UpdateHarvestRecord(ctx, input.ID, updates)
+	} else {
+		updatedRecord, err = s.repo.UpdateHarvestRecordLight(ctx, input.ID, updates)
+	}
 	if err != nil {
 		if mappedErr := mapHarvestWriteError(err); mappedErr != nil {
 			return nil, mappedErr
@@ -453,6 +580,118 @@ func (s *PanenService) SaveHarvestRecord(ctx context.Context, record *models.Har
 	return s.repo.SaveHarvestRecord(ctx, record)
 }
 
+func (s *PanenService) validateHarvestRecord(ctx context.Context, record *mandor.HarvestRecord) error {
+	if record == nil {
+		return fmt.Errorf("harvest record is nil")
+	}
+
+	mandorID := strings.TrimSpace(record.MandorID)
+	if mandorID == "" {
+		return models.NewHarvestError(models.ErrInvalidMandor, "Mandor tidak valid atau tidak aktif", "mandor_id")
+	}
+	if !s.isValidActiveMandor(ctx, mandorID) {
+		return models.NewHarvestError(models.ErrInvalidMandor, "Mandor tidak valid atau tidak aktif", "mandor_id")
+	}
+
+	blockID := strings.TrimSpace(record.BlockID)
+	if blockID == "" {
+		return models.NewHarvestError(models.ErrInvalidBlock, "Block tidak ditemukan", "block_id")
+	}
+	if !s.isExistingBlock(ctx, blockID) {
+		return models.NewHarvestError(models.ErrInvalidBlock, "Block tidak ditemukan", "block_id")
+	}
+
+	return nil
+}
+
+func (s *PanenService) validateHarvestRecordForSync(
+	ctx context.Context,
+	record *mandor.HarvestRecord,
+	scope *harvestScope,
+) error {
+	if record == nil {
+		return fmt.Errorf("harvest record is nil")
+	}
+
+	mandorID := strings.TrimSpace(record.MandorID)
+	if mandorID == "" {
+		return models.NewHarvestError(models.ErrInvalidMandor, "Mandor tidak valid atau tidak aktif", "mandor_id")
+	}
+
+	authUserID, _ := ctx.Value("user_id").(string)
+	if strings.TrimSpace(authUserID) != mandorID && !s.isValidActiveMandor(ctx, mandorID) {
+		return models.NewHarvestError(models.ErrInvalidMandor, "Mandor tidak valid atau tidak aktif", "mandor_id")
+	}
+
+	if scope == nil || !scope.Found {
+		return models.NewHarvestError(models.ErrInvalidBlock, "Block tidak ditemukan", "block_id")
+	}
+
+	return nil
+}
+
+func (s *PanenService) isValidActiveMandor(ctx context.Context, mandorID string) bool {
+	trimmed := strings.TrimSpace(mandorID)
+	if trimmed == "" {
+		return false
+	}
+
+	if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+		if cached, ok := cache.mandorValidity[trimmed]; ok {
+			return cached
+		}
+	}
+
+	var count int64
+	query := s.db.WithContext(ctx).
+		Table("users").
+		Where("id = ? AND role = ? AND is_active = true", trimmed, auth.UserRoleMandor)
+
+	if s.db.Migrator().HasTable("user_company_assignments") &&
+		s.db.Migrator().HasColumn("user_company_assignments", "mandor_type") {
+		query = s.db.WithContext(ctx).
+			Table("users AS u").
+			Joins("JOIN user_company_assignments AS uca ON uca.user_id = u.id AND uca.is_active = ?", true).
+			Where("u.id = ? AND u.role = ? AND u.is_active = true", trimmed, auth.UserRoleMandor).
+			Where("(uca.mandor_type = ? OR uca.mandor_type IS NULL OR TRIM(uca.mandor_type) = '')", auth.MandorTypePanen)
+	}
+
+	err := query.Count(&count).Error
+	valid := err == nil && count > 0
+
+	if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+		cache.mandorValidity[trimmed] = valid
+	}
+
+	return valid
+}
+
+func (s *PanenService) isExistingBlock(ctx context.Context, blockID string) bool {
+	trimmed := strings.TrimSpace(blockID)
+	if trimmed == "" {
+		return false
+	}
+
+	if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+		if cached, ok := cache.blockValidity[trimmed]; ok {
+			return cached
+		}
+	}
+
+	var count int64
+	err := s.db.WithContext(ctx).
+		Table("blocks").
+		Where("id = ?", trimmed).
+		Count(&count).Error
+	valid := err == nil && count > 0
+
+	if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+		cache.blockValidity[trimmed] = valid
+	}
+
+	return valid
+}
+
 func normalizeHarvestNik(karyawan string) *string {
 	nik := strings.TrimSpace(karyawan)
 	if nik == "" {
@@ -537,6 +776,12 @@ func (s *PanenService) lookupEmployeeNik(ctx context.Context, employeeID string)
 		return nil
 	}
 
+	if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+		if cached, ok := cache.employeeNik[trimmed]; ok && cached.cached {
+			return cached.value
+		}
+	}
+
 	var nik string
 	err := s.db.WithContext(ctx).
 		Table("employees").
@@ -545,14 +790,24 @@ func (s *PanenService) lookupEmployeeNik(ctx context.Context, employeeID string)
 		Limit(1).
 		Scan(&nik).Error
 	if err != nil {
+		if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+			cache.employeeNik[trimmed] = optionalStringCacheValue{value: nil, cached: true}
+		}
 		return nil
 	}
 
 	nik = strings.TrimSpace(nik)
 	if nik == "" {
+		if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+			cache.employeeNik[trimmed] = optionalStringCacheValue{value: nil, cached: true}
+		}
 		return nil
 	}
-	return &nik
+	result := &nik
+	if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+		cache.employeeNik[trimmed] = optionalStringCacheValue{value: result, cached: true}
+	}
+	return result
 }
 
 func (s *PanenService) resolveEmployeeDivisionSnapshot(
@@ -574,6 +829,18 @@ func (s *PanenService) resolveEmployeeDivisionSnapshot(
 	trimmedKaryawanID := strings.TrimSpace(*karyawanID)
 	if _, err := uuid.Parse(trimmedKaryawanID); err != nil {
 		return resolvedDivisionID, resolvedDivisionName
+	}
+
+	if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+		if cached, ok := cache.employeeDivision[trimmedKaryawanID]; ok && cached.cached {
+			if resolvedDivisionID == nil {
+				resolvedDivisionID = cached.divisionID
+			}
+			if resolvedDivisionName == nil {
+				resolvedDivisionName = cached.divisionName
+			}
+			return resolvedDivisionID, resolvedDivisionName
+		}
 	}
 
 	var row struct {
@@ -599,6 +866,14 @@ func (s *PanenService) resolveEmployeeDivisionSnapshot(
 		resolvedDivisionName = normalizeOptionalText(row.DivisionName)
 	}
 
+	if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+		cache.employeeDivision[trimmedKaryawanID] = employeeDivisionCacheValue{
+			divisionID:   normalizeOptionalUUID(row.DivisionID),
+			divisionName: normalizeOptionalText(row.DivisionName),
+			cached:       true,
+		}
+	}
+
 	return resolvedDivisionID, resolvedDivisionName
 }
 
@@ -606,6 +881,7 @@ type harvestScope struct {
 	CompanyID  *string
 	EstateID   *string
 	DivisionID *string
+	Found      bool
 }
 
 func (s *PanenService) resolveHarvestScopeFromBlock(ctx context.Context, blockID string) (*harvestScope, error) {
@@ -616,6 +892,17 @@ func (s *PanenService) resolveHarvestScopeFromBlock(ctx context.Context, blockID
 	}
 	if _, err := uuid.Parse(trimmed); err != nil {
 		return scope, nil
+	}
+
+	if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+		if cached, ok := cache.blockScopes[trimmed]; ok && cached != nil {
+			return &harvestScope{
+				CompanyID:  cached.CompanyID,
+				EstateID:   cached.EstateID,
+				DivisionID: cached.DivisionID,
+				Found:      cached.Found,
+			}, nil
+		}
 	}
 
 	var row struct {
@@ -641,6 +928,15 @@ func (s *PanenService) resolveHarvestScopeFromBlock(ctx context.Context, blockID
 	scope.CompanyID = normalizeOptionalUUID(row.CompanyID)
 	scope.EstateID = normalizeOptionalUUID(row.EstateID)
 	scope.DivisionID = normalizeOptionalUUID(row.DivisionID)
+	scope.Found = scope.DivisionID != nil
+	if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+		cache.blockScopes[trimmed] = &harvestScope{
+			CompanyID:  scope.CompanyID,
+			EstateID:   scope.EstateID,
+			DivisionID: scope.DivisionID,
+			Found:      scope.Found,
+		}
+	}
 	return scope, nil
 }
 
@@ -648,6 +944,12 @@ func (s *PanenService) resolveCompanyFromAssignment(ctx context.Context, userID 
 	trimmed := strings.TrimSpace(userID)
 	if trimmed == "" {
 		return nil
+	}
+
+	if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+		if cached, ok := cache.companyByMandor[trimmed]; ok && cached.cached {
+			return cached.value
+		}
 	}
 
 	var companyID *string
@@ -659,13 +961,23 @@ func (s *PanenService) resolveCompanyFromAssignment(ctx context.Context, userID 
 		Limit(1).
 		Scan(&companyID).Error
 
-	return normalizeOptionalUUID(companyID)
+	result := normalizeOptionalUUID(companyID)
+	if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+		cache.companyByMandor[trimmed] = optionalStringCacheValue{value: result, cached: true}
+	}
+	return result
 }
 
 func (s *PanenService) resolveEstateFromAssignment(ctx context.Context, userID string) *string {
 	trimmed := strings.TrimSpace(userID)
 	if trimmed == "" {
 		return nil
+	}
+
+	if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+		if cached, ok := cache.estateByMandor[trimmed]; ok && cached.cached {
+			return cached.value
+		}
 	}
 
 	var estateID *string
@@ -677,7 +989,11 @@ func (s *PanenService) resolveEstateFromAssignment(ctx context.Context, userID s
 		Limit(1).
 		Scan(&estateID).Error
 
-	return normalizeOptionalUUID(estateID)
+	result := normalizeOptionalUUID(estateID)
+	if cache := getHarvestSyncLookupCache(ctx); cache != nil {
+		cache.estateByMandor[trimmed] = optionalStringCacheValue{value: result, cached: true}
+	}
+	return result
 }
 
 func displayHarvestWorker(karyawan string, nik *string, karyawanID *string) string {

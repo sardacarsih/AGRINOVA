@@ -237,6 +237,8 @@ models:
     model: agrinovagraphql/server/internal/graphql/domain/auth.User
   UserRole:
     model: agrinovagraphql/server/internal/graphql/domain/auth.UserRole
+  MandorType:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.MandorType
   AuthPayload:
     model: agrinovagraphql/server/internal/graphql/domain/auth.AuthPayload
   MobileLoginInput:

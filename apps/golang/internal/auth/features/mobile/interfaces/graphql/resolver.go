@@ -240,15 +240,20 @@ func mapMobileAuthError(err error) error {
 
 func mapUserToGraphQL(user sharedDomain.UserDTO) *auth.User {
 	gqlUser := &auth.User{
-		ID:          user.ID,
-		Username:    user.Username,
-		Name:        user.Name,
-		Email:       user.Email,
-		PhoneNumber: user.Phone,
-		Avatar:      user.Avatar,
-		Role:        auth.UserRole(user.Role),
-		IsActive:    user.IsActive,
-		ManagerID:   user.ManagerID,
+		ID:                  user.ID,
+		Username:            user.Username,
+		Name:                user.Name,
+		Email:               user.Email,
+		PhoneNumber:         user.Phone,
+		Avatar:              user.Avatar,
+		Role:                auth.UserRole(user.Role),
+		IsActive:            user.IsActive,
+		ManagerID:           user.ManagerID,
+		EffectiveMandorType: nil,
+	}
+	if user.EffectiveMandorType != nil {
+		mandorType := auth.MandorType(user.EffectiveMandorType.String())
+		gqlUser.EffectiveMandorType = &mandorType
 	}
 
 	if user.Manager != nil {

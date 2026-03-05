@@ -198,7 +198,7 @@ export default function CompanyAdminBlockAuditPage({
   const companies = companyData?.companies?.data || [];
   const companyIdFromUser =
     user?.companyId || user?.company?.id || user?.companies?.[0]?.id || null;
-  const currentCompanyId = companyIdFromUser || companies[0]?.id || null;
+  const currentCompanyId = companyIdFromUser;
   const trimmedSearch = search.trim();
 
   const {

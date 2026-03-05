@@ -98,6 +98,38 @@ export const GET_HARVEST_RECORDS_BY_STATUS = gql`
 `;
 // Note: Limited queries removed - main fragment no longer includes estate field
 
+// Query to get harvest records with server-side pagination
+export const GET_HARVEST_RECORDS_PAGINATED = gql`
+  ${HARVEST_RECORD_FRAGMENT}
+  query GetHarvestRecordsPaginated(
+    $page: Int
+    $limit: Int
+    $status: HarvestStatus
+    $search: String
+    $sortBy: String
+    $sortDir: String
+    $dateFrom: Time
+    $dateTo: Time
+  ) {
+    harvestRecordsPaginated(
+      page: $page
+      limit: $limit
+      status: $status
+      search: $search
+      sortBy: $sortBy
+      sortDir: $sortDir
+      dateFrom: $dateFrom
+      dateTo: $dateTo
+    ) {
+      data {
+        ...HarvestRecordFields
+      }
+      totalCount
+      hasMore
+    }
+  }
+`;
+
 // Query to get a specific harvest record
 export const GET_HARVEST_RECORD = gql`
   ${HARVEST_RECORD_FRAGMENT}
@@ -356,6 +388,16 @@ export interface GetHarvestRecordsResponse {
 
 export interface GetHarvestRecordsByStatusResponse {
   harvestRecordsByStatus: HarvestRecord[];
+}
+
+export interface HarvestRecordsPaginatedData {
+  data: HarvestRecord[];
+  totalCount: number;
+  hasMore: boolean;
+}
+
+export interface GetHarvestRecordsPaginatedResponse {
+  harvestRecordsPaginated: HarvestRecordsPaginatedData;
 }
 
 export interface GetHarvestStatisticsResponse {

@@ -558,7 +558,7 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
     },
     {
       label: 'items.teamUsers',
-      path: '/tim-estate',
+      path: '/tim',
       icon: 'users',
       permissions: ['users:read']
     },
@@ -626,7 +626,7 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
     },
     {
       label: 'items.teamUsers',
-      path: '/tim-estate',
+      path: '/tim',
       icon: 'users',
       permissions: ['users:read']
     },
@@ -701,7 +701,7 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
     },
     {
       label: 'items.teamUsers',
-      path: '/tim-estate',
+      path: '/tim',
       icon: 'users',
       permissions: ['users:read']
     },
@@ -766,6 +766,12 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       path: '/harvest',
       icon: 'Clock',
       permissions: ['harvest:read']
+    },
+    {
+      label: 'Perawatan Lapangan',
+      path: '/perawatan',
+      icon: 'ClipboardList',
+      permissions: ['dashboard:read']
     },
     {
       label: 'items.blocks',

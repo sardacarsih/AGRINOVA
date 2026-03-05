@@ -179,7 +179,8 @@ class MandorMasterSyncService {
       _buildAssignmentFingerprintKey(currentMandorId),
     );
     final assignmentChanged =
-        currentFingerprint.isNotEmpty && currentFingerprint != storedFingerprint;
+        currentFingerprint.isNotEmpty &&
+        currentFingerprint != storedFingerprint;
 
     if (assignmentChanged) {
       _logger.i(
@@ -224,8 +225,7 @@ class MandorMasterSyncService {
         assignmentChanged ||
         employeesCursor == null ||
         employeesLastFullSyncAt == null ||
-        now.difference(employeesLastFullSyncAt) >=
-            _employeesFullRebaseInterval;
+        now.difference(employeesLastFullSyncAt) >= _employeesFullRebaseInterval;
 
     final result = MasterSyncResult();
     final snapshot = _MasterSyncScopeSnapshot();
@@ -234,7 +234,7 @@ class MandorMasterSyncService {
         ? await _syncDivisionsInternal(snapshot)
         : await _syncDivisionsIncrementalInternal(
             snapshot,
-            since: divisionsCursor!,
+            since: divisionsCursor,
           );
     result.divisionsSynced = divisionResult.count;
     result.divisionsSuccess = divisionResult.success;
@@ -244,7 +244,8 @@ class MandorMasterSyncService {
       await _persistSyncMetadata(
         mandorId: currentMandorId,
         cursorKey: _buildDivisionsCursorKey(currentMandorId),
-        cursorDescription: 'Last divisions sync cursor for mandor $currentMandorId',
+        cursorDescription:
+            'Last divisions sync cursor for mandor $currentMandorId',
         cursor: divisionResult.latestCursor,
         lastFullKey: _buildDivisionsLastFullSyncKey(currentMandorId),
         lastFullDescription:
@@ -262,9 +263,7 @@ class MandorMasterSyncService {
 
     final blockResult = shouldFullSyncBlocks
         ? await _syncBlocksInternal(snapshot)
-        : await _syncBlocksIncrementalInternal(
-            since: blocksCursor!,
-          );
+        : await _syncBlocksIncrementalInternal(since: blocksCursor);
     result.blocksSynced = blockResult.count;
     result.blocksSuccess = blockResult.success;
     result.blocksMode = blockResult.mode;
@@ -273,7 +272,8 @@ class MandorMasterSyncService {
       await _persistSyncMetadata(
         mandorId: currentMandorId,
         cursorKey: _buildBlocksCursorKey(currentMandorId),
-        cursorDescription: 'Last blocks sync cursor for mandor $currentMandorId',
+        cursorDescription:
+            'Last blocks sync cursor for mandor $currentMandorId',
         cursor: blockResult.latestCursor,
         lastFullKey: _buildBlocksLastFullSyncKey(currentMandorId),
         lastFullDescription:
@@ -284,9 +284,7 @@ class MandorMasterSyncService {
 
     final employeeResult = shouldFullSyncEmployees
         ? await _syncEmployeesInternal(snapshot)
-        : await _syncEmployeesIncrementalInternal(
-            since: employeesCursor!,
-          );
+        : await _syncEmployeesIncrementalInternal(since: employeesCursor);
     result.employeesSynced = employeeResult.count;
     result.employeesSuccess = employeeResult.success;
     result.employeesMode = employeeResult.mode;
@@ -330,7 +328,10 @@ class MandorMasterSyncService {
 
     if (shouldFullSyncBlocks) {
       if (snapshot.divisionsFetched && snapshot.blocksFetched) {
-        await _deactivateOutOfScopeBlocks(snapshot.divisionIds, snapshot.blockIds);
+        await _deactivateOutOfScopeBlocks(
+          snapshot.divisionIds,
+          snapshot.blockIds,
+        );
       } else {
         _logger.w(
           'Skipping block reconciliation because blocks full sync did not complete',
@@ -397,7 +398,10 @@ class MandorMasterSyncService {
       }
 
       if (snapshot.divisionsFetched && snapshot.blocksFetched) {
-        await _deactivateOutOfScopeBlocks(snapshot.divisionIds, snapshot.blockIds);
+        await _deactivateOutOfScopeBlocks(
+          snapshot.divisionIds,
+          snapshot.blockIds,
+        );
       } else {
         _logger.w(
           'Skipping block reconciliation because current sync scope was not fetched completely',
@@ -706,11 +710,7 @@ class MandorMasterSyncService {
     String? divisionId,
     String? search,
   }) async {
-    return _syncEmployeesInternal(
-      null,
-      divisionId: divisionId,
-      search: search,
-    );
+    return _syncEmployeesInternal(null, divisionId: divisionId, search: search);
   }
 
   Future<SyncItemResult> _syncEmployeesInternal(
@@ -728,7 +728,8 @@ class MandorMasterSyncService {
       }
 
       final normalizedDivisionId = divisionId?.trim();
-      final assignedDivisionIds = snapshot != null && snapshot.divisionIds.isNotEmpty
+      final assignedDivisionIds =
+          snapshot != null && snapshot.divisionIds.isNotEmpty
           ? Set<String>.from(snapshot.divisionIds)
           : await _getAssignedDivisionIds();
       if (assignedDivisionIds.isEmpty) {
@@ -938,7 +939,9 @@ class MandorMasterSyncService {
       final employees =
           result.data?['mandorEmployeesSync'] as List<dynamic>? ?? [];
       final latestUpdatedAt = _extractLatestUpdatedAt(employees);
-      _logger.i('Received ${employees.length} incremental employees from server');
+      _logger.i(
+        'Received ${employees.length} incremental employees from server',
+      );
 
       final currentCompanyId = await _getCurrentCompanyId();
       if (currentCompanyId == null || currentCompanyId.isEmpty) {
@@ -990,9 +993,7 @@ class MandorMasterSyncService {
           syncedCount++;
         } catch (e) {
           failedCount++;
-          _logger.w(
-            'Failed to upsert incremental employee $employeeId: $e',
-          );
+          _logger.w('Failed to upsert incremental employee $employeeId: $e');
         }
       }
 
@@ -1045,7 +1046,8 @@ class MandorMasterSyncService {
       }
 
       final normalizedDivisionId = divisionId?.trim();
-      final assignedDivisionIds = snapshot != null && snapshot.divisionIds.isNotEmpty
+      final assignedDivisionIds =
+          snapshot != null && snapshot.divisionIds.isNotEmpty
           ? Set<String>.from(snapshot.divisionIds)
           : await _getAssignedDivisionIds();
       if (assignedDivisionIds.isEmpty) {
@@ -1269,7 +1271,9 @@ class MandorMasterSyncService {
 
         if (!_isValidUuid(blockId)) {
           failedCount++;
-          _logger.w('Skip incremental block payload with invalid UUID: $blockId');
+          _logger.w(
+            'Skip incremental block payload with invalid UUID: $blockId',
+          );
           continue;
         }
 
@@ -1378,26 +1382,42 @@ class MandorMasterSyncService {
 
       int updatedCount = 0;
       int skippedCount = 0;
+      DateTime? latestAppliedServerUpdatedAt;
       for (var update in updates) {
+        final typedUpdate = Map<String, dynamic>.from(update as Map);
         try {
-          final didUpdate = await _updateLocalHarvestStatus(update);
+          final didUpdate = await _updateLocalHarvestStatus(
+            typedUpdate,
+            currentMandorId: currentMandorId,
+          );
           if (didUpdate) {
             updatedCount++;
+            final updatedAt = DateTime.tryParse(
+              typedUpdate['updatedAt']?.toString() ?? '',
+            );
+            if (updatedAt != null &&
+                (latestAppliedServerUpdatedAt == null ||
+                    updatedAt.isAfter(latestAppliedServerUpdatedAt))) {
+              latestAppliedServerUpdatedAt = updatedAt;
+            }
           } else {
             skippedCount++;
             _logger.d(
-              'No local harvest row matched server update id=${update['id']} localId=${update['localId']}',
+              'No local harvest row matched server update id=${typedUpdate['id']} localId=${typedUpdate['localId']}',
             );
           }
         } catch (e) {
           skippedCount++;
-          _logger.w('Failed to update harvest ${update['id']}: $e');
+          _logger.w('Failed to update harvest ${typedUpdate['id']}: $e');
         }
       }
 
       // Save last sync timestamp only when all updates are safely applied.
       if (skippedCount == 0) {
-        await _saveLastHarvestSyncTimestamp(currentMandorId, DateTime.now());
+        await _saveLastHarvestSyncTimestamp(
+          currentMandorId,
+          latestAppliedServerUpdatedAt ?? DateTime.now(),
+        );
       } else {
         _logger.w(
           'Keeping harvest pull cursor unchanged because $skippedCount updates were not applied',
@@ -1680,10 +1700,11 @@ class MandorMasterSyncService {
     }
   }
 
-  Future<bool> _updateLocalHarvestStatus(Map<String, dynamic> update) async {
+  Future<bool> _updateLocalHarvestStatus(
+    Map<String, dynamic> update, {
+    required String currentMandorId,
+  }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
-    final currentMandorId =
-        (await UnifiedSecureStorageService.getCurrentUserId())?.trim() ?? '';
     if (currentMandorId.isEmpty) {
       _logger.w(
         'Skip local harvest status update: current mandor session not found',
@@ -1867,7 +1888,9 @@ class MandorMasterSyncService {
     try {
       return DateTime.parse(value).toUtc();
     } catch (e) {
-      _logger.w('Failed to parse datetime app setting key=$key value=$value: $e');
+      _logger.w(
+        'Failed to parse datetime app setting key=$key value=$value: $e',
+      );
       return null;
     }
   }
@@ -2039,7 +2062,9 @@ class MandorMasterSyncService {
     return DeviceService.getDeviceId();
   }
 
-  Future<int> _deactivateOutOfScopeDivisions(Set<String> activeDivisionIds) async {
+  Future<int> _deactivateOutOfScopeDivisions(
+    Set<String> activeDivisionIds,
+  ) async {
     if (activeDivisionIds.isEmpty) {
       _logger.w(
         'Skip division deactivation because no active assignment divisions were resolved',
@@ -2083,9 +2108,10 @@ class MandorMasterSyncService {
 
     final db = await _databaseService.database;
     final now = DateTime.now().millisecondsSinceEpoch;
-    final divisionPlaceholders = List.filled(activeDivisionIds.length, '?').join(
-      ', ',
-    );
+    final divisionPlaceholders = List.filled(
+      activeDivisionIds.length,
+      '?',
+    ).join(', ');
     final args = <dynamic>[0, now, 'SYNCED', now, currentCompanyId];
     final conditions = <String>[
       "(division_id IS NULL OR TRIM(division_id) = '' OR division_id NOT IN ($divisionPlaceholders))",
@@ -2107,14 +2133,11 @@ class MandorMasterSyncService {
       args.addAll(syncedEmployeeIds.map(uuidToBytes));
     }
 
-    final updatedCount = await db.rawUpdate(
-      '''
+    final updatedCount = await db.rawUpdate('''
       UPDATE employees
       SET is_active = ?, updated_at = ?, sync_status = ?, synced_at = ?
       WHERE company_id = ? AND is_active = 1 AND (${conditions.join(' OR ')})
-      ''',
-      args,
-    );
+      ''', args);
     _logger.i(
       'Employee reconciliation deactivated $updatedCount rows '
       '(scope: ${activeDivisionIds.length} divisions, authoritative: ${syncedEmployeeIds.length} employees)',
@@ -2135,9 +2158,10 @@ class MandorMasterSyncService {
 
     final db = await _databaseService.database;
     final now = DateTime.now().millisecondsSinceEpoch;
-    final divisionPlaceholders = List.filled(activeDivisionIds.length, '?').join(
-      ', ',
-    );
+    final divisionPlaceholders = List.filled(
+      activeDivisionIds.length,
+      '?',
+    ).join(', ');
     final args = <dynamic>[0, now, 'SYNCED', now];
     final conditions = <String>[
       "(division_id IS NULL OR TRIM(division_id) = '' OR division_id NOT IN ($divisionPlaceholders))",
@@ -2148,9 +2172,10 @@ class MandorMasterSyncService {
       conditions.add('division_id IN ($divisionPlaceholders)');
       args.addAll(activeDivisionIds);
     } else {
-      final blockPlaceholders = List.filled(syncedBlockIds.length, '?').join(
-        ', ',
-      );
+      final blockPlaceholders = List.filled(
+        syncedBlockIds.length,
+        '?',
+      ).join(', ');
       conditions.add(
         '(division_id IN ($divisionPlaceholders) AND block_id NOT IN ($blockPlaceholders))',
       );
@@ -2158,14 +2183,11 @@ class MandorMasterSyncService {
       args.addAll(syncedBlockIds.map(uuidToBytes));
     }
 
-    final updatedCount = await db.rawUpdate(
-      '''
+    final updatedCount = await db.rawUpdate('''
       UPDATE blocks
       SET is_active = ?, updated_at = ?, sync_status = ?, synced_at = ?
       WHERE is_active = 1 AND (${conditions.join(' OR ')})
-      ''',
-      args,
-    );
+      ''', args);
     _logger.i(
       'Block reconciliation deactivated $updatedCount rows '
       '(scope: ${activeDivisionIds.length} divisions, authoritative: ${syncedBlockIds.length} blocks)',

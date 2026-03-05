@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -261,6 +262,152 @@ func schemeNameFromCode(code string) string {
 		}
 		return strings.ToUpper(readable[:1]) + readable[1:]
 	}
+}
+
+func normalizeOptionalStringPtr(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	trimmed := strings.TrimSpace(*value)
+	if trimmed == "" {
+		return nil
+	}
+	return &trimmed
+}
+
+func (s *masterService) validateTariffManagementDecisionAndRole(
+	ctx context.Context,
+	actorID string,
+	decisionNoInput *string,
+	decisionReasonInput *string,
+	effectiveNoteInput *string,
+) (string, string, string, error) {
+	actor, err := s.getUserByID(ctx, actorID)
+	if err != nil {
+		return "", "", "", err
+	}
+
+	return validateTariffManagementDecisionInputForRole(
+		actor.Role,
+		decisionNoInput,
+		decisionReasonInput,
+		effectiveNoteInput,
+	)
+}
+
+func validateTariffManagementDecisionInputForRole(
+	actorRole auth.UserRole,
+	decisionNoInput *string,
+	decisionReasonInput *string,
+	effectiveNoteInput *string,
+) (string, string, string, error) {
+	if actorRole != auth.UserRoleSuperAdmin && actorRole != auth.UserRoleCompanyAdmin {
+		return "", "", "", models.NewMasterDataError(
+			models.ErrCodePermissionDenied,
+			"perubahan tarif langsung hanya boleh dilakukan oleh management (COMPANY_ADMIN/SUPER_ADMIN)",
+			"management_decision_no",
+		)
+	}
+
+	decisionNo := strings.TrimSpace(stringValueOrEmpty(normalizeOptionalStringPtr(decisionNoInput)))
+	if decisionNo == "" {
+		return "", "", "", models.NewMasterDataError(
+			models.ErrCodeInvalidInput,
+			"management_decision_no wajib diisi untuk perubahan tarif",
+			"management_decision_no",
+		)
+	}
+
+	decisionReason := strings.TrimSpace(stringValueOrEmpty(normalizeOptionalStringPtr(decisionReasonInput)))
+	if decisionReason == "" {
+		return "", "", "", models.NewMasterDataError(
+			models.ErrCodeInvalidInput,
+			"management_decision_reason wajib diisi untuk perubahan tarif",
+			"management_decision_reason",
+		)
+	}
+
+	effectiveNote := strings.TrimSpace(stringValueOrEmpty(normalizeOptionalStringPtr(effectiveNoteInput)))
+	if effectiveNote == "" {
+		return "", "", "", models.NewMasterDataError(
+			models.ErrCodeInvalidInput,
+			"management_effective_note wajib diisi untuk perubahan tarif",
+			"management_effective_note",
+		)
+	}
+
+	return decisionNo, decisionReason, effectiveNote, nil
+}
+
+func stringValueOrEmpty(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func (s *masterService) recordTariffManagementDecision(
+	ctx context.Context,
+	entityType string,
+	entityID string,
+	actionType string,
+	companyID string,
+	decisionNo string,
+	decisionReason string,
+	effectiveNote string,
+	decidedBy string,
+	metadata map[string]any,
+) error {
+	var metadataJSON []byte
+	var err error
+	if metadata != nil {
+		metadataJSON, err = json.Marshal(metadata)
+		if err != nil {
+			return fmt.Errorf("failed to marshal tariff decision metadata: %w", err)
+		}
+	}
+
+	if err := s.db.WithContext(ctx).Exec(`
+		INSERT INTO tariff_management_decisions (
+			id,
+			entity_type,
+			entity_id,
+			action_type,
+			company_id,
+			decision_no,
+			decision_reason,
+			effective_note,
+			decided_by,
+			decided_at,
+			metadata
+		) VALUES (
+			gen_random_uuid(),
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			NOW(),
+			CAST(? AS JSONB)
+		)
+	`,
+		entityType,
+		entityID,
+		actionType,
+		companyID,
+		decisionNo,
+		decisionReason,
+		effectiveNote,
+		decidedBy,
+		string(metadataJSON),
+	).Error; err != nil {
+		return fmt.Errorf("failed to record tariff management decision: %w", err)
+	}
+
+	return nil
 }
 
 func shouldSkipTariffProjectionSync(err error) bool {
@@ -1658,6 +1805,17 @@ func (s *masterService) CreateTarifBlok(ctx context.Context, req *models.CreateT
 		return nil, buildCreateTarifBlokValidationError(err)
 	}
 
+	decisionNo, decisionReason, effectiveNote, err := s.validateTariffManagementDecisionAndRole(
+		ctx,
+		creatorID,
+		req.ManagementDecisionNo,
+		req.ManagementDecisionReason,
+		req.ManagementEffectiveNote,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := s.ValidateCompanyAccess(ctx, creatorID, req.CompanyID); err != nil {
 		return nil, err
 	}
@@ -1766,6 +1924,25 @@ func (s *masterService) CreateTarifBlok(ctx context.Context, req *models.CreateT
 		return nil, fmt.Errorf("failed to sync tariff scheme projection: %w", err)
 	}
 
+	if err := s.recordTariffManagementDecision(
+		ctx,
+		"TARIF_BLOK",
+		tarifBlok.ID,
+		"CREATE",
+		tarifBlok.CompanyID,
+		decisionNo,
+		decisionReason,
+		effectiveNote,
+		creatorID,
+		map[string]any{
+			"tarif_code":  stringValueOrEmpty(tarifBlok.TarifCode),
+			"scheme_type": stringValueOrEmpty(tarifBlok.SchemeType),
+			"perlakuan":   tarifBlok.Perlakuan,
+		},
+	); err != nil {
+		return nil, err
+	}
+
 	return s.repo.GetTarifBlokByID(ctx, tarifBlok.ID)
 }
 
@@ -1797,6 +1974,17 @@ func (s *masterService) UpdateTarifBlok(ctx context.Context, req *models.UpdateT
 
 	if err := s.validator.Struct(req); err != nil {
 		return nil, buildCreateTarifBlokValidationError(err)
+	}
+
+	decisionNo, decisionReason, effectiveNote, err := s.validateTariffManagementDecisionAndRole(
+		ctx,
+		updaterID,
+		req.ManagementDecisionNo,
+		req.ManagementDecisionReason,
+		req.ManagementEffectiveNote,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	tarifBlok, err := s.repo.GetTarifBlokByID(ctx, req.ID)
@@ -1977,6 +2165,25 @@ func (s *masterService) UpdateTarifBlok(ctx context.Context, req *models.UpdateT
 
 	if err := s.syncTariffProjectionFromTarifBlok(ctx, tarifBlok); err != nil {
 		return nil, fmt.Errorf("failed to sync tariff scheme projection: %w", err)
+	}
+
+	if err := s.recordTariffManagementDecision(
+		ctx,
+		"TARIF_BLOK",
+		tarifBlok.ID,
+		"UPDATE",
+		tarifBlok.CompanyID,
+		decisionNo,
+		decisionReason,
+		effectiveNote,
+		updaterID,
+		map[string]any{
+			"tarif_code":  stringValueOrEmpty(tarifBlok.TarifCode),
+			"scheme_type": stringValueOrEmpty(tarifBlok.SchemeType),
+			"perlakuan":   tarifBlok.Perlakuan,
+		},
+	); err != nil {
+		return nil, err
 	}
 
 	return s.repo.GetTarifBlokByID(ctx, tarifBlok.ID)

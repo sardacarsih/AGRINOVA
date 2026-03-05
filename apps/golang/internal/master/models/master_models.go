@@ -179,47 +179,53 @@ type UpdateLandTypeRequest struct {
 
 // CreateTarifBlokRequest represents the input for creating a tarif blok.
 type CreateTarifBlokRequest struct {
-	CompanyID    string   `json:"company_id" validate:"required,uuid"`
-	Perlakuan    string   `json:"perlakuan" validate:"required,min=1,max=100"`
-	Keterangan   *string  `json:"keterangan,omitempty" validate:"omitempty,max=1000"`
-	LandTypeID   *string  `json:"land_type_id,omitempty" validate:"omitempty,uuid"`
-	TarifCode    *string  `json:"tarif_code,omitempty" validate:"omitempty,min=1,max=20"`
-	SchemeType   *string  `json:"scheme_type,omitempty" validate:"omitempty,min=1,max=50"`
-	BJRMinKg     *float64 `json:"bjr_min_kg,omitempty" validate:"omitempty,gte=0"`
-	BJRMaxKg     *float64 `json:"bjr_max_kg,omitempty" validate:"omitempty,gte=0"`
-	TargetLebih  *float64 `json:"target_lebih_kg,omitempty" validate:"omitempty,gte=0"`
-	SortOrder    *int32   `json:"sort_order,omitempty" validate:"omitempty,gte=0,lte=9999"`
-	Basis        *float64 `json:"basis,omitempty" validate:"omitempty,gte=0"`
-	TarifUpah    *float64 `json:"tarif_upah,omitempty" validate:"omitempty,gte=0"`
-	Premi        *float64 `json:"premi,omitempty" validate:"omitempty,gte=0"`
-	TarifPremi1  *float64 `json:"tarif_premi1,omitempty" validate:"omitempty,gte=0"`
-	TarifPremi2  *float64 `json:"tarif_premi2,omitempty" validate:"omitempty,gte=0"`
-	TarifLibur   *float64 `json:"tarif_libur,omitempty" validate:"omitempty,gte=0"`
-	TarifLebaran *float64 `json:"tarif_lebaran,omitempty" validate:"omitempty,gte=0"`
-	IsActive     *bool    `json:"is_active,omitempty"`
+	CompanyID                string   `json:"company_id" validate:"required,uuid"`
+	Perlakuan                string   `json:"perlakuan" validate:"required,min=1,max=100"`
+	Keterangan               *string  `json:"keterangan,omitempty" validate:"omitempty,max=1000"`
+	ManagementDecisionNo     *string  `json:"management_decision_no,omitempty" validate:"omitempty,min=1,max=100"`
+	ManagementDecisionReason *string  `json:"management_decision_reason,omitempty" validate:"omitempty,min=1,max=2000"`
+	ManagementEffectiveNote  *string  `json:"management_effective_note,omitempty" validate:"omitempty,min=1,max=1000"`
+	LandTypeID               *string  `json:"land_type_id,omitempty" validate:"omitempty,uuid"`
+	TarifCode                *string  `json:"tarif_code,omitempty" validate:"omitempty,min=1,max=20"`
+	SchemeType               *string  `json:"scheme_type,omitempty" validate:"omitempty,min=1,max=50"`
+	BJRMinKg                 *float64 `json:"bjr_min_kg,omitempty" validate:"omitempty,gte=0"`
+	BJRMaxKg                 *float64 `json:"bjr_max_kg,omitempty" validate:"omitempty,gte=0"`
+	TargetLebih              *float64 `json:"target_lebih_kg,omitempty" validate:"omitempty,gte=0"`
+	SortOrder                *int32   `json:"sort_order,omitempty" validate:"omitempty,gte=0,lte=9999"`
+	Basis                    *float64 `json:"basis,omitempty" validate:"omitempty,gte=0"`
+	TarifUpah                *float64 `json:"tarif_upah,omitempty" validate:"omitempty,gte=0"`
+	Premi                    *float64 `json:"premi,omitempty" validate:"omitempty,gte=0"`
+	TarifPremi1              *float64 `json:"tarif_premi1,omitempty" validate:"omitempty,gte=0"`
+	TarifPremi2              *float64 `json:"tarif_premi2,omitempty" validate:"omitempty,gte=0"`
+	TarifLibur               *float64 `json:"tarif_libur,omitempty" validate:"omitempty,gte=0"`
+	TarifLebaran             *float64 `json:"tarif_lebaran,omitempty" validate:"omitempty,gte=0"`
+	IsActive                 *bool    `json:"is_active,omitempty"`
 }
 
 // UpdateTarifBlokRequest represents the input for updating a tarif blok.
 type UpdateTarifBlokRequest struct {
-	ID           string   `json:"id" validate:"required,uuid"`
-	CompanyID    *string  `json:"company_id,omitempty" validate:"omitempty,uuid"`
-	Perlakuan    *string  `json:"perlakuan,omitempty" validate:"omitempty,min=1,max=100"`
-	Keterangan   *string  `json:"keterangan,omitempty" validate:"omitempty,max=1000"`
-	LandTypeID   *string  `json:"land_type_id,omitempty" validate:"omitempty,uuid"`
-	TarifCode    *string  `json:"tarif_code,omitempty" validate:"omitempty,min=1,max=20"`
-	SchemeType   *string  `json:"scheme_type,omitempty" validate:"omitempty,min=1,max=50"`
-	BJRMinKg     *float64 `json:"bjr_min_kg,omitempty" validate:"omitempty,gte=0"`
-	BJRMaxKg     *float64 `json:"bjr_max_kg,omitempty" validate:"omitempty,gte=0"`
-	TargetLebih  *float64 `json:"target_lebih_kg,omitempty" validate:"omitempty,gte=0"`
-	SortOrder    *int32   `json:"sort_order,omitempty" validate:"omitempty,gte=0,lte=9999"`
-	Basis        *float64 `json:"basis,omitempty" validate:"omitempty,gte=0"`
-	TarifUpah    *float64 `json:"tarif_upah,omitempty" validate:"omitempty,gte=0"`
-	Premi        *float64 `json:"premi,omitempty" validate:"omitempty,gte=0"`
-	TarifPremi1  *float64 `json:"tarif_premi1,omitempty" validate:"omitempty,gte=0"`
-	TarifPremi2  *float64 `json:"tarif_premi2,omitempty" validate:"omitempty,gte=0"`
-	TarifLibur   *float64 `json:"tarif_libur,omitempty" validate:"omitempty,gte=0"`
-	TarifLebaran *float64 `json:"tarif_lebaran,omitempty" validate:"omitempty,gte=0"`
-	IsActive     *bool    `json:"is_active,omitempty"`
+	ID                       string   `json:"id" validate:"required,uuid"`
+	CompanyID                *string  `json:"company_id,omitempty" validate:"omitempty,uuid"`
+	Perlakuan                *string  `json:"perlakuan,omitempty" validate:"omitempty,min=1,max=100"`
+	Keterangan               *string  `json:"keterangan,omitempty" validate:"omitempty,max=1000"`
+	ManagementDecisionNo     *string  `json:"management_decision_no,omitempty" validate:"omitempty,min=1,max=100"`
+	ManagementDecisionReason *string  `json:"management_decision_reason,omitempty" validate:"omitempty,min=1,max=2000"`
+	ManagementEffectiveNote  *string  `json:"management_effective_note,omitempty" validate:"omitempty,min=1,max=1000"`
+	LandTypeID               *string  `json:"land_type_id,omitempty" validate:"omitempty,uuid"`
+	TarifCode                *string  `json:"tarif_code,omitempty" validate:"omitempty,min=1,max=20"`
+	SchemeType               *string  `json:"scheme_type,omitempty" validate:"omitempty,min=1,max=50"`
+	BJRMinKg                 *float64 `json:"bjr_min_kg,omitempty" validate:"omitempty,gte=0"`
+	BJRMaxKg                 *float64 `json:"bjr_max_kg,omitempty" validate:"omitempty,gte=0"`
+	TargetLebih              *float64 `json:"target_lebih_kg,omitempty" validate:"omitempty,gte=0"`
+	SortOrder                *int32   `json:"sort_order,omitempty" validate:"omitempty,gte=0,lte=9999"`
+	Basis                    *float64 `json:"basis,omitempty" validate:"omitempty,gte=0"`
+	TarifUpah                *float64 `json:"tarif_upah,omitempty" validate:"omitempty,gte=0"`
+	Premi                    *float64 `json:"premi,omitempty" validate:"omitempty,gte=0"`
+	TarifPremi1              *float64 `json:"tarif_premi1,omitempty" validate:"omitempty,gte=0"`
+	TarifPremi2              *float64 `json:"tarif_premi2,omitempty" validate:"omitempty,gte=0"`
+	TarifLibur               *float64 `json:"tarif_libur,omitempty" validate:"omitempty,gte=0"`
+	TarifLebaran             *float64 `json:"tarif_lebaran,omitempty" validate:"omitempty,gte=0"`
+	IsActive                 *bool    `json:"is_active,omitempty"`
 }
 
 // CreateDivisionRequest represents the input for creating a division

@@ -194,12 +194,14 @@ func (r *SessionRepository) RevokeAllUserSessions(ctx context.Context, userID st
 
 // RevokeExpiredSessions deactivates all expired sessions
 func (r *SessionRepository) RevokeExpiredSessions(ctx context.Context) error {
+	now := time.Now()
+
 	return r.db.WithContext(ctx).
 		Model(&SessionModel{}).
-		Where("expires_at < ?", time.Now()).
+		Where("is_active = true AND expires_at < ?", now).
 		Updates(map[string]interface{}{
 			"is_active":  false,
-			"updated_at": time.Now(),
+			"updated_at": now,
 		}).Error
 }
 

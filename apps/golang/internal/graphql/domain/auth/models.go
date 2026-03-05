@@ -19,22 +19,23 @@ import (
 
 // User represents a system user.
 type User struct {
-	ID          string                  `json:"id" gorm:"primaryKey;column:id;type:uuid;default:gen_random_uuid()"`
-	Username    string                  `json:"username" gorm:"column:username;uniqueIndex"`
-	Name        string                  `json:"name" gorm:"column:name"`
-	Email       *string                 `json:"email,omitempty" gorm:"column:email"`
-	PhoneNumber *string                 `json:"phoneNumber,omitempty" gorm:"column:phone"`
-	Avatar      *string                 `json:"avatar,omitempty" gorm:"column:avatar_url"`
-	Role        UserRole                `json:"role" gorm:"column:role;type:varchar(50)"`
-	Assignments []UserCompanyAssignment `json:"assignments,omitempty" gorm:"foreignKey:UserID;references:ID"`
-	ManagerID   *string                 `json:"managerId,omitempty" gorm:"column:manager_id;type:uuid"`
-	Manager     *User                   `json:"manager,omitempty" gorm:"foreignKey:ManagerID;references:ID"`
-	Estates     []*master.Estate        `json:"estates,omitempty" gorm:"-"`
-	Divisions   []*master.Division      `json:"divisions,omitempty" gorm:"-"`
-	IsActive    bool                    `json:"isActive" gorm:"column:is_active;default:true"`
-	CreatedAt   time.Time               `json:"createdAt" gorm:"column:created_at;autoCreateTime"`
-	UpdatedAt   time.Time               `json:"updatedAt" gorm:"column:updated_at;autoUpdateTime"`
-	DeletedAt   gorm.DeletedAt          `json:"-" gorm:"index"`
+	ID                  string                  `json:"id" gorm:"primaryKey;column:id;type:uuid;default:gen_random_uuid()"`
+	Username            string                  `json:"username" gorm:"column:username;uniqueIndex"`
+	Name                string                  `json:"name" gorm:"column:name"`
+	Email               *string                 `json:"email,omitempty" gorm:"column:email"`
+	PhoneNumber         *string                 `json:"phoneNumber,omitempty" gorm:"column:phone"`
+	Avatar              *string                 `json:"avatar,omitempty" gorm:"column:avatar_url"`
+	Role                UserRole                `json:"role" gorm:"column:role;type:varchar(50)"`
+	EffectiveMandorType *MandorType             `json:"effectiveMandorType,omitempty" gorm:"-"`
+	Assignments         []UserCompanyAssignment `json:"assignments,omitempty" gorm:"foreignKey:UserID;references:ID"`
+	ManagerID           *string                 `json:"managerId,omitempty" gorm:"column:manager_id;type:uuid"`
+	Manager             *User                   `json:"manager,omitempty" gorm:"foreignKey:ManagerID;references:ID"`
+	Estates             []*master.Estate        `json:"estates,omitempty" gorm:"-"`
+	Divisions           []*master.Division      `json:"divisions,omitempty" gorm:"-"`
+	IsActive            bool                    `json:"isActive" gorm:"column:is_active;default:true"`
+	CreatedAt           time.Time               `json:"createdAt" gorm:"column:created_at;autoCreateTime"`
+	UpdatedAt           time.Time               `json:"updatedAt" gorm:"column:updated_at;autoUpdateTime"`
+	DeletedAt           gorm.DeletedAt          `json:"-" gorm:"index"`
 }
 
 // UserCompanyAssignment represents the join table for user-company many-to-many relationship
@@ -42,6 +43,7 @@ type UserCompanyAssignment struct {
 	ID                string                 `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
 	UserID            string                 `json:"userId" gorm:"column:user_id;type:uuid"`
 	CompanyID         string                 `json:"companyId" gorm:"column:company_id;type:uuid"`
+	MandorType        *MandorType            `json:"mandorType,omitempty" gorm:"column:mandor_type;type:varchar(20)"`
 	Company           *master.Company        `json:"company,omitempty" gorm:"foreignKey:CompanyID;references:ID"`
 	EstateAssignments []UserEstateAssignment `json:"estateAssignments,omitempty" gorm:"foreignKey:AssignmentID;references:ID"`
 	IsActive          bool                   `json:"isActive" gorm:"column:is_active;default:true"`
@@ -222,6 +224,7 @@ type CreateUserInput struct {
 	Email       *string  `json:"email,omitempty"`
 	PhoneNumber *string  `json:"phoneNumber,omitempty"`
 	Role        UserRole `json:"role"`
+	MandorType  *MandorType `json:"mandorType,omitempty"`
 	CompanyIDs  []string `json:"companyIds"`
 	EstateIDs   []string `json:"estateIds,omitempty"`
 	DivisionIDs []string `json:"divisionIds,omitempty"`
@@ -255,6 +258,7 @@ type UpdateUserInput struct {
 	PhoneNumber *string   `json:"phoneNumber,omitempty"`
 	Avatar      *string   `json:"avatar,omitempty"`
 	Role        *UserRole `json:"role,omitempty"`
+	MandorType  *MandorType `json:"mandorType,omitempty"`
 	CompanyIDs  []string  `json:"companyIds,omitempty"`
 	EstateIDs   []string  `json:"estateIds,omitempty"`
 	DivisionIDs []string  `json:"divisionIds,omitempty"`
@@ -333,6 +337,8 @@ type DeviceResponse struct {
 // UserRole represents the role of a user.
 type UserRole string
 
+type MandorType string
+
 const (
 	UserRoleSuperAdmin   UserRole = "SUPER_ADMIN"
 	UserRoleCompanyAdmin UserRole = "COMPANY_ADMIN"
@@ -345,6 +351,11 @@ const (
 	UserRoleGrading      UserRole = "GRADING"
 )
 
+const (
+	MandorTypePanen     MandorType = "PANEN"
+	MandorTypePerawatan MandorType = "PERAWATAN"
+)
+
 var AllUserRole = []UserRole{
 	UserRoleSuperAdmin,
 	UserRoleCompanyAdmin,
@@ -355,6 +366,11 @@ var AllUserRole = []UserRole{
 	UserRoleSatpam,
 	UserRoleTimbangan,
 	UserRoleGrading,
+}
+
+var AllMandorType = []MandorType{
+	MandorTypePanen,
+	MandorTypePerawatan,
 }
 
 func (e UserRole) IsValid() bool {
@@ -394,6 +410,48 @@ func (e *UserRole) UnmarshalJSON(b []byte) error {
 }
 
 func (e UserRole) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+func (e MandorType) IsValid() bool {
+	switch e {
+	case MandorTypePanen, MandorTypePerawatan:
+		return true
+	}
+	return false
+}
+
+func (e MandorType) String() string {
+	return string(e)
+}
+
+func (e *MandorType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+	*e = MandorType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid MandorType", str)
+	}
+	return nil
+}
+
+func (e MandorType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *MandorType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e MandorType) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

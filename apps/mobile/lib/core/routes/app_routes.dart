@@ -6,6 +6,8 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/auth_wrapper.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/dashboard/presentation/pages/mandor_page.dart';
+import '../../features/dashboard/presentation/pages/mandor_perawatan_page.dart';
+import '../../features/dashboard/presentation/pages/mandor_perawatan_create_page.dart';
 import '../../features/dashboard/presentation/pages/asisten_page.dart';
 import '../../features/dashboard/presentation/pages/manager_page.dart';
 import '../../features/dashboard/presentation/pages/area_manager_page.dart';
@@ -26,6 +28,8 @@ class AppRoutes {
   static const String authWrapper = '/';
   static const String dashboard = '/dashboard';
   static const String mandor = '/mandor';
+  static const String mandorPerawatan = '/mandor/perawatan';
+  static const String mandorPerawatanCreate = '/mandor/perawatan/create';
   static const String asisten = '/asisten';
   static const String manager = '/manager';
   static const String areaManager = '/area_manager';
@@ -48,6 +52,15 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const DashboardPage());
       case mandor:
         return MaterialPageRoute(builder: (_) => const MandorPage());
+      case mandorPerawatan:
+        return MaterialPageRoute(builder: (_) => const MandorPerawatanPage());
+      case mandorPerawatanCreate:
+        final args = settings.arguments is MandorPerawatanCreateArgs
+            ? settings.arguments as MandorPerawatanCreateArgs
+            : null;
+        return MaterialPageRoute(
+          builder: (_) => MandorPerawatanCreatePage(args: args),
+        );
       case asisten:
         return MaterialPageRoute(builder: (_) => const AsistenPage());
       case manager:
@@ -89,9 +102,12 @@ class AppRoutes {
     }
   }
 
-  static String getDashboardRoute(String role) {
-    switch (role) {
+  static String getDashboardRoute(String role, {String? mandorType}) {
+    switch (role.toUpperCase()) {
       case 'MANDOR':
+        if ((mandorType ?? '').toUpperCase() == 'PERAWATAN') {
+          return mandorPerawatan;
+        }
         return mandor;
       case 'ASISTEN':
         return asisten;
@@ -113,6 +129,8 @@ class AppRoutes {
   static List<String> get allRoutes {
     return [
       mandor,
+      mandorPerawatan,
+      mandorPerawatanCreate,
       asisten,
       manager,
       areaManager,

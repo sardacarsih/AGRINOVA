@@ -20,6 +20,7 @@ class AuthQueries {
           email
           avatar
           role
+          effectiveMandorType
           isActive
           companyId
           company {
@@ -85,6 +86,7 @@ class AuthQueries {
           email
           avatar
           role
+          effectiveMandorType
           isActive
           companyId
           company {
@@ -142,6 +144,7 @@ class AuthQueries {
           email
           avatar
           role
+          effectiveMandorType
           isActive
           companyId
           company {

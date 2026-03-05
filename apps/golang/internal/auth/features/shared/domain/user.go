@@ -27,22 +27,24 @@ type User struct {
 
 // UserDTO represents user data transfer object for API responses
 type UserDTO struct {
-	ID                 string      `json:"id"`
-	Username           string      `json:"username"`
-	Name               string      `json:"name"`
-	Email              *string     `json:"email"`
-	Phone              *string     `json:"phone"`
-	Avatar             *string     `json:"avatar,omitempty"`
-	Role               Role        `json:"role"`
-	IsActive           bool        `json:"isActive"`
-	CompanyID          string      `json:"companyId"`
-	CompanyIDs         []string    `json:"companyIds,omitempty"`
-	Company            *CompanyDTO `json:"company,omitempty"`
-	EstateIDs          []string    `json:"estateIds,omitempty"`
-	DivisionIDs        []string    `json:"divisionIds,omitempty"`
-	ManagerID          *string     `json:"managerId"`
-	Manager            *UserDTO    `json:"manager,omitempty"`
-	LanguagePreference *string     `json:"languagePreference"`
+	ID                  string      `json:"id"`
+	Username            string      `json:"username"`
+	Name                string      `json:"name"`
+	Email               *string     `json:"email"`
+	Phone               *string     `json:"phone"`
+	Avatar              *string     `json:"avatar,omitempty"`
+	Role                Role        `json:"role"`
+	MandorType          *MandorType `json:"mandorType,omitempty"`
+	EffectiveMandorType *MandorType `json:"effectiveMandorType,omitempty"`
+	IsActive            bool        `json:"isActive"`
+	CompanyID           string      `json:"companyId"`
+	CompanyIDs          []string    `json:"companyIds,omitempty"`
+	Company             *CompanyDTO `json:"company,omitempty"`
+	EstateIDs           []string    `json:"estateIds,omitempty"`
+	DivisionIDs         []string    `json:"divisionIds,omitempty"`
+	ManagerID           *string     `json:"managerId"`
+	Manager             *UserDTO    `json:"manager,omitempty"`
+	LanguagePreference  *string     `json:"languagePreference"`
 }
 
 // Company represents company entity
@@ -74,6 +76,7 @@ type Assignment struct {
 	DivisionID *string
 	AssignedBy string
 	Role       Role
+	MandorType *MandorType
 	IsActive   bool
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
@@ -137,6 +140,8 @@ type DivisionDTO struct {
 // Role represents user roles with hierarchy
 type Role string
 
+type MandorType string
+
 const (
 	RoleSuperAdmin   Role = "SUPER_ADMIN"
 	RoleCompanyAdmin Role = "COMPANY_ADMIN"
@@ -148,6 +153,24 @@ const (
 	RoleTimbangan    Role = "TIMBANGAN"
 	RoleGrading      Role = "GRADING"
 )
+
+const (
+	MandorTypePanen     MandorType = "PANEN"
+	MandorTypePerawatan MandorType = "PERAWATAN"
+)
+
+func (m MandorType) IsValid() bool {
+	switch m {
+	case MandorTypePanen, MandorTypePerawatan:
+		return true
+	default:
+		return false
+	}
+}
+
+func (m MandorType) String() string {
+	return string(m)
+}
 
 // HasMobileAccess returns true if the role is allowed to login via mobile
 func (r Role) HasMobileAccess() bool {
@@ -240,6 +263,10 @@ func ToUserDTO(user *User) UserDTO {
 		for _, assignment := range user.Assignments {
 			if assignment.IsActive {
 				dto.CompanyID = assignment.CompanyID
+				if assignment.MandorType != nil && assignment.MandorType.IsValid() {
+					mandorType := *assignment.MandorType
+					dto.EffectiveMandorType = &mandorType
+				}
 				if assignment.Company != nil {
 					company := ToCompanyDTO(assignment.Company)
 					dto.Company = &company

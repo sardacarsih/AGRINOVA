@@ -36,6 +36,11 @@ class RoleService {
   static bool canInputHarvest(String role) {
     return hasPermission(role, 'harvest_input');
   }
+
+  static bool isMandorPerawatan(String role, {String? mandorType}) {
+    return role.toUpperCase() == 'MANDOR' &&
+        (mandorType ?? '').toUpperCase() == 'PERAWATAN';
+  }
   
   /// Check if role has harvest approval capabilities
   static bool canApproveHarvest(String role) {
@@ -177,13 +182,20 @@ class RoleService {
   }
   
   /// Get dashboard features available for role
-  static List<String> getDashboardFeatures(String role) {
+  static List<String> getDashboardFeatures(String role, {String? mandorType}) {
     final features = <String>[];
     final permissions = getRolePermissions(role);
+    final isMaintenanceMandor = isMandorPerawatan(
+      role,
+      mandorType: mandorType,
+    );
     
     // Add features based on permissions
-    if (permissions.contains('harvest_input')) {
+    if (permissions.contains('harvest_input') && !isMaintenanceMandor) {
       features.add('harvest_input');
+    }
+    if (isMaintenanceMandor) {
+      features.add('maintenance_input');
     }
     
     if (permissions.contains('harvest_approval')) {
@@ -256,13 +268,23 @@ class RoleService {
   }
   
   /// Get role-specific dashboard features for mobile
-  static List<String> getMobileDashboardFeatures(String role) {
+  static List<String> getMobileDashboardFeatures(
+    String role, {
+    String? mandorType,
+  }) {
     final features = <String>[];
     final permissions = getRolePermissions(role);
+    final isMaintenanceMandor = isMandorPerawatan(
+      role,
+      mandorType: mandorType,
+    );
     
     // Add mobile-optimized features based on permissions
-    if (permissions.contains('harvest_input')) {
+    if (permissions.contains('harvest_input') && !isMaintenanceMandor) {
       features.addAll(['harvest_form', 'employee_selection', 'tbs_quality']);
+    }
+    if (isMaintenanceMandor) {
+      features.addAll(['maintenance_form', 'block_maintenance', 'material_usage']);
     }
     
     if (permissions.contains('harvest_approval')) {
@@ -297,8 +319,15 @@ class RoleService {
   }
   
   /// Check if role can access specific mobile feature
-  static bool canAccessMobileFeature(String role, String feature) {
-    final mobileFeatures = getMobileDashboardFeatures(role);
+  static bool canAccessMobileFeature(
+    String role,
+    String feature, {
+    String? mandorType,
+  }) {
+    final mobileFeatures = getMobileDashboardFeatures(
+      role,
+      mandorType: mandorType,
+    );
     return mobileFeatures.contains(feature);
   }
   

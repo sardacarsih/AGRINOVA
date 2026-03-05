@@ -2,6 +2,9 @@
 
 Sistem digital panen & gate check kebun sawit dengan dukungan **offline-first**.
 
+Dokumentasi platform dan modul lengkap tersedia di [AgrInova.md](./AgrInova.md).
+Ringkasan eksekutif untuk manajemen tersedia di [AgrInova_for_Managemnt.md](./AgrInova_for_Managemnt.md).
+
 ## 🔑 Demo Login Credentials
 **Login URL**: [http://localhost:3000/login](http://localhost:3000/login)
 
@@ -23,6 +26,8 @@ Sistem digital panen & gate check kebun sawit dengan dukungan **offline-first**.
 - [Development Setup](#development-setup)
 - [Production Deployment](#production-deployment)
 - [API Documentation](#api-documentation)
+- [AgrInova Platform Modules](./AgrInova.md)
+- [AgrInova Management Report](./AgrInova_for_Managemnt.md)
 - [Mobile App](#mobile-app)
 - [Web Dashboard](#web-dashboard)
 - [Infrastructure](#infrastructure)

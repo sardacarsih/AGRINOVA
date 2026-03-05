@@ -52,6 +52,8 @@ interface RoleTableProps {
     onManagePermissions: (role: RoleData) => void;
     onViewUsers: (role: RoleData) => void;
     onDuplicate: (role: RoleData) => void;
+    footer?: React.ReactNode;
+    emptyMessage?: string;
 }
 
 const ScopeBadge = ({ scope }: { scope: string }) => {
@@ -85,7 +87,9 @@ export function RoleTable({
     onDelete,
     onManagePermissions,
     onViewUsers,
-    onDuplicate
+    onDuplicate,
+    footer,
+    emptyMessage = 'No roles found.'
 }: RoleTableProps) {
     return (
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
@@ -101,92 +105,105 @@ export function RoleTable({
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {roles.map((role) => (
-                        <TableRow key={role.id} className="group hover:bg-gray-50/50 transition-colors">
-                            <TableCell className="font-medium">
-                                <div className="flex items-center gap-3">
-                                    <div className={cn(
-                                        "p-2 rounded-lg transition-colors",
-                                        role.isSystem ? "bg-purple-50 text-purple-600" : "bg-gray-100 text-gray-600 group-hover:bg-white group-hover:shadow-sm"
-                                    )}>
-                                        <Shield className="w-4 h-4" />
-                                    </div>
-                                    <div>
-                                        <div className="font-semibold text-gray-900">{role.displayName}</div>
-                                        <div className="text-xs text-gray-500 font-mono mt-0.5">{role.name}</div>
-                                    </div>
-                                </div>
-                            </TableCell>
-                            <TableCell className="text-gray-600 text-sm max-w-[300px] truncate">
-                                {role.description}
-                            </TableCell>
-                            <TableCell>
-                                <ScopeBadge scope={role.scope} />
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex items-center gap-2">
-                                    <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">
-                                        {role.featuresCount} Features
-                                    </Badge>
-                                    {role.scope !== 'GLOBAL' && (
-                                        <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-medium px-2 py-0.5 bg-emerald-50 rounded-full border border-emerald-100">
-                                            <Database className="w-3 h-3" />
-                                            RLS
-                                        </div>
-                                    )}
-                                </div>
-                            </TableCell>
-                            <TableCell>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 px-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
-                                    onClick={() => onViewUsers(role)}
-                                >
-                                    <Users className="w-4 h-4 mr-1.5" />
-                                    {role.usersCount}
-                                </Button>
-                            </TableCell>
-                            <TableCell className="text-right">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-900">
-                                            <MoreHorizontal className="w-4 h-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-48">
-                                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                        <DropdownMenuItem onClick={() => onEdit(role)}>
-                                            <Edit className="w-4 h-4 mr-2" />
-                                            Edit Role
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => onManagePermissions(role)}>
-                                            <Settings className="w-4 h-4 mr-2" />
-                                            Manage Permissions
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => onDuplicate(role)}>
-                                            <Copy className="w-4 h-4 mr-2" />
-                                            Duplicate
-                                        </DropdownMenuItem>
-                                        {!role.isSystem && (
-                                            <>
-                                                <DropdownMenuSeparator />
-                                                <DropdownMenuItem
-                                                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                                                    onClick={() => onDelete(role)}
-                                                >
-                                                    <Trash2 className="w-4 h-4 mr-2" />
-                                                    Delete Role
-                                                </DropdownMenuItem>
-                                            </>
-                                        )}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                    {roles.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={6} className="h-28 text-center text-sm text-gray-500">
+                                {emptyMessage}
                             </TableCell>
                         </TableRow>
-                    ))}
+                    ) : (
+                        roles.map((role) => (
+                            <TableRow key={role.id} className="group hover:bg-gray-50/50 transition-colors">
+                                <TableCell className="font-medium">
+                                    <div className="flex items-center gap-3">
+                                        <div className={cn(
+                                            "p-2 rounded-lg transition-colors",
+                                            role.isSystem ? "bg-purple-50 text-purple-600" : "bg-gray-100 text-gray-600 group-hover:bg-white group-hover:shadow-sm"
+                                        )}>
+                                            <Shield className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <div className="font-semibold text-gray-900">{role.displayName}</div>
+                                            <div className="text-xs text-gray-500 font-mono mt-0.5">{role.name}</div>
+                                        </div>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-gray-600 text-sm max-w-[300px] truncate">
+                                    {role.description}
+                                </TableCell>
+                                <TableCell>
+                                    <ScopeBadge scope={role.scope} />
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-200">
+                                            {role.featuresCount} Features
+                                        </Badge>
+                                        {role.scope !== 'GLOBAL' && (
+                                            <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-medium px-2 py-0.5 bg-emerald-50 rounded-full border border-emerald-100">
+                                                <Database className="w-3 h-3" />
+                                                RLS
+                                            </div>
+                                        )}
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 px-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50"
+                                        onClick={() => onViewUsers(role)}
+                                    >
+                                        <Users className="w-4 h-4 mr-1.5" />
+                                        {role.usersCount}
+                                    </Button>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-900">
+                                                <MoreHorizontal className="w-4 h-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-48">
+                                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                            <DropdownMenuItem onClick={() => onEdit(role)}>
+                                                <Edit className="w-4 h-4 mr-2" />
+                                                Edit Role
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onManagePermissions(role)}>
+                                                <Settings className="w-4 h-4 mr-2" />
+                                                Manage Permissions
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => onDuplicate(role)}>
+                                                <Copy className="w-4 h-4 mr-2" />
+                                                Duplicate
+                                            </DropdownMenuItem>
+                                            {!role.isSystem && (
+                                                <>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                                        onClick={() => onDelete(role)}
+                                                    >
+                                                        <Trash2 className="w-4 h-4 mr-2" />
+                                                        Delete Role
+                                                    </DropdownMenuItem>
+                                                </>
+                                            )}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    )}
                 </TableBody>
             </Table>
+            {footer ? (
+                <div className="border-t border-gray-200 px-4 py-3">
+                    {footer}
+                </div>
+            ) : null}
         </div>
     );
 }

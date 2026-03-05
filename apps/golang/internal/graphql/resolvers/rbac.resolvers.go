@@ -205,13 +205,19 @@ func (r *queryResolver) RoleHierarchy(ctx context.Context) ([]*rbac.Role, error)
 }
 
 // Roles is the resolver for the roles field.
-func (r *queryResolver) Roles(ctx context.Context, activeOnly *bool) ([]*rbac.Role, error) {
+func (r *queryResolver) Roles(ctx context.Context, activeOnly *bool, first *int32, after *string) ([]*rbac.Role, error) {
 	active := true // Default to true
 	if activeOnly != nil {
 		active = *activeOnly
 	}
 
-	roles, err := r.RBACResolver.Roles(ctx, active)
+	var firstValue *int
+	if first != nil {
+		value := int(*first)
+		firstValue = &value
+	}
+
+	roles, err := r.RBACResolver.Roles(ctx, active, firstValue, after)
 	if err != nil {
 		return nil, err
 	}

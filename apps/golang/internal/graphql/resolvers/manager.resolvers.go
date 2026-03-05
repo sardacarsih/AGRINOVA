@@ -565,24 +565,60 @@ func (r *queryResolver) ManagerDashboard(ctx context.Context) (*manager.ManagerD
 	var statsRow managerStatsRow
 	if err := r.db.WithContext(ctx).Raw(`
 		SELECT
-			COUNT(DISTINCT e.id)  AS total_estates,
-			COUNT(DISTINCT d.id)  AS total_divisions,
-			COUNT(DISTINCT b.id)  AS total_blocks,
-			COUNT(DISTINCT uda2.user_id) FILTER (WHERE uda2.is_active = true) AS total_employees,
-			COALESCE(SUM(hr.berat_tbs) FILTER (WHERE DATE(hr.tanggal)=CURRENT_DATE AND hr.status='APPROVED'), 0) AS today_prod,
-			COALESCE(SUM(hr.berat_tbs) FILTER (WHERE date_trunc('week',hr.tanggal)=date_trunc('week',NOW()) AND hr.status='APPROVED'), 0) AS weekly_prod,
-			COALESCE(SUM(hr.berat_tbs) FILTER (WHERE date_trunc('month',hr.tanggal)=date_trunc('month',NOW()) AND hr.status='APPROVED'), 0) AS monthly_prod,
-			COALESCE(SUM(b2.target_ton) FILTER (WHERE b2.period_month=to_char(NOW(),'YYYY-MM')), 0) AS month_target,
-			COUNT(hr.id) FILTER (WHERE hr.status='PENDING') AS pending_approvals,
-			COUNT(hr.id) FILTER (WHERE DATE(hr.tanggal)=CURRENT_DATE AND hr.status IN ('APPROVED','PENDING')) AS active_harvests
-		FROM estates e
-		JOIN user_estate_assignments uea ON uea.estate_id=e.id AND uea.user_id=? AND uea.is_active=true
-		JOIN divisions d ON d.estate_id=e.id
-		LEFT JOIN blocks b ON b.division_id=d.id
-		LEFT JOIN user_division_assignments uda2 ON uda2.division_id=d.id
-		LEFT JOIN harvest_records hr ON hr.estate_id=e.id
-		LEFT JOIN manager_division_production_budgets b2 ON b2.division_id=d.id
-	`, userID).Scan(&statsRow).Error; err != nil {
+			(SELECT COUNT(*) FROM estates e
+			 JOIN user_estate_assignments uea ON uea.estate_id=e.id AND uea.user_id=? AND uea.is_active=true
+			) AS total_estates,
+
+			(SELECT COUNT(*) FROM divisions d
+			 JOIN estates e ON e.id=d.estate_id
+			 JOIN user_estate_assignments uea ON uea.estate_id=e.id AND uea.user_id=? AND uea.is_active=true
+			) AS total_divisions,
+
+			(SELECT COUNT(*) FROM blocks b
+			 JOIN divisions d ON d.id=b.division_id
+			 JOIN estates e ON e.id=d.estate_id
+			 JOIN user_estate_assignments uea ON uea.estate_id=e.id AND uea.user_id=? AND uea.is_active=true
+			) AS total_blocks,
+
+			(SELECT COUNT(DISTINCT uda.user_id) FROM user_division_assignments uda
+			 JOIN divisions d ON d.id=uda.division_id
+			 JOIN estates e ON e.id=d.estate_id
+			 JOIN user_estate_assignments uea ON uea.estate_id=e.id AND uea.user_id=? AND uea.is_active=true
+			 WHERE uda.is_active=true
+			) AS total_employees,
+
+			(SELECT COALESCE(SUM(hr.berat_tbs),0) FROM harvest_records hr
+			 JOIN user_estate_assignments uea ON uea.estate_id=hr.estate_id AND uea.user_id=? AND uea.is_active=true
+			 WHERE DATE(hr.tanggal)=CURRENT_DATE AND hr.status='APPROVED'
+			) AS today_prod,
+
+			(SELECT COALESCE(SUM(hr.berat_tbs),0) FROM harvest_records hr
+			 JOIN user_estate_assignments uea ON uea.estate_id=hr.estate_id AND uea.user_id=? AND uea.is_active=true
+			 WHERE date_trunc('week',hr.tanggal)=date_trunc('week',NOW()) AND hr.status='APPROVED'
+			) AS weekly_prod,
+
+			(SELECT COALESCE(SUM(hr.berat_tbs),0) FROM harvest_records hr
+			 JOIN user_estate_assignments uea ON uea.estate_id=hr.estate_id AND uea.user_id=? AND uea.is_active=true
+			 WHERE date_trunc('month',hr.tanggal)=date_trunc('month',NOW()) AND hr.status='APPROVED'
+			) AS monthly_prod,
+
+			(SELECT COALESCE(SUM(b2.target_ton),0) FROM manager_division_production_budgets b2
+			 JOIN divisions d ON d.id=b2.division_id
+			 JOIN estates e ON e.id=d.estate_id
+			 JOIN user_estate_assignments uea ON uea.estate_id=e.id AND uea.user_id=? AND uea.is_active=true
+			 WHERE b2.period_month=to_char(NOW(),'YYYY-MM')
+			) AS month_target,
+
+			(SELECT COUNT(*) FROM harvest_records hr
+			 JOIN user_estate_assignments uea ON uea.estate_id=hr.estate_id AND uea.user_id=? AND uea.is_active=true
+			 WHERE hr.status='PENDING'
+			) AS pending_approvals,
+
+			(SELECT COUNT(*) FROM harvest_records hr
+			 JOIN user_estate_assignments uea ON uea.estate_id=hr.estate_id AND uea.user_id=? AND uea.is_active=true
+			 WHERE DATE(hr.tanggal)=CURRENT_DATE AND hr.status IN ('APPROVED','PENDING')
+			) AS active_harvests
+	`, userID, userID, userID, userID, userID, userID, userID, userID, userID, userID).Scan(&statsRow).Error; err != nil {
 		return nil, fmt.Errorf("failed to load dashboard stats: %w", err)
 	}
 

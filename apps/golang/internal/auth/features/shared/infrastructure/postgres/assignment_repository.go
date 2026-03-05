@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"strings"
 
 	"agrinovagraphql/server/internal/auth/features/shared/domain"
 
@@ -32,10 +33,19 @@ func (r *AssignmentRepository) FindByUserID(ctx context.Context, userID string) 
 	}
 
 	for _, ca := range companyAssignments {
+		var mandorType *domain.MandorType
+		if ca.MandorType != nil {
+			parsed := domain.MandorType(strings.ToUpper(strings.TrimSpace(*ca.MandorType)))
+			if parsed.IsValid() {
+				mandorType = &parsed
+			}
+		}
+
 		assign := &domain.Assignment{
 			ID:         ca.ID,
 			UserID:     ca.UserID,
 			CompanyID:  ca.CompanyID,
+			MandorType: mandorType,
 			IsActive:   ca.IsActive,
 			AssignedBy: ca.AssignedBy,
 			CreatedAt:  ca.CreatedAt,

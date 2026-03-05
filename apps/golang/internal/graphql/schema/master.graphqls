@@ -329,6 +329,7 @@ type UserCompanyAssignment {
   id: ID!
   userId: ID!
   companyId: ID!
+  mandorType: MandorType
   company: Company!
   estateAssignments: [UserEstateAssignment!]
   isActive: Boolean!

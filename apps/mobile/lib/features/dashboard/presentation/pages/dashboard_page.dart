@@ -107,8 +107,14 @@ class DashboardPage extends StatelessWidget {
 
   Widget _buildDashboardContent(BuildContext context, dynamic user) {
     final roleName = RoleService.getRoleDisplayName(user.role);
-    final features = RoleService.getDashboardFeatures(user.role);
-    final mobileFeatures = RoleService.getMobileDashboardFeatures(user.role);
+    final features = RoleService.getDashboardFeatures(
+      user.role,
+      mandorType: user.effectiveMandorType,
+    );
+    final mobileFeatures = RoleService.getMobileDashboardFeatures(
+      user.role,
+      mandorType: user.effectiveMandorType,
+    );
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(16.0),

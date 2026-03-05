@@ -1,6 +1,7 @@
 // Standardized UserRole type matching backend string constants
 // ONLY standard roles are supported - includes field operational roles
 export type UserRole = 'SUPER_ADMIN' | 'COMPANY_ADMIN' | 'AREA_MANAGER' | 'MANAGER' | 'ASISTEN' | 'MANDOR' | 'SATPAM' | 'TIMBANGAN' | 'GRADING';
+export type MandorType = 'PANEN' | 'PERAWATAN';
 
 // Role hierarchy level constants (lower number = higher authority)
 export const ROLE_HIERARCHY_LEVELS = {
@@ -192,6 +193,7 @@ export interface User {
     password?: string;
     name: string;
     role: UserRole; // STRICT: Only standard roles allowed
+    effectiveMandorType?: MandorType;
     avatar?: string;
     company?: string;
     companyId?: string;

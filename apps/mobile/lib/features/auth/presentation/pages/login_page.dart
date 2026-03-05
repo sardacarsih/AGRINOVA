@@ -278,6 +278,7 @@ class _LoginPageState extends State<LoginPage>
                           // Navigate to role-based dashboard
                           final route = AppRoutes.getDashboardRoute(
                             state.user.role,
+                            mandorType: state.user.effectiveMandorType,
                           );
                           Navigator.of(
                             context,

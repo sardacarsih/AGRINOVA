@@ -128,6 +128,181 @@ func dateOnlyString(value time.Time) string {
 	return value.Format("2006-01-02")
 }
 
+func (r *Resolver) areaManagerCompanyAggregates(
+	ctx context.Context,
+	companyIDs []string,
+	todayDate time.Time,
+	periodStart time.Time,
+	periodEnd time.Time,
+	targetPeriod string,
+) ([]amCompanyAgg, error) {
+	dayStartStr := dateOnlyString(todayDate)
+	dayEndStr := dateOnlyString(todayDate.AddDate(0, 0, 1))
+	periodStartStr := dateOnlyString(periodStart)
+	periodEndExclusiveStr := dateOnlyString(periodEnd.AddDate(0, 0, 1))
+
+	var rows []amCompanyAgg
+	err := r.db.WithContext(ctx).Raw(`
+		WITH scoped_companies AS (
+			SELECT
+				c.id,
+				c.name
+			FROM companies c
+			WHERE c.id IN ?
+		),
+		company_estates AS (
+			SELECT
+				e.id AS estate_id,
+				e.company_id
+			FROM estates e
+			JOIN scoped_companies sc ON sc.id = e.company_id
+		),
+		estate_counts AS (
+			SELECT
+				ce.company_id,
+				COUNT(*) AS estates_count
+			FROM company_estates ce
+			GROUP BY ce.company_id
+		),
+		division_counts AS (
+			SELECT
+				ce.company_id,
+				COUNT(d.id) AS divs_count
+			FROM company_estates ce
+			LEFT JOIN divisions d ON d.estate_id = ce.estate_id
+			GROUP BY ce.company_id
+		),
+		employee_counts AS (
+			SELECT
+				uca.company_id,
+				COUNT(DISTINCT uca.user_id) AS emp_count
+			FROM user_company_assignments uca
+			JOIN scoped_companies sc ON sc.id = uca.company_id
+			WHERE uca.is_active = true
+			GROUP BY uca.company_id
+		),
+		production_totals AS (
+			SELECT
+				ce.company_id,
+				COALESCE(SUM(
+					CASE
+						WHEN hr.tanggal >= ?::date AND hr.tanggal < ?::date THEN hr.berat_tbs
+						ELSE 0
+					END
+				), 0) AS today_prod,
+				COALESCE(SUM(hr.berat_tbs), 0) AS monthly_prod
+			FROM company_estates ce
+			LEFT JOIN harvest_records hr
+				ON hr.estate_id = ce.estate_id
+			   AND hr.status IN ('APPROVED', 'PENDING')
+			   AND hr.tanggal >= ?::date
+			   AND hr.tanggal < ?::date
+			GROUP BY ce.company_id
+		),
+		target_totals AS (
+			SELECT
+				ce.company_id,
+				COALESCE(SUM(b.target_ton), 0) AS month_target
+			FROM company_estates ce
+			LEFT JOIN divisions d ON d.estate_id = ce.estate_id
+			LEFT JOIN manager_division_production_budgets b
+				ON b.division_id = d.id
+			   AND b.period_month = ?
+			   AND b.workflow_status = 'APPROVED'
+			GROUP BY ce.company_id
+		)
+		SELECT
+			sc.id,
+			sc.name,
+			COALESCE(ec.estates_count, 0) AS estates_count,
+			COALESCE(dc.divs_count, 0) AS divs_count,
+			COALESCE(emc.emp_count, 0) AS emp_count,
+			COALESCE(pt.today_prod, 0) AS today_prod,
+			COALESCE(pt.monthly_prod, 0) AS monthly_prod,
+			COALESCE(tt.month_target, 0) AS month_target
+		FROM scoped_companies sc
+		LEFT JOIN estate_counts ec ON ec.company_id = sc.id
+		LEFT JOIN division_counts dc ON dc.company_id = sc.id
+		LEFT JOIN employee_counts emc ON emc.company_id = sc.id
+		LEFT JOIN production_totals pt ON pt.company_id = sc.id
+		LEFT JOIN target_totals tt ON tt.company_id = sc.id
+	`, companyIDs, dayStartStr, dayEndStr, periodStartStr, periodEndExclusiveStr, targetPeriod).Scan(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to aggregate company stats: %w", err)
+	}
+
+	return rows, nil
+}
+
+func (r *Resolver) areaManagerEstateAggregates(
+	ctx context.Context,
+	companyID string,
+	todayDate time.Time,
+	periodStart time.Time,
+	periodEnd time.Time,
+	targetPeriod string,
+) ([]amEstateAgg, error) {
+	dayStartStr := dateOnlyString(todayDate)
+	dayEndStr := dateOnlyString(todayDate.AddDate(0, 0, 1))
+	periodStartStr := dateOnlyString(periodStart)
+	periodEndExclusiveStr := dateOnlyString(periodEnd.AddDate(0, 0, 1))
+
+	var rows []amEstateAgg
+	err := r.db.WithContext(ctx).Raw(`
+		WITH company_estates AS (
+			SELECT
+				e.id,
+				e.name
+			FROM estates e
+			WHERE e.company_id = ?
+		),
+		production_totals AS (
+			SELECT
+				ce.id AS estate_id,
+				COALESCE(SUM(
+					CASE
+						WHEN hr.tanggal >= ?::date AND hr.tanggal < ?::date THEN hr.berat_tbs
+						ELSE 0
+					END
+				), 0) AS today_prod,
+				COALESCE(SUM(hr.berat_tbs), 0) AS monthly_prod
+			FROM company_estates ce
+			LEFT JOIN harvest_records hr
+				ON hr.estate_id = ce.id
+			   AND hr.status IN ('APPROVED', 'PENDING')
+			   AND hr.tanggal >= ?::date
+			   AND hr.tanggal < ?::date
+			GROUP BY ce.id
+		),
+		target_totals AS (
+			SELECT
+				ce.id AS estate_id,
+				COALESCE(SUM(b.target_ton), 0) AS month_target
+			FROM company_estates ce
+			LEFT JOIN divisions d ON d.estate_id = ce.id
+			LEFT JOIN manager_division_production_budgets b
+				ON b.division_id = d.id
+			   AND b.period_month = ?
+			   AND b.workflow_status = 'APPROVED'
+			GROUP BY ce.id
+		)
+		SELECT
+			ce.id,
+			ce.name,
+			COALESCE(pt.today_prod, 0) AS today_prod,
+			COALESCE(pt.monthly_prod, 0) AS monthly_prod,
+			COALESCE(tt.month_target, 0) AS month_target
+		FROM company_estates ce
+		LEFT JOIN production_totals pt ON pt.estate_id = ce.id
+		LEFT JOIN target_totals tt ON tt.estate_id = ce.id
+	`, companyID, dayStartStr, dayEndStr, periodStartStr, periodEndExclusiveStr, targetPeriod).Scan(&rows).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch estate details: %w", err)
+	}
+
+	return rows, nil
+}
+
 // ─── Query Resolvers ─────────────────────────────────────────────────────────
 
 // AreaManagerDashboard is the resolver for the areaManagerDashboard field.
@@ -146,9 +321,6 @@ func (r *queryResolver) AreaManagerDashboard(
 	if err != nil {
 		return nil, err
 	}
-	rangeStartStr := dateOnlyString(rangeStart)
-	rangeEndStr := dateOnlyString(rangeEnd)
-	referenceDateStr := dateOnlyString(rangeEnd)
 	targetPeriod := rangeEnd.Format("2006-01")
 
 	// 1. Scope: get assigned company IDs
@@ -212,37 +384,9 @@ func (r *queryResolver) AreaManagerDashboard(
 	}
 
 	// 5. Aggregate production and structural stats per company
-	var rows []amCompanyAgg
-	err = r.db.WithContext(ctx).Raw(`
-		SELECT
-			c.id,
-			c.name,
-			COUNT(DISTINCT e.id)                                                                  AS estates_count,
-			COUNT(DISTINCT d.id)                                                                  AS divs_count,
-			COUNT(DISTINCT uca2.user_id) FILTER (WHERE uca2.is_active = true)                    AS emp_count,
-			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE DATE(hr.tanggal) = ?::date AND hr.status IN ('APPROVED', 'PENDING')
-			), 0)                                                                                  AS today_prod,
-			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE DATE(hr.tanggal) >= ?::date
-				  AND DATE(hr.tanggal) <= ?::date
-				  AND hr.status IN ('APPROVED', 'PENDING')
-			), 0)                                                                                  AS monthly_prod,
-			COALESCE(SUM(b.target_ton) FILTER (
-				WHERE b.period_month = ?
-				  AND b.workflow_status = 'APPROVED'
-			), 0)                                                                                  AS month_target
-		FROM companies c
-		JOIN estates e ON e.company_id = c.id
-		LEFT JOIN divisions d ON d.estate_id = e.id
-		LEFT JOIN user_company_assignments uca2 ON uca2.company_id = c.id
-		LEFT JOIN harvest_records hr ON hr.estate_id = e.id
-		LEFT JOIN manager_division_production_budgets b ON b.division_id = d.id
-		WHERE c.id IN ?
-		GROUP BY c.id, c.name
-	`, referenceDateStr, rangeStartStr, rangeEndStr, targetPeriod, companyIDs).Scan(&rows).Error
+	rows, err := r.areaManagerCompanyAggregates(ctx, companyIDs, rangeEnd, rangeStart, rangeEnd, targetPeriod)
 	if err != nil {
-		return nil, fmt.Errorf("failed to aggregate company stats: %w", err)
+		return nil, err
 	}
 
 	// 6. Build company performance list and aggregate totals
@@ -349,37 +493,14 @@ func (r *queryResolver) AreaManagerCompanyDetail(ctx context.Context, companyID 
 		return nil, fmt.Errorf("company not in scope")
 	}
 
-	var rows []amCompanyAgg
-	err = r.db.WithContext(ctx).Raw(`
-		SELECT
-			c.id,
-			c.name,
-			COUNT(DISTINCT e.id)                                                                  AS estates_count,
-			COUNT(DISTINCT d.id)                                                                  AS divs_count,
-			COUNT(DISTINCT uca2.user_id) FILTER (WHERE uca2.is_active = true)                    AS emp_count,
-			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE DATE(hr.tanggal) = CURRENT_DATE AND hr.status IN ('APPROVED', 'PENDING')
-			), 0)                                                                                  AS today_prod,
-			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE DATE(hr.tanggal) >= date_trunc('month', NOW())::date
-				  AND DATE(hr.tanggal) <= CURRENT_DATE
-				  AND hr.status IN ('APPROVED', 'PENDING')
-			), 0)                                                                                  AS monthly_prod,
-			COALESCE(SUM(b.target_ton) FILTER (
-				WHERE b.period_month = to_char(NOW(), 'YYYY-MM')
-				  AND b.workflow_status = 'APPROVED'
-			), 0)                                                                                  AS month_target
-		FROM companies c
-		JOIN estates e ON e.company_id = c.id
-		LEFT JOIN divisions d ON d.estate_id = e.id
-		LEFT JOIN user_company_assignments uca2 ON uca2.company_id = c.id
-		LEFT JOIN harvest_records hr ON hr.estate_id = e.id
-		LEFT JOIN manager_division_production_budgets b ON b.division_id = d.id
-		WHERE c.id = ?
-		GROUP BY c.id, c.name
-	`, companyID).Scan(&rows).Error
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	targetPeriod := now.Format("2006-01")
+
+	rows, err := r.areaManagerCompanyAggregates(ctx, []string{companyID}, todayStart, monthStart, todayStart, targetPeriod)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch company detail: %w", err)
+		return nil, err
 	}
 	if len(rows) == 0 {
 		return nil, fmt.Errorf("company not found")
@@ -391,32 +512,9 @@ func (r *queryResolver) AreaManagerCompanyDetail(ctx context.Context, companyID 
 		achievement = row.MonthlyProd / row.MonthTarget * 100
 	}
 
-	var estateRows []amEstateAgg
-	err = r.db.WithContext(ctx).Raw(`
-		SELECT
-			e.id,
-			e.name,
-			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE DATE(hr.tanggal) = CURRENT_DATE AND hr.status IN ('APPROVED', 'PENDING')
-			), 0)                                                                                  AS today_prod,
-			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE DATE(hr.tanggal) >= date_trunc('month', NOW())::date
-				  AND DATE(hr.tanggal) <= CURRENT_DATE
-				  AND hr.status IN ('APPROVED', 'PENDING')
-			), 0)                                                                                  AS monthly_prod,
-			COALESCE(SUM(b.target_ton) FILTER (
-				WHERE b.period_month = to_char(NOW(), 'YYYY-MM')
-				  AND b.workflow_status = 'APPROVED'
-			), 0)                                                                                  AS month_target
-		FROM estates e
-		LEFT JOIN divisions d ON d.estate_id = e.id
-		LEFT JOIN harvest_records hr ON hr.estate_id = e.id
-		LEFT JOIN manager_division_production_budgets b ON b.division_id = d.id
-		WHERE e.company_id = ?
-		GROUP BY e.id, e.name
-	`, companyID).Scan(&estateRows).Error
+	estateRows, err := r.areaManagerEstateAggregates(ctx, companyID, todayStart, monthStart, todayStart, targetPeriod)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch estate details: %w", err)
+		return nil, err
 	}
 
 	estatesPerf := make([]*generated.CompanyEstatePerformance, 0, len(estateRows))
@@ -446,7 +544,7 @@ func (r *queryResolver) AreaManagerCompanyDetail(ctx context.Context, companyID 
 		TargetAchievement:  achievement,
 		EfficiencyScore:    achievement,
 		QualityScore:       0,
-		Trend:              computeAmTrend(row.TodayProd, row.MonthlyProd, time.Now().Day()),
+		Trend:              computeAmTrend(row.TodayProd, row.MonthlyProd, now.Day()),
 		Status:             computeCompanyStatus(achievement),
 		PendingIssues:      0,
 		EstatesPerformance: estatesPerf,
@@ -516,34 +614,10 @@ func (r *queryResolver) RegionalAlerts(ctx context.Context, companyID *string, s
 	}
 
 	// Aggregate company production to derive alerts
-	var rows []amCompanyAgg
-	err = r.db.WithContext(ctx).Raw(`
-		SELECT
-			c.id,
-			c.name,
-			COUNT(DISTINCT e.id) AS estates_count,
-			COUNT(DISTINCT d.id) AS divs_count,
-			0                    AS emp_count,
-			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE DATE(hr.tanggal) = CURRENT_DATE AND hr.status IN ('APPROVED', 'PENDING')
-			), 0)                AS today_prod,
-			COALESCE(SUM(hr.berat_tbs) FILTER (
-				WHERE DATE(hr.tanggal) >= date_trunc('month', NOW())::date
-				  AND DATE(hr.tanggal) <= CURRENT_DATE
-				  AND hr.status IN ('APPROVED', 'PENDING')
-			), 0)                AS monthly_prod,
-			COALESCE(SUM(b.target_ton) FILTER (
-				WHERE b.period_month = to_char(NOW(), 'YYYY-MM')
-				  AND b.workflow_status = 'APPROVED'
-			), 0)                AS month_target
-		FROM companies c
-		JOIN estates e ON e.company_id = c.id
-		LEFT JOIN divisions d ON d.estate_id = e.id
-		LEFT JOIN harvest_records hr ON hr.estate_id = e.id
-		LEFT JOIN manager_division_production_budgets b ON b.division_id = d.id
-		WHERE c.id IN ?
-		GROUP BY c.id, c.name
-	`, scopeIDs).Scan(&rows).Error
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	rows, err := r.areaManagerCompanyAggregates(ctx, scopeIDs, todayStart, monthStart, todayStart, now.Format("2006-01"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive alerts: %w", err)
 	}

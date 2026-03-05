@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -237,12 +238,9 @@ func (nd *NotificationDelivery) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// Helper function to generate UUID (you might want to use a proper UUID library)
+// Helper function to generate UUID
 func generateUUID() string {
-	// This is a simple UUID generator - in production use a proper UUID library
-	// like google/uuid or gofrs/uuid
-	return "notif-" + time.Now().Format("20060102150405") + "-" +
-		string(rune(time.Now().UnixNano()%1000000))
+	return uuid.NewString()
 }
 
 // Methods for Notification model

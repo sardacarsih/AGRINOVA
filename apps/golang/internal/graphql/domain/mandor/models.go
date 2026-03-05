@@ -353,15 +353,15 @@ type MandorSyncResult struct {
 
 // MandorSyncItemResult for individual sync result.
 type MandorSyncItemResult struct {
-	LocalID       string          `json:"localId"`
-	ServerID      *string         `json:"serverId,omitempty"`
-	Success       bool            `json:"success"`
+	LocalID       string                `json:"localId"`
+	ServerID      *string               `json:"serverId,omitempty"`
+	Success       bool                  `json:"success"`
 	Status        common.SyncItemStatus `json:"status"`
-	Reason        *string         `json:"reason,omitempty"`
-	ServerVersion *int32          `json:"serverVersion,omitempty"`
-	Error         *string         `json:"error,omitempty"`
-	HasConflict   bool            `json:"hasConflict"`
-	ConflictData  *string         `json:"conflictData,omitempty"`
+	Reason        *string               `json:"reason,omitempty"`
+	ServerVersion *int32                `json:"serverVersion,omitempty"`
+	Error         *string               `json:"error,omitempty"`
+	HasConflict   bool                  `json:"hasConflict"`
+	ConflictData  *string               `json:"conflictData,omitempty"`
 }
 
 // ============================================================================
@@ -407,6 +407,7 @@ type MandorHistorySummary struct {
 // MandorProfile for mandor user profile.
 type MandorProfile struct {
 	User        *auth.User         `json:"user"`
+	MandorType  *auth.MandorType   `json:"mandorType,omitempty"`
 	Company     *master.Company    `json:"company"`
 	Estate      *master.Estate     `json:"estate"`
 	Divisions   []*master.Division `json:"divisions"`

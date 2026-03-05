@@ -112,11 +112,17 @@ class _SplashScreenState extends State<SplashScreen> {
 
     // Navigate based on auth state
     if (authState is AuthAuthenticated) {
-      final route = AppRoutes.getDashboardRoute(authState.user.role);
+      final route = AppRoutes.getDashboardRoute(
+        authState.user.role,
+        mandorType: authState.user.effectiveMandorType,
+      );
       debugPrint('➡️ Navigating to dashboard: $route');
       Navigator.of(context).pushReplacementNamed(route);
     } else if (authState is AuthOfflineMode) {
-      final route = AppRoutes.getDashboardRoute(authState.user.role);
+      final route = AppRoutes.getDashboardRoute(
+        authState.user.role,
+        mandorType: authState.user.effectiveMandorType,
+      );
       debugPrint('➡️ Navigating to dashboard (offline): $route');
       Navigator.of(context).pushReplacementNamed(route);
     } else if (authState is AuthBiometricRequired) {

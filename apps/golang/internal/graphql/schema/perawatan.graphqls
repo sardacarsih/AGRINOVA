@@ -46,31 +46,34 @@ enum StatusPerawatan {
 }
 
 """
-Pupuk (Fertilizer) usage record.
+Material category used in maintenance work.
 """
-type PupukUsage {
-  id: ID!
-  perawatanRecordId: String!
-  perawatanRecord: PerawatanRecord!
-  jenisPupuk: String!
-  jumlahKg: Float!
-  hargaPerKg: Float!
-  totalBiaya: Float!
-  createdAt: Time!
-  updatedAt: Time!
+enum PerawatanMaterialCategory {
+  PUPUK
+  HERBISIDA
 }
 
 """
-Herbisida (Herbicide) usage record.
+Measurement unit for maintenance material usage.
 """
-type HerbisidaUsage {
+enum PerawatanMaterialUnit {
+  KG
+  LITER
+}
+
+"""
+Generic material usage record attached to a maintenance transaction.
+"""
+type PerawatanMaterialUsage {
   id: ID!
   perawatanRecordId: String!
   perawatanRecord: PerawatanRecord!
-  jenisHerbisida: String!
-  jumlahLiter: Float!
-  hargaPerLiter: Float!
-  totalBiaya: Float!
+  materialCategory: PerawatanMaterialCategory!
+  materialName: String!
+  quantity: Float!
+  unit: PerawatanMaterialUnit!
+  unitPrice: Float!
+  totalCost: Float!
   createdAt: Time!
   updatedAt: Time!
 }
@@ -97,18 +100,22 @@ input UpdatePerawatanRecordInput {
   status: StatusPerawatan
 }
 
-input CreatePupukUsageInput {
+input CreatePerawatanMaterialUsageInput {
   perawatanRecordId: String!
-  jenisPupuk: String!
-  jumlahKg: Float!
-  hargaPerKg: Float!
+  materialCategory: PerawatanMaterialCategory!
+  materialName: String!
+  quantity: Float!
+  unit: PerawatanMaterialUnit!
+  unitPrice: Float!
 }
 
-input CreateHerbisidaUsageInput {
-  perawatanRecordId: String!
-  jenisHerbisida: String!
-  jumlahLiter: Float!
-  hargaPerLiter: Float!
+input UpdatePerawatanMaterialUsageInput {
+  id: ID!
+  materialCategory: PerawatanMaterialCategory
+  materialName: String
+  quantity: Float
+  unit: PerawatanMaterialUnit
+  unitPrice: Float
 }
 
 # Perawatan queries
@@ -124,10 +131,14 @@ extend type Query {
   perawatanRecordsByStatus(status: StatusPerawatan!): [PerawatanRecord!]!
   
   # Usage Queries
-  "Get fertilizer usage records"
-  pupukUsageRecords: [PupukUsage!]!
-  "Get herbicide usage records"
-  herbisidaUsageRecords: [HerbisidaUsage!]!
+  "Get all maintenance material usage records"
+  perawatanMaterialUsageRecords: [PerawatanMaterialUsage!]!
+  "Get a specific maintenance material usage record by ID"
+  perawatanMaterialUsageRecord(id: ID!): PerawatanMaterialUsage
+  "Filter maintenance material usage records by category"
+  perawatanMaterialUsageRecordsByCategory(materialCategory: PerawatanMaterialCategory!): [PerawatanMaterialUsage!]!
+  "Filter maintenance material usage records by parent maintenance record"
+  perawatanMaterialUsageRecordsByRecord(perawatanRecordId: ID!): [PerawatanMaterialUsage!]!
 }
 
 # Perawatan mutations
@@ -138,6 +149,7 @@ extend type Mutation {
   deletePerawatanRecord(id: ID!): Boolean!
   
   # Usage mutations
-  createPupukUsage(input: CreatePupukUsageInput!): PupukUsage!
-  createHerbisidaUsage(input: CreateHerbisidaUsageInput!): HerbisidaUsage!
+  createPerawatanMaterialUsage(input: CreatePerawatanMaterialUsageInput!): PerawatanMaterialUsage!
+  updatePerawatanMaterialUsage(input: UpdatePerawatanMaterialUsageInput!): PerawatanMaterialUsage!
+  deletePerawatanMaterialUsage(id: ID!): Boolean!
 }

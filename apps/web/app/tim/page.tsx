@@ -10,9 +10,9 @@ import { ManagerEstateTeamMonitor } from '@/features/harvest/components/ManagerE
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/use-auth';
 
-type TimEstateAllowedRole = 'ASISTEN' | 'MANAGER' | 'AREA_MANAGER';
+type TimAllowedRole = 'ASISTEN' | 'MANAGER' | 'AREA_MANAGER';
 
-const normalizeRole = (role?: string): TimEstateAllowedRole => {
+const normalizeRole = (role?: string): TimAllowedRole => {
   const normalized = (role || '').toUpperCase().replace(/[\s-]+/g, '_');
   if (normalized === 'ASISTEN' || normalized === 'MANAGER' || normalized === 'AREA_MANAGER') {
     return normalized;
@@ -20,15 +20,15 @@ const normalizeRole = (role?: string): TimEstateAllowedRole => {
   return 'MANAGER';
 };
 
-function TimEstateRoleLayout({ children, actions }: { children: React.ReactNode; actions: React.ReactNode }) {
+function TimRoleLayout({ children, actions }: { children: React.ReactNode; actions: React.ReactNode }) {
   const { user } = useAuth();
   const currentRole = normalizeRole(user?.role);
 
   if (currentRole === 'ASISTEN') {
     return (
       <AsistenDashboardLayout
-        title="Tim Estate"
-        description="Pantau performa tim mandor dan pemanen sesuai area kerja Anda"
+        title="Tim"
+        description="Pantau performa tim sesuai area kerja Anda"
         showBreadcrumb={false}
         actions={actions}
       >
@@ -40,7 +40,7 @@ function TimEstateRoleLayout({ children, actions }: { children: React.ReactNode;
   if (currentRole === 'AREA_MANAGER') {
     return (
       <AreaManagerDashboardLayout
-        title="Tim Estate"
+        title="Tim"
         description="Pantau performa tim lintas estate berdasarkan scope perusahaan"
         showBreadcrumb={false}
         actions={actions}
@@ -52,8 +52,8 @@ function TimEstateRoleLayout({ children, actions }: { children: React.ReactNode;
 
   return (
     <ManagerDashboardLayout
-      title="Tim Estate"
-      description="Pantau performa anggota tim estate secara real-time"
+      title="Tim"
+      description="Pantau performa anggota tim secara real-time"
       showBreadcrumb={false}
       actions={actions}
     >
@@ -62,7 +62,7 @@ function TimEstateRoleLayout({ children, actions }: { children: React.ReactNode;
   );
 }
 
-export default function TimEstatePage() {
+export default function TimPage() {
   const headerActions = (
     <div className="flex items-center gap-2">
       <Button type="button" variant="outline" size="icon" aria-label="Cari tim">
@@ -79,9 +79,9 @@ export default function TimEstatePage() {
       allowedRoles={['ASISTEN', 'MANAGER', 'AREA_MANAGER']}
       fallbackPath="/login"
     >
-      <TimEstateRoleLayout actions={headerActions}>
+      <TimRoleLayout actions={headerActions}>
         <ManagerEstateTeamMonitor />
-      </TimEstateRoleLayout>
+      </TimRoleLayout>
     </ProtectedRoute>
   );
 }

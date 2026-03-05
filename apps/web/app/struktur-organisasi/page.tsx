@@ -40,7 +40,7 @@ function StrukturOrganisasiContent() {
     return (
       <AreaManagerDashboardLayout
         title="Struktur Organisasi"
-        description="Relasi pelaporan berdasarkan manager_id"
+        description="Relasi pelaporan berdasarkan manager_id, termasuk Mandor Panen dan Mandor Perawatan"
         showBreadcrumb={false}
       >
         {content}
@@ -52,7 +52,7 @@ function StrukturOrganisasiContent() {
     return (
       <ManagerDashboardLayout
         title="Struktur Organisasi"
-        description="Relasi pelaporan berdasarkan manager_id"
+        description="Relasi pelaporan berdasarkan manager_id, termasuk Mandor Panen dan Mandor Perawatan"
         showBreadcrumb={false}
       >
         {content}
@@ -63,7 +63,7 @@ function StrukturOrganisasiContent() {
   return (
     <AsistenDashboardLayout
       title="Struktur Organisasi"
-      description="Relasi pelaporan berdasarkan manager_id"
+      description="Relasi pelaporan berdasarkan manager_id, termasuk Mandor Panen dan Mandor Perawatan"
       showBreadcrumb={false}
     >
       {content}

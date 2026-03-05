@@ -216,6 +216,7 @@ class DatabaseService {
         email TEXT,
         full_name TEXT NOT NULL,
         role TEXT NOT NULL,
+        mandor_type TEXT,
         company_id TEXT,
         company_name TEXT,
         manager_id TEXT,
@@ -1019,6 +1020,18 @@ class DatabaseService {
       await db.execute('DROP TABLE IF EXISTS tbs_records');
     }
 
+    if (oldVersion < 7) {
+      try {
+        final columns = await db.rawQuery("PRAGMA table_info(users)");
+        final columnNames = columns.map((c) => c['name'] as String).toList();
+        if (!columnNames.contains('mandor_type')) {
+          await db.execute('ALTER TABLE users ADD COLUMN mandor_type TEXT');
+        }
+      } catch (e) {
+        _logger.e('Error in migration v6 -> v7: $e');
+      }
+    }
+
     // If there are larger schema changes that can't be migrated, recreate
     // For now, we only add columns for minor upgrades
   }
@@ -1250,6 +1263,7 @@ class DatabaseService {
           'email': user.email,
           'full_name': user.name,
           'role': user.role,
+          'mandor_type': user.effectiveMandorType,
           'company_id': user.companyId,
           'company_name': user.companyName,
           'manager_id': user.managerId,

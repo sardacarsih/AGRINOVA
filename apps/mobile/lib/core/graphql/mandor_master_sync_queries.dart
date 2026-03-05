@@ -18,7 +18,6 @@ class MandorMasterSyncQueries {
           name
           companyId
           luasHa
-          isActive
           updatedAt
         }
         divisions {
@@ -26,7 +25,6 @@ class MandorMasterSyncQueries {
           name
           code
           estateId
-          isActive
           updatedAt
         }
       }
@@ -50,7 +48,6 @@ class MandorMasterSyncQueries {
           name
           companyId
           luasHa
-          isActive
           updatedAt
         }
         divisions {
@@ -58,7 +55,6 @@ class MandorMasterSyncQueries {
           name
           code
           estateId
-          isActive
           updatedAt
         }
       }
@@ -143,25 +139,11 @@ class MandorMasterSyncQueries {
       mandorServerUpdates(since: \$since, deviceId: \$deviceId) {
         id
         localId
-        tanggal
-        mandorId
-        blockId
-        blockName
-        divisionId
-        divisionName
-        karyawan
-        jumlahJanjang
-        beratTbs
         status
         approvedBy
-        approvedByName
         approvedAt
         rejectedReason
-        notes
-        createdAt
         updatedAt
-        syncStatus
-        serverVersion
       }
     }
   ''';
