@@ -522,7 +522,7 @@ class _MetricCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: accentColor.withOpacity(0.18)),
+        border: Border.all(color: accentColor.withValues(alpha: 0.18)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x14000000),
@@ -762,7 +762,7 @@ class _MaterialUsageBottomSheetState extends State<_MaterialUsageBottomSheet> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       DropdownButtonFormField<String>(
-                        value: category,
+                        initialValue: category,
                         decoration: const InputDecoration(
                           labelText: 'Kategori',
                           border: OutlineInputBorder(),
@@ -904,6 +904,9 @@ class _MaterialUsageBottomSheetState extends State<_MaterialUsageBottomSheet> {
                             if (!mounted) {
                               return;
                             }
+                            if (!dialogContext.mounted) {
+                              return;
+                            }
                             Navigator.of(dialogContext).pop(true);
                           } catch (error) {
                             setDialogState(() {
@@ -1017,7 +1020,8 @@ class _MaterialUsageBottomSheetState extends State<_MaterialUsageBottomSheet> {
                 Expanded(
                   child: ListView.separated(
                     itemCount: _materials.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, index) =>
+                        const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final item = _materials[index];
                       return _MaterialUsageTile(item: item);

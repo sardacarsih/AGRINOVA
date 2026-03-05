@@ -409,7 +409,7 @@ class _MandorPerawatanCreatePageState extends State<MandorPerawatanCreatePage> {
                           ),
                           const SizedBox(height: 14),
                           DropdownButtonFormField<String>(
-                            value: _selectedBlockId,
+                            initialValue: _selectedBlockId,
                             isExpanded: true,
                             decoration: const InputDecoration(
                               labelText: 'Blok',
@@ -529,7 +529,7 @@ class _MandorPerawatanCreatePageState extends State<MandorPerawatanCreatePage> {
                           ],
                           const SizedBox(height: 14),
                           DropdownButtonFormField<String>(
-                            value: _selectedJenisPerawatan,
+                            initialValue: _selectedJenisPerawatan,
                             decoration: const InputDecoration(
                               labelText: 'Jenis Perawatan',
                               border: OutlineInputBorder(),
