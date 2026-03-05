@@ -9,14 +9,21 @@ import (
 	masterModels "agrinovagraphql/server/internal/master/models"
 	masterRepositories "agrinovagraphql/server/internal/master/repositories"
 	"agrinovagraphql/server/internal/middleware"
+	notificationModels "agrinovagraphql/server/internal/notifications/models"
+	notificationServices "agrinovagraphql/server/internal/notifications/services"
 	"context"
 	"fmt"
+	"log"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+var semesterPattern = regexp.MustCompile(`^\d{4}-(S1|S2)$`)
 
 // Master data mutations
 
@@ -1471,6 +1478,713 @@ func (r *queryResolver) BlockTariffChangeLogs(
 	}, nil
 }
 
+// TariffManagementDecisions is the resolver for the tariffManagementDecisions field.
+func (r *queryResolver) TariffManagementDecisions(
+	ctx context.Context,
+	companyID *string,
+	entityType *string,
+	entityID *string,
+	limit *int32,
+) ([]*generated.TariffManagementDecision, error) {
+	userID, err := r.requireRBACPermission(ctx, "block:read")
+	if err != nil {
+		return nil, err
+	}
+
+	limitValue := int32(50)
+	if limit != nil && *limit > 0 {
+		limitValue = *limit
+	}
+	if limitValue > 200 {
+		limitValue = 200
+	}
+
+	role := middleware.GetUserRoleFromContext(ctx)
+	query := r.db.WithContext(ctx).Table("tariff_management_decisions")
+
+	companyFilter := ""
+	if companyID != nil {
+		companyFilter = strings.TrimSpace(*companyID)
+	}
+	if companyFilter != "" {
+		if role != auth.UserRoleSuperAdmin {
+			if err := r.validateCompanyScope(ctx, userID, companyFilter); err != nil {
+				return nil, err
+			}
+		}
+		query = query.Where("company_id = ?", companyFilter)
+	} else if role != auth.UserRoleSuperAdmin {
+		companyIDs, err := r.getAssignedCompanyIDs(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve company scope: %w", err)
+		}
+		if len(companyIDs) == 0 {
+			return []*generated.TariffManagementDecision{}, nil
+		}
+		query = query.Where("company_id IN ?", companyIDs)
+	}
+
+	if entityType != nil && strings.TrimSpace(*entityType) != "" {
+		query = query.Where("UPPER(entity_type) = ?", strings.ToUpper(strings.TrimSpace(*entityType)))
+	}
+	if entityID != nil && strings.TrimSpace(*entityID) != "" {
+		query = query.Where("entity_id = ?", strings.TrimSpace(*entityID))
+	}
+
+	rows := make([]*tariffManagementDecisionRow, 0)
+	if err := query.
+		Order("decided_at DESC").
+		Limit(int(limitValue)).
+		Find(&rows).Error; err != nil {
+		if isMissingRelationError(err, "tariff_management_decisions") {
+			return []*generated.TariffManagementDecision{}, nil
+		}
+		return nil, fmt.Errorf("failed to load tariff management decisions: %w", err)
+	}
+
+	result := make([]*generated.TariffManagementDecision, 0, len(rows))
+	for _, row := range rows {
+		if row == nil {
+			continue
+		}
+		result = append(result, &generated.TariffManagementDecision{
+			ID:             row.ID,
+			EntityType:     row.EntityType,
+			EntityID:       row.EntityID,
+			ActionType:     row.ActionType,
+			CompanyID:      row.CompanyID,
+			DecisionNo:     row.DecisionNo,
+			DecisionReason: row.DecisionReason,
+			EffectiveNote:  row.EffectiveNote,
+			DecidedBy:      row.DecidedBy,
+			DecidedAt:      row.DecidedAt,
+			Metadata:       row.Metadata,
+		})
+	}
+
+	return result, nil
+}
+
+// BlockTreatmentSemesterRequests is the resolver for the blockTreatmentSemesterRequests field.
+func (r *queryResolver) BlockTreatmentSemesterRequests(
+	ctx context.Context,
+	companyID *string,
+	semester *string,
+	status *generated.BlockTreatmentRequestStatus,
+	createdBy *string,
+	limit *int32,
+	offset *int32,
+) ([]*generated.BlockTreatmentSemesterRequest, error) {
+	userID, err := r.requireRBACPermission(ctx, "block:read")
+	if err != nil {
+		return nil, err
+	}
+
+	limitValue := int32(50)
+	if limit != nil && *limit > 0 {
+		limitValue = *limit
+	}
+	if limitValue > 200 {
+		limitValue = 200
+	}
+	offsetValue := int32(0)
+	if offset != nil && *offset > 0 {
+		offsetValue = *offset
+	}
+
+	role := middleware.GetUserRoleFromContext(ctx)
+	query := r.db.WithContext(ctx).
+		Table("block_treatment_change_requests r").
+		Select(`
+			r.id,
+			r.company_id,
+			c.name AS company_name,
+			r.semester,
+			r.status,
+			r.notes,
+			r.revision_no,
+			r.submitted_at,
+			r.reviewed_by,
+			COALESCE(NULLIF(TRIM(u_review.name), ''), NULLIF(TRIM(u_review.username), '')) AS reviewed_by_name,
+			r.reviewed_at,
+			r.approved_by,
+			COALESCE(NULLIF(TRIM(u_approve.name), ''), NULLIF(TRIM(u_approve.username), '')) AS approved_by_name,
+			r.approved_at,
+			r.rejected_reason,
+			r.applied_by,
+			COALESCE(NULLIF(TRIM(u_apply.name), ''), NULLIF(TRIM(u_apply.username), '')) AS applied_by_name,
+			r.applied_at,
+			r.created_by,
+			COALESCE(NULLIF(TRIM(u_create.name), ''), NULLIF(TRIM(u_create.username), '')) AS created_by_name,
+			r.created_at,
+			r.updated_at
+		`).
+		Joins("LEFT JOIN companies c ON c.id = r.company_id").
+		Joins("LEFT JOIN users u_review ON u_review.id = r.reviewed_by").
+		Joins("LEFT JOIN users u_approve ON u_approve.id = r.approved_by").
+		Joins("LEFT JOIN users u_apply ON u_apply.id = r.applied_by").
+		Joins("LEFT JOIN users u_create ON u_create.id = r.created_by")
+
+	companyFilter := ""
+	if companyID != nil {
+		companyFilter = strings.TrimSpace(*companyID)
+	}
+	if companyFilter != "" {
+		if role != auth.UserRoleSuperAdmin {
+			if err := r.validateCompanyScope(ctx, userID, companyFilter); err != nil {
+				return nil, err
+			}
+		}
+		query = query.Where("r.company_id = ?", companyFilter)
+	} else if role != auth.UserRoleSuperAdmin {
+		companyIDs, err := r.getAssignedCompanyIDs(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve company scope: %w", err)
+		}
+		if len(companyIDs) == 0 {
+			return []*generated.BlockTreatmentSemesterRequest{}, nil
+		}
+		query = query.Where("r.company_id IN ?", companyIDs)
+	}
+
+	if role == auth.UserRoleManager {
+		query = query.Where("r.created_by = ?", userID)
+	}
+
+	if semester != nil && strings.TrimSpace(*semester) != "" {
+		normalizedSemester, err := normalizeSemester(strings.TrimSpace(*semester))
+		if err != nil {
+			return nil, err
+		}
+		query = query.Where("UPPER(TRIM(r.semester)) = ?", normalizedSemester)
+	}
+	if status != nil {
+		normalizedStatus := strings.ToUpper(strings.TrimSpace(status.String()))
+		query = query.Where("r.status = ?", normalizedStatus)
+	}
+	if createdBy != nil && strings.TrimSpace(*createdBy) != "" {
+		query = query.Where("r.created_by = ?", strings.TrimSpace(*createdBy))
+	}
+
+	rows := make([]*blockTreatmentRequestRow, 0)
+	if err := query.
+		Order("r.created_at DESC").
+		Offset(int(offsetValue)).
+		Limit(int(limitValue)).
+		Find(&rows).Error; err != nil {
+		if isMissingRelationError(err, "block_treatment_change_requests") {
+			return []*generated.BlockTreatmentSemesterRequest{}, nil
+		}
+		return nil, fmt.Errorf("failed to load block treatment requests: %w", err)
+	}
+	if len(rows) == 0 {
+		return []*generated.BlockTreatmentSemesterRequest{}, nil
+	}
+
+	requestIDs := make([]string, 0, len(rows))
+	for _, row := range rows {
+		requestIDs = append(requestIDs, row.ID)
+	}
+	itemsMap, err := r.loadBlockTreatmentRequestItems(ctx, requestIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*generated.BlockTreatmentSemesterRequest, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, toGraphQLBlockTreatmentRequest(row, itemsMap[row.ID]))
+	}
+
+	return result, nil
+}
+
+// BlockTreatmentSemesterRequest is the resolver for the blockTreatmentSemesterRequest field.
+func (r *queryResolver) BlockTreatmentSemesterRequest(ctx context.Context, id string) (*generated.BlockTreatmentSemesterRequest, error) {
+	userID, err := r.requireRBACPermission(ctx, "block:read")
+	if err != nil {
+		return nil, err
+	}
+
+	return r.loadBlockTreatmentSemesterRequestWithItems(ctx, strings.TrimSpace(id), userID)
+}
+
+// CreateBlockTreatmentSemesterRequest is the resolver for the createBlockTreatmentSemesterRequest field.
+func (r *mutationResolver) CreateBlockTreatmentSemesterRequest(ctx context.Context, input generated.CreateBlockTreatmentSemesterRequestInput) (*generated.BlockTreatmentSemesterRequest, error) {
+	userID, err := r.requireRBACPermission(ctx, "block:update")
+	if err != nil {
+		return nil, err
+	}
+	if middleware.GetUserRoleFromContext(ctx) != auth.UserRoleManager {
+		return nil, fmt.Errorf("hanya MANAGER yang dapat membuat pengajuan perubahan perlakuan blok")
+	}
+
+	companyID := strings.TrimSpace(input.CompanyID)
+	if companyID == "" {
+		return nil, fmt.Errorf("companyId is required")
+	}
+	if err := r.validateCompanyScope(ctx, userID, companyID); err != nil {
+		return nil, err
+	}
+
+	semesterValue, err := normalizeSemester(input.Semester)
+	if err != nil {
+		return nil, err
+	}
+	if len(input.Items) == 0 {
+		return nil, fmt.Errorf("minimal 1 item perubahan blok wajib diisi")
+	}
+
+	blockIDSet := map[string]struct{}{}
+	proposedTarifSet := map[string]struct{}{}
+	blockIDs := make([]string, 0, len(input.Items))
+	proposedTarifIDs := make([]string, 0, len(input.Items))
+	itemImpactByBlock := map[string]*string{}
+	itemProposedTarifByBlock := map[string]string{}
+
+	for _, item := range input.Items {
+		blockID := strings.TrimSpace(item.BlockID)
+		if blockID == "" {
+			return nil, fmt.Errorf("item.blockId wajib diisi")
+		}
+		proposedTarifID := strings.TrimSpace(item.ProposedTarifBlokID)
+		if proposedTarifID == "" {
+			return nil, fmt.Errorf("item.proposedTarifBlokId wajib diisi")
+		}
+		if _, exists := blockIDSet[blockID]; exists {
+			return nil, fmt.Errorf("duplikasi blockId dalam item request: %s", blockID)
+		}
+
+		blockIDSet[blockID] = struct{}{}
+		blockIDs = append(blockIDs, blockID)
+		itemProposedTarifByBlock[blockID] = proposedTarifID
+		itemImpactByBlock[blockID] = normalizeOptionalString(item.ImpactSummary)
+
+		if _, exists := proposedTarifSet[proposedTarifID]; !exists {
+			proposedTarifSet[proposedTarifID] = struct{}{}
+			proposedTarifIDs = append(proposedTarifIDs, proposedTarifID)
+		}
+	}
+
+	tx := r.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to start transaction: %w", tx.Error)
+	}
+	defer func() {
+		if recover() != nil {
+			tx.Rollback()
+		}
+	}()
+
+	blockRows := make([]*blockScopeRow, 0)
+	if err := tx.
+		Table("blocks b").
+		Select(`
+			b.id,
+			b.block_code,
+			b.name AS block_name,
+			b.tarif_blok_id AS current_tarif_blok_id,
+			b.perlakuan AS current_perlakuan,
+			e.company_id,
+			d.name AS division_name,
+			e.name AS estate_name
+		`).
+		Joins("JOIN divisions d ON d.id = b.division_id").
+		Joins("JOIN estates e ON e.id = d.estate_id").
+		Where("b.id IN ?", blockIDs).
+		Find(&blockRows).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to load block scope: %w", err)
+	}
+	if len(blockRows) != len(blockIDs) {
+		tx.Rollback()
+		return nil, fmt.Errorf("beberapa blockId tidak ditemukan")
+	}
+
+	blockByID := make(map[string]*blockScopeRow, len(blockRows))
+	for _, row := range blockRows {
+		if row.CompanyID != companyID {
+			tx.Rollback()
+			return nil, fmt.Errorf("block %s berada di company berbeda", row.BlockID)
+		}
+		blockByID[row.BlockID] = row
+	}
+
+	tarifRows := make([]*tarifBlokScopeRow, 0)
+	if err := tx.
+		Table("tarif_blok").
+		Select("id, company_id, perlakuan").
+		Where("id IN ?", proposedTarifIDs).
+		Find(&tarifRows).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to load proposed tarif blocks: %w", err)
+	}
+	if len(tarifRows) != len(proposedTarifIDs) {
+		tx.Rollback()
+		return nil, fmt.Errorf("beberapa proposedTarifBlokId tidak ditemukan")
+	}
+
+	tarifByID := make(map[string]*tarifBlokScopeRow, len(tarifRows))
+	for _, row := range tarifRows {
+		if row.CompanyID != companyID {
+			tx.Rollback()
+			return nil, fmt.Errorf("tarif blok %s berada di company berbeda", row.ID)
+		}
+		tarifByID[row.ID] = row
+	}
+
+	var revisionNo int32
+	if err := tx.
+		Table("block_treatment_change_requests").
+		Select("COALESCE(MAX(revision_no), 0) + 1").
+		Where("company_id = ? AND semester = ? AND created_by = ?", companyID, semesterValue, userID).
+		Scan(&revisionNo).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to resolve revision number: %w", err)
+	}
+	if revisionNo <= 0 {
+		revisionNo = 1
+	}
+
+	now := time.Now()
+	requestID := uuid.NewString()
+	requestRecord := &blockTreatmentRequestRecord{
+		ID:         requestID,
+		CompanyID:  companyID,
+		Semester:   semesterValue,
+		Status:     string(generated.BlockTreatmentRequestStatusDraft),
+		Notes:      normalizeOptionalString(input.Notes),
+		RevisionNo: revisionNo,
+		CreatedBy:  userID,
+		UpdatedBy:  &userID,
+		CreatedAt:  now,
+		UpdatedAt:  now,
+	}
+	if err := tx.Table("block_treatment_change_requests").Create(requestRecord).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to create block treatment request: %w", err)
+	}
+
+	itemRecords := make([]*blockTreatmentRequestItemRecord, 0, len(blockIDs))
+	for _, blockID := range blockIDs {
+		blockInfo := blockByID[blockID]
+		proposedTarifID := itemProposedTarifByBlock[blockID]
+		proposedInfo := tarifByID[proposedTarifID]
+		itemRecords = append(itemRecords, &blockTreatmentRequestItemRecord{
+			ID:                  uuid.NewString(),
+			RequestID:           requestID,
+			BlockID:             blockInfo.BlockID,
+			CurrentTarifBlokID:  blockInfo.CurrentTarifBlokID,
+			CurrentPerlakuan:    blockInfo.CurrentPerlakuan,
+			ProposedTarifBlokID: proposedTarifID,
+			ProposedPerlakuan:   proposedInfo.Perlakuan,
+			ImpactSummary:       itemImpactByBlock[blockID],
+			CreatedAt:           now,
+			UpdatedAt:           now,
+		})
+	}
+	if err := tx.Table("block_treatment_change_request_items").Create(&itemRecords).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to create block treatment request items: %w", err)
+	}
+
+	if err := r.insertBlockTreatmentRequestStatusLog(ctx, tx, requestID, nil, generated.BlockTreatmentRequestStatusDraft, "CREATE", requestRecord.Notes, &userID); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit block treatment request creation: %w", err)
+	}
+
+	return r.loadBlockTreatmentSemesterRequestWithItems(ctx, requestID, userID)
+}
+
+// SubmitBlockTreatmentSemesterRequest is the resolver for the submitBlockTreatmentSemesterRequest field.
+func (r *mutationResolver) SubmitBlockTreatmentSemesterRequest(ctx context.Context, id string) (*generated.BlockTreatmentSemesterRequest, error) {
+	userID, err := r.requireRBACPermission(ctx, "block:update")
+	if err != nil {
+		return nil, err
+	}
+	role := middleware.GetUserRoleFromContext(ctx)
+	if !canSubmitOrCancelBlockTreatmentRequest(role) {
+		return nil, fmt.Errorf("hanya MANAGER yang dapat submit pengajuan perubahan perlakuan blok")
+	}
+	requestID := strings.TrimSpace(id)
+	if requestID == "" {
+		return nil, fmt.Errorf("id is required")
+	}
+
+	tx := r.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to start transaction: %w", tx.Error)
+	}
+	defer func() {
+		if recover() != nil {
+			tx.Rollback()
+		}
+	}()
+
+	requestRow, err := r.loadBlockTreatmentRequestByID(ctx, tx, requestID, true)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	if !canManagerActOnOwnBlockTreatmentRequest(role, requestRow.CreatedBy, userID) {
+		tx.Rollback()
+		return nil, fmt.Errorf("anda hanya dapat submit request yang dibuat sendiri")
+	}
+	if err := r.validateCompanyScope(ctx, userID, requestRow.CompanyID); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	currentStatus, ok := parseBlockTreatmentRequestStatus(requestRow.Status)
+	if !ok {
+		tx.Rollback()
+		return nil, fmt.Errorf("request memiliki status tidak valid: %s", requestRow.Status)
+	}
+	if !canSubmitBlockTreatmentRequestFrom(currentStatus) {
+		tx.Rollback()
+		return nil, fmt.Errorf("request hanya dapat disubmit dari status DRAFT atau REJECTED")
+	}
+
+	var itemCount int64
+	if err := tx.Table("block_treatment_change_request_items").
+		Where("request_id = ?", requestID).
+		Count(&itemCount).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to validate request items: %w", err)
+	}
+	if itemCount == 0 {
+		tx.Rollback()
+		return nil, fmt.Errorf("request tidak memiliki item perubahan blok")
+	}
+
+	var overlappingPendingCount int64
+	if err := tx.Raw(`
+		SELECT COUNT(1)
+		FROM block_treatment_change_request_items i
+		JOIN block_treatment_change_requests r ON r.id = i.request_id
+		WHERE r.company_id = ?
+		  AND r.semester = ?
+		  AND r.id <> ?
+		  AND r.status IN ('SUBMITTED', 'UNDER_REVIEW')
+		  AND i.block_id IN (
+			  SELECT block_id
+			  FROM block_treatment_change_request_items
+			  WHERE request_id = ?
+		  )
+	`, requestRow.CompanyID, requestRow.Semester, requestID, requestID).Scan(&overlappingPendingCount).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to validate pending conflict: %w", err)
+	}
+	if overlappingPendingCount > 0 {
+		tx.Rollback()
+		return nil, fmt.Errorf("masih ada pengajuan aktif untuk blok yang sama di semester ini")
+	}
+
+	now := time.Now()
+	if err := tx.Table("block_treatment_change_requests").
+		Where("id = ?", requestID).
+		Updates(map[string]any{
+			"status":       string(generated.BlockTreatmentRequestStatusSubmitted),
+			"submitted_at": now,
+			"updated_by":   userID,
+			"updated_at":   now,
+		}).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to submit request: %w", err)
+	}
+
+	fromStatus := requestRow.Status
+	if err := r.insertBlockTreatmentRequestStatusLog(ctx, tx, requestID, &fromStatus, generated.BlockTreatmentRequestStatusSubmitted, "SUBMIT", nil, &userID); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit request submit: %w", err)
+	}
+	r.notifyBlockTreatmentWorkflowStatusChange(ctx, requestRow, generated.BlockTreatmentRequestStatusSubmitted, userID, nil)
+
+	return r.loadBlockTreatmentSemesterRequestWithItems(ctx, requestID, userID)
+}
+
+// ReviewBlockTreatmentSemesterRequest is the resolver for the reviewBlockTreatmentSemesterRequest field.
+func (r *mutationResolver) ReviewBlockTreatmentSemesterRequest(ctx context.Context, id string, notes *string) (*generated.BlockTreatmentSemesterRequest, error) {
+	return r.transitionBlockTreatmentSemesterRequestStatus(ctx, id, notes, generated.BlockTreatmentRequestStatusSubmitted, generated.BlockTreatmentRequestStatusUnderReview, "REVIEW", true, false, false, false)
+}
+
+// ApproveBlockTreatmentSemesterRequest is the resolver for the approveBlockTreatmentSemesterRequest field.
+func (r *mutationResolver) ApproveBlockTreatmentSemesterRequest(ctx context.Context, id string, notes *string) (*generated.BlockTreatmentSemesterRequest, error) {
+	return r.transitionBlockTreatmentSemesterRequestStatus(ctx, id, notes, generated.BlockTreatmentRequestStatusUnderReview, generated.BlockTreatmentRequestStatusApproved, "APPROVE", false, true, false, false)
+}
+
+// RejectBlockTreatmentSemesterRequest is the resolver for the rejectBlockTreatmentSemesterRequest field.
+func (r *mutationResolver) RejectBlockTreatmentSemesterRequest(ctx context.Context, id string, reason string) (*generated.BlockTreatmentSemesterRequest, error) {
+	reasonPtr := normalizeOptionalString(&reason)
+	if reasonPtr == nil {
+		return nil, fmt.Errorf("reason wajib diisi")
+	}
+	return r.transitionBlockTreatmentSemesterRequestStatus(ctx, id, reasonPtr, generated.BlockTreatmentRequestStatusUnderReview, generated.BlockTreatmentRequestStatusRejected, "REJECT", false, false, true, false)
+}
+
+// ApplyBlockTreatmentSemesterRequest is the resolver for the applyBlockTreatmentSemesterRequest field.
+func (r *mutationResolver) ApplyBlockTreatmentSemesterRequest(ctx context.Context, id string) (*generated.BlockTreatmentSemesterRequest, error) {
+	userID, err := r.requireRBACPermission(ctx, "block:update")
+	if err != nil {
+		return nil, err
+	}
+
+	role := middleware.GetUserRoleFromContext(ctx)
+	if !canApplyBlockTreatmentRequest(role) {
+		return nil, fmt.Errorf("hanya AREA_MANAGER/COMPANY_ADMIN/SUPER_ADMIN yang dapat apply perubahan perlakuan blok")
+	}
+
+	requestID := strings.TrimSpace(id)
+	if requestID == "" {
+		return nil, fmt.Errorf("id is required")
+	}
+
+	tx := r.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to start transaction: %w", tx.Error)
+	}
+	defer func() {
+		if recover() != nil {
+			tx.Rollback()
+		}
+	}()
+
+	requestRow, err := r.loadBlockTreatmentRequestByID(ctx, tx, requestID, true)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	if role != auth.UserRoleSuperAdmin {
+		if err := r.validateCompanyScope(ctx, userID, requestRow.CompanyID); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+	}
+	currentStatus, ok := parseBlockTreatmentRequestStatus(requestRow.Status)
+	if !ok {
+		tx.Rollback()
+		return nil, fmt.Errorf("request memiliki status tidak valid: %s", requestRow.Status)
+	}
+	if !canApplyBlockTreatmentRequestFrom(currentStatus) {
+		tx.Rollback()
+		return nil, fmt.Errorf("request hanya bisa di-apply dari status APPROVED")
+	}
+
+	if err := applyBlockTreatmentChanges(tx, requestID); err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to apply block treatment changes: %w", err)
+	}
+
+	now := time.Now()
+	if err := tx.Table("block_treatment_change_requests").
+		Where("id = ?", requestID).
+		Updates(map[string]any{
+			"status":     string(generated.BlockTreatmentRequestStatusApplied),
+			"applied_by": userID,
+			"applied_at": now,
+			"updated_by": userID,
+			"updated_at": now,
+		}).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to update request status to APPLIED: %w", err)
+	}
+
+	fromStatus := requestRow.Status
+	if err := r.insertBlockTreatmentRequestStatusLog(ctx, tx, requestID, &fromStatus, generated.BlockTreatmentRequestStatusApplied, "APPLY", nil, &userID); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit apply request: %w", err)
+	}
+	r.notifyBlockTreatmentWorkflowStatusChange(ctx, requestRow, generated.BlockTreatmentRequestStatusApplied, userID, nil)
+
+	return r.loadBlockTreatmentSemesterRequestWithItems(ctx, requestID, userID)
+}
+
+// CancelBlockTreatmentSemesterRequest is the resolver for the cancelBlockTreatmentSemesterRequest field.
+func (r *mutationResolver) CancelBlockTreatmentSemesterRequest(ctx context.Context, id string, reason *string) (*generated.BlockTreatmentSemesterRequest, error) {
+	userID, err := r.requireRBACPermission(ctx, "block:update")
+	if err != nil {
+		return nil, err
+	}
+	role := middleware.GetUserRoleFromContext(ctx)
+	if !canSubmitOrCancelBlockTreatmentRequest(role) {
+		return nil, fmt.Errorf("hanya MANAGER yang dapat membatalkan request")
+	}
+
+	requestID := strings.TrimSpace(id)
+	if requestID == "" {
+		return nil, fmt.Errorf("id is required")
+	}
+
+	tx := r.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to start transaction: %w", tx.Error)
+	}
+	defer func() {
+		if recover() != nil {
+			tx.Rollback()
+		}
+	}()
+
+	requestRow, err := r.loadBlockTreatmentRequestByID(ctx, tx, requestID, true)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	if !canManagerActOnOwnBlockTreatmentRequest(role, requestRow.CreatedBy, userID) {
+		tx.Rollback()
+		return nil, fmt.Errorf("anda hanya dapat membatalkan request yang dibuat sendiri")
+	}
+	currentStatus, ok := parseBlockTreatmentRequestStatus(requestRow.Status)
+	if !ok {
+		tx.Rollback()
+		return nil, fmt.Errorf("request memiliki status tidak valid: %s", requestRow.Status)
+	}
+	if !canCancelBlockTreatmentRequestFrom(currentStatus) {
+		tx.Rollback()
+		return nil, fmt.Errorf("request hanya dapat dibatalkan dari status DRAFT atau SUBMITTED")
+	}
+
+	now := time.Now()
+	updates := map[string]any{
+		"status":     string(generated.BlockTreatmentRequestStatusCancelled),
+		"updated_by": userID,
+		"updated_at": now,
+	}
+	reasonValue := normalizeOptionalString(reason)
+	if reasonValue != nil {
+		updates["notes"] = appendAuditNote(requestRow.Notes, "CANCEL", *reasonValue)
+	}
+
+	if err := tx.Table("block_treatment_change_requests").
+		Where("id = ?", requestID).
+		Updates(updates).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to cancel request: %w", err)
+	}
+
+	fromStatus := requestRow.Status
+	if err := r.insertBlockTreatmentRequestStatusLog(ctx, tx, requestID, &fromStatus, generated.BlockTreatmentRequestStatusCancelled, "CANCEL", reasonValue, &userID); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit cancel request: %w", err)
+	}
+
+	return r.loadBlockTreatmentSemesterRequestWithItems(ctx, requestID, userID)
+}
+
 func isMissingRelationError(err error, relationName string) bool {
 	if err == nil {
 		return false
@@ -2130,6 +2844,671 @@ type blockTariffChangeLogRow struct {
 	NewTarifBlokID *string    `gorm:"column:new_tarif_blok_id"`
 	OldValues      *string    `gorm:"column:old_values"`
 	NewValues      *string    `gorm:"column:new_values"`
+}
+
+type tariffManagementDecisionRow struct {
+	ID             string    `gorm:"column:id"`
+	EntityType     string    `gorm:"column:entity_type"`
+	EntityID       string    `gorm:"column:entity_id"`
+	ActionType     string    `gorm:"column:action_type"`
+	CompanyID      string    `gorm:"column:company_id"`
+	DecisionNo     string    `gorm:"column:decision_no"`
+	DecisionReason string    `gorm:"column:decision_reason"`
+	EffectiveNote  string    `gorm:"column:effective_note"`
+	DecidedBy      string    `gorm:"column:decided_by"`
+	DecidedAt      time.Time `gorm:"column:decided_at"`
+	Metadata       *string   `gorm:"column:metadata"`
+}
+
+type blockScopeRow struct {
+	BlockID            string  `gorm:"column:id"`
+	BlockCode          string  `gorm:"column:block_code"`
+	BlockName          string  `gorm:"column:block_name"`
+	CurrentTarifBlokID *string `gorm:"column:current_tarif_blok_id"`
+	CurrentPerlakuan   *string `gorm:"column:current_perlakuan"`
+	CompanyID          string  `gorm:"column:company_id"`
+	DivisionName       *string `gorm:"column:division_name"`
+	EstateName         *string `gorm:"column:estate_name"`
+}
+
+type tarifBlokScopeRow struct {
+	ID        string  `gorm:"column:id"`
+	CompanyID string  `gorm:"column:company_id"`
+	Perlakuan *string `gorm:"column:perlakuan"`
+}
+
+type blockTreatmentRequestRecord struct {
+	ID             string     `gorm:"column:id"`
+	CompanyID      string     `gorm:"column:company_id"`
+	Semester       string     `gorm:"column:semester"`
+	Status         string     `gorm:"column:status"`
+	Notes          *string    `gorm:"column:notes"`
+	RevisionNo     int32      `gorm:"column:revision_no"`
+	SubmittedAt    *time.Time `gorm:"column:submitted_at"`
+	ReviewedBy     *string    `gorm:"column:reviewed_by"`
+	ReviewedAt     *time.Time `gorm:"column:reviewed_at"`
+	ApprovedBy     *string    `gorm:"column:approved_by"`
+	ApprovedAt     *time.Time `gorm:"column:approved_at"`
+	RejectedReason *string    `gorm:"column:rejected_reason"`
+	AppliedBy      *string    `gorm:"column:applied_by"`
+	AppliedAt      *time.Time `gorm:"column:applied_at"`
+	CreatedBy      string     `gorm:"column:created_by"`
+	UpdatedBy      *string    `gorm:"column:updated_by"`
+	CreatedAt      time.Time  `gorm:"column:created_at"`
+	UpdatedAt      time.Time  `gorm:"column:updated_at"`
+}
+
+type blockTreatmentRequestRow struct {
+	ID             string     `gorm:"column:id"`
+	CompanyID      string     `gorm:"column:company_id"`
+	CompanyName    *string    `gorm:"column:company_name"`
+	Semester       string     `gorm:"column:semester"`
+	Status         string     `gorm:"column:status"`
+	Notes          *string    `gorm:"column:notes"`
+	RevisionNo     int32      `gorm:"column:revision_no"`
+	SubmittedAt    *time.Time `gorm:"column:submitted_at"`
+	ReviewedBy     *string    `gorm:"column:reviewed_by"`
+	ReviewedByName *string    `gorm:"column:reviewed_by_name"`
+	ReviewedAt     *time.Time `gorm:"column:reviewed_at"`
+	ApprovedBy     *string    `gorm:"column:approved_by"`
+	ApprovedByName *string    `gorm:"column:approved_by_name"`
+	ApprovedAt     *time.Time `gorm:"column:approved_at"`
+	RejectedReason *string    `gorm:"column:rejected_reason"`
+	AppliedBy      *string    `gorm:"column:applied_by"`
+	AppliedByName  *string    `gorm:"column:applied_by_name"`
+	AppliedAt      *time.Time `gorm:"column:applied_at"`
+	CreatedBy      string     `gorm:"column:created_by"`
+	CreatedByName  *string    `gorm:"column:created_by_name"`
+	CreatedAt      time.Time  `gorm:"column:created_at"`
+	UpdatedAt      time.Time  `gorm:"column:updated_at"`
+}
+
+type blockTreatmentRequestItemRecord struct {
+	ID                  string    `gorm:"column:id"`
+	RequestID           string    `gorm:"column:request_id"`
+	BlockID             string    `gorm:"column:block_id"`
+	CurrentTarifBlokID  *string   `gorm:"column:current_tarif_blok_id"`
+	CurrentPerlakuan    *string   `gorm:"column:current_perlakuan"`
+	ProposedTarifBlokID string    `gorm:"column:proposed_tarif_blok_id"`
+	ProposedPerlakuan   *string   `gorm:"column:proposed_perlakuan"`
+	ImpactSummary       *string   `gorm:"column:impact_summary"`
+	CreatedAt           time.Time `gorm:"column:created_at"`
+	UpdatedAt           time.Time `gorm:"column:updated_at"`
+}
+
+type blockTreatmentRequestItemRow struct {
+	ID                  string    `gorm:"column:id"`
+	RequestID           string    `gorm:"column:request_id"`
+	BlockID             string    `gorm:"column:block_id"`
+	BlockCode           *string   `gorm:"column:block_code"`
+	BlockName           *string   `gorm:"column:block_name"`
+	DivisionName        *string   `gorm:"column:division_name"`
+	EstateName          *string   `gorm:"column:estate_name"`
+	CurrentTarifBlokID  *string   `gorm:"column:current_tarif_blok_id"`
+	CurrentPerlakuan    *string   `gorm:"column:current_perlakuan"`
+	ProposedTarifBlokID string    `gorm:"column:proposed_tarif_blok_id"`
+	ProposedPerlakuan   *string   `gorm:"column:proposed_perlakuan"`
+	ImpactSummary       *string   `gorm:"column:impact_summary"`
+	CreatedAt           time.Time `gorm:"column:created_at"`
+	UpdatedAt           time.Time `gorm:"column:updated_at"`
+}
+
+func normalizeSemester(value string) (string, error) {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	if normalized == "" {
+		return "", fmt.Errorf("semester wajib diisi")
+	}
+	if !semesterPattern.MatchString(normalized) {
+		return "", fmt.Errorf("semester harus berformat YYYY-S1 atau YYYY-S2 (contoh: 2026-S1)")
+	}
+	return normalized, nil
+}
+
+func toBlockTreatmentRequestStatus(value string) generated.BlockTreatmentRequestStatus {
+	normalized := generated.BlockTreatmentRequestStatus(strings.ToUpper(strings.TrimSpace(value)))
+	if normalized.IsValid() {
+		return normalized
+	}
+	return generated.BlockTreatmentRequestStatusDraft
+}
+
+func parseBlockTreatmentRequestStatus(value string) (generated.BlockTreatmentRequestStatus, bool) {
+	normalized := generated.BlockTreatmentRequestStatus(strings.ToUpper(strings.TrimSpace(value)))
+	if !normalized.IsValid() {
+		return "", false
+	}
+	return normalized, true
+}
+
+func canSubmitOrCancelBlockTreatmentRequest(role auth.UserRole) bool {
+	return role == auth.UserRoleManager
+}
+
+func canReviewOrDecisionBlockTreatmentRequest(role auth.UserRole) bool {
+	return role == auth.UserRoleAreaManager
+}
+
+func canApplyBlockTreatmentRequest(role auth.UserRole) bool {
+	return role == auth.UserRoleAreaManager || role == auth.UserRoleCompanyAdmin || role == auth.UserRoleSuperAdmin
+}
+
+func canManagerActOnOwnBlockTreatmentRequest(role auth.UserRole, requestCreatedBy string, actorID string) bool {
+	if !canSubmitOrCancelBlockTreatmentRequest(role) {
+		return false
+	}
+	return strings.TrimSpace(requestCreatedBy) == strings.TrimSpace(actorID)
+}
+
+func canTransitionBlockTreatmentRequestStatus(
+	currentStatus generated.BlockTreatmentRequestStatus,
+	requiredFrom generated.BlockTreatmentRequestStatus,
+) bool {
+	return currentStatus == requiredFrom
+}
+
+func canSubmitBlockTreatmentRequestFrom(currentStatus generated.BlockTreatmentRequestStatus) bool {
+	return currentStatus == generated.BlockTreatmentRequestStatusDraft ||
+		currentStatus == generated.BlockTreatmentRequestStatusRejected
+}
+
+func canCancelBlockTreatmentRequestFrom(currentStatus generated.BlockTreatmentRequestStatus) bool {
+	return currentStatus == generated.BlockTreatmentRequestStatusDraft ||
+		currentStatus == generated.BlockTreatmentRequestStatusSubmitted
+}
+
+func canApplyBlockTreatmentRequestFrom(currentStatus generated.BlockTreatmentRequestStatus) bool {
+	return currentStatus == generated.BlockTreatmentRequestStatusApproved
+}
+
+func appendAuditNote(existing *string, tag string, note string) *string {
+	trimmedNote := strings.TrimSpace(note)
+	if trimmedNote == "" {
+		return existing
+	}
+	entry := fmt.Sprintf("[%s] %s", strings.ToUpper(strings.TrimSpace(tag)), trimmedNote)
+	if existing == nil || strings.TrimSpace(*existing) == "" {
+		return &entry
+	}
+	merged := strings.TrimSpace(*existing) + "\n" + entry
+	return &merged
+}
+
+func toGraphQLBlockTreatmentRequest(row *blockTreatmentRequestRow, items []*generated.BlockTreatmentSemesterRequestItem) *generated.BlockTreatmentSemesterRequest {
+	if row == nil {
+		return nil
+	}
+	if items == nil {
+		items = []*generated.BlockTreatmentSemesterRequestItem{}
+	}
+	return &generated.BlockTreatmentSemesterRequest{
+		ID:             row.ID,
+		CompanyID:      row.CompanyID,
+		CompanyName:    row.CompanyName,
+		Semester:       row.Semester,
+		Status:         toBlockTreatmentRequestStatus(row.Status),
+		Notes:          row.Notes,
+		RevisionNo:     row.RevisionNo,
+		SubmittedAt:    row.SubmittedAt,
+		ReviewedBy:     row.ReviewedBy,
+		ReviewedByName: row.ReviewedByName,
+		ReviewedAt:     row.ReviewedAt,
+		ApprovedBy:     row.ApprovedBy,
+		ApprovedByName: row.ApprovedByName,
+		ApprovedAt:     row.ApprovedAt,
+		RejectedReason: row.RejectedReason,
+		AppliedBy:      row.AppliedBy,
+		AppliedByName:  row.AppliedByName,
+		AppliedAt:      row.AppliedAt,
+		CreatedBy:      row.CreatedBy,
+		CreatedByName:  row.CreatedByName,
+		CreatedAt:      row.CreatedAt,
+		UpdatedAt:      row.UpdatedAt,
+		Items:          items,
+	}
+}
+
+func (r *Resolver) loadBlockTreatmentRequestByID(ctx context.Context, db *gorm.DB, requestID string, lock bool) (*blockTreatmentRequestRow, error) {
+	query := db.WithContext(ctx).
+		Table("block_treatment_change_requests r").
+		Select(`
+			r.id,
+			r.company_id,
+			c.name AS company_name,
+			r.semester,
+			r.status,
+			r.notes,
+			r.revision_no,
+			r.submitted_at,
+			r.reviewed_by,
+			COALESCE(NULLIF(TRIM(u_review.name), ''), NULLIF(TRIM(u_review.username), '')) AS reviewed_by_name,
+			r.reviewed_at,
+			r.approved_by,
+			COALESCE(NULLIF(TRIM(u_approve.name), ''), NULLIF(TRIM(u_approve.username), '')) AS approved_by_name,
+			r.approved_at,
+			r.rejected_reason,
+			r.applied_by,
+			COALESCE(NULLIF(TRIM(u_apply.name), ''), NULLIF(TRIM(u_apply.username), '')) AS applied_by_name,
+			r.applied_at,
+			r.created_by,
+			COALESCE(NULLIF(TRIM(u_create.name), ''), NULLIF(TRIM(u_create.username), '')) AS created_by_name,
+			r.created_at,
+			r.updated_at
+		`).
+		Joins("LEFT JOIN companies c ON c.id = r.company_id").
+		Joins("LEFT JOIN users u_review ON u_review.id = r.reviewed_by").
+		Joins("LEFT JOIN users u_approve ON u_approve.id = r.approved_by").
+		Joins("LEFT JOIN users u_apply ON u_apply.id = r.applied_by").
+		Joins("LEFT JOIN users u_create ON u_create.id = r.created_by").
+		Where("r.id = ?", requestID)
+
+	if lock {
+		query = query.Clauses(clause.Locking{Strength: "UPDATE"})
+	}
+
+	var row blockTreatmentRequestRow
+	if err := query.Take(&row).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("block treatment request tidak ditemukan")
+		}
+		if isMissingRelationError(err, "block_treatment_change_requests") {
+			return nil, fmt.Errorf("fitur pengajuan perlakuan blok belum tersedia di database, jalankan migration 000065")
+		}
+		return nil, fmt.Errorf("failed to load block treatment request: %w", err)
+	}
+	return &row, nil
+}
+
+func (r *Resolver) loadBlockTreatmentRequestItems(ctx context.Context, requestIDs []string) (map[string][]*generated.BlockTreatmentSemesterRequestItem, error) {
+	result := make(map[string][]*generated.BlockTreatmentSemesterRequestItem, len(requestIDs))
+	if len(requestIDs) == 0 {
+		return result, nil
+	}
+
+	rows := make([]*blockTreatmentRequestItemRow, 0)
+	if err := r.db.WithContext(ctx).
+		Table("block_treatment_change_request_items i").
+		Select(`
+			i.id,
+			i.request_id,
+			i.block_id,
+			b.block_code,
+			b.name AS block_name,
+			d.name AS division_name,
+			e.name AS estate_name,
+			i.current_tarif_blok_id,
+			i.current_perlakuan,
+			i.proposed_tarif_blok_id,
+			i.proposed_perlakuan,
+			i.impact_summary,
+			i.created_at,
+			i.updated_at
+		`).
+		Joins("LEFT JOIN blocks b ON b.id = i.block_id").
+		Joins("LEFT JOIN divisions d ON d.id = b.division_id").
+		Joins("LEFT JOIN estates e ON e.id = d.estate_id").
+		Where("i.request_id IN ?", requestIDs).
+		Order("i.created_at ASC").
+		Find(&rows).Error; err != nil {
+		if isMissingRelationError(err, "block_treatment_change_request_items") {
+			return result, nil
+		}
+		return nil, fmt.Errorf("failed to load block treatment request items: %w", err)
+	}
+
+	for _, row := range rows {
+		if row == nil {
+			continue
+		}
+		blockCode := ""
+		if row.BlockCode != nil {
+			blockCode = strings.TrimSpace(*row.BlockCode)
+		}
+		blockName := ""
+		if row.BlockName != nil {
+			blockName = strings.TrimSpace(*row.BlockName)
+		}
+		result[row.RequestID] = append(result[row.RequestID], &generated.BlockTreatmentSemesterRequestItem{
+			ID:                  row.ID,
+			RequestID:           row.RequestID,
+			BlockID:             row.BlockID,
+			BlockCode:           blockCode,
+			BlockName:           blockName,
+			DivisionName:        row.DivisionName,
+			EstateName:          row.EstateName,
+			CurrentTarifBlokID:  row.CurrentTarifBlokID,
+			CurrentPerlakuan:    row.CurrentPerlakuan,
+			ProposedTarifBlokID: row.ProposedTarifBlokID,
+			ProposedPerlakuan:   row.ProposedPerlakuan,
+			ImpactSummary:       row.ImpactSummary,
+			CreatedAt:           row.CreatedAt,
+			UpdatedAt:           row.UpdatedAt,
+		})
+	}
+
+	return result, nil
+}
+
+func (r *Resolver) loadBlockTreatmentSemesterRequestWithItems(ctx context.Context, requestID string, userID string) (*generated.BlockTreatmentSemesterRequest, error) {
+	requestRow, err := r.loadBlockTreatmentRequestByID(ctx, r.db, requestID, false)
+	if err != nil {
+		return nil, err
+	}
+
+	role := middleware.GetUserRoleFromContext(ctx)
+	if role == auth.UserRoleManager && requestRow.CreatedBy != userID {
+		return nil, fmt.Errorf("request tidak ditemukan pada scope manager")
+	}
+	if role != auth.UserRoleSuperAdmin {
+		if err := r.validateCompanyScope(ctx, userID, requestRow.CompanyID); err != nil {
+			return nil, err
+		}
+	}
+
+	itemsMap, err := r.loadBlockTreatmentRequestItems(ctx, []string{requestID})
+	if err != nil {
+		return nil, err
+	}
+	return toGraphQLBlockTreatmentRequest(requestRow, itemsMap[requestID]), nil
+}
+
+func (r *Resolver) insertBlockTreatmentRequestStatusLog(
+	ctx context.Context,
+	tx *gorm.DB,
+	requestID string,
+	fromStatus *string,
+	toStatus generated.BlockTreatmentRequestStatus,
+	action string,
+	notes *string,
+	actedBy *string,
+) error {
+	logID := uuid.NewString()
+	nowSQLExpr := currentTimestampSQLExpr(tx)
+	insertSQL := fmt.Sprintf(`
+		INSERT INTO block_treatment_request_status_logs (
+			id,
+			request_id,
+			from_status,
+			to_status,
+			action,
+			notes,
+			acted_by,
+			acted_at
+		) VALUES (
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			?,
+			%s
+		)
+	`, nowSQLExpr)
+	if err := tx.WithContext(ctx).Exec(insertSQL,
+		logID,
+		requestID,
+		fromStatus,
+		string(toStatus),
+		action,
+		notes,
+		actedBy,
+	).Error; err != nil {
+		if isMissingRelationError(err, "block_treatment_request_status_logs") {
+			return fmt.Errorf("fitur pengajuan perlakuan blok belum tersedia di database, jalankan migration 000065")
+		}
+		return fmt.Errorf("failed to write block treatment status log: %w", err)
+	}
+	return nil
+}
+
+func (r *mutationResolver) transitionBlockTreatmentSemesterRequestStatus(
+	ctx context.Context,
+	id string,
+	notes *string,
+	requiredFrom generated.BlockTreatmentRequestStatus,
+	targetStatus generated.BlockTreatmentRequestStatus,
+	action string,
+	setReviewMeta bool,
+	setApproveMeta bool,
+	setRejectReason bool,
+	_ bool,
+) (*generated.BlockTreatmentSemesterRequest, error) {
+	userID, err := r.requireRBACPermission(ctx, "block:update")
+	if err != nil {
+		return nil, err
+	}
+	role := middleware.GetUserRoleFromContext(ctx)
+	if !canReviewOrDecisionBlockTreatmentRequest(role) {
+		return nil, fmt.Errorf("hanya AREA_MANAGER yang dapat melakukan aksi %s", strings.ToLower(action))
+	}
+
+	requestID := strings.TrimSpace(id)
+	if requestID == "" {
+		return nil, fmt.Errorf("id is required")
+	}
+
+	tx := r.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return nil, fmt.Errorf("failed to start transaction: %w", tx.Error)
+	}
+	defer func() {
+		if recover() != nil {
+			tx.Rollback()
+		}
+	}()
+
+	requestRow, err := r.loadBlockTreatmentRequestByID(ctx, tx, requestID, true)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	if err := r.validateCompanyScope(ctx, userID, requestRow.CompanyID); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	currentStatus, ok := parseBlockTreatmentRequestStatus(requestRow.Status)
+	if !ok {
+		tx.Rollback()
+		return nil, fmt.Errorf("request memiliki status tidak valid: %s", requestRow.Status)
+	}
+	if !canTransitionBlockTreatmentRequestStatus(currentStatus, requiredFrom) {
+		tx.Rollback()
+		return nil, fmt.Errorf("request status saat ini %s, tidak dapat diproses ke %s", currentStatus, targetStatus)
+	}
+
+	now := time.Now()
+	updates := map[string]any{
+		"status":     string(targetStatus),
+		"updated_by": userID,
+		"updated_at": now,
+	}
+
+	noteValue := normalizeOptionalString(notes)
+	if noteValue != nil && !setRejectReason {
+		updates["notes"] = appendAuditNote(requestRow.Notes, action, *noteValue)
+	}
+	if setReviewMeta {
+		updates["reviewed_by"] = userID
+		updates["reviewed_at"] = now
+	}
+	if setApproveMeta {
+		updates["approved_by"] = userID
+		updates["approved_at"] = now
+	}
+	if setRejectReason {
+		if noteValue == nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("reason wajib diisi")
+		}
+		updates["rejected_reason"] = *noteValue
+		updates["notes"] = appendAuditNote(requestRow.Notes, action, *noteValue)
+	}
+
+	if err := tx.Table("block_treatment_change_requests").
+		Where("id = ?", requestID).
+		Updates(updates).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to update block treatment request status: %w", err)
+	}
+
+	fromStatus := requestRow.Status
+	if err := r.insertBlockTreatmentRequestStatusLog(ctx, tx, requestID, &fromStatus, targetStatus, action, noteValue, &userID); err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("failed to commit block treatment request transition: %w", err)
+	}
+	if targetStatus == generated.BlockTreatmentRequestStatusApproved || targetStatus == generated.BlockTreatmentRequestStatusRejected {
+		r.notifyBlockTreatmentWorkflowStatusChange(ctx, requestRow, targetStatus, userID, noteValue)
+	}
+
+	return r.loadBlockTreatmentSemesterRequestWithItems(ctx, requestID, userID)
+}
+
+func currentTimestampSQLExpr(db *gorm.DB) string {
+	if db != nil && db.Dialector != nil && strings.EqualFold(db.Dialector.Name(), "sqlite") {
+		return "CURRENT_TIMESTAMP"
+	}
+	return "NOW()"
+}
+
+func applyBlockTreatmentChanges(tx *gorm.DB, requestID string) error {
+	nowSQLExpr := currentTimestampSQLExpr(tx)
+	if tx != nil && tx.Dialector != nil && strings.EqualFold(tx.Dialector.Name(), "sqlite") {
+		sqliteApplySQL := fmt.Sprintf(`
+			UPDATE blocks
+			SET
+				tarif_blok_id = (
+					SELECT i.proposed_tarif_blok_id
+					FROM block_treatment_change_request_items i
+					WHERE i.request_id = ?
+					  AND i.block_id = blocks.id
+					LIMIT 1
+				),
+				perlakuan = (
+					SELECT i.proposed_perlakuan
+					FROM block_treatment_change_request_items i
+					WHERE i.request_id = ?
+					  AND i.block_id = blocks.id
+					LIMIT 1
+				),
+				updated_at = %s
+			WHERE id IN (
+				SELECT block_id
+				FROM block_treatment_change_request_items
+				WHERE request_id = ?
+			)
+		`, nowSQLExpr)
+		return tx.Exec(sqliteApplySQL, requestID, requestID, requestID).Error
+	}
+
+	postgresApplySQL := fmt.Sprintf(`
+		UPDATE blocks b
+		SET
+			tarif_blok_id = i.proposed_tarif_blok_id,
+			perlakuan = i.proposed_perlakuan,
+			updated_at = %s
+		FROM block_treatment_change_request_items i
+		WHERE i.request_id = ?
+		  AND b.id = i.block_id
+	`, nowSQLExpr)
+	return tx.Exec(postgresApplySQL, requestID).Error
+}
+
+func (r *Resolver) notifyBlockTreatmentWorkflowStatusChange(
+	ctx context.Context,
+	requestRow *blockTreatmentRequestRow,
+	targetStatus generated.BlockTreatmentRequestStatus,
+	actorID string,
+	note *string,
+) {
+	if r == nil || r.NotificationService == nil || requestRow == nil {
+		return
+	}
+
+	targetStatusValue := strings.ToUpper(strings.TrimSpace(targetStatus.String()))
+	if targetStatusValue == "" {
+		return
+	}
+
+	actorRole := middleware.GetUserRoleFromContext(ctx)
+	title := ""
+	message := ""
+	recipientID := ""
+	recipientRole := ""
+	recipientCompanyID := ""
+	priority := notificationModels.NotificationPriorityMedium
+
+	switch targetStatus {
+	case generated.BlockTreatmentRequestStatusSubmitted:
+		title = "Pengajuan perlakuan blok menunggu review"
+		message = fmt.Sprintf("Request %s semester %s telah disubmit dan menunggu review.", requestRow.ID, requestRow.Semester)
+		recipientRole = string(auth.UserRoleAreaManager)
+		recipientCompanyID = requestRow.CompanyID
+		priority = notificationModels.NotificationPriorityHigh
+	case generated.BlockTreatmentRequestStatusApproved:
+		title = "Pengajuan perlakuan blok disetujui"
+		message = fmt.Sprintf("Request %s semester %s telah disetujui.", requestRow.ID, requestRow.Semester)
+		recipientID = requestRow.CreatedBy
+	case generated.BlockTreatmentRequestStatusRejected:
+		title = "Pengajuan perlakuan blok ditolak"
+		if note != nil && strings.TrimSpace(*note) != "" {
+			message = fmt.Sprintf("Request %s semester %s ditolak. Alasan: %s", requestRow.ID, requestRow.Semester, strings.TrimSpace(*note))
+		} else {
+			message = fmt.Sprintf("Request %s semester %s ditolak.", requestRow.ID, requestRow.Semester)
+		}
+		recipientID = requestRow.CreatedBy
+		priority = notificationModels.NotificationPriorityHigh
+	case generated.BlockTreatmentRequestStatusApplied:
+		title = "Perubahan perlakuan blok sudah diterapkan"
+		message = fmt.Sprintf("Request %s semester %s sudah di-apply ke data blok.", requestRow.ID, requestRow.Semester)
+		recipientID = requestRow.CreatedBy
+	default:
+		return
+	}
+
+	metadata := map[string]interface{}{
+		"requestId":  requestRow.ID,
+		"companyId":  requestRow.CompanyID,
+		"semester":   requestRow.Semester,
+		"fromStatus": strings.ToUpper(strings.TrimSpace(requestRow.Status)),
+		"toStatus":   targetStatusValue,
+	}
+	if note != nil && strings.TrimSpace(*note) != "" {
+		metadata["notes"] = strings.TrimSpace(*note)
+	}
+
+	idempotencyKey := fmt.Sprintf(
+		"block-treatment:%s:%s:%s",
+		strings.ToLower(targetStatusValue),
+		requestRow.ID,
+		strings.TrimSpace(actorID),
+	)
+
+	input := &notificationServices.CreateNotificationInput{
+		Type:               notificationModels.NotificationTypeCompanyUpdate,
+		Priority:           priority,
+		Title:              title,
+		Message:            message,
+		RecipientID:        recipientID,
+		RecipientRole:      recipientRole,
+		RecipientCompanyID: recipientCompanyID,
+		RelatedEntityType:  "BLOCK_TREATMENT_REQUEST",
+		RelatedEntityID:    requestRow.ID,
+		ActionURL:          "/blocks?tab=workflow",
+		ActionLabel:        "Buka Workflow",
+		Metadata:           metadata,
+		SenderID:           strings.TrimSpace(actorID),
+		SenderRole:         string(actorRole),
+		IdempotencyKey:     idempotencyKey,
+	}
+
+	if _, err := r.NotificationService.CreateNotification(ctx, input); err != nil {
+		log.Printf("block treatment notification failed (status=%s request=%s): %v", targetStatusValue, requestRow.ID, err)
+	}
 }
 
 func normalizeTariffOverrideType(value generated.TariffOverrideType) (generated.TariffOverrideType, error) {

@@ -178,6 +178,85 @@ type BlockTariffChangeLogPaginationResponse {
 }
 
 """
+TariffManagementDecision stores management-level decisions for direct tariff changes.
+"""
+type TariffManagementDecision {
+  id: ID!
+  entityType: String!
+  entityId: ID!
+  actionType: String!
+  companyId: ID!
+  decisionNo: String!
+  decisionReason: String!
+  effectiveNote: String!
+  decidedBy: ID!
+  decidedAt: Time!
+  metadata: JSON
+}
+
+"""
+BlockTreatmentRequestStatus represents lifecycle status for semester treatment requests.
+"""
+enum BlockTreatmentRequestStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  APPLIED
+  CANCELLED
+}
+
+"""
+BlockTreatmentSemesterRequestItem stores a block-level proposed treatment change.
+"""
+type BlockTreatmentSemesterRequestItem {
+  id: ID!
+  requestId: ID!
+  blockId: ID!
+  blockCode: String!
+  blockName: String!
+  divisionName: String
+  estateName: String
+  currentTarifBlokId: ID
+  currentPerlakuan: String
+  proposedTarifBlokId: ID!
+  proposedPerlakuan: String
+  impactSummary: String
+  createdAt: Time!
+  updatedAt: Time!
+}
+
+"""
+BlockTreatmentSemesterRequest represents manager submission for semester block treatment changes.
+"""
+type BlockTreatmentSemesterRequest {
+  id: ID!
+  companyId: ID!
+  companyName: String
+  semester: String!
+  status: BlockTreatmentRequestStatus!
+  notes: String
+  revisionNo: Int!
+  submittedAt: Time
+  reviewedBy: ID
+  reviewedByName: String
+  reviewedAt: Time
+  approvedBy: ID
+  approvedByName: String
+  approvedAt: Time
+  rejectedReason: String
+  appliedBy: ID
+  appliedByName: String
+  appliedAt: Time
+  createdBy: ID!
+  createdByName: String
+  createdAt: Time!
+  updatedAt: Time!
+  items: [BlockTreatmentSemesterRequestItem!]!
+}
+
+"""
 Division represents a division within an estate for organizational structure.
 """
 type Division {
@@ -328,6 +407,9 @@ input CreateTarifBlokInput {
   companyId: ID!
   perlakuan: String!
   keterangan: String
+  managementDecisionNo: String
+  managementDecisionReason: String
+  managementEffectiveNote: String
   landTypeId: ID
   tarifCode: String
   schemeType: String
@@ -350,6 +432,9 @@ input UpdateTarifBlokInput {
   companyId: ID
   perlakuan: String
   keterangan: String
+  managementDecisionNo: String
+  managementDecisionReason: String
+  managementEffectiveNote: String
   landTypeId: ID
   tarifCode: String
   schemeType: String
@@ -391,6 +476,19 @@ input UpdateTariffRuleOverrideInput {
   tarifPremi2: Float
   notes: String
   isActive: Boolean
+}
+
+input BlockTreatmentSemesterRequestItemInput {
+  blockId: ID!
+  proposedTarifBlokId: ID!
+  impactSummary: String
+}
+
+input CreateBlockTreatmentSemesterRequestInput {
+  companyId: ID!
+  semester: String!
+  notes: String
+  items: [BlockTreatmentSemesterRequestItemInput!]!
 }
 
 input CreateLandTypeInput {
@@ -496,6 +594,24 @@ extend type Query {
     page: Int = 1
     limit: Int = 20
   ): BlockTariffChangeLogPaginationResponse!
+  "Retrieve management decisions used for direct tariff updates"
+  tariffManagementDecisions(
+    companyId: ID
+    entityType: String
+    entityId: ID
+    limit: Int = 50
+  ): [TariffManagementDecision!]!
+  "Retrieve semester block treatment requests"
+  blockTreatmentSemesterRequests(
+    companyId: ID
+    semester: String
+    status: BlockTreatmentRequestStatus
+    createdBy: ID
+    limit: Int = 50
+    offset: Int = 0
+  ): [BlockTreatmentSemesterRequest!]!
+  "Retrieve a single semester block treatment request by ID"
+  blockTreatmentSemesterRequest(id: ID!): BlockTreatmentSemesterRequest
   
   # Division Management Queries
   "Retrieve all divisions"
@@ -536,6 +652,13 @@ extend type Mutation {
   createTariffRuleOverride(input: CreateTariffRuleOverrideInput!): TariffRuleOverride!
   updateTariffRuleOverride(input: UpdateTariffRuleOverrideInput!): TariffRuleOverride!
   deleteTariffRuleOverride(id: ID!): Boolean!
+  createBlockTreatmentSemesterRequest(input: CreateBlockTreatmentSemesterRequestInput!): BlockTreatmentSemesterRequest!
+  submitBlockTreatmentSemesterRequest(id: ID!): BlockTreatmentSemesterRequest!
+  reviewBlockTreatmentSemesterRequest(id: ID!, notes: String): BlockTreatmentSemesterRequest!
+  approveBlockTreatmentSemesterRequest(id: ID!, notes: String): BlockTreatmentSemesterRequest!
+  rejectBlockTreatmentSemesterRequest(id: ID!, reason: String!): BlockTreatmentSemesterRequest!
+  applyBlockTreatmentSemesterRequest(id: ID!): BlockTreatmentSemesterRequest!
+  cancelBlockTreatmentSemesterRequest(id: ID!, reason: String): BlockTreatmentSemesterRequest!
   createLandType(input: CreateLandTypeInput!): LandType!
   updateLandType(input: UpdateLandTypeInput!): LandType!
   deleteLandType(id: ID!): Boolean!
