@@ -49,6 +49,7 @@ import '../../features/dashboard/presentation/blocs/area_manager_dashboard_bloc.
 import '../../features/dashboard/presentation/blocs/manager_dashboard_bloc.dart';
 import '../services/fcm_service.dart';
 import '../services/notification_storage_service.dart';
+import '../services/perawatan_service.dart';
 
 final sl = GetIt.instance;
 
@@ -148,6 +149,10 @@ class ServiceLocator {
         graphqlClient: sl<GraphQLClientService>() as AgroGraphQLClient,
         databaseService: sl<EnhancedDatabaseService>(),
       ),
+    );
+
+    sl.registerLazySingleton<PerawatanService>(
+      () => PerawatanService(graphqlClient: sl<GraphQLClientService>()),
     );
 
     await _registerRepositories();

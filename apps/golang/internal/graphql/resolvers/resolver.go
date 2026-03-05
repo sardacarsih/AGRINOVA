@@ -2,6 +2,7 @@ package resolvers
 
 import (
 	"context"
+	"sync"
 
 	"gorm.io/gorm"
 
@@ -91,6 +92,9 @@ type Resolver struct {
 	// Sync services
 	BkmSyncService   *syncServices.BkmSyncService
 	BkmReportService *syncServices.BkmReportService
+
+	satpamNotificationOutboxOnce   sync.Once
+	satpamNotificationOutboxCancel context.CancelFunc
 }
 
 // HarvestFCMNotifier defines the FCM notification capability used by harvest flows.
@@ -194,7 +198,7 @@ func NewResolver(
 	bkmSyncService := syncServices.NewBkmSyncService(db)
 	bkmReportService := syncServices.NewBkmReportService(db)
 
-	return &Resolver{
+	resolver := &Resolver{
 		db:                            db,
 		uploadsDir:                    normalizeUploadsRoot(uploadsDir),
 		HierarchyService:              hierarchyService,
@@ -218,6 +222,10 @@ func NewResolver(
 		BkmSyncService:                bkmSyncService,
 		BkmReportService:              bkmReportService,
 	}
+
+	resolver.startSatpamNotificationOutboxWorker()
+
+	return resolver
 }
 
 // NotificationSummary returns generated.NotificationSummaryResolver implementation.

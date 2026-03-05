@@ -64,7 +64,7 @@ const roleBasedNavigation = {
     ],
     harvest: [
       { name: "Approval Panen", href: "/approvals", icon: ClipboardList, current: false },
-      { name: "Tim Estate", href: "/tim-estate", icon: Users, current: false },
+      { name: "Tim", href: "/tim", icon: Users, current: false },
       { name: "Timbangan", href: "/timbangan", icon: Scale, current: false },
       { name: "Grading", href: "/grading", icon: Star, current: false },
     ],
@@ -81,7 +81,7 @@ const roleBasedNavigation = {
     ],
     operations: [
       { name: "Manajemen Panen", href: "/harvest", icon: ClipboardList, current: false },
-      { name: "Tim Estate", href: "/tim-estate", icon: Users, current: false },
+      { name: "Tim", href: "/tim", icon: Users, current: false },
       { name: "Timbangan", href: "/timbangan", icon: Scale, current: false },
       { name: "Grading", href: "/grading", icon: Star, current: false },
       { name: "Gate Check", href: "/gate-check", icon: Shield, current: false },
@@ -100,7 +100,7 @@ const roleBasedNavigation = {
     ],
     oversight: [
       { name: "Monitoring Panen", href: "/harvest", icon: ClipboardList, current: false },
-      { name: "Tim Estate", href: "/tim-estate", icon: Users, current: false },
+      { name: "Tim", href: "/tim", icon: Users, current: false },
       { name: "Timbangan", href: "/timbangan", icon: Scale, current: false },
       { name: "Grading", href: "/grading", icon: Star, current: false },
       { name: "Gate Check", href: "/gate-check", icon: Shield, current: false },
@@ -235,13 +235,32 @@ const sectionConfig = {
 
 interface SidebarProps {
   userRole: string
+  mandorType?: string
   userName: string
   companyName?: string
   isCollapsed?: boolean
   onToggleCollapse?: () => void
 }
 
-export function UnifiedSidebar({ userRole, userName: _userName, companyName, isCollapsed = false, onToggleCollapse }: SidebarProps) {
+const getMandorNavigation = (mandorType?: string) => {
+  const normalizedMandorType = (mandorType || '').trim().toUpperCase().replace(/[\s-]+/g, '_')
+  const primaryOperation =
+    normalizedMandorType === 'PERAWATAN'
+      ? { name: 'Perawatan Lapangan', href: '/perawatan', icon: ClipboardList, current: false }
+      : { name: 'Record Sync Mobile', href: '/harvest', icon: ClipboardList, current: false }
+
+  return {
+    main: [
+      { name: 'Dashboard', href: '/', icon: Home, current: false },
+    ],
+    operations: [
+      primaryOperation,
+      { name: 'Budget Blok', href: '/budget-blok', icon: LayoutGrid, current: false },
+    ],
+  }
+}
+
+export function UnifiedSidebar({ userRole, mandorType, userName: _userName, companyName, isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname()
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
   const normalizedPathname = useMemo(() => {
@@ -254,7 +273,10 @@ export function UnifiedSidebar({ userRole, userName: _userName, companyName, isC
 
   const normalizedRole = userRole.trim().toUpperCase().replace(/[\s-]+/g, "_")
   const isCompanyAdmin = normalizedRole === "COMPANY_ADMIN"
-  const roleConfig = roleBasedNavigation[normalizedRole as keyof typeof roleBasedNavigation]
+  const roleConfig =
+    normalizedRole === "MANDOR"
+      ? getMandorNavigation(mandorType)
+      : roleBasedNavigation[normalizedRole as keyof typeof roleBasedNavigation]
 
   if (!roleConfig) {
     console.warn(`No navigation configuration found for role: ${userRole} (normalized: ${normalizedRole})`)

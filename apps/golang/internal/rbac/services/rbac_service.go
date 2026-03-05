@@ -1048,6 +1048,31 @@ func (s *RBACService) GetAllRoles(ctx context.Context, activeOnly bool) ([]map[s
 	return result, nil
 }
 
+// GetRolesPage retrieves a paginated slice of roles using the repository.
+func (s *RBACService) GetRolesPage(ctx context.Context, activeOnly bool, limit int, offset int) ([]map[string]interface{}, error) {
+	roles, err := s.repository.GetRolesPage(activeOnly, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get role page: %w", err)
+	}
+
+	result := make([]map[string]interface{}, len(roles))
+	for i, role := range roles {
+		result[i] = map[string]interface{}{
+			"id":           role.ID.String(),
+			"name":         role.Name,
+			"display_name": role.DisplayName,
+			"level":        role.Level,
+			"description":  role.Description,
+			"is_active":    role.IsActive,
+			"is_system":    role.IsSystem,
+			"created_at":   role.CreatedAt,
+			"updated_at":   role.UpdatedAt,
+		}
+	}
+
+	return result, nil
+}
+
 // GetRoleByName retrieves a role by name using the repository
 func (s *RBACService) GetRoleByName(ctx context.Context, name string) (map[string]interface{}, error) {
 	role, err := s.repository.GetRoleByName(name)

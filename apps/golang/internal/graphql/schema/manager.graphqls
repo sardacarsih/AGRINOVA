@@ -635,10 +635,10 @@ extend type Query {
   managerDivisionProductionBudgets(
     divisionId: ID
     period: String
-  ): [ManagerDivisionProductionBudget!]! @requireAuth @hasRole(roles: [MANAGER, AREA_MANAGER])
+  ): [ManagerDivisionProductionBudget!]! @requireAuth @hasRole(roles: [MANAGER, AREA_MANAGER, ASISTEN, MANDOR])
 
   "Get divisions under manager assigned estates"
-  managerDivisionOptions: [ManagerDivisionOption!]! @requireAuth @hasRole(roles: [MANAGER])
+  managerDivisionOptions: [ManagerDivisionOption!]! @requireAuth @hasRole(roles: [MANAGER, ASISTEN, MANDOR])
 
   "Get manager scoped block production budgets"
   managerBlockProductionBudgets(

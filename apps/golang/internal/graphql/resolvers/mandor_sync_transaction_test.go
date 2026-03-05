@@ -112,13 +112,14 @@ func TestSyncHarvestRecords_UpdateRollbackWhenPhotoPayloadInvalid(t *testing.T) 
 	require.Equal(t, "NIK-OLD", persisted.Karyawan)
 }
 
-func TestSyncHarvestRecords_CreateRollbackWhenIdentitySaveFails(t *testing.T) {
+func TestSyncHarvestRecords_CreateSkipsRedundantIdentityUpdate(t *testing.T) {
 	db := setupMandorSyncTestDB(t)
 	fixture := seedMandorSyncFixture(t, db)
 	mutation := newMandorSyncMutationResolver(t, db)
 	ctx := context.WithValue(context.Background(), "user_id", fixture.mandorID)
 
-	// Force enforceSyncIdentity->SaveHarvestRecord update to fail after insert.
+	// If create sync still performs a redundant second UPDATE after INSERT,
+	// this trigger would fail the write. Optimized sync should not hit it.
 	require.NoError(t, db.Exec(`
 		CREATE TRIGGER harvest_records_fail_identity_update
 		BEFORE UPDATE ON harvest_records
@@ -155,18 +156,17 @@ func TestSyncHarvestRecords_CreateRollbackWhenIdentitySaveFails(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, int32(1), result.RecordsProcessed)
-	require.Equal(t, int32(0), result.RecordsSuccessful)
-	require.Equal(t, int32(1), result.RecordsFailed)
+	require.Equal(t, int32(1), result.RecordsSuccessful)
+	require.Equal(t, int32(0), result.RecordsFailed)
 	require.Len(t, result.Results, 1)
-	require.False(t, result.Results[0].Success)
-	require.NotNil(t, result.Results[0].Error)
-	require.Contains(t, *result.Results[0].Error, "identity update blocked")
+	require.True(t, result.Results[0].Success)
+	require.Nil(t, result.Results[0].Error)
 
 	var count int64
 	require.NoError(t, db.Table("harvest_records").
 		Where("local_id = ? AND mandor_id = ?", localID, fixture.mandorID).
 		Count(&count).Error)
-	require.Equal(t, int64(0), count, "create write must be rolled back on identity-save failure")
+	require.Equal(t, int64(1), count, "create sync should persist without redundant post-insert identity update")
 }
 
 func TestSyncHarvestRecords_ConflictServerWins_NoLocalWrite(t *testing.T) {

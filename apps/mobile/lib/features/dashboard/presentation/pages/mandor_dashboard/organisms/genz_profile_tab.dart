@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../core/constants/api_constants.dart';
 import '../../../../../../core/database/enhanced_database_service.dart';
+import '../../../../../../core/models/jwt_models.dart';
+import '../../../../../../core/services/unified_secure_storage_service.dart';
 import '../../../../../../shared/widgets/current_user_avatar.dart';
 import '../mandor_theme.dart';
 import '../../../../../auth/presentation/blocs/auth_bloc.dart';
@@ -19,10 +21,7 @@ import '../../../../../auth/presentation/pages/change_password_page.dart';
 class GenZProfileTab extends StatelessWidget {
   final VoidCallback? onLogout;
 
-  const GenZProfileTab({
-    super.key,
-    this.onLogout,
-  });
+  const GenZProfileTab({super.key, this.onLogout});
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +94,9 @@ class GenZProfileTab extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: MandorTheme.forestGreen.withValues(alpha: 0.3)),
+        border: Border.all(
+          color: MandorTheme.forestGreen.withValues(alpha: 0.3),
+        ),
       ),
       child: Column(
         children: [
@@ -127,7 +128,7 @@ class GenZProfileTab extends StatelessWidget {
 
           // Name
           Text(
-            user.fullName,
+            user.fullName.isNotEmpty ? user.fullName : user.username,
             style: MandorTheme.headingMedium,
             textAlign: TextAlign.center,
           ),
@@ -139,8 +140,9 @@ class GenZProfileTab extends StatelessWidget {
             decoration: BoxDecoration(
               color: MandorTheme.forestGreen.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
-              border:
-                  Border.all(color: MandorTheme.forestGreen.withValues(alpha: 0.5)),
+              border: Border.all(
+                color: MandorTheme.forestGreen.withValues(alpha: 0.5),
+              ),
             ),
             child: Text(
               'Mandor',
@@ -154,84 +156,164 @@ class GenZProfileTab extends StatelessWidget {
           const SizedBox(height: 8),
 
           // Username
-          Text(
-            '@${user.username}',
-            style: MandorTheme.bodySmall,
-          ),
+          Text('@${user.username}', style: MandorTheme.bodySmall),
         ],
       ),
     );
   }
 
   Widget _buildQuickInfo(AuthAuthenticated state) {
+    final fallbackInfo = _buildFallbackAssignmentInfo(state.user);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: MandorTheme.glassCardBox,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Informasi', style: MandorTheme.labelMedium),
-          const SizedBox(height: 16),
-          _buildInfoRow(
-            icon: Icons.business_rounded,
-            label: 'Company',
-            value: state.user.companyName ?? '-',
-          ),
-          const Divider(color: Color(0xFF374151), height: 24),
-          _buildInfoRow(
-            icon: Icons.park_rounded,
-            label: 'Estate',
-            value: state.user.estate ?? '-',
-          ),
-          const Divider(color: Color(0xFF374151), height: 24),
-          _buildInfoRow(
-            icon: Icons.location_city_rounded,
-            label: 'Divisi',
-            value: state.user.division ?? '-',
-          ),
-          const Divider(color: Color(0xFF374151), height: 24),
-          FutureBuilder<String>(
-            future: _resolveSupervisorName(state.user.id, state.user.managerId),
-            builder: (context, snapshot) {
-              final fallback = _normalizeValue(state.user.managerName) ?? '-';
-              final resolvedName = _normalizeValue(snapshot.data);
-              final supervisorName = _isUuidLike(resolvedName)
-                  ? fallback
-                  : (resolvedName ?? fallback);
+      child: FutureBuilder<_ProfileAssignmentInfo>(
+        future: _resolveProfileAssignmentInfo(state.user),
+        initialData: fallbackInfo,
+        builder: (context, snapshot) {
+          final profileInfo = snapshot.data ?? fallbackInfo;
 
-              return _buildInfoRow(
-                icon: Icons.supervisor_account_rounded,
-                label: 'Atasan',
-                value: supervisorName,
-              );
-            },
-          ),
-          const Divider(color: Color(0xFF374151), height: 24),
-          _buildInfoRow(
-            icon: Icons.email_rounded,
-            label: 'Email',
-            value: state.user.email,
-          ),
-          const Divider(color: Color(0xFF374151), height: 24),
-          _buildInfoRow(
-            icon: Icons.wifi_off_rounded,
-            label: 'Mode Offline',
-            value: state.isOfflineMode ? 'Aktif' : 'Tidak Aktif',
-            valueColor: state.isOfflineMode
-                ? MandorTheme.amberOrange
-                : MandorTheme.forestGreen,
-          ),
-        ],
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Informasi', style: MandorTheme.labelMedium),
+              const SizedBox(height: 16),
+              _buildInfoRow(
+                icon: Icons.business_rounded,
+                label: 'Company',
+                value: profileInfo.company,
+              ),
+              const Divider(color: Color(0xFF374151), height: 24),
+              _buildInfoRow(
+                icon: Icons.park_rounded,
+                label: 'Estate',
+                value: profileInfo.estates,
+              ),
+              const Divider(color: Color(0xFF374151), height: 24),
+              _buildInfoRow(
+                icon: Icons.location_city_rounded,
+                label: 'Divisi',
+                value: profileInfo.divisions,
+              ),
+              const Divider(color: Color(0xFF374151), height: 24),
+              FutureBuilder<String>(
+                future: _resolveSupervisorName(
+                  state.user.id,
+                  state.user.managerId,
+                ),
+                builder: (context, snapshot) {
+                  final fallback =
+                      _normalizeValue(state.user.managerName) ?? '-';
+                  final resolvedName = _normalizeValue(snapshot.data);
+                  final supervisorName = _isUuidLike(resolvedName)
+                      ? fallback
+                      : (resolvedName ?? fallback);
+
+                  return _buildInfoRow(
+                    icon: Icons.supervisor_account_rounded,
+                    label: 'Atasan',
+                    value: supervisorName,
+                  );
+                },
+              ),
+              const Divider(color: Color(0xFF374151), height: 24),
+              _buildInfoRow(
+                icon: Icons.email_rounded,
+                label: 'Email',
+                value: _normalizeValue(state.user.email) ?? '-',
+              ),
+              const Divider(color: Color(0xFF374151), height: 24),
+              _buildInfoRow(
+                icon: Icons.wifi_off_rounded,
+                label: 'Mode Offline',
+                value: state.isOfflineMode ? 'Aktif' : 'Tidak Aktif',
+                valueColor: state.isOfflineMode
+                    ? MandorTheme.amberOrange
+                    : MandorTheme.forestGreen,
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
+  _ProfileAssignmentInfo _buildFallbackAssignmentInfo(User user) {
+    return _ProfileAssignmentInfo(
+      company: _normalizeValue(user.companyName) ?? '-',
+      estates: _normalizeValue(user.estate) ?? '-',
+      divisions: _normalizeValue(user.division) ?? '-',
+    );
+  }
+
+  Future<_ProfileAssignmentInfo> _resolveProfileAssignmentInfo(
+    User user,
+  ) async {
+    final fallback = _buildFallbackAssignmentInfo(user);
+
+    try {
+      final assignments =
+          await UnifiedSecureStorageService.getUserAssignments();
+      if (assignments == null) {
+        return fallback;
+      }
+
+      final companyNames = assignments.companies
+          .map((company) => _normalizeValue(company.name))
+          .whereType<String>();
+      final estateNames = assignments.estates
+          .map((estate) => _normalizeValue(estate.name))
+          .whereType<String>();
+      final divisionNames = assignments.divisions
+          .map((division) => _normalizeValue(division.name))
+          .whereType<String>();
+
+      return _ProfileAssignmentInfo(
+        company: _joinDisplayValues(
+          companyNames,
+          fallback: _normalizeValue(user.companyName),
+        ),
+        estates: _joinDisplayValues(
+          estateNames,
+          fallback: _normalizeValue(user.estate),
+        ),
+        divisions: _joinDisplayValues(
+          divisionNames,
+          fallback: _normalizeValue(user.division),
+        ),
+      );
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  String _joinDisplayValues(Iterable<String> values, {String? fallback}) {
+    final unique = <String>[];
+    for (final value in values) {
+      final normalized = _normalizeValue(value);
+      if (normalized == null || unique.contains(normalized)) {
+        continue;
+      }
+      unique.add(normalized);
+    }
+
+    if (unique.isNotEmpty) {
+      return unique.join(', ');
+    }
+
+    return fallback ?? '-';
+  }
+
   Future<String> _resolveSupervisorName(
-      String currentUserId, String? fallbackManagerId) async {
+    String currentUserId,
+    String? fallbackManagerId,
+  ) async {
     try {
       final databaseService = EnhancedDatabaseService();
-      final tableInfo =
-          await databaseService.rawQuery('PRAGMA table_info(users)');
+      final tableInfo = await databaseService.rawQuery(
+        'PRAGMA table_info(users)',
+      );
 
       final columns = tableInfo
           .map((column) => column['name']?.toString().toLowerCase())
@@ -266,11 +348,14 @@ class GenZProfileTab extends StatelessWidget {
 
         if (currentUserRows.isNotEmpty) {
           final currentUser = currentUserRows.first;
-          managerName =
-              _normalizeValue(currentUser['manager_name']?.toString());
-          managerId = _normalizeValue(currentUser['manager_id']?.toString()) ??
+          managerName = _normalizeValue(
+            currentUser['manager_name']?.toString(),
+          );
+          managerId =
+              _normalizeValue(currentUser['manager_id']?.toString()) ??
               _normalizeValue(
-                  currentUser['reporting_to_area_manager_id']?.toString());
+                currentUser['reporting_to_area_manager_id']?.toString(),
+              );
         }
       }
 
@@ -464,19 +549,24 @@ class GenZProfileTab extends StatelessWidget {
               gradient: MandorTheme.primaryGradient,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.agriculture_rounded,
-                color: Colors.white, size: 20),
+            child: const Icon(
+              Icons.agriculture_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Agrinova Mobile',
-                    style: MandorTheme.bodyMedium.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    )),
+                Text(
+                  'Agrinova Mobile',
+                  style: MandorTheme.bodyMedium.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 Text(
                   'v${ApiConstants.appVersionDisplay}',
                   style: MandorTheme.labelSmall,
@@ -536,8 +626,10 @@ class GenZProfileTab extends StatelessWidget {
               context.read<AuthBloc>().add(AuthLogoutRequested());
               onLogout?.call();
             },
-            child:
-                Text('Keluar', style: TextStyle(color: MandorTheme.coralRed)),
+            child: Text(
+              'Keluar',
+              style: TextStyle(color: MandorTheme.coralRed),
+            ),
           ),
         ],
       ),
@@ -545,11 +637,9 @@ class GenZProfileTab extends StatelessWidget {
   }
 
   void _openChangePassword(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const ChangePasswordPage(),
-      ),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ChangePasswordPage()));
   }
 
   void _showComingSoon(BuildContext context) {
@@ -564,3 +654,14 @@ class GenZProfileTab extends StatelessWidget {
   }
 }
 
+class _ProfileAssignmentInfo {
+  final String company;
+  final String estates;
+  final String divisions;
+
+  const _ProfileAssignmentInfo({
+    required this.company,
+    required this.estates,
+    required this.divisions,
+  });
+}

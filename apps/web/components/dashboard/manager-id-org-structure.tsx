@@ -14,7 +14,7 @@ import {
   MoveHorizontal,
   MoveVertical,
 } from 'lucide-react';
-import { GetUsersQuery, GetUsersQueryVariables, useGetUsersQuery } from '@/gql/graphql';
+import { GetUsersQuery, GetUsersQueryVariables, MandorType, useGetUsersQuery } from '@/gql/graphql';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,21 @@ const getRoleLabel = (role: OrgRole): string => {
     case 'MANDOR':
       return 'Mandor';
   }
+};
+
+const getRoleDisplayLabel = (role: OrgRole, mandorType?: string): string => {
+  if (role !== 'MANDOR') {
+    return getRoleLabel(role);
+  }
+
+  if (mandorType === MandorType.Panen) {
+    return 'Mandor/Panen';
+  }
+  if (mandorType === MandorType.Perawatan) {
+    return 'Mandor/Perawatan';
+  }
+
+  return 'Mandor/Unknown';
 };
 
 const getRoleBadgeClassName = (role: OrgRole): string => {
@@ -118,6 +133,7 @@ type ChartNode = RawNodeDatum & {
     avatar: string;
     isCurrent: 'yes' | 'no';
     directReports: number;
+    mandorType: string;
   };
   children?: ChartNode[];
 };
@@ -399,6 +415,7 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
         avatar: companyLogoUrl,
         isCurrent: 'no',
         directReports: children.length,
+        mandorType: '',
       },
       children,
     });
@@ -464,6 +481,7 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
           avatar: node.user.avatar || '',
           isCurrent: node.user.id === currentUserId ? 'yes' : 'no',
           directReports: node.children.length,
+          mandorType: String(node.user.effectiveMandorType || ''),
         },
         children: chartChildren,
       };
@@ -518,6 +536,7 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
       const avatar = String(attributes.avatar || '');
       const isCurrent = String(attributes.isCurrent || 'no') === 'yes';
       const directReports = Number(attributes.directReports || 0);
+      const mandorType = String(attributes.mandorType || '');
       const hasChildren = Array.isArray(nodeDatum.children) && nodeDatum.children.length > 0;
       const isCollapsed = Boolean(nodeDatum.__rd3t?.collapsed);
       const nodeToggleLabel = hasChildren
@@ -622,7 +641,7 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
                       variant="outline"
                       className={cn(normalizedRole && getRoleBadgeClassName(normalizedRole))}
                     >
-                      {normalizedRole ? getRoleLabel(normalizedRole) : rawRole || '-'}
+                      {normalizedRole ? getRoleDisplayLabel(normalizedRole, mandorType) : rawRole || '-'}
                     </Badge>
                   </div>
 
@@ -725,7 +744,7 @@ export function ManagerIdOrgStructure({ currentUserId, currentRole }: ManagerIdO
             Struktur Organisasi Berdasarkan Manager ID
           </CardTitle>
           <CardDescription>
-            Menampilkan relasi pelaporan untuk role Area Manager, Manager, Asisten, dan Mandor menggunakan chart interaktif.
+            Menampilkan relasi pelaporan untuk Area Manager, Manager, Asisten, serta Mandor Panen dan Mandor Perawatan menggunakan chart interaktif.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

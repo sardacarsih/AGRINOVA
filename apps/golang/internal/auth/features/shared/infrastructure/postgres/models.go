@@ -97,6 +97,7 @@ type UserCompanyAssignmentModel struct {
 	ID         string    `gorm:"primaryKey;type:uuid"`
 	UserID     string    `gorm:"column:user_id;not null;index"`
 	CompanyID  string    `gorm:"column:company_id;not null;index"`
+	MandorType *string   `gorm:"column:mandor_type"`
 	IsActive   bool      `gorm:"column:is_active;default:true;index"`
 	AssignedBy string    `gorm:"column:assigned_by;type:uuid"`
 	AssignedAt time.Time `gorm:"column:assigned_at"`

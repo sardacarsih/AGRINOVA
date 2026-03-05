@@ -345,6 +345,16 @@ export type ApprovalItem = {
   hasPhoto: Scalars['Boolean']['output'];
   /** Harvest record ID */
   id: Scalars['ID']['output'];
+  /** Jumlah buah busuk/abnormal */
+  jjgBusukAbnormal: Scalars['Int']['output'];
+  /** Jumlah buah lewat matang */
+  jjgLewatMatang: Scalars['Int']['output'];
+  /** Jumlah buah matang */
+  jjgMatang: Scalars['Int']['output'];
+  /** Jumlah buah mentah */
+  jjgMentah: Scalars['Int']['output'];
+  /** Jumlah tangkai panjang */
+  jjgTangkaiPanjang: Scalars['Int']['output'];
   /** Mandor who submitted */
   mandor: User;
   /** Notes from mandor */
@@ -359,6 +369,8 @@ export type ApprovalItem = {
   submittedAt: Scalars['Time']['output'];
   /** Total TBS count */
   tbsCount: Scalars['Int']['output'];
+  /** Total brondolan */
+  totalBrondolan: Scalars['Float']['output'];
   /** Validation issues */
   validationIssues?: Maybe<Array<Scalars['String']['output']>>;
   /** Validation status */
@@ -1958,13 +1970,6 @@ export type CreateHarvestRecordInput = {
   tanggal: Scalars['Time']['input'];
 };
 
-export type CreateHerbisidaUsageInput = {
-  hargaPerLiter: Scalars['Float']['input'];
-  jenisHerbisida: Scalars['String']['input'];
-  jumlahLiter: Scalars['Float']['input'];
-  perawatanRecordId: Scalars['String']['input'];
-};
-
 export type CreateLandTypeInput = {
   code: Scalars['String']['input'];
   description?: InputMaybe<Scalars['String']['input']>;
@@ -2036,6 +2041,15 @@ export type CreatePksRecordInput = {
   tanggalTimbang: Scalars['Time']['input'];
 };
 
+export type CreatePerawatanMaterialUsageInput = {
+  materialCategory: PerawatanMaterialCategory;
+  materialName: Scalars['String']['input'];
+  perawatanRecordId: Scalars['String']['input'];
+  quantity: Scalars['Float']['input'];
+  unit: PerawatanMaterialUnit;
+  unitPrice: Scalars['Float']['input'];
+};
+
 export type CreatePerawatanRecordInput = {
   blockId: Scalars['String']['input'];
   catatan?: InputMaybe<Scalars['String']['input']>;
@@ -2045,13 +2059,6 @@ export type CreatePerawatanRecordInput = {
   pekerjaId: Scalars['String']['input'];
   pupukDigunakan?: InputMaybe<Scalars['String']['input']>;
   tanggalPerawatan: Scalars['Time']['input'];
-};
-
-export type CreatePupukUsageInput = {
-  hargaPerKg: Scalars['Float']['input'];
-  jenisPupuk: Scalars['String']['input'];
-  jumlahKg: Scalars['Float']['input'];
-  perawatanRecordId: Scalars['String']['input'];
 };
 
 export type CreateTarifBlokInput = {
@@ -2102,6 +2109,8 @@ export type CreateUserInput = {
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
   /** Manager/Supervisor identifier */
   managerId?: InputMaybe<Scalars['String']['input']>;
+  /** Operational subtype for MANDOR users */
+  mandorType?: InputMaybe<MandorType>;
   /** Display name of the user */
   name: Scalars['String']['input'];
   /** Initial password for the user */
@@ -3150,6 +3159,17 @@ export type HarvestRecordSyncInput = {
   totalBrondolan?: InputMaybe<Scalars['Float']['input']>;
 };
 
+/** Paginated response for harvest records. */
+export type HarvestRecordsPaginatedResponse = {
+  __typename?: 'HarvestRecordsPaginatedResponse';
+  /** Harvest records for current page */
+  data: Array<HarvestRecord>;
+  /** Whether there are more records after this page */
+  hasMore: Scalars['Boolean']['output'];
+  /** Total number of records matching filters */
+  totalCount: Scalars['Int']['output'];
+};
+
 /** Harvest status enum representing approval workflow. */
 export enum HarvestStatus {
   /** Approved by asisten */
@@ -3174,20 +3194,6 @@ export type HarvestSyncInput = {
   deviceId: Scalars['String']['input'];
   /** Records to sync */
   records: Array<HarvestRecordSyncInput>;
-};
-
-/** Herbisida (Herbicide) usage record. */
-export type HerbisidaUsage = {
-  __typename?: 'HerbisidaUsage';
-  createdAt: Scalars['Time']['output'];
-  hargaPerLiter: Scalars['Float']['output'];
-  id: Scalars['ID']['output'];
-  jenisHerbisida: Scalars['String']['output'];
-  jumlahLiter: Scalars['Float']['output'];
-  perawatanRecord: PerawatanRecord;
-  perawatanRecordId: Scalars['String']['output'];
-  totalBiaya: Scalars['Float']['output'];
-  updatedAt: Scalars['Time']['output'];
 };
 
 /** JWTTokenFilterInput allows filtering JWT token records. */
@@ -3948,6 +3954,8 @@ export type MandorProfile = {
   estate: Estate;
   /** Supervisor-specific work metrics */
   mandorStats?: Maybe<MandorStats>;
+  /** Operational subtype for this mandor */
+  mandorType?: Maybe<MandorType>;
   /** Basic user information */
   user: User;
 };
@@ -4084,6 +4092,14 @@ export type MandorTodayWork = {
   workersInvolved: Scalars['Int']['output'];
 };
 
+/** Mandor Type distinguishes operational specialization for mandor users. */
+export enum MandorType {
+  /** Mandor responsible for harvest workflows */
+  Panen = 'PANEN',
+  /** Mandor responsible for maintenance workflows */
+  Perawatan = 'PERAWATAN'
+}
+
 /** MandorWorkload represents supervisor field work metrics. */
 export type MandorWorkload = {
   __typename?: 'MandorWorkload';
@@ -4211,7 +4227,6 @@ export type Mutation = {
   createFeature: Feature;
   createGradingRecord: GradingRecord;
   createHarvestRecord: HarvestRecord;
-  createHerbisidaUsage: HerbisidaUsage;
   createLandType: LandType;
   /** Create manager block production budget */
   createManagerBlockProductionBudget: ManagerBlockProductionBudget;
@@ -4220,10 +4235,10 @@ export type Mutation = {
   /** Create new harvest record */
   createMandorHarvest: MandorHarvestResult;
   createPKSRecord: PksRecord;
+  createPerawatanMaterialUsage: PerawatanMaterialUsage;
   createPerawatanRecord: PerawatanRecord;
   /** Create a new permission */
   createPermission: Permission;
-  createPupukUsage: PupukUsage;
   /** Create a new role */
   createRole: Role;
   /** Create super admin */
@@ -4264,6 +4279,7 @@ export type Mutation = {
   /** Delete harvest record (only pending) */
   deleteMandorHarvest: MandorHarvestResult;
   deletePKSRecord: Scalars['Boolean']['output'];
+  deletePerawatanMaterialUsage: Scalars['Boolean']['output'];
   deletePerawatanRecord: Scalars['Boolean']['output'];
   /** Delete a permission */
   deletePermission: Scalars['Boolean']['output'];
@@ -4432,6 +4448,7 @@ export type Mutation = {
   /** Update existing harvest record */
   updateMandorHarvest: MandorHarvestResult;
   updatePKSRecord: PksRecord;
+  updatePerawatanMaterialUsage: PerawatanMaterialUsage;
   updatePerawatanRecord: PerawatanRecord;
   /** Update an existing permission */
   updatePermission: Permission;
@@ -4679,11 +4696,6 @@ export type MutationCreateHarvestRecordArgs = {
 };
 
 
-export type MutationCreateHerbisidaUsageArgs = {
-  input: CreateHerbisidaUsageInput;
-};
-
-
 export type MutationCreateLandTypeArgs = {
   input: CreateLandTypeInput;
 };
@@ -4709,6 +4721,11 @@ export type MutationCreatePksRecordArgs = {
 };
 
 
+export type MutationCreatePerawatanMaterialUsageArgs = {
+  input: CreatePerawatanMaterialUsageInput;
+};
+
+
 export type MutationCreatePerawatanRecordArgs = {
   input: CreatePerawatanRecordInput;
 };
@@ -4719,11 +4736,6 @@ export type MutationCreatePermissionArgs = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   resource: Scalars['String']['input'];
-};
-
-
-export type MutationCreatePupukUsageArgs = {
-  input: CreatePupukUsageInput;
 };
 
 
@@ -4847,6 +4859,11 @@ export type MutationDeleteMandorHarvestArgs = {
 
 
 export type MutationDeletePksRecordArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeletePerawatanMaterialUsageArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -5285,6 +5302,11 @@ export type MutationUpdatePksRecordArgs = {
 };
 
 
+export type MutationUpdatePerawatanMaterialUsageArgs = {
+  input: UpdatePerawatanMaterialUsageInput;
+};
+
+
 export type MutationUpdatePerawatanRecordArgs = {
   input: UpdatePerawatanRecordInput;
 };
@@ -5490,6 +5512,34 @@ export type Pagination = {
   pages: Scalars['Int']['output'];
   /** Total number of items */
   total: Scalars['Int']['output'];
+};
+
+/** Material category used in maintenance work. */
+export enum PerawatanMaterialCategory {
+  Herbisida = 'HERBISIDA',
+  Pupuk = 'PUPUK'
+}
+
+/** Measurement unit for maintenance material usage. */
+export enum PerawatanMaterialUnit {
+  Kg = 'KG',
+  Liter = 'LITER'
+}
+
+/** Generic material usage record attached to a maintenance transaction. */
+export type PerawatanMaterialUsage = {
+  __typename?: 'PerawatanMaterialUsage';
+  createdAt: Scalars['Time']['output'];
+  id: Scalars['ID']['output'];
+  materialCategory: PerawatanMaterialCategory;
+  materialName: Scalars['String']['output'];
+  perawatanRecord: PerawatanRecord;
+  perawatanRecordId: Scalars['String']['output'];
+  quantity: Scalars['Float']['output'];
+  totalCost: Scalars['Float']['output'];
+  unit: PerawatanMaterialUnit;
+  unitPrice: Scalars['Float']['output'];
+  updatedAt: Scalars['Time']['output'];
 };
 
 /** PerawatanRecord represents maintenance activities on plantation blocks. */
@@ -5707,20 +5757,6 @@ export type ProductionTrendData = {
   trendDirection: TrendDirection;
   /** Trend percentage */
   trendPercentage: Scalars['Float']['output'];
-};
-
-/** Pupuk (Fertilizer) usage record. */
-export type PupukUsage = {
-  __typename?: 'PupukUsage';
-  createdAt: Scalars['Time']['output'];
-  hargaPerKg: Scalars['Float']['output'];
-  id: Scalars['ID']['output'];
-  jenisPupuk: Scalars['String']['output'];
-  jumlahKg: Scalars['Float']['output'];
-  perawatanRecord: PerawatanRecord;
-  perawatanRecordId: Scalars['String']['output'];
-  totalBiaya: Scalars['Float']['output'];
-  updatedAt: Scalars['Time']['output'];
 };
 
 /** QRTokenStatus represents the current state of a QR token. */
@@ -5966,8 +6002,8 @@ export type Query = {
   harvestRecords: Array<HarvestRecord>;
   /** Filter harvest records by approval status */
   harvestRecordsByStatus: Array<HarvestRecord>;
-  /** Get herbicide usage records */
-  herbisidaUsageRecords: Array<HerbisidaUsage>;
+  /** Retrieve harvest records with server-side pagination */
+  harvestRecordsPaginated: HarvestRecordsPaginatedResponse;
   /** List jwt_tokens records (SUPER_ADMIN only) */
   jwtTokens: Array<JwtTokenRecord>;
   /** Retrieve land type master data used for block and tariff */
@@ -6003,12 +6039,18 @@ export type Query = {
   mandorActivities: Array<MandorActivity>;
   /** Get blocks available for mandor */
   mandorBlocks: Array<Block>;
+  /** Get changed blocks available for mandor since last sync */
+  mandorBlocksSync: Array<Block>;
   /** Get mandor dashboard data */
   mandorDashboard: MandorDashboardData;
   /** Get mandor dashboard stats */
   mandorDashboardStats: MandorDashboardStats;
+  /** Get changed assignment masters for mandor since last sync */
+  mandorDivisionMastersSync: UserAssignments;
   /** Get employees available for mandor */
   mandorEmployees: Array<Employee>;
+  /** Get changed employees available for mandor since last sync */
+  mandorEmployeesSync: Array<Employee>;
   /** Get single harvest record */
   mandorHarvestRecord?: Maybe<MandorHarvestRecord>;
   /** Get mandor harvest history */
@@ -6030,6 +6072,14 @@ export type Query = {
   /** Get pending approvals list */
   pendingApprovals: ApprovalListResponse;
   pendingGradingApprovals: Array<GradingRecord>;
+  /** Get a specific maintenance material usage record by ID */
+  perawatanMaterialUsageRecord?: Maybe<PerawatanMaterialUsage>;
+  /** Get all maintenance material usage records */
+  perawatanMaterialUsageRecords: Array<PerawatanMaterialUsage>;
+  /** Filter maintenance material usage records by category */
+  perawatanMaterialUsageRecordsByCategory: Array<PerawatanMaterialUsage>;
+  /** Filter maintenance material usage records by parent maintenance record */
+  perawatanMaterialUsageRecordsByRecord: Array<PerawatanMaterialUsage>;
   /** Get a specific maintenance record by ID */
   perawatanRecord?: Maybe<PerawatanRecord>;
   /** Retrieve all maintenance records */
@@ -6052,8 +6102,6 @@ export type Query = {
   platformStatistics: PlatformStats;
   /** Get production trend data */
   productionTrend: ProductionTrendData;
-  /** Get fertilizer usage records */
-  pupukUsageRecords: Array<PupukUsage>;
   /** Get quality analysis data */
   qualityAnalysis: QualityAnalysisData;
   /** Check if source role can manage target role based on hierarchy */
@@ -6509,6 +6557,18 @@ export type QueryHarvestRecordsByStatusArgs = {
 };
 
 
+export type QueryHarvestRecordsPaginatedArgs = {
+  dateFrom?: InputMaybe<Scalars['Time']['input']>;
+  dateTo?: InputMaybe<Scalars['Time']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  page?: InputMaybe<Scalars['Int']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
+  sortBy?: InputMaybe<Scalars['String']['input']>;
+  sortDir?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<HarvestStatus>;
+};
+
+
 export type QueryJwtTokensArgs = {
   filter?: InputMaybe<JwtTokenFilterInput>;
 };
@@ -6567,9 +6627,26 @@ export type QueryMandorBlocksArgs = {
 };
 
 
+export type QueryMandorBlocksSyncArgs = {
+  divisionId?: InputMaybe<Scalars['ID']['input']>;
+  updatedSince: Scalars['Time']['input'];
+};
+
+
+export type QueryMandorDivisionMastersSyncArgs = {
+  updatedSince: Scalars['Time']['input'];
+};
+
+
 export type QueryMandorEmployeesArgs = {
   divisionId?: InputMaybe<Scalars['ID']['input']>;
   search?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryMandorEmployeesSyncArgs = {
+  divisionId?: InputMaybe<Scalars['ID']['input']>;
+  updatedSince: Scalars['Time']['input'];
 };
 
 
@@ -6601,6 +6678,21 @@ export type QueryMandorStatusesArgs = {
 
 export type QueryPendingApprovalsArgs = {
   filter?: InputMaybe<ApprovalFilterInput>;
+};
+
+
+export type QueryPerawatanMaterialUsageRecordArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryPerawatanMaterialUsageRecordsByCategoryArgs = {
+  materialCategory: PerawatanMaterialCategory;
+};
+
+
+export type QueryPerawatanMaterialUsageRecordsByRecordArgs = {
+  perawatanRecordId: Scalars['ID']['input'];
 };
 
 
@@ -6736,6 +6828,8 @@ export type QueryRolePermissionsArgs = {
 
 export type QueryRolesArgs = {
   activeOnly?: InputMaybe<Scalars['Boolean']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -8828,6 +8922,15 @@ export type UpdatePksRecordInput = {
   nomorDo?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type UpdatePerawatanMaterialUsageInput = {
+  id: Scalars['ID']['input'];
+  materialCategory?: InputMaybe<PerawatanMaterialCategory>;
+  materialName?: InputMaybe<Scalars['String']['input']>;
+  quantity?: InputMaybe<Scalars['Float']['input']>;
+  unit?: InputMaybe<PerawatanMaterialUnit>;
+  unitPrice?: InputMaybe<Scalars['Float']['input']>;
+};
+
 export type UpdatePerawatanRecordInput = {
   catatan?: InputMaybe<Scalars['String']['input']>;
   herbisidaDigunakan?: InputMaybe<Scalars['String']['input']>;
@@ -8904,6 +9007,8 @@ export type UpdateUserInput = {
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
   /** New manager/supervisor assignment */
   managerId?: InputMaybe<Scalars['String']['input']>;
+  /** New operational subtype for MANDOR users */
+  mandorType?: InputMaybe<MandorType>;
   /** New display name */
   name?: InputMaybe<Scalars['String']['input']>;
   /** New phone number */
@@ -8995,6 +9100,8 @@ export type User = {
   createdAt: Scalars['Time']['output'];
   /** Divisions assigned to this user */
   divisions?: Maybe<Array<Division>>;
+  /** Resolved mandor subtype from the active company assignment */
+  effectiveMandorType?: Maybe<MandorType>;
   /** Optional email address for notifications */
   email?: Maybe<Scalars['String']['output']>;
   /** Estates assigned to this user */
@@ -9055,6 +9162,7 @@ export type UserCompanyAssignment = {
   estateAssignments?: Maybe<Array<UserEstateAssignment>>;
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
+  mandorType?: Maybe<MandorType>;
   updatedAt: Scalars['Time']['output'];
   user?: Maybe<User>;
   userId: Scalars['ID']['output'];
@@ -9792,14 +9900,14 @@ export enum WeighingStatus {
   PendingSecond = 'PENDING_SECOND'
 }
 
-export type UserFieldsFragment = { __typename?: 'User', id: string, username: string, email?: string | null, name: string, role: UserRole, isActive: boolean, createdAt: Date, updatedAt: Date };
+export type UserFieldsFragment = { __typename?: 'User', id: string, username: string, email?: string | null, name: string, role: UserRole, effectiveMandorType?: MandorType | null, isActive: boolean, createdAt: Date, updatedAt: Date };
 
 export type WebLoginMutationVariables = Exact<{
   input: WebLoginInput;
 }>;
 
 
-export type WebLoginMutation = { __typename?: 'Mutation', webLogin: { __typename?: 'WebLoginPayload', success: boolean, message: string, sessionId?: string | null, user?: { __typename?: 'User', managerId?: string | null, id: string, username: string, email?: string | null, name: string, role: UserRole, isActive: boolean, createdAt: Date, updatedAt: Date, manager?: { __typename?: 'User', id: string, name: string } | null } | null } };
+export type WebLoginMutation = { __typename?: 'Mutation', webLogin: { __typename?: 'WebLoginPayload', success: boolean, message: string, sessionId?: string | null, user?: { __typename?: 'User', managerId?: string | null, id: string, username: string, email?: string | null, name: string, role: UserRole, effectiveMandorType?: MandorType | null, isActive: boolean, createdAt: Date, updatedAt: Date, manager?: { __typename?: 'User', id: string, name: string } | null } | null } };
 
 export type LogoutMutationVariables = Exact<{ [key: string]: never; }>;
 
@@ -9809,14 +9917,14 @@ export type LogoutMutation = { __typename?: 'Mutation', logout: boolean };
 export type MeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MeQuery = { __typename?: 'Query', me?: { __typename?: 'User', id: string, username: string, email?: string | null, name: string, role: UserRole, isActive: boolean, createdAt: Date, updatedAt: Date } | null };
+export type MeQuery = { __typename?: 'Query', me?: { __typename?: 'User', id: string, username: string, email?: string | null, name: string, role: UserRole, effectiveMandorType?: MandorType | null, isActive: boolean, createdAt: Date, updatedAt: Date } | null };
 
 export type RefreshTokenMutationVariables = Exact<{
   input: RefreshTokenInput;
 }>;
 
 
-export type RefreshTokenMutation = { __typename?: 'Mutation', refreshToken: { __typename?: 'AuthPayload', accessToken: string, refreshToken: string, expiresAt: Date, user: { __typename?: 'User', id: string, username: string, email?: string | null, name: string, role: UserRole, isActive: boolean, createdAt: Date, updatedAt: Date } } };
+export type RefreshTokenMutation = { __typename?: 'Mutation', refreshToken: { __typename?: 'AuthPayload', accessToken: string, refreshToken: string, expiresAt: Date, user: { __typename?: 'User', id: string, username: string, email?: string | null, name: string, role: UserRole, effectiveMandorType?: MandorType | null, isActive: boolean, createdAt: Date, updatedAt: Date } } };
 
 export type GetHarvestRecordsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -9964,6 +10072,58 @@ export type DeleteDivisionMutationVariables = Exact<{
 
 export type DeleteDivisionMutation = { __typename?: 'Mutation', deleteDivision: boolean };
 
+export type GetPerawatanRecordsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetPerawatanRecordsQuery = { __typename?: 'Query', perawatanRecords: Array<{ __typename?: 'PerawatanRecord', id: string, blockId: string, jenisPerawatan: JenisPerawatan, tanggalPerawatan: Date, pekerjaId: string, luasArea: number, pupukDigunakan?: string | null, herbisidaDigunakan?: string | null, catatan?: string | null, status: StatusPerawatan, createdAt: Date, updatedAt: Date, block: { __typename?: 'Block', id: string, blockCode: string, name: string, divisionId: string }, pekerja: { __typename?: 'User', id: string, name: string, role: UserRole, effectiveMandorType?: MandorType | null } }> };
+
+export type GetPerawatanMaterialUsageRecordsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetPerawatanMaterialUsageRecordsQuery = { __typename?: 'Query', perawatanMaterialUsageRecords: Array<{ __typename?: 'PerawatanMaterialUsage', id: string, perawatanRecordId: string, materialCategory: PerawatanMaterialCategory, materialName: string, quantity: number, unit: PerawatanMaterialUnit, unitPrice: number, totalCost: number, createdAt: Date, updatedAt: Date, perawatanRecord: { __typename?: 'PerawatanRecord', id: string, jenisPerawatan: JenisPerawatan, tanggalPerawatan: Date, status: StatusPerawatan, block: { __typename?: 'Block', id: string, blockCode: string, name: string } } }> };
+
+export type GetPerawatanMaterialUsageRecordQueryVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type GetPerawatanMaterialUsageRecordQuery = { __typename?: 'Query', perawatanMaterialUsageRecord?: { __typename?: 'PerawatanMaterialUsage', id: string, perawatanRecordId: string, materialCategory: PerawatanMaterialCategory, materialName: string, quantity: number, unit: PerawatanMaterialUnit, unitPrice: number, totalCost: number, createdAt: Date, updatedAt: Date, perawatanRecord: { __typename?: 'PerawatanRecord', id: string, jenisPerawatan: JenisPerawatan, tanggalPerawatan: Date, status: StatusPerawatan, block: { __typename?: 'Block', id: string, blockCode: string, name: string } } } | null };
+
+export type GetPerawatanMaterialUsageRecordsByCategoryQueryVariables = Exact<{
+  materialCategory: PerawatanMaterialCategory;
+}>;
+
+
+export type GetPerawatanMaterialUsageRecordsByCategoryQuery = { __typename?: 'Query', perawatanMaterialUsageRecordsByCategory: Array<{ __typename?: 'PerawatanMaterialUsage', id: string, perawatanRecordId: string, materialCategory: PerawatanMaterialCategory, materialName: string, quantity: number, unit: PerawatanMaterialUnit, unitPrice: number, totalCost: number, createdAt: Date, updatedAt: Date, perawatanRecord: { __typename?: 'PerawatanRecord', id: string, jenisPerawatan: JenisPerawatan, tanggalPerawatan: Date, status: StatusPerawatan, block: { __typename?: 'Block', id: string, blockCode: string, name: string } } }> };
+
+export type GetPerawatanMaterialUsageRecordsByRecordQueryVariables = Exact<{
+  perawatanRecordId: Scalars['ID']['input'];
+}>;
+
+
+export type GetPerawatanMaterialUsageRecordsByRecordQuery = { __typename?: 'Query', perawatanMaterialUsageRecordsByRecord: Array<{ __typename?: 'PerawatanMaterialUsage', id: string, perawatanRecordId: string, materialCategory: PerawatanMaterialCategory, materialName: string, quantity: number, unit: PerawatanMaterialUnit, unitPrice: number, totalCost: number, createdAt: Date, updatedAt: Date, perawatanRecord: { __typename?: 'PerawatanRecord', id: string, jenisPerawatan: JenisPerawatan, tanggalPerawatan: Date, status: StatusPerawatan, block: { __typename?: 'Block', id: string, blockCode: string, name: string } } }> };
+
+export type CreatePerawatanMaterialUsageMutationVariables = Exact<{
+  input: CreatePerawatanMaterialUsageInput;
+}>;
+
+
+export type CreatePerawatanMaterialUsageMutation = { __typename?: 'Mutation', createPerawatanMaterialUsage: { __typename?: 'PerawatanMaterialUsage', id: string, perawatanRecordId: string, materialCategory: PerawatanMaterialCategory, materialName: string, quantity: number, unit: PerawatanMaterialUnit, unitPrice: number, totalCost: number, createdAt: Date, updatedAt: Date } };
+
+export type UpdatePerawatanMaterialUsageMutationVariables = Exact<{
+  input: UpdatePerawatanMaterialUsageInput;
+}>;
+
+
+export type UpdatePerawatanMaterialUsageMutation = { __typename?: 'Mutation', updatePerawatanMaterialUsage: { __typename?: 'PerawatanMaterialUsage', id: string, perawatanRecordId: string, materialCategory: PerawatanMaterialCategory, materialName: string, quantity: number, unit: PerawatanMaterialUnit, unitPrice: number, totalCost: number, createdAt: Date, updatedAt: Date } };
+
+export type DeletePerawatanMaterialUsageMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type DeletePerawatanMaterialUsageMutation = { __typename?: 'Mutation', deletePerawatanMaterialUsage: boolean };
+
 export type GetUsersQueryVariables = Exact<{
   companyId?: InputMaybe<Scalars['String']['input']>;
   role?: InputMaybe<UserRole>;
@@ -9974,28 +10134,28 @@ export type GetUsersQueryVariables = Exact<{
 }>;
 
 
-export type GetUsersQuery = { __typename?: 'Query', users: { __typename?: 'UserListResponse', totalCount: number, hasNextPage: boolean, users: Array<{ __typename?: 'User', id: string, username: string, name: string, email?: string | null, phoneNumber?: string | null, avatar?: string | null, role: UserRole, isActive: boolean, createdAt: Date, updatedAt: Date, managerId?: string | null, companyId?: string | null, manager?: { __typename?: 'User', id: string, name: string } | null, companies?: Array<{ __typename?: 'Company', id: string, name: string, logoUrl?: string | null }> | null, company?: { __typename?: 'Company', id: string, name: string, logoUrl?: string | null } | null, estates?: Array<{ __typename?: 'Estate', id: string, name: string }> | null, divisions?: Array<{ __typename?: 'Division', id: string, name: string }> | null }>, pageInfo: { __typename?: 'PageInfo', currentPage: number, totalPages: number, hasNextPage: boolean, hasPreviousPage: boolean } } };
+export type GetUsersQuery = { __typename?: 'Query', users: { __typename?: 'UserListResponse', totalCount: number, hasNextPage: boolean, users: Array<{ __typename?: 'User', id: string, username: string, name: string, email?: string | null, phoneNumber?: string | null, avatar?: string | null, role: UserRole, effectiveMandorType?: MandorType | null, isActive: boolean, createdAt: Date, updatedAt: Date, managerId?: string | null, companyId?: string | null, manager?: { __typename?: 'User', id: string, name: string } | null, companies?: Array<{ __typename?: 'Company', id: string, name: string, logoUrl?: string | null }> | null, company?: { __typename?: 'Company', id: string, name: string, logoUrl?: string | null } | null, estates?: Array<{ __typename?: 'Estate', id: string, name: string }> | null, divisions?: Array<{ __typename?: 'Division', id: string, name: string }> | null }>, pageInfo: { __typename?: 'PageInfo', currentPage: number, totalPages: number, hasNextPage: boolean, hasPreviousPage: boolean } } };
 
 export type GetUserQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
 
-export type GetUserQuery = { __typename?: 'Query', user?: { __typename?: 'User', id: string, username: string, name: string, email?: string | null, phoneNumber?: string | null, avatar?: string | null, role: UserRole, isActive: boolean, managerId?: string | null, companyId?: string | null, companies?: Array<{ __typename?: 'Company', id: string, name: string }> | null, manager?: { __typename?: 'User', id: string, name: string } | null, estates?: Array<{ __typename?: 'Estate', id: string, name: string }> | null, divisions?: Array<{ __typename?: 'Division', id: string, name: string }> | null } | null };
+export type GetUserQuery = { __typename?: 'Query', user?: { __typename?: 'User', id: string, username: string, name: string, email?: string | null, phoneNumber?: string | null, avatar?: string | null, role: UserRole, effectiveMandorType?: MandorType | null, isActive: boolean, managerId?: string | null, companyId?: string | null, companies?: Array<{ __typename?: 'Company', id: string, name: string }> | null, manager?: { __typename?: 'User', id: string, name: string } | null, estates?: Array<{ __typename?: 'Estate', id: string, name: string }> | null, divisions?: Array<{ __typename?: 'Division', id: string, name: string }> | null } | null };
 
 export type CreateUserMutationVariables = Exact<{
   input: CreateUserInput;
 }>;
 
 
-export type CreateUserMutation = { __typename?: 'Mutation', createUser: { __typename?: 'UserMutationResponse', success: boolean, message: string, user?: { __typename?: 'User', id: string, username: string, role: UserRole } | null } };
+export type CreateUserMutation = { __typename?: 'Mutation', createUser: { __typename?: 'UserMutationResponse', success: boolean, message: string, user?: { __typename?: 'User', id: string, username: string, role: UserRole, effectiveMandorType?: MandorType | null } | null } };
 
 export type UpdateUserMutationVariables = Exact<{
   input: UpdateUserInput;
 }>;
 
 
-export type UpdateUserMutation = { __typename?: 'Mutation', updateUser: { __typename?: 'UserMutationResponse', success: boolean, message: string, user?: { __typename?: 'User', id: string, username: string, role: UserRole } | null } };
+export type UpdateUserMutation = { __typename?: 'Mutation', updateUser: { __typename?: 'UserMutationResponse', success: boolean, message: string, user?: { __typename?: 'User', id: string, username: string, role: UserRole, effectiveMandorType?: MandorType | null } | null } };
 
 export type DeleteUserMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -10050,6 +10210,7 @@ export const UserFieldsFragmentDoc = gql`
   email
   name
   role
+  effectiveMandorType
   isActive
   createdAt
   updatedAt
@@ -11106,6 +11267,437 @@ export function useDeleteDivisionMutation(baseOptions?: Apollo.MutationHookOptio
 export type DeleteDivisionMutationHookResult = ReturnType<typeof useDeleteDivisionMutation>;
 export type DeleteDivisionMutationResult = Apollo.MutationResult<DeleteDivisionMutation>;
 export type DeleteDivisionMutationOptions = Apollo.BaseMutationOptions<DeleteDivisionMutation, DeleteDivisionMutationVariables>;
+export const GetPerawatanRecordsDocument = gql`
+    query GetPerawatanRecords {
+  perawatanRecords {
+    id
+    blockId
+    block {
+      id
+      blockCode
+      name
+      divisionId
+    }
+    jenisPerawatan
+    tanggalPerawatan
+    pekerjaId
+    pekerja {
+      id
+      name
+      role
+      effectiveMandorType
+    }
+    luasArea
+    pupukDigunakan
+    herbisidaDigunakan
+    catatan
+    status
+    createdAt
+    updatedAt
+  }
+}
+    `;
+
+/**
+ * __useGetPerawatanRecordsQuery__
+ *
+ * To run a query within a React component, call `useGetPerawatanRecordsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetPerawatanRecordsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetPerawatanRecordsQuery({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useGetPerawatanRecordsQuery(baseOptions?: Apollo.QueryHookOptions<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>(GetPerawatanRecordsDocument, options);
+      }
+export function useGetPerawatanRecordsLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>(GetPerawatanRecordsDocument, options);
+        }
+// @ts-ignore
+export function useGetPerawatanRecordsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>;
+export function useGetPerawatanRecordsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanRecordsQuery | undefined, GetPerawatanRecordsQueryVariables>;
+export function useGetPerawatanRecordsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>) {
+          const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>(GetPerawatanRecordsDocument, options);
+        }
+export type GetPerawatanRecordsQueryHookResult = ReturnType<typeof useGetPerawatanRecordsQuery>;
+export type GetPerawatanRecordsLazyQueryHookResult = ReturnType<typeof useGetPerawatanRecordsLazyQuery>;
+export type GetPerawatanRecordsSuspenseQueryHookResult = ReturnType<typeof useGetPerawatanRecordsSuspenseQuery>;
+export type GetPerawatanRecordsQueryResult = Apollo.QueryResult<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>;
+export const GetPerawatanMaterialUsageRecordsDocument = gql`
+    query GetPerawatanMaterialUsageRecords {
+  perawatanMaterialUsageRecords {
+    id
+    perawatanRecordId
+    materialCategory
+    materialName
+    quantity
+    unit
+    unitPrice
+    totalCost
+    createdAt
+    updatedAt
+    perawatanRecord {
+      id
+      jenisPerawatan
+      tanggalPerawatan
+      status
+      block {
+        id
+        blockCode
+        name
+      }
+    }
+  }
+}
+    `;
+
+/**
+ * __useGetPerawatanMaterialUsageRecordsQuery__
+ *
+ * To run a query within a React component, call `useGetPerawatanMaterialUsageRecordsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetPerawatanMaterialUsageRecordsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetPerawatanMaterialUsageRecordsQuery({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useGetPerawatanMaterialUsageRecordsQuery(baseOptions?: Apollo.QueryHookOptions<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>(GetPerawatanMaterialUsageRecordsDocument, options);
+      }
+export function useGetPerawatanMaterialUsageRecordsLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>(GetPerawatanMaterialUsageRecordsDocument, options);
+        }
+// @ts-ignore
+export function useGetPerawatanMaterialUsageRecordsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordsQuery | undefined, GetPerawatanMaterialUsageRecordsQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>) {
+          const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>(GetPerawatanMaterialUsageRecordsDocument, options);
+        }
+export type GetPerawatanMaterialUsageRecordsQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsQuery>;
+export type GetPerawatanMaterialUsageRecordsLazyQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsLazyQuery>;
+export type GetPerawatanMaterialUsageRecordsSuspenseQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsSuspenseQuery>;
+export type GetPerawatanMaterialUsageRecordsQueryResult = Apollo.QueryResult<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>;
+export const GetPerawatanMaterialUsageRecordDocument = gql`
+    query GetPerawatanMaterialUsageRecord($id: ID!) {
+  perawatanMaterialUsageRecord(id: $id) {
+    id
+    perawatanRecordId
+    materialCategory
+    materialName
+    quantity
+    unit
+    unitPrice
+    totalCost
+    createdAt
+    updatedAt
+    perawatanRecord {
+      id
+      jenisPerawatan
+      tanggalPerawatan
+      status
+      block {
+        id
+        blockCode
+        name
+      }
+    }
+  }
+}
+    `;
+
+/**
+ * __useGetPerawatanMaterialUsageRecordQuery__
+ *
+ * To run a query within a React component, call `useGetPerawatanMaterialUsageRecordQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetPerawatanMaterialUsageRecordQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetPerawatanMaterialUsageRecordQuery({
+ *   variables: {
+ *      id: // value for 'id'
+ *   },
+ * });
+ */
+export function useGetPerawatanMaterialUsageRecordQuery(baseOptions: Apollo.QueryHookOptions<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables> & ({ variables: GetPerawatanMaterialUsageRecordQueryVariables; skip?: boolean; } | { skip: boolean; }) ) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>(GetPerawatanMaterialUsageRecordDocument, options);
+      }
+export function useGetPerawatanMaterialUsageRecordLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>(GetPerawatanMaterialUsageRecordDocument, options);
+        }
+// @ts-ignore
+export function useGetPerawatanMaterialUsageRecordSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordQuery | undefined, GetPerawatanMaterialUsageRecordQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>) {
+          const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>(GetPerawatanMaterialUsageRecordDocument, options);
+        }
+export type GetPerawatanMaterialUsageRecordQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordQuery>;
+export type GetPerawatanMaterialUsageRecordLazyQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordLazyQuery>;
+export type GetPerawatanMaterialUsageRecordSuspenseQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordSuspenseQuery>;
+export type GetPerawatanMaterialUsageRecordQueryResult = Apollo.QueryResult<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>;
+export const GetPerawatanMaterialUsageRecordsByCategoryDocument = gql`
+    query GetPerawatanMaterialUsageRecordsByCategory($materialCategory: PerawatanMaterialCategory!) {
+  perawatanMaterialUsageRecordsByCategory(materialCategory: $materialCategory) {
+    id
+    perawatanRecordId
+    materialCategory
+    materialName
+    quantity
+    unit
+    unitPrice
+    totalCost
+    createdAt
+    updatedAt
+    perawatanRecord {
+      id
+      jenisPerawatan
+      tanggalPerawatan
+      status
+      block {
+        id
+        blockCode
+        name
+      }
+    }
+  }
+}
+    `;
+
+/**
+ * __useGetPerawatanMaterialUsageRecordsByCategoryQuery__
+ *
+ * To run a query within a React component, call `useGetPerawatanMaterialUsageRecordsByCategoryQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetPerawatanMaterialUsageRecordsByCategoryQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetPerawatanMaterialUsageRecordsByCategoryQuery({
+ *   variables: {
+ *      materialCategory: // value for 'materialCategory'
+ *   },
+ * });
+ */
+export function useGetPerawatanMaterialUsageRecordsByCategoryQuery(baseOptions: Apollo.QueryHookOptions<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables> & ({ variables: GetPerawatanMaterialUsageRecordsByCategoryQueryVariables; skip?: boolean; } | { skip: boolean; }) ) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>(GetPerawatanMaterialUsageRecordsByCategoryDocument, options);
+      }
+export function useGetPerawatanMaterialUsageRecordsByCategoryLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>(GetPerawatanMaterialUsageRecordsByCategoryDocument, options);
+        }
+// @ts-ignore
+export function useGetPerawatanMaterialUsageRecordsByCategorySuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordsByCategorySuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordsByCategoryQuery | undefined, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordsByCategorySuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>) {
+          const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>(GetPerawatanMaterialUsageRecordsByCategoryDocument, options);
+        }
+export type GetPerawatanMaterialUsageRecordsByCategoryQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsByCategoryQuery>;
+export type GetPerawatanMaterialUsageRecordsByCategoryLazyQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsByCategoryLazyQuery>;
+export type GetPerawatanMaterialUsageRecordsByCategorySuspenseQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsByCategorySuspenseQuery>;
+export type GetPerawatanMaterialUsageRecordsByCategoryQueryResult = Apollo.QueryResult<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>;
+export const GetPerawatanMaterialUsageRecordsByRecordDocument = gql`
+    query GetPerawatanMaterialUsageRecordsByRecord($perawatanRecordId: ID!) {
+  perawatanMaterialUsageRecordsByRecord(perawatanRecordId: $perawatanRecordId) {
+    id
+    perawatanRecordId
+    materialCategory
+    materialName
+    quantity
+    unit
+    unitPrice
+    totalCost
+    createdAt
+    updatedAt
+    perawatanRecord {
+      id
+      jenisPerawatan
+      tanggalPerawatan
+      status
+      block {
+        id
+        blockCode
+        name
+      }
+    }
+  }
+}
+    `;
+
+/**
+ * __useGetPerawatanMaterialUsageRecordsByRecordQuery__
+ *
+ * To run a query within a React component, call `useGetPerawatanMaterialUsageRecordsByRecordQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetPerawatanMaterialUsageRecordsByRecordQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetPerawatanMaterialUsageRecordsByRecordQuery({
+ *   variables: {
+ *      perawatanRecordId: // value for 'perawatanRecordId'
+ *   },
+ * });
+ */
+export function useGetPerawatanMaterialUsageRecordsByRecordQuery(baseOptions: Apollo.QueryHookOptions<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables> & ({ variables: GetPerawatanMaterialUsageRecordsByRecordQueryVariables; skip?: boolean; } | { skip: boolean; }) ) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>(GetPerawatanMaterialUsageRecordsByRecordDocument, options);
+      }
+export function useGetPerawatanMaterialUsageRecordsByRecordLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>(GetPerawatanMaterialUsageRecordsByRecordDocument, options);
+        }
+// @ts-ignore
+export function useGetPerawatanMaterialUsageRecordsByRecordSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordsByRecordSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordsByRecordQuery | undefined, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordsByRecordSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>) {
+          const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>(GetPerawatanMaterialUsageRecordsByRecordDocument, options);
+        }
+export type GetPerawatanMaterialUsageRecordsByRecordQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsByRecordQuery>;
+export type GetPerawatanMaterialUsageRecordsByRecordLazyQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsByRecordLazyQuery>;
+export type GetPerawatanMaterialUsageRecordsByRecordSuspenseQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsByRecordSuspenseQuery>;
+export type GetPerawatanMaterialUsageRecordsByRecordQueryResult = Apollo.QueryResult<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>;
+export const CreatePerawatanMaterialUsageDocument = gql`
+    mutation CreatePerawatanMaterialUsage($input: CreatePerawatanMaterialUsageInput!) {
+  createPerawatanMaterialUsage(input: $input) {
+    id
+    perawatanRecordId
+    materialCategory
+    materialName
+    quantity
+    unit
+    unitPrice
+    totalCost
+    createdAt
+    updatedAt
+  }
+}
+    `;
+export type CreatePerawatanMaterialUsageMutationFn = Apollo.MutationFunction<CreatePerawatanMaterialUsageMutation, CreatePerawatanMaterialUsageMutationVariables>;
+
+/**
+ * __useCreatePerawatanMaterialUsageMutation__
+ *
+ * To run a mutation, you first call `useCreatePerawatanMaterialUsageMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useCreatePerawatanMaterialUsageMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [createPerawatanMaterialUsageMutation, { data, loading, error }] = useCreatePerawatanMaterialUsageMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useCreatePerawatanMaterialUsageMutation(baseOptions?: Apollo.MutationHookOptions<CreatePerawatanMaterialUsageMutation, CreatePerawatanMaterialUsageMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<CreatePerawatanMaterialUsageMutation, CreatePerawatanMaterialUsageMutationVariables>(CreatePerawatanMaterialUsageDocument, options);
+      }
+export type CreatePerawatanMaterialUsageMutationHookResult = ReturnType<typeof useCreatePerawatanMaterialUsageMutation>;
+export type CreatePerawatanMaterialUsageMutationResult = Apollo.MutationResult<CreatePerawatanMaterialUsageMutation>;
+export type CreatePerawatanMaterialUsageMutationOptions = Apollo.BaseMutationOptions<CreatePerawatanMaterialUsageMutation, CreatePerawatanMaterialUsageMutationVariables>;
+export const UpdatePerawatanMaterialUsageDocument = gql`
+    mutation UpdatePerawatanMaterialUsage($input: UpdatePerawatanMaterialUsageInput!) {
+  updatePerawatanMaterialUsage(input: $input) {
+    id
+    perawatanRecordId
+    materialCategory
+    materialName
+    quantity
+    unit
+    unitPrice
+    totalCost
+    createdAt
+    updatedAt
+  }
+}
+    `;
+export type UpdatePerawatanMaterialUsageMutationFn = Apollo.MutationFunction<UpdatePerawatanMaterialUsageMutation, UpdatePerawatanMaterialUsageMutationVariables>;
+
+/**
+ * __useUpdatePerawatanMaterialUsageMutation__
+ *
+ * To run a mutation, you first call `useUpdatePerawatanMaterialUsageMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useUpdatePerawatanMaterialUsageMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [updatePerawatanMaterialUsageMutation, { data, loading, error }] = useUpdatePerawatanMaterialUsageMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useUpdatePerawatanMaterialUsageMutation(baseOptions?: Apollo.MutationHookOptions<UpdatePerawatanMaterialUsageMutation, UpdatePerawatanMaterialUsageMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<UpdatePerawatanMaterialUsageMutation, UpdatePerawatanMaterialUsageMutationVariables>(UpdatePerawatanMaterialUsageDocument, options);
+      }
+export type UpdatePerawatanMaterialUsageMutationHookResult = ReturnType<typeof useUpdatePerawatanMaterialUsageMutation>;
+export type UpdatePerawatanMaterialUsageMutationResult = Apollo.MutationResult<UpdatePerawatanMaterialUsageMutation>;
+export type UpdatePerawatanMaterialUsageMutationOptions = Apollo.BaseMutationOptions<UpdatePerawatanMaterialUsageMutation, UpdatePerawatanMaterialUsageMutationVariables>;
+export const DeletePerawatanMaterialUsageDocument = gql`
+    mutation DeletePerawatanMaterialUsage($id: ID!) {
+  deletePerawatanMaterialUsage(id: $id)
+}
+    `;
+export type DeletePerawatanMaterialUsageMutationFn = Apollo.MutationFunction<DeletePerawatanMaterialUsageMutation, DeletePerawatanMaterialUsageMutationVariables>;
+
+/**
+ * __useDeletePerawatanMaterialUsageMutation__
+ *
+ * To run a mutation, you first call `useDeletePerawatanMaterialUsageMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useDeletePerawatanMaterialUsageMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [deletePerawatanMaterialUsageMutation, { data, loading, error }] = useDeletePerawatanMaterialUsageMutation({
+ *   variables: {
+ *      id: // value for 'id'
+ *   },
+ * });
+ */
+export function useDeletePerawatanMaterialUsageMutation(baseOptions?: Apollo.MutationHookOptions<DeletePerawatanMaterialUsageMutation, DeletePerawatanMaterialUsageMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<DeletePerawatanMaterialUsageMutation, DeletePerawatanMaterialUsageMutationVariables>(DeletePerawatanMaterialUsageDocument, options);
+      }
+export type DeletePerawatanMaterialUsageMutationHookResult = ReturnType<typeof useDeletePerawatanMaterialUsageMutation>;
+export type DeletePerawatanMaterialUsageMutationResult = Apollo.MutationResult<DeletePerawatanMaterialUsageMutation>;
+export type DeletePerawatanMaterialUsageMutationOptions = Apollo.BaseMutationOptions<DeletePerawatanMaterialUsageMutation, DeletePerawatanMaterialUsageMutationVariables>;
 export const GetUsersDocument = gql`
     query GetUsers($companyId: String, $role: UserRole, $isActive: Boolean, $search: String, $limit: Int, $offset: Int) {
   users(
@@ -11124,6 +11716,7 @@ export const GetUsersDocument = gql`
       phoneNumber
       avatar
       role
+      effectiveMandorType
       isActive
       createdAt
       updatedAt
@@ -11214,6 +11807,7 @@ export const GetUserDocument = gql`
     phoneNumber
     avatar
     role
+    effectiveMandorType
     isActive
     managerId
     companyId
@@ -11281,6 +11875,7 @@ export const CreateUserDocument = gql`
       id
       username
       role
+      effectiveMandorType
     }
   }
 }
@@ -11320,6 +11915,7 @@ export const UpdateUserDocument = gql`
       id
       username
       role
+      effectiveMandorType
     }
   }
 }

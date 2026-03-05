@@ -47,8 +47,8 @@ export const GET_ROLE_HIERARCHY = gql`
 
 // GET ALL ROLES
 export const GET_ROLES = gql`
-  query GetRoles($activeOnly: Boolean = true) {
-    roles(activeOnly: $activeOnly) {
+  query GetRoles($activeOnly: Boolean = true, $first: Int, $after: String) {
+    roles(activeOnly: $activeOnly, first: $first, after: $after) {
       id
       name
       displayName

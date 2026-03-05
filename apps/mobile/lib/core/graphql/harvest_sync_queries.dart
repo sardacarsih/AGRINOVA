@@ -28,27 +28,11 @@ class HarvestSyncQueries {
       mandorServerUpdates(since: $since, deviceId: $deviceId) {
         id
         localId
-        tanggal
-        mandorId
-        mandorName
-        blockId
-        blockName
-        divisionId
-        divisionName
-        estateId
-        estateName
-        karyawan
-        jumlahJanjang
-        beratTbs
         status
         approvedBy
-        approvedByName
         approvedAt
         rejectedReason
-        createdAt
         updatedAt
-        syncStatus
-        serverVersion
       }
     }
   ''';

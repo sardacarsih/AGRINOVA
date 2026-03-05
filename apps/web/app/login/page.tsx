@@ -334,7 +334,7 @@ function LoginPageContent() {
     {
       icon: Shield,
       title: "Secure Operations",
-      description: "Keamanan tingkat enterprise dengan enkripsi end-to-end",
+      description: "Keamanan tingkat enterprise dengan TLS/SSL, autentikasi JWT, dan kontrol akses berbasis peran",
       color: "text-blue-600 dark:text-blue-400",
       bgColor: "bg-blue-50 dark:bg-blue-900/20",
       borderColor: "border-blue-200 dark:border-blue-800"
@@ -428,7 +428,7 @@ function LoginPageContent() {
               <footer className="px-4 pb-5 flex flex-col items-center gap-2">
                 <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
                   <Shield className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                  <span className="text-center">Dilindungi dengan enkripsi end-to-end</span>
+                  <span className="text-center">Dilindungi dengan TLS/SSL dan autentikasi JWT</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <a
@@ -747,7 +747,7 @@ function LoginPageContent() {
                   <footer className="px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 flex flex-col items-center gap-2">
                     <div className="flex items-center justify-center gap-1.5 sm:gap-2 text-xs text-slate-500 dark:text-slate-400">
                       <Shield className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                      <span className="text-center">Dilindungi dengan enkripsi end-to-end</span>
+                      <span className="text-center">Dilindungi dengan TLS/SSL dan autentikasi JWT</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <a

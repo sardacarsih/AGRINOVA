@@ -41,6 +41,7 @@ class DatabaseTablesService {
         phone TEXT,
         full_name TEXT NOT NULL,
         role TEXT NOT NULL CHECK (role IN ('mandor', 'asisten', 'satpam', 'manager', 'area_manager', 'company_admin', 'super_admin')),
+        mandor_type TEXT CHECK (mandor_type IN ('PANEN', 'PERAWATAN')),
         company_id TEXT NOT NULL,
         employee_id TEXT,
         is_active INTEGER DEFAULT 1,

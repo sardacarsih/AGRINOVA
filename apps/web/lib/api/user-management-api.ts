@@ -1,5 +1,5 @@
 import { apolloClient } from '@/lib/apollo/client';
-import { 
+import {
   GET_USERS,
   GET_USER,
   CREATE_USER,
@@ -26,6 +26,7 @@ export interface CreateUserRequest {
   companyId: string;
   phone?: string;
   employeeId?: string;
+  mandorType?: string;
   // For single assignments (legacy roles)
   estateId?: string;
   divisionId?: string;
@@ -144,6 +145,7 @@ export class UserManagementAPI {
       phoneNumber: userData.phone,
       password: userData.password,
       role: userData.role,
+      mandorType: userData.mandorType,
       companyIds: userData.companyId ? [userData.companyId] : userData.assignedCompanyIds,
       estateIds: userData.estateId ? [userData.estateId] : userData.assignedEstateIds,
       divisionIds: userData.divisionId ? [userData.divisionId] : userData.assignedDivisionIds,
@@ -179,6 +181,7 @@ export class UserManagementAPI {
       email: userData.email,
       phoneNumber: userData.phone,
       role: userData.role,
+      mandorType: userData.mandorType,
       companyIds: userData.assignedCompanyIds,
       estateIds: userData.assignedEstateIds,
       divisionIds: userData.assignedDivisionIds,

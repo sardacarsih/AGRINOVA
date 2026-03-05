@@ -323,22 +323,61 @@ func (r *UserRepository) Create(ctx context.Context, user *domain.User) error {
 
 	// Ensure IDs for assignments
 	for i := range userModel.CompanyAssignments {
+		if userModel.CompanyAssignments[i].UserID == "" {
+			userModel.CompanyAssignments[i].UserID = userModel.ID
+		}
 		if userModel.CompanyAssignments[i].ID == "" {
 			userModel.CompanyAssignments[i].ID = uuid.New().String()
 		}
 	}
 	for i := range userModel.EstateAssignments {
+		if userModel.EstateAssignments[i].UserID == "" {
+			userModel.EstateAssignments[i].UserID = userModel.ID
+		}
 		if userModel.EstateAssignments[i].ID == "" {
 			userModel.EstateAssignments[i].ID = uuid.New().String()
 		}
 	}
 	for i := range userModel.DivisionAssignments {
+		if userModel.DivisionAssignments[i].UserID == "" {
+			userModel.DivisionAssignments[i].UserID = userModel.ID
+		}
 		if userModel.DivisionAssignments[i].ID == "" {
 			userModel.DivisionAssignments[i].ID = uuid.New().String()
 		}
 	}
 
-	if err := r.db.WithContext(ctx).Create(userModel).Error; err != nil {
+	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		baseUser := UserModel{
+			ID:        userModel.ID,
+			Username:  userModel.Username,
+			Name:      userModel.Name,
+			Email:     userModel.Email,
+			Phone:     userModel.Phone,
+			AvatarURL: userModel.AvatarURL,
+			Password:  userModel.Password,
+			Role:      userModel.Role,
+			IsActive:  userModel.IsActive,
+			ManagerID: userModel.ManagerID,
+			CreatedAt: userModel.CreatedAt,
+			UpdatedAt: userModel.UpdatedAt,
+		}
+
+		if err := tx.Create(&baseUser).Error; err != nil {
+			return err
+		}
+		if err := upsertCompanyAssignments(tx, userModel.CompanyAssignments); err != nil {
+			return err
+		}
+		if err := upsertEstateAssignments(tx, userModel.EstateAssignments); err != nil {
+			return err
+		}
+		if err := upsertDivisionAssignments(tx, userModel.DivisionAssignments); err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
 		return err
 	}
 
@@ -394,6 +433,7 @@ func upsertCompanyAssignments(tx *gorm.DB, assignments []UserCompanyAssignmentMo
 		return nil
 	}
 	assignments = dedupeCompanyAssignmentsByUniqueKey(assignments)
+	hasMandorTypeColumn := tx.Migrator().HasColumn("user_company_assignments", "mandor_type")
 
 	now := time.Now()
 	rows := make([]map[string]interface{}, 0, len(assignments))
@@ -423,6 +463,9 @@ func upsertCompanyAssignments(tx *gorm.DB, assignments []UserCompanyAssignmentMo
 			"created_at":  assignments[i].CreatedAt,
 			"updated_at":  assignments[i].UpdatedAt,
 		})
+		if hasMandorTypeColumn {
+			rows[len(rows)-1]["mandor_type"] = assignments[i].MandorType
+		}
 	}
 
 	conflictColumns := []clause.Column{{Name: "id"}}
@@ -433,14 +476,19 @@ func upsertCompanyAssignments(tx *gorm.DB, assignments []UserCompanyAssignmentMo
 		}
 	}
 
+	updateColumns := []string{
+		"is_active",
+		"assigned_by",
+		"assigned_at",
+		"updated_at",
+	}
+	if hasMandorTypeColumn {
+		updateColumns = append(updateColumns, "mandor_type")
+	}
+
 	return tx.Model(&UserCompanyAssignmentModel{}).Clauses(clause.OnConflict{
-		Columns: conflictColumns,
-		DoUpdates: clause.AssignmentColumns([]string{
-			"is_active",
-			"assigned_by",
-			"assigned_at",
-			"updated_at",
-		}),
+		Columns:   conflictColumns,
+		DoUpdates: clause.AssignmentColumns(updateColumns),
 	}).Create(rows).Error
 }
 
@@ -781,11 +829,20 @@ func (r *UserRepository) toDomainUser(user *UserModel) *domain.User {
 
 	// Map company assignments
 	for _, assignment := range user.CompanyAssignments {
+		var mandorType *domain.MandorType
+		if assignment.MandorType != nil {
+			parsed := domain.MandorType(strings.ToUpper(strings.TrimSpace(*assignment.MandorType)))
+			if parsed.IsValid() {
+				mandorType = &parsed
+			}
+		}
+
 		domainAssignment := domain.Assignment{
 			ID:         assignment.ID,
 			UserID:     assignment.UserID,
 			CompanyID:  assignment.CompanyID,
 			AssignedBy: assignment.AssignedBy,
+			MandorType: mandorType,
 			IsActive:   assignment.IsActive,
 			CreatedAt:  assignment.CreatedAt,
 			UpdatedAt:  assignment.UpdatedAt,
@@ -902,21 +959,7 @@ func (r *UserRepository) fromDomainUser(user *domain.User) *UserModel {
 	}
 
 	for _, assignment := range user.Assignments {
-		if assignment.EstateID != nil {
-			modelAssignment := UserEstateAssignmentModel{
-				ID:         assignment.ID,
-				UserID:     assignment.UserID,
-				EstateID:   *assignment.EstateID,
-				IsActive:   assignment.IsActive,
-				AssignedBy: assignment.AssignedBy,
-				CreatedAt:  assignment.CreatedAt,
-				UpdatedAt:  assignment.UpdatedAt,
-			}
-			if modelAssignment.UserID == "" {
-				modelAssignment.UserID = user.ID
-			}
-			modelUser.EstateAssignments = append(modelUser.EstateAssignments, modelAssignment)
-		} else if assignment.DivisionID != nil {
+		if assignment.DivisionID != nil {
 			modelAssignment := UserDivisionAssignmentModel{
 				ID:         assignment.ID,
 				UserID:     assignment.UserID,
@@ -930,15 +973,34 @@ func (r *UserRepository) fromDomainUser(user *domain.User) *UserModel {
 				modelAssignment.UserID = user.ID
 			}
 			modelUser.DivisionAssignments = append(modelUser.DivisionAssignments, modelAssignment)
+		} else if assignment.EstateID != nil {
+			modelAssignment := UserEstateAssignmentModel{
+				ID:         assignment.ID,
+				UserID:     assignment.UserID,
+				EstateID:   *assignment.EstateID,
+				IsActive:   assignment.IsActive,
+				AssignedBy: assignment.AssignedBy,
+				CreatedAt:  assignment.CreatedAt,
+				UpdatedAt:  assignment.UpdatedAt,
+			}
+			if modelAssignment.UserID == "" {
+				modelAssignment.UserID = user.ID
+			}
+			modelUser.EstateAssignments = append(modelUser.EstateAssignments, modelAssignment)
 		} else {
 			modelAssignment := UserCompanyAssignmentModel{
 				ID:         assignment.ID,
 				UserID:     assignment.UserID,
 				CompanyID:  assignment.CompanyID,
+				MandorType: nil,
 				IsActive:   assignment.IsActive,
 				AssignedBy: assignment.AssignedBy,
 				CreatedAt:  assignment.CreatedAt,
 				UpdatedAt:  assignment.UpdatedAt,
+			}
+			if assignment.MandorType != nil && assignment.MandorType.IsValid() {
+				mandorType := assignment.MandorType.String()
+				modelAssignment.MandorType = &mandorType
 			}
 			if modelAssignment.UserID == "" {
 				modelAssignment.UserID = user.ID

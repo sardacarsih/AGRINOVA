@@ -119,6 +119,7 @@ export function MandorDashboardLayout({
     <SidebarProvider defaultOpen>
       <UnifiedSidebar
         userRole={normalizedUserRole}
+        mandorType={user.effectiveMandorType}
         userName={user.name || user.username}
         companyName={companyName}
         isCollapsed={isSidebarCollapsed}

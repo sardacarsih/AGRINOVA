@@ -714,6 +714,12 @@ class FCMService {
       );
 
       if (result.hasException) {
+        if (_isDuplicateTokenRegistrationError(result.exception)) {
+          _logger.w(
+            'FCM token already registered on server; treating registration as idempotent',
+          );
+          return;
+        }
         _logger.e('Failed to register FCM token: ${result.exception}');
       } else {
         _logger.i('FCM token registered successfully');
@@ -721,6 +727,22 @@ class FCMService {
     } catch (e) {
       _logger.e('Error registering FCM token: $e');
     }
+  }
+
+  bool _isDuplicateTokenRegistrationError(OperationException? exception) {
+    if (exception == null) {
+      return false;
+    }
+
+    final combinedMessage = <String>[
+      exception.toString(),
+      ...exception.graphqlErrors.map((error) => error.message),
+    ].join(' ').toLowerCase();
+
+    return combinedMessage.contains('idx_device_token_unique') ||
+        combinedMessage.contains(
+          'duplicate key value violates unique constraint',
+        );
   }
 
   /// Unregister token (call on logout)

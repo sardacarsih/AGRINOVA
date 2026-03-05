@@ -942,7 +942,11 @@ class HarvestRepositoryImpl implements HarvestRepository {
         return [];
       }
 
-      final assignedDivisionIds = await _getAssignedDivisionIdsOrEmpty();
+      final assignedDivisionIds = (await _getAssignedDivisionIdsOrEmpty())
+          .map((id) => id.trim().toLowerCase())
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
       if (assignedDivisionIds.isEmpty) {
         _logger.w(
           'getBlocks: assignment divisi mandor kosong, kembalikan list kosong untuk mencegah data stale.',
@@ -950,7 +954,7 @@ class HarvestRepositoryImpl implements HarvestRepository {
         return [];
       }
 
-      final normalizedDivisionId = divisionId?.trim();
+      final normalizedDivisionId = divisionId?.trim().toLowerCase();
       if (normalizedDivisionId != null &&
           normalizedDivisionId.isNotEmpty &&
           !assignedDivisionIds.contains(normalizedDivisionId)) {
@@ -969,7 +973,7 @@ class HarvestRepositoryImpl implements HarvestRepository {
         '?',
       ).join(', ');
       String whereClause =
-          'b.is_active = 1 AND e.company_id = ? AND b.division_id IN ($divisionPlaceholders)';
+          'b.is_active = 1 AND e.company_id = ? AND LOWER(b.division_id) IN ($divisionPlaceholders)';
       final whereArgs = <dynamic>[currentCompanyId, ...scopedDivisionIds];
 
       if (query != null && query.trim().isNotEmpty) {
@@ -980,7 +984,7 @@ class HarvestRepositoryImpl implements HarvestRepository {
       }
 
       final db = await _databaseService.database;
-      final results = await db.rawQuery(
+      var results = await db.rawQuery(
         '''
         SELECT
           b.*,
@@ -996,6 +1000,43 @@ class HarvestRepositoryImpl implements HarvestRepository {
         ''',
         whereArgs,
       );
+
+      if (results.isEmpty) {
+        String fallbackWhereClause =
+            'b.is_active = 1 AND LOWER(b.division_id) IN ($divisionPlaceholders)';
+        final fallbackWhereArgs = <dynamic>[...scopedDivisionIds];
+
+        if (query != null && query.trim().isNotEmpty) {
+          fallbackWhereClause += ' AND (b.name LIKE ? OR b.code LIKE ?)';
+          final keyword = '%${query.trim()}%';
+          fallbackWhereArgs.add(keyword);
+          fallbackWhereArgs.add(keyword);
+        }
+
+        final fallbackResults = await db.rawQuery(
+          '''
+          SELECT
+            b.*,
+            COALESCE(NULLIF(TRIM(d.name), ''), NULLIF(TRIM(d.code), ''), '') AS resolved_division_name,
+            COALESCE(NULLIF(TRIM(d.code), ''), '') AS resolved_division_code,
+            COALESCE(d.estate_id, '') AS resolved_estate_id,
+            COALESCE(NULLIF(TRIM(e.name), ''), '') AS resolved_estate_name
+          FROM blocks b
+          LEFT JOIN divisions d ON d.division_id = b.division_id
+          LEFT JOIN estates e ON e.estate_id = d.estate_id
+          WHERE $fallbackWhereClause
+          ORDER BY b.name ASC
+          ''',
+          fallbackWhereArgs,
+        );
+
+        if (fallbackResults.isNotEmpty) {
+          _logger.w(
+            'getBlocks: strict company filter menghasilkan 0 data. fallback berbasis assignment dipakai. companyId=$currentCompanyId divisions=${scopedDivisionIds.length} fallbackCount=${fallbackResults.length}',
+          );
+          results = fallbackResults;
+        }
+      }
 
       _logger.d('getBlocks query result count: ${results.length}');
       if (results.isNotEmpty) {

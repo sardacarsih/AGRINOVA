@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { PermissionManager } from '@/lib/auth/permissions';
 import { ROLE_SPECIFIC_NAVIGATION, canRoleAccessPath } from '@/lib/constants/navigation';
-import { UserRole } from '@/types/auth';
+import { MandorType, UserRole } from '@/types/auth';
 import { Loader2, AlertTriangle, Shield, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +17,15 @@ const normalizeRuntimeRole = (role: unknown): UserRole | null => {
   if (typeof role !== 'string') return null;
   const normalized = role.trim().toUpperCase().replace(/[\s-]+/g, '_') as UserRole;
   return normalized in ROLE_SPECIFIC_NAVIGATION ? normalized : null;
+};
+
+const normalizeMandorType = (mandorType: unknown): MandorType | null => {
+  if (typeof mandorType !== 'string') return null;
+  const normalized = mandorType.trim().toUpperCase().replace(/[\s-]+/g, '_');
+  if (normalized === 'PANEN' || normalized === 'PERAWATAN') {
+    return normalized;
+  }
+  return null;
 };
 
 const isLogoutTransitionActive = (): boolean => {
@@ -31,6 +40,7 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredPermissions?: string[];
   allowedRoles?: UserRole[];
+  allowedMandorTypes?: MandorType[];
   fallbackPath?: string;
   loadingComponent?: React.ComponentType;
   unauthorizedComponent?: React.ComponentType<{
@@ -73,6 +83,8 @@ function DefaultUnauthorizedComponent({
         return <Shield className="h-8 w-8 text-orange-600" />;
       case 'permission_missing':
         return <Lock className="h-8 w-8 text-red-600" />;
+      case 'mandor_type_not_allowed':
+        return <Shield className="h-8 w-8 text-amber-600" />;
       case 'path_not_accessible':
         return <AlertTriangle className="h-8 w-8 text-yellow-600" />;
       case 'unauthenticated':
@@ -88,6 +100,8 @@ function DefaultUnauthorizedComponent({
         return 'Akses Role Ditolak';
       case 'permission_missing':
         return 'Izin Tidak Cukup';
+      case 'mandor_type_not_allowed':
+        return 'Tipe Mandor Tidak Sesuai';
       case 'path_not_accessible':
         return 'Halaman Tidak Tersedia';
       case 'unauthenticated':
@@ -105,6 +119,8 @@ function DefaultUnauthorizedComponent({
         return `Role ${userRole} tidak diizinkan mengakses halaman ini.`;
       case 'permission_missing':
         return 'Anda tidak memiliki izin yang diperlukan untuk mengakses halaman ini.';
+      case 'mandor_type_not_allowed':
+        return 'Halaman ini hanya tersedia untuk subtype mandor tertentu.';
       case 'path_not_accessible':
         return 'Halaman ini tidak tersedia untuk role Anda.';
       case 'unauthenticated':
@@ -171,6 +187,7 @@ export function ProtectedRoute({
   children,
   requiredPermissions = [],
   allowedRoles = [],
+  allowedMandorTypes = [],
   fallbackPath,
   loadingComponent: LoadingComponent = DefaultLoadingComponent,
   unauthorizedComponent: UnauthorizedComponent = DefaultUnauthorizedComponent,
@@ -291,6 +308,22 @@ export function ProtectedRoute({
       }
     }
 
+    if (normalizedUserRole === 'MANDOR' && allowedMandorTypes.length > 0) {
+      const normalizedMandorType = normalizeMandorType(
+        (user as { effectiveMandorType?: unknown }).effectiveMandorType
+      );
+
+      if (!normalizedMandorType || !allowedMandorTypes.includes(normalizedMandorType)) {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[ProtectedRoute] Access denied - Mandor type mismatch:', {
+            userMandorType: normalizedMandorType,
+            allowedMandorTypes,
+          });
+        }
+        return { hasAccess: false, reason: 'mandor_type_not_allowed' };
+      }
+    }
+
     // Check permission-based access
     if (requiredPermissions.length > 0 && !PermissionManager.hasAnyPermission(user, requiredPermissions)) {
       if (process.env.NODE_ENV === 'development') {
@@ -314,7 +347,16 @@ export function ProtectedRoute({
       });
     }
     return { hasAccess: true, reason: 'access_granted' };
-  }, [user, allowedRoles, requiredPermissions, isLoading, pathname, requireCleanURLAccess, bypassRoleCheck]);
+  }, [
+    user,
+    allowedRoles,
+    allowedMandorTypes,
+    requiredPermissions,
+    isLoading,
+    pathname,
+    requireCleanURLAccess,
+    bypassRoleCheck,
+  ]);
 
   // Extract access state and reason for easier handling
   const accessState = React.useMemo(() => {
@@ -350,11 +392,14 @@ export function ProtectedRoute({
 
   // Show unauthorized component if user doesn't have access
   if (!accessState.hasAccess) {
-    const message = allowedRoles.length > 0
-      ? `Halaman ini hanya dapat diakses oleh: ${allowedRoles.join(', ')}`
-      : requiredPermissions.length > 0
-        ? `Anda tidak memiliki izin yang diperlukan untuk mengakses halaman ini.`
-        : 'Anda tidak memiliki akses untuk melihat halaman ini.';
+    const message =
+      accessState.reason === 'mandor_type_not_allowed'
+        ? `Halaman ini hanya dapat diakses oleh mandor: ${allowedMandorTypes.join(', ')}`
+        : allowedRoles.length > 0
+          ? `Halaman ini hanya dapat diakses oleh: ${allowedRoles.join(', ')}`
+          : requiredPermissions.length > 0
+            ? 'Anda tidak memiliki izin yang diperlukan untuk mengakses halaman ini.'
+            : 'Anda tidak memiliki akses untuk melihat halaman ini.';
 
     return (
       <UnauthorizedComponent

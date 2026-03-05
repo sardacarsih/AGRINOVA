@@ -262,7 +262,7 @@ type TarifBlok struct {
 	TarifLibur   *float64  `json:"tarifLibur,omitempty" gorm:"column:tarif_libur;type:numeric(14,2)"`
 	TarifLebaran *float64  `json:"tarifLebaran,omitempty" gorm:"column:tarif_lebaran;type:numeric(14,2)"`
 	IsActive     bool      `json:"isActive" gorm:"column:is_active;default:true"`
-	Blocks       []*Block  `json:"blocks" gorm:"foreignKey:TarifBlokID"`
+	Blocks       []*Block  `json:"blocks" gorm:"-:migration;foreignKey:TarifBlokID"`
 	CreatedAt    time.Time `json:"createdAt" gorm:"column:created_at;autoCreateTime"`
 	UpdatedAt    time.Time `json:"updatedAt" gorm:"column:updated_at;autoUpdateTime"`
 }
@@ -290,7 +290,7 @@ type Block struct {
 	LandTypeID   *string    `json:"landTypeId,omitempty" gorm:"column:land_type_id;type:uuid;index:idx_blocks_land_type_id"`
 	LandType     *LandType  `json:"landType,omitempty" gorm:"foreignKey:LandTypeID;references:ID"`
 	TarifBlokID  *string    `json:"tarifBlokId,omitempty" gorm:"column:tarif_blok_id;type:uuid"`
-	TarifBlok    *TarifBlok `json:"tarifBlok,omitempty" gorm:"foreignKey:TarifBlokID;references:ID;constraint:false"`
+	TarifBlok    *TarifBlok `json:"tarifBlok,omitempty" gorm:"-:migration;foreignKey:TarifBlokID;references:ID;constraint:false"`
 	DivisionID   string     `json:"divisionId" gorm:"column:division_id;type:uuid"`
 	Division     *Division  `json:"division" gorm:"foreignKey:DivisionID;references:ID"`
 	IsActive     bool       `json:"isActive" gorm:"column:is_active;default:true"`
@@ -333,53 +333,53 @@ type UpdateBlockInput struct {
 
 // CreateTarifBlokInput for creating tariff master records.
 type CreateTarifBlokInput struct {
-	CompanyID                string   `json:"companyId"`
-	Perlakuan                string   `json:"perlakuan"`
-	Keterangan               *string  `json:"keterangan,omitempty"`
+	CompanyID    string   `json:"companyId"`
+	Perlakuan    string   `json:"perlakuan"`
+	Keterangan   *string  `json:"keterangan,omitempty"`
 	ManagementDecisionNo     *string  `json:"managementDecisionNo,omitempty"`
 	ManagementDecisionReason *string  `json:"managementDecisionReason,omitempty"`
 	ManagementEffectiveNote  *string  `json:"managementEffectiveNote,omitempty"`
-	LandTypeID               *string  `json:"landTypeId,omitempty"`
-	TarifCode                *string  `json:"tarifCode,omitempty"`
-	SchemeType               *string  `json:"schemeType,omitempty"`
-	BJRMinKg                 *float64 `json:"bjrMinKg,omitempty"`
-	BJRMaxKg                 *float64 `json:"bjrMaxKg,omitempty"`
-	TargetLebih              *float64 `json:"targetLebihKg,omitempty"`
-	SortOrder                *int32   `json:"sortOrder,omitempty"`
-	Basis                    *float64 `json:"basis,omitempty"`
-	TarifUpah                *float64 `json:"tarifUpah,omitempty"`
-	Premi                    *float64 `json:"premi,omitempty"`
-	TarifPremi1              *float64 `json:"tarifPremi1,omitempty"`
-	TarifPremi2              *float64 `json:"tarifPremi2,omitempty"`
-	TarifLibur               *float64 `json:"tarifLibur,omitempty"`
-	TarifLebaran             *float64 `json:"tarifLebaran,omitempty"`
-	IsActive                 *bool    `json:"isActive,omitempty"`
+	LandTypeID   *string  `json:"landTypeId,omitempty"`
+	TarifCode    *string  `json:"tarifCode,omitempty"`
+	SchemeType   *string  `json:"schemeType,omitempty"`
+	BJRMinKg     *float64 `json:"bjrMinKg,omitempty"`
+	BJRMaxKg     *float64 `json:"bjrMaxKg,omitempty"`
+	TargetLebih  *float64 `json:"targetLebihKg,omitempty"`
+	SortOrder    *int32   `json:"sortOrder,omitempty"`
+	Basis        *float64 `json:"basis,omitempty"`
+	TarifUpah    *float64 `json:"tarifUpah,omitempty"`
+	Premi        *float64 `json:"premi,omitempty"`
+	TarifPremi1  *float64 `json:"tarifPremi1,omitempty"`
+	TarifPremi2  *float64 `json:"tarifPremi2,omitempty"`
+	TarifLibur   *float64 `json:"tarifLibur,omitempty"`
+	TarifLebaran *float64 `json:"tarifLebaran,omitempty"`
+	IsActive     *bool    `json:"isActive,omitempty"`
 }
 
 // UpdateTarifBlokInput for updating tariff master records.
 type UpdateTarifBlokInput struct {
-	ID                       string   `json:"id"`
-	CompanyID                *string  `json:"companyId,omitempty"`
-	Perlakuan                *string  `json:"perlakuan,omitempty"`
-	Keterangan               *string  `json:"keterangan,omitempty"`
+	ID           string   `json:"id"`
+	CompanyID    *string  `json:"companyId,omitempty"`
+	Perlakuan    *string  `json:"perlakuan,omitempty"`
+	Keterangan   *string  `json:"keterangan,omitempty"`
 	ManagementDecisionNo     *string  `json:"managementDecisionNo,omitempty"`
 	ManagementDecisionReason *string  `json:"managementDecisionReason,omitempty"`
 	ManagementEffectiveNote  *string  `json:"managementEffectiveNote,omitempty"`
-	LandTypeID               *string  `json:"landTypeId,omitempty"`
-	TarifCode                *string  `json:"tarifCode,omitempty"`
-	SchemeType               *string  `json:"schemeType,omitempty"`
-	BJRMinKg                 *float64 `json:"bjrMinKg,omitempty"`
-	BJRMaxKg                 *float64 `json:"bjrMaxKg,omitempty"`
-	TargetLebih              *float64 `json:"targetLebihKg,omitempty"`
-	SortOrder                *int32   `json:"sortOrder,omitempty"`
-	Basis                    *float64 `json:"basis,omitempty"`
-	TarifUpah                *float64 `json:"tarifUpah,omitempty"`
-	Premi                    *float64 `json:"premi,omitempty"`
-	TarifPremi1              *float64 `json:"tarifPremi1,omitempty"`
-	TarifPremi2              *float64 `json:"tarifPremi2,omitempty"`
-	TarifLibur               *float64 `json:"tarifLibur,omitempty"`
-	TarifLebaran             *float64 `json:"tarifLebaran,omitempty"`
-	IsActive                 *bool    `json:"isActive,omitempty"`
+	LandTypeID   *string  `json:"landTypeId,omitempty"`
+	TarifCode    *string  `json:"tarifCode,omitempty"`
+	SchemeType   *string  `json:"schemeType,omitempty"`
+	BJRMinKg     *float64 `json:"bjrMinKg,omitempty"`
+	BJRMaxKg     *float64 `json:"bjrMaxKg,omitempty"`
+	TargetLebih  *float64 `json:"targetLebihKg,omitempty"`
+	SortOrder    *int32   `json:"sortOrder,omitempty"`
+	Basis        *float64 `json:"basis,omitempty"`
+	TarifUpah    *float64 `json:"tarifUpah,omitempty"`
+	Premi        *float64 `json:"premi,omitempty"`
+	TarifPremi1  *float64 `json:"tarifPremi1,omitempty"`
+	TarifPremi2  *float64 `json:"tarifPremi2,omitempty"`
+	TarifLibur   *float64 `json:"tarifLibur,omitempty"`
+	TarifLebaran *float64 `json:"tarifLebaran,omitempty"`
+	IsActive     *bool    `json:"isActive,omitempty"`
 }
 
 // ============================================================================

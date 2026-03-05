@@ -37,7 +37,7 @@ class AppConfig {
 
   // Database Configuration
   static const String databaseName = 'agrinova.db';
-  static const int databaseVersion = 6;
+  static const int databaseVersion = 7;
 
   // Biometric Configuration
   static const String biometricReasonText = 'Authenticate to access Agrinova';

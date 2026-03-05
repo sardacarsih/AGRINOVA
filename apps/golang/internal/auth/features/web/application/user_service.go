@@ -180,6 +180,10 @@ func (s *UserManagementService) CreateUser(ctx context.Context, input domain.Use
 	companyIDs = uniqueNonEmptyStrings(companyIDs)
 	estateIDs := uniqueNonEmptyStrings(input.EstateIDs)
 	divisionIDs := uniqueNonEmptyStrings(input.DivisionIDs)
+	effectiveMandorType, err := resolveEffectiveMandorType(input.Role, input.MandorType, nil)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := validateRoleAssignmentRequirements(input.Role, companyIDs, estateIDs, divisionIDs); err != nil {
 		return nil, err
@@ -247,6 +251,8 @@ func (s *UserManagementService) CreateUser(ctx context.Context, input domain.Use
 			user.Assignments = append(user.Assignments, divAssignment)
 		}
 	}
+
+	syncMandorTypeAcrossCompanyAssignments(user.Assignments, input.Role, effectiveMandorType)
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
 		return nil, err
@@ -333,6 +339,10 @@ func (s *UserManagementService) UpdateUser(ctx context.Context, input domain.Use
 	effectiveRole := user.Role
 	if input.Role != "" {
 		effectiveRole = input.Role
+	}
+	effectiveMandorType, err := resolveEffectiveMandorType(effectiveRole, input.MandorType, user.Assignments)
+	if err != nil {
+		return nil, err
 	}
 	if err := s.validateManagerAssignmentForRole(ctx, effectiveRole, user.ManagerID, user.ID); err != nil {
 		return nil, err
@@ -531,6 +541,8 @@ func (s *UserManagementService) UpdateUser(ctx context.Context, input domain.Use
 			}
 		}
 	}
+
+	syncMandorTypeAcrossCompanyAssignments(user.Assignments, effectiveRole, effectiveMandorType)
 
 	// Set transient fields for immediate response
 	user.Name = input.Name
@@ -967,4 +979,67 @@ func normalizeOptionalID(value *string) *string {
 	}
 
 	return &trimmed
+}
+
+func resolveEffectiveMandorType(
+	role domain.Role,
+	explicit *domain.MandorType,
+	assignments []domain.Assignment,
+) (*domain.MandorType, error) {
+	if role != domain.RoleMandor {
+		return nil, nil
+	}
+
+	if explicit != nil {
+		normalized := domain.MandorType(strings.ToUpper(strings.TrimSpace(explicit.String())))
+		if !normalized.IsValid() {
+			return nil, fmt.Errorf("MANDOR wajib memiliki subtype PANEN atau PERAWATAN")
+		}
+		return &normalized, nil
+	}
+
+	for _, assignment := range assignments {
+		if !assignment.IsActive {
+			continue
+		}
+		if assignment.EstateID != nil || assignment.DivisionID != nil {
+			continue
+		}
+		if assignment.MandorType == nil || !assignment.MandorType.IsValid() {
+			continue
+		}
+
+		resolved := *assignment.MandorType
+		return &resolved, nil
+	}
+
+	return nil, fmt.Errorf("MANDOR wajib memiliki subtype PANEN atau PERAWATAN")
+}
+
+func syncMandorTypeAcrossCompanyAssignments(
+	assignments []domain.Assignment,
+	role domain.Role,
+	mandorType *domain.MandorType,
+) {
+	for i := range assignments {
+		if assignments[i].EstateID != nil || assignments[i].DivisionID != nil {
+			continue
+		}
+
+		if role != domain.RoleMandor || mandorType == nil {
+			assignments[i].MandorType = nil
+			continue
+		}
+
+		assignments[i].MandorType = cloneMandorType(mandorType)
+	}
+}
+
+func cloneMandorType(value *domain.MandorType) *domain.MandorType {
+	if value == nil {
+		return nil
+	}
+
+	cloned := *value
+	return &cloned
 }

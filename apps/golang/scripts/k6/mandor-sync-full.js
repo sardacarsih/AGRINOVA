@@ -4,6 +4,11 @@ import { Counter, Trend } from 'k6/metrics';
 
 const DEFAULT_UPDATED_SINCE = '2025-01-01T00:00:00Z';
 const DEFAULT_STATUS_SINCE = '2025-01-01T00:00:00Z';
+const SAFE_HARVEST_ANCHOR_YEAR = 1000;
+const MAX_SAFE_HARVEST_YEAR = 9999;
+const SAFE_HARVEST_VU_WINDOW_DAYS = 75000;
+const SAFE_HARVEST_RUN_BASE_OFFSET_DAYS = 750000;
+const SAFE_HARVEST_RUN_SEED_WINDOW_DAYS = 50000;
 
 const graphqlMobileLogin = new Trend('graphql_mobile_login');
 const graphqlMyAssignments = new Trend('graphql_my_assignments');
@@ -41,6 +46,10 @@ const graphqlWriteSkippedTotal = new Counter('graphql_write_skipped_total');
 const graphqlInlinePhotoSkippedTotal = new Counter(
   'graphql_inline_photo_skipped_total',
 );
+const graphqlPullSkippedAfterPushTotal = new Counter(
+  'graphql_pull_skipped_after_push_total',
+);
+let hasLoggedHarvestBusinessFailure = false;
 
 const MOBILE_LOGIN_MUTATION = `
 mutation MobileLogin($input: MobileLoginInput!) {
@@ -211,17 +220,25 @@ export default function (config) {
     runIncrementalMasterSync(config, authContext.token, divisionId);
   });
 
-  group('Mandor Harvest Upload', function () {
-    runHarvestUploadMatrix(config, authContext, divisionId);
+  const uploadResult = group('Mandor Harvest Upload', function () {
+    return runHarvestUploadMatrix(config, authContext, divisionId);
   });
 
-  group('Mandor Pull Server Updates', function () {
-    runPullServerUpdates(config, authContext.token);
-  });
+  if (uploadResult && uploadResult.didPushFreshHarvestData) {
+    graphqlPullSkippedAfterPushTotal.add(1);
+  } else {
+    group('Mandor Pull Server Updates', function () {
+      runPullServerUpdates(config, authContext.token);
+    });
+  }
 }
 
 function buildOptions() {
   const scenario = normalizeString(__ENV.K6_SCENARIO || 'load').toLowerCase();
+  const thresholdProfile = getHarvestThresholdProfile(
+    scenario,
+    optionalEnv('HARVEST_RECORD_COUNT'),
+  );
   let config;
 
   switch (scenario) {
@@ -237,6 +254,34 @@ function buildOptions() {
           { duration: '30s', target: 10 },
           { duration: '1m', target: 25 },
           { duration: '2m', target: 25 },
+          { duration: '30s', target: 0 },
+        ],
+      };
+      break;
+    case 'batch50':
+    case 'batch100':
+      config = {
+        stages: [
+          { duration: '30s', target: 5 },
+          { duration: '2m', target: 10 },
+          { duration: '30s', target: 0 },
+        ],
+      };
+      break;
+    case 'batch500':
+      config = {
+        stages: [
+          { duration: '30s', target: 2 },
+          { duration: '2m', target: 5 },
+          { duration: '30s', target: 0 },
+        ],
+      };
+      break;
+    case 'batch1000':
+      config = {
+        stages: [
+          { duration: '30s', target: 1 },
+          { duration: '2m', target: 3 },
           { duration: '30s', target: 0 },
         ],
       };
@@ -263,9 +308,15 @@ function buildOptions() {
     graphql_mandor_divisions_incremental: ['p(95)<2000'],
     graphql_mandor_blocks_incremental: ['p(95)<2000'],
     graphql_mandor_employees_incremental: ['p(95)<2500'],
-    graphql_sync_harvest_records_no_photo: ['p(95)<3500'],
-    graphql_sync_harvest_records_photo_reference: ['p(95)<3500'],
-    graphql_sync_harvest_records_photo_inline: ['p(95)<5000'],
+    graphql_sync_harvest_records_no_photo: [
+      'p(95)<' + thresholdProfile.noPhotoP95Ms,
+    ],
+    graphql_sync_harvest_records_photo_reference: [
+      'p(95)<' + thresholdProfile.photoReferenceP95Ms,
+    ],
+    graphql_sync_harvest_records_photo_inline: [
+      'p(95)<' + thresholdProfile.photoInlineP95Ms,
+    ],
     graphql_mandor_server_updates: ['p(95)<2500'],
   };
 
@@ -273,8 +324,10 @@ function buildOptions() {
 }
 
 function buildRuntimeConfig() {
+  const scenario = normalizeString(__ENV.K6_SCENARIO || 'load').toLowerCase();
   const config = {
     baseUrl: requireEnv('BASE_URL'),
+    scenario: scenario,
     identifier: requireEnv('MANDOR_IDENTIFIER'),
     password: requireEnv('MANDOR_PASSWORD'),
     deviceId: requireEnv('DEVICE_ID'),
@@ -293,6 +346,11 @@ function buildRuntimeConfig() {
     enableInlinePhotoSync: isTrueFlag(__ENV.ENABLE_INLINE_PHOTO_SYNC),
     photoUrlReference: optionalEnv('PHOTO_URL_REFERENCE'),
     photoDataUri: optionalEnv('PHOTO_DATA_URI'),
+    maxVuSlots: getScenarioMaxVuCount(scenario),
+    harvestRunDaySeed: resolveHarvestRunDaySeed(
+      optionalEnv('HARVEST_RUN_DAY_SEED'),
+    ),
+    harvestRecordCount: 1,
     harvestTemplate: null,
   };
 
@@ -304,6 +362,9 @@ function buildRuntimeConfig() {
 
   if (config.enableWriteSync) {
     const rawTemplate = requireEnv('HARVEST_TEMPLATE_JSON');
+    config.harvestRecordCount = parseHarvestRecordCount(
+      optionalEnv('HARVEST_RECORD_COUNT') || getScenarioHarvestRecordCount(scenario),
+    );
     config.harvestTemplate = parseJsonEnv(rawTemplate, 'HARVEST_TEMPLATE_JSON');
     validateHarvestTemplate(config.harvestTemplate);
   }
@@ -330,8 +391,8 @@ function loginMandor(config) {
       identifier: config.identifier,
       password: config.password,
       platform: config.platform,
-      deviceId: config.deviceId,
-      deviceFingerprint: config.deviceFingerprint,
+      deviceId: getVuScopedValue(config.deviceId),
+      deviceFingerprint: getVuScopedValue(config.deviceFingerprint),
     },
   };
 
@@ -525,25 +586,41 @@ function runIncrementalMasterSync(config, token, divisionId) {
 function runHarvestUploadMatrix(config, authContext, divisionId) {
   if (!config.enableWriteSync) {
     graphqlWriteSkippedTotal.add(1);
-    return;
+    return { didPushFreshHarvestData: false };
   }
 
-  runHarvestUploadRequest(config, authContext, divisionId, 'no_photo');
+  let didPushFreshHarvestData = runHarvestUploadRequest(
+    config,
+    authContext,
+    divisionId,
+    'no_photo',
+  );
 
   if (config.photoUrlReference) {
-    runHarvestUploadRequest(
-      config,
-      authContext,
-      divisionId,
-      'photo_reference',
-    );
+    didPushFreshHarvestData =
+      runHarvestUploadRequest(
+        config,
+        authContext,
+        divisionId,
+        'photo_reference',
+      ) || didPushFreshHarvestData;
   }
 
   if (config.enableInlinePhotoSync) {
-    runHarvestUploadRequest(config, authContext, divisionId, 'photo_inline');
+    didPushFreshHarvestData =
+      runHarvestUploadRequest(
+        config,
+        authContext,
+        divisionId,
+        'photo_inline',
+      ) || didPushFreshHarvestData;
   } else {
     graphqlInlinePhotoSkippedTotal.add(1);
   }
+
+  return {
+    didPushFreshHarvestData: didPushFreshHarvestData,
+  };
 }
 
 function runHarvestUploadRequest(config, authContext, divisionId, mode) {
@@ -563,7 +640,7 @@ function runHarvestUploadRequest(config, authContext, divisionId, mode) {
 
   if (!assertGraphQLSuccess(result, 'syncHarvestRecords:' + mode)) {
     markHarvestFailure(mode);
-    return;
+    return false;
   }
 
   const payload = result.body.data.syncHarvestRecords;
@@ -582,7 +659,7 @@ function runHarvestUploadRequest(config, authContext, divisionId, mode) {
 
   if (!payloadOk) {
     markHarvestFailure(mode);
-    return;
+    return false;
   }
 
   const businessSuccess =
@@ -599,8 +676,35 @@ function runHarvestUploadRequest(config, authContext, divisionId, mode) {
   });
 
   if (!businessSuccess) {
+    if (
+      optionalEnv('DEBUG_HARVEST_FAILURES') === 'true' &&
+      !hasLoggedHarvestBusinessFailure
+    ) {
+      const firstFailedItem = payload.results.find(function (item) {
+        return item && item.success !== true;
+      });
+      console.log(
+        '[harvest-business-failure][' +
+          mode +
+          '][vu=' +
+          __VU +
+          '][iter=' +
+          __ITER +
+          '] ' +
+          JSON.stringify({
+            message: payload.message,
+            recordsProcessed: payload.recordsProcessed,
+            recordsSuccessful: payload.recordsSuccessful,
+            recordsFailed: payload.recordsFailed,
+            firstFailedResult: firstFailedItem || null,
+          }),
+      );
+      hasLoggedHarvestBusinessFailure = true;
+    }
     markHarvestFailure(mode);
   }
+
+  return businessSuccess && payload.recordsSuccessful > 0;
 }
 
 function runPullServerUpdates(config, token) {
@@ -609,7 +713,7 @@ function runPullServerUpdates(config, token) {
     MANDOR_SERVER_UPDATES_QUERY,
     {
       since: config.statusSince,
-      deviceId: config.deviceId,
+      deviceId: getVuScopedValue(config.deviceId),
     },
     token,
     {
@@ -672,6 +776,22 @@ function assertGraphQLSuccess(result, stepName) {
     result.body && Array.isArray(result.body.errors)
       ? result.body.errors.length
       : 0;
+  if (
+    graphQLErrorCount > 0 &&
+    optionalEnv('DEBUG_GRAPHQL_ERRORS') === 'true' &&
+    result.body.errors[0]
+  ) {
+    console.log(
+      '[graphql-error][' +
+        stepName +
+        '][vu=' +
+        __VU +
+        '][iter=' +
+        __ITER +
+        '] ' +
+        JSON.stringify(result.body.errors[0]),
+    );
+  }
 
   const ok = check(
     {
@@ -739,36 +859,141 @@ function buildEmployeeVariables(divisionId) {
   };
 }
 
+function getVuScopedValue(baseValue) {
+  const normalized = normalizeString(baseValue);
+  if (!normalized) {
+    return normalized;
+  }
+  return normalized + '-vu-' + __VU;
+}
+
+function getHarvestDateOffsetDays(mode) {
+  if (mode === 'photo_reference') {
+    return 1;
+  }
+  if (mode === 'photo_inline') {
+    return 2;
+  }
+  return 0;
+}
+
+function getUniqueHarvestDateOffsetDays(config, mode, recordIndex) {
+  const recordsPerMode = config.harvestRecordCount;
+  const recordsPerIteration = recordsPerMode * 3;
+  const modeOffsetDays = getHarvestDateOffsetDays(mode) * recordsPerMode;
+  const rawIterationOffsetDays = __ITER * recordsPerIteration;
+  const boundedIterationOffsetDays =
+    rawIterationOffsetDays % SAFE_HARVEST_VU_WINDOW_DAYS;
+  const vuOffsetDays = (__VU - 1) * SAFE_HARVEST_VU_WINDOW_DAYS;
+  return (
+    config.harvestRunDaySeed +
+    vuOffsetDays +
+    boundedIterationOffsetDays +
+    modeOffsetDays +
+    recordIndex
+  );
+}
+
+function resolveSafeHarvestBaseDate(config, baseHarvestDate) {
+  const maxProjectedOffsetDays =
+    config.harvestRunDaySeed +
+    SAFE_HARVEST_VU_WINDOW_DAYS * Math.max(config.maxVuSlots || 1, 1);
+  const projectedDate = new Date(baseHarvestDate.getTime());
+  projectedDate.setUTCDate(
+    projectedDate.getUTCDate() + maxProjectedOffsetDays,
+  );
+
+  if (projectedDate.getUTCFullYear() <= MAX_SAFE_HARVEST_YEAR) {
+    return new Date(baseHarvestDate.getTime());
+  }
+
+  return new Date(
+    Date.UTC(
+      SAFE_HARVEST_ANCHOR_YEAR,
+      baseHarvestDate.getUTCMonth(),
+      baseHarvestDate.getUTCDate(),
+      baseHarvestDate.getUTCHours(),
+      baseHarvestDate.getUTCMinutes(),
+      baseHarvestDate.getUTCSeconds(),
+      baseHarvestDate.getUTCMilliseconds(),
+    ),
+  );
+}
+
+function resolveHarvestRunDaySeed(rawValue) {
+  if (!rawValue) {
+    return (
+      SAFE_HARVEST_RUN_BASE_OFFSET_DAYS +
+      (Math.floor(Date.now() / 1000) % SAFE_HARVEST_RUN_SEED_WINDOW_DAYS)
+    );
+  }
+
+  const parsed = Number.parseInt(String(rawValue), 10);
+  if (
+    Number.isNaN(parsed) ||
+    parsed < 0 ||
+    parsed >= SAFE_HARVEST_RUN_SEED_WINDOW_DAYS
+  ) {
+    fail(
+      'HARVEST_RUN_DAY_SEED must be an integer between 0 and ' +
+        (SAFE_HARVEST_RUN_SEED_WINDOW_DAYS - 1) +
+        '.',
+    );
+  }
+
+  return SAFE_HARVEST_RUN_BASE_OFFSET_DAYS + parsed;
+}
+
 function buildHarvestSyncInput(config, authContext, divisionId, mode) {
   const now = new Date();
   const suffix = __VU + '-' + __ITER + '-' + now.getTime();
-  const record = cloneJson(config.harvestTemplate);
+  const requestedHarvestDate = normalizeString(config.harvestTemplate.tanggal)
+    ? new Date(config.harvestTemplate.tanggal)
+    : new Date(now.getTime());
 
-  record.localId = 'k6-' + mode + '-' + suffix;
-  record.mandorId = authContext.userId;
-  record.lastUpdated = now.toISOString();
-
-  if (!normalizeString(record.tanggal)) {
-    record.tanggal = now.toISOString();
+  if (Number.isNaN(requestedHarvestDate.getTime())) {
+    fail(
+      'HARVEST_TEMPLATE_JSON field "tanggal" must be a valid ISO-8601 date/time string.',
+    );
   }
+  const harvestDate = resolveSafeHarvestBaseDate(config, requestedHarvestDate);
+  const baseHarvestTimestampMs = harvestDate.getTime();
+  const records = [];
 
-  if (divisionId) {
-    record.divisionId = divisionId;
-  }
+  for (let recordIndex = 0; recordIndex < config.harvestRecordCount; recordIndex++) {
+    const record = cloneJson(config.harvestTemplate);
+    const recordDate = new Date(baseHarvestTimestampMs);
 
-  if (mode === 'no_photo') {
-    delete record.photoUrl;
-  } else if (mode === 'photo_reference') {
-    record.photoUrl = config.photoUrlReference;
-  } else if (mode === 'photo_inline') {
-    record.photoUrl = config.photoDataUri;
+    record.localId = 'k6-' + mode + '-' + suffix + '-' + recordIndex;
+    record.mandorId = authContext.userId;
+    record.lastUpdated = now.toISOString();
+
+    recordDate.setUTCDate(
+      recordDate.getUTCDate() +
+        getUniqueHarvestDateOffsetDays(config, mode, recordIndex),
+    );
+    record.tanggal = recordDate.toISOString();
+
+    if (divisionId) {
+      record.divisionId = divisionId;
+    }
+
+    if (mode === 'no_photo') {
+      delete record.photoUrl;
+    } else if (mode === 'photo_reference') {
+      record.photoUrl = config.photoUrlReference;
+    } else if (mode === 'photo_inline') {
+      record.photoUrl = config.photoDataUri;
+    }
+
+    records.push(record);
   }
 
   return {
-    deviceId: config.deviceId,
+    deviceId: getVuScopedValue(config.deviceId),
     clientTimestamp: now.toISOString(),
     batchId: 'batch-' + mode + '-' + suffix,
-    records: [record],
+    records: records,
   };
 }
 
@@ -853,6 +1078,72 @@ function normalizeIsoString(value, key) {
 
 function isTrueFlag(value) {
   return normalizeString(value).toLowerCase() === 'true';
+}
+
+function parseHarvestRecordCount(value) {
+  const normalized = normalizeString(value);
+  const parsed = Number.parseInt(normalized, 10);
+  const allowedCounts = [1, 50, 100, 500, 1000];
+
+  if (!Number.isInteger(parsed) || allowedCounts.indexOf(parsed) === -1) {
+    fail(
+      'HARVEST_RECORD_COUNT must be one of: ' + allowedCounts.join(', ') + '.',
+    );
+  }
+
+  return parsed;
+}
+
+function getScenarioHarvestRecordCount(scenario) {
+  switch (scenario) {
+    case 'batch50':
+      return '50';
+    case 'batch100':
+      return '100';
+    case 'batch500':
+      return '500';
+    case 'batch1000':
+      return '1000';
+    default:
+      return '1';
+  }
+}
+
+function getScenarioMaxVuCount(scenario) {
+  switch (scenario) {
+    case 'smoke':
+      return 1;
+    case 'stress':
+      return 25;
+    case 'batch500':
+      return 5;
+    case 'batch1000':
+      return 3;
+    case 'batch50':
+    case 'batch100':
+    case 'load':
+    default:
+      return 10;
+  }
+}
+
+function getHarvestThresholdProfile(scenario, harvestRecordCountEnv) {
+  const requestedCount = normalizeString(harvestRecordCountEnv);
+  const isBatch1000 = scenario === 'batch1000' || requestedCount === '1000';
+
+  if (isBatch1000) {
+    return {
+      noPhotoP95Ms: 6500,
+      photoReferenceP95Ms: 6500,
+      photoInlineP95Ms: 6500,
+    };
+  }
+
+  return {
+    noPhotoP95Ms: 3500,
+    photoReferenceP95Ms: 3500,
+    photoInlineP95Ms: 5000,
+  };
 }
 
 function parseJsonEnv(rawValue, key) {

@@ -4,6 +4,7 @@ package resolvers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -180,8 +181,9 @@ func (r *mutationResolver) SyncSatpamPhotos(ctx context.Context, input generated
 func (r *mutationResolver) SyncEmployeeLog(ctx context.Context, input generated.EmployeeLogSyncInput) (*generated.EmployeeLogSyncResult, error) {
 	if r.GateCheckService == nil {
 		return &generated.EmployeeLogSyncResult{
-			Success: false,
-			Message: "Gate check service not initialized",
+			Success:         false,
+			Message:         "Gate check service not initialized",
+			ServerTimestamp: time.Now(),
 		}, nil
 	}
 	result, err := r.GateCheckService.SyncEmployeeLog(ctx, input)
@@ -756,6 +758,7 @@ func (r *mutationResolver) emitSatpamGuestLogEventsFromSync(
 	}
 
 	emittedServerIDs := make(map[string]struct{}, len(result.Results))
+	emittedGuestLogs := make([]*satpam.SatpamGuestLog, 0, len(result.Results))
 
 	for _, item := range result.Results {
 		if item == nil || !item.Success || item.ServerID == nil {
@@ -783,12 +786,12 @@ func (r *mutationResolver) emitSatpamGuestLogEventsFromSync(
 
 		convertedGuestLog := r.GateCheckService.ConvertToSatpamGuestLog(&guestLog)
 		if r.publishSatpamGuestLogEvent(convertedGuestLog) {
-			if err := r.persistSatpamNotificationsForRecord(ctx, convertedGuestLog); err != nil {
-				fmt.Printf("failed to persist synced satpam notification: %v\n", err)
-			}
+			emittedGuestLogs = append(emittedGuestLogs, convertedGuestLog)
 			emittedServerIDs[serverID] = struct{}{}
 		}
 	}
+
+	r.enqueueSatpamNotificationsForSync(ctx, emittedGuestLogs, input.DeviceID, result.TransactionID)
 }
 
 type satpamNotificationRecipient struct {
@@ -820,6 +823,15 @@ type satpamNotificationOptions struct {
 	Message          string
 	IdempotencyKey   string
 	Intent           string
+}
+
+type satpamSyncNotificationSummary struct {
+	NotificationType notificationModels.NotificationType
+	Priority         notificationModels.NotificationPriority
+	Title            string
+	Intent           string
+	Count            int
+	SamplePlates     []string
 }
 
 func getSatpamNotificationIdentity(record *satpam.SatpamGuestLog) (string, string) {
@@ -990,6 +1002,294 @@ func (r *mutationResolver) persistSatpamNotificationsForRecord(ctx context.Conte
 	return nil
 }
 
+func (r *mutationResolver) enqueueSatpamNotificationsForSync(
+	ctx context.Context,
+	records []*satpam.SatpamGuestLog,
+	deviceID string,
+	transactionID string,
+) {
+	if r.NotificationService == nil || r.db == nil || len(records) == 0 {
+		return
+	}
+
+	r.startSatpamNotificationOutboxWorker()
+
+	jobs, err := buildSatpamSyncNotificationOutboxJobs(records, deviceID, transactionID)
+	if err != nil {
+		fmt.Printf("failed to queue synced satpam notification: %v\n", err)
+		return
+	}
+	if len(jobs) == 0 {
+		return
+	}
+
+	if err := r.db.WithContext(ctx).Create(&jobs).Error; err != nil {
+		fmt.Printf("failed to queue synced satpam notification: %v\n", err)
+	}
+}
+
+func buildSatpamSyncNotificationOutboxJobs(
+	records []*satpam.SatpamGuestLog,
+	deviceID string,
+	transactionID string,
+) ([]satpamNotificationOutboxJob, error) {
+	var companyID string
+	var senderID string
+	for _, record := range records {
+		if record == nil {
+			continue
+		}
+		if companyID == "" {
+			companyID = strings.TrimSpace(record.CompanyID)
+		}
+		if senderID == "" {
+			senderID = strings.TrimSpace(record.CreatedBy)
+		}
+		if companyID != "" && senderID != "" {
+			break
+		}
+	}
+	if companyID == "" {
+		return nil, nil
+	}
+
+	summaries := buildSatpamSyncNotificationSummaries(records)
+	if len(summaries) == 0 {
+		return nil, nil
+	}
+
+	var senderIDPtr *string
+	if senderID != "" {
+		senderIDPtr = &senderID
+	}
+
+	normalizedDeviceID := strings.TrimSpace(deviceID)
+	normalizedTransactionID := strings.TrimSpace(transactionID)
+	now := time.Now()
+
+	jobs := make([]satpamNotificationOutboxJob, 0, len(summaries))
+	for _, summary := range summaries {
+		samplePlatesJSON := ""
+		if len(summary.SamplePlates) > 0 {
+			encoded, err := json.Marshal(summary.SamplePlates)
+			if err != nil {
+				return nil, fmt.Errorf("failed to encode sample plates: %w", err)
+			}
+			samplePlatesJSON = string(encoded)
+		}
+
+		jobs = append(jobs, satpamNotificationOutboxJob{
+			CompanyID:        companyID,
+			SenderID:         senderIDPtr,
+			DeviceID:         normalizedDeviceID,
+			TransactionID:    normalizedTransactionID,
+			NotificationType: string(summary.NotificationType),
+			Priority:         string(summary.Priority),
+			Title:            summary.Title,
+			Intent:           strings.TrimSpace(summary.Intent),
+			RecordCount:      summary.Count,
+			SamplePlatesJSON: samplePlatesJSON,
+			Status:           satpamNotificationOutboxStatusPending,
+			AvailableAt:      now,
+		})
+	}
+
+	return jobs, nil
+}
+
+func (r *mutationResolver) persistSatpamNotificationsForSync(
+	ctx context.Context,
+	records []*satpam.SatpamGuestLog,
+	deviceID string,
+	transactionID string,
+) error {
+	if r.NotificationService == nil || len(records) == 0 {
+		return nil
+	}
+
+	var companyID string
+	var senderID string
+	for _, record := range records {
+		if record == nil {
+			continue
+		}
+		if companyID == "" {
+			companyID = strings.TrimSpace(record.CompanyID)
+		}
+		if senderID == "" {
+			senderID = strings.TrimSpace(record.CreatedBy)
+		}
+		if companyID != "" && senderID != "" {
+			break
+		}
+	}
+	if companyID == "" {
+		return nil
+	}
+
+	recipients, err := r.getSatpamNotificationRecipients(ctx, companyID)
+	if err != nil {
+		return err
+	}
+	if len(recipients) == 0 {
+		return nil
+	}
+
+	summaries := buildSatpamSyncNotificationSummaries(records)
+	if len(summaries) == 0 {
+		return nil
+	}
+
+	relatedEntityID := strings.TrimSpace(transactionID)
+	if relatedEntityID == "" {
+		relatedEntityID = strings.TrimSpace(deviceID)
+	}
+	if relatedEntityID == "" {
+		relatedEntityID = "sync"
+	}
+
+	for _, summary := range summaries {
+		idempotencyKey := fmt.Sprintf(
+			"satpam:sync:%s:%s",
+			strings.ToLower(strings.TrimSpace(summary.Intent)),
+			relatedEntityID,
+		)
+		message := buildSatpamSyncSummaryMessage(summary)
+
+		for _, recipient := range recipients {
+			input := &notificationServices.CreateNotificationInput{
+				Type:               summary.NotificationType,
+				Priority:           summary.Priority,
+				Title:              summary.Title,
+				Message:            message,
+				IdempotencyKey:     idempotencyKey,
+				RecipientID:        recipient.ID,
+				RecipientRole:      string(recipient.Role),
+				RecipientCompanyID: companyID,
+				RelatedEntityType:  "GATE_CHECK_SYNC",
+				RelatedEntityID:    relatedEntityID,
+				ActionURL:          "/dashboard/manager/gate-logs",
+				ActionLabel:        "Lihat Log",
+				Metadata: map[string]interface{}{
+					"count":         summary.Count,
+					"intent":        summary.Intent,
+					"deviceId":      strings.TrimSpace(deviceID),
+					"transactionId": strings.TrimSpace(transactionID),
+					"samplePlates":  summary.SamplePlates,
+				},
+				SenderID:   senderID,
+				SenderRole: "SATPAM",
+			}
+
+			if _, err := r.NotificationService.CreateNotification(ctx, input); err != nil {
+				return fmt.Errorf("failed creating sync %s notification for recipient %s: %w", summary.Intent, recipient.ID, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func buildSatpamSyncNotificationSummaries(records []*satpam.SatpamGuestLog) []satpamSyncNotificationSummary {
+	entrySummary := satpamSyncNotificationSummary{
+		NotificationType: notificationModels.NotificationTypeGateCheckCreated,
+		Priority:         notificationModels.NotificationPriorityMedium,
+		Title:            "Ringkasan Kendaraan Masuk",
+		Intent:           "ENTRY",
+	}
+	exitSummary := satpamSyncNotificationSummary{
+		NotificationType: notificationModels.NotificationTypeGateCheckCompleted,
+		Priority:         notificationModels.NotificationPriorityMedium,
+		Title:            "Ringkasan Kendaraan Keluar",
+		Intent:           "EXIT",
+	}
+	overstaySummary := satpamSyncNotificationSummary{
+		NotificationType: notificationModels.NotificationTypeGateCheckAlert,
+		Priority:         notificationModels.NotificationPriorityHigh,
+		Title:            "Ringkasan Overstay Kendaraan",
+		Intent:           "OVERSTAY",
+	}
+
+	for _, record := range records {
+		if record == nil {
+			continue
+		}
+
+		if isSatpamVehicleEntry(record) {
+			entrySummary.Count++
+			entrySummary.SamplePlates = appendSatpamSyncNotificationSample(entrySummary.SamplePlates, record)
+		}
+		if isSatpamVehicleExit(record) {
+			exitSummary.Count++
+			exitSummary.SamplePlates = appendSatpamSyncNotificationSample(exitSummary.SamplePlates, record)
+		}
+		if isSatpamOverstayRecord(record) {
+			overstaySummary.Count++
+			overstaySummary.SamplePlates = appendSatpamSyncNotificationSample(overstaySummary.SamplePlates, record)
+		}
+	}
+
+	summaries := make([]satpamSyncNotificationSummary, 0, 3)
+	if entrySummary.Count > 0 {
+		summaries = append(summaries, entrySummary)
+	}
+	if exitSummary.Count > 0 {
+		summaries = append(summaries, exitSummary)
+	}
+	if overstaySummary.Count > 0 {
+		summaries = append(summaries, overstaySummary)
+	}
+
+	return summaries
+}
+
+func appendSatpamSyncNotificationSample(samples []string, record *satpam.SatpamGuestLog) []string {
+	if len(samples) >= 3 || record == nil {
+		return samples
+	}
+
+	plate, _ := getSatpamNotificationIdentity(record)
+	plate = strings.TrimSpace(plate)
+	if plate == "" {
+		return samples
+	}
+
+	for _, existing := range samples {
+		if existing == plate {
+			return samples
+		}
+	}
+
+	return append(samples, plate)
+}
+
+func buildSatpamSyncSummaryMessage(summary satpamSyncNotificationSummary) string {
+	if summary.Count <= 0 {
+		return ""
+	}
+
+	actionLabel := "diproses"
+	switch strings.TrimSpace(summary.Intent) {
+	case "ENTRY":
+		actionLabel = "tercatat masuk"
+	case "EXIT":
+		actionLabel = "tercatat keluar"
+	case "OVERSTAY":
+		actionLabel = "terdeteksi overstay"
+	}
+
+	message := fmt.Sprintf("%d kendaraan %s dari sinkronisasi SATPAM.", summary.Count, actionLabel)
+	if summary.Intent == "OVERSTAY" {
+		message = fmt.Sprintf("%d kendaraan terdeteksi overstay dari sinkronisasi SATPAM.", summary.Count)
+	}
+
+	if len(summary.SamplePlates) == 0 {
+		return message
+	}
+
+	return fmt.Sprintf("%s Contoh: %s.", message, strings.Join(summary.SamplePlates, ", "))
+}
+
 func (r *mutationResolver) persistSatpamVehicleEntryNotification(ctx context.Context, record *satpam.SatpamGuestLog) error {
 	if record == nil || !isSatpamVehicleEntry(record) {
 		return nil
@@ -1056,7 +1356,7 @@ func (r *mutationResolver) persistSatpamOverstayNotification(ctx context.Context
 	})
 }
 
-func (r *mutationResolver) getSatpamNotificationRecipients(ctx context.Context, companyID string) ([]satpamNotificationRecipient, error) {
+func (r *Resolver) getSatpamNotificationRecipients(ctx context.Context, companyID string) ([]satpamNotificationRecipient, error) {
 	if strings.TrimSpace(companyID) == "" {
 		return nil, nil
 	}

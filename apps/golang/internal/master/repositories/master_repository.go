@@ -740,9 +740,24 @@ func (r *masterRepository) GetUserAssignments(ctx context.Context, userID string
 		}
 	}
 
-	// Sync division scope strictly by estate assignments.
+	// Build division scope with role-aware expansion.
+	// ASISTEN/MANDOR should only receive explicitly assigned divisions.
+	// Roles with broader estate/company scope can receive all divisions inside scoped estates.
 	divisionSeen := make(map[string]struct{})
-	if len(activeEstateIDs) > 0 {
+	if roleKey == strings.ToUpper(string(auth.UserRoleAsisten)) || roleKey == strings.ToUpper(string(auth.UserRoleMandor)) {
+		for _, assignment := range divisionAssignments {
+			if !assignment.IsActive || assignment.Division == nil || strings.TrimSpace(assignment.Division.ID) == "" {
+				continue
+			}
+
+			divisionID := strings.TrimSpace(assignment.Division.ID)
+			if _, exists := divisionSeen[divisionID]; exists {
+				continue
+			}
+			divisionSeen[divisionID] = struct{}{}
+			response.Divisions = append(response.Divisions, *assignment.Division)
+		}
+	} else if len(activeEstateIDs) > 0 {
 		var scopedDivisions []models.Division
 		if err := r.db.WithContext(ctx).
 			Where("estate_id IN ?", activeEstateIDs).

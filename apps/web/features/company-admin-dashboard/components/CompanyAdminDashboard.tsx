@@ -637,7 +637,7 @@ function CompanyAdminDashboard({ user }: RoleDashboardProps) {
     dashboardUser?.companies?.[0]?.id ||
     null;
 
-  const currentCompanyId = companyIdFromUser || companyData?.companies?.data?.[0]?.id || null;
+  const currentCompanyId = companyIdFromUser;
 
   const { data: estatesData, loading: estatesLoading, error: estatesError, refetch: refetchEstates } = useQuery<{
     estates: EstateNode[];

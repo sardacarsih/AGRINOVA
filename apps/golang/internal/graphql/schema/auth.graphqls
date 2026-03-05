@@ -245,6 +245,8 @@ type User {
   avatar: String
   "Role defining user permissions and access level"
   role: UserRole!
+  "Resolved mandor subtype from the active company assignment"
+  effectiveMandorType: MandorType
   "Manager/Supervisor of this user"
   managerId: String
   "Manager entity"
@@ -327,6 +329,8 @@ input CreateUserInput {
   phoneNumber: String
   "Role defining user permissions and access level"
   role: UserRole!
+  "Operational subtype for MANDOR users"
+  mandorType: MandorType
   "Company identifiers this user belongs to (supports multi-company assignment, optional for SUPER_ADMIN)"
   companyIds: [String!]
   "Estate identifiers (optional, for field roles)"
@@ -359,6 +363,8 @@ input UpdateUserInput {
   avatar: String
   "New role (requires proper authorization)"
   role: UserRole
+  "New operational subtype for MANDOR users"
+  mandorType: MandorType
   "New company assignments (replaces all existing assignments)"
   companyIds: [String!]
   "New estate assignments"
@@ -640,6 +646,8 @@ MandorProfile provides field-level supervisor access.
 type MandorProfile {
   "Basic user information"
   user: User!
+  "Operational subtype for this mandor"
+  mandorType: MandorType
   "Company this supervisor belongs to"
   company: Company!
   "Estate this supervisor works in"

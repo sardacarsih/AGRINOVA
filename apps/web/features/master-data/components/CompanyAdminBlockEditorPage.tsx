@@ -351,7 +351,7 @@ export default function CompanyAdminBlockEditorPage({
     (user as any)?.company?.id ||
     (user as any)?.companies?.[0]?.id ||
     null;
-  const currentCompanyId = companyIdFromUser || companies[0]?.id || null;
+  const currentCompanyId = companyIdFromUser;
 
   const estates = useMemo(() => {
     const base = estateData?.estates || [];

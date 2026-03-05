@@ -608,11 +608,32 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
       // 1. Sync master data
       await _syncMasterData();
 
-      // 2. Upload pending harvests
-      await _syncHarvestUpload();
+      // 2. Sync harvest transactions with service-layer orchestration
+      setState(() {
+        _isSyncingHarvest = true;
+        _isPullingUpdates = true;
+        _lastHarvestSyncResult = null;
+        _lastPullResult = null;
+      });
 
-      // 3. Pull approval updates
-      await _pullApprovalUpdates();
+      try {
+        final harvestSync = sl<HarvestSyncService>();
+        final syncResult = await harvestSync.syncNowWithResult();
+
+        setState(() {
+          _lastHarvestSyncResult = _buildHarvestPushSummary(syncResult.pushResult);
+          _lastPullResult = syncResult.skippedImmediatePull
+              ? _buildSkippedPullSummary(syncResult.pushResult)
+              : _buildPullSummary(syncResult.pullResult!);
+        });
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSyncingHarvest = false;
+            _isPullingUpdates = false;
+          });
+        }
+      }
 
       final failures = [
         _lastMasterSyncResult,
@@ -678,8 +699,8 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
     }
   }
 
-  Future<void> _syncHarvestUpload() async {
-    if (_isSyncingHarvest) return;
+  Future<bool> _syncHarvestUpload() async {
+    if (_isSyncingHarvest) return false;
 
     setState(() {
       _isSyncingHarvest = true;
@@ -690,41 +711,14 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
 
     try {
       final harvestSync = sl<HarvestSyncService>();
-      final pendingBefore = await harvestSync.getPendingSyncCount();
-      await harvestSync.syncNow();
-      final pendingAfter = await harvestSync.getPendingSyncCount();
-      final failedAfter = await harvestSync.getFailedSyncCount();
-      final recentErrors = await harvestSync.getRecentSyncErrorMessages(
-        limit: 1,
-      );
-      final syncedCount = (pendingBefore - pendingAfter).clamp(
-        0,
-        pendingBefore,
-      );
+      final pushResult = await harvestSync.pushLocalChangesWithResult();
 
       setState(() {
-        if (pendingBefore == 0) {
-          _lastHarvestSyncResult = 'Tidak ada data panen yang perlu dikirim';
-        } else if (syncedCount > 0 && pendingAfter == 0) {
-          _lastHarvestSyncResult =
-              'Berhasil: $syncedCount data panen berhasil dikirim ke server';
-        } else if (syncedCount > 0) {
-          _lastHarvestSyncResult =
-              'Sebagian berhasil: $syncedCount data terkirim, '
-              '$pendingAfter data masih menunggu upload'
-              '${failedAfter > 0 ? ' ($failedAfter gagal).' : '.'}';
-        } else if (recentErrors.isNotEmpty) {
-          final compactReason = _compactSyncError(recentErrors.first);
-          _lastHarvestSyncResult =
-              'Upload belum berhasil. Penyebab: $compactReason';
-        } else {
-          _lastHarvestSyncResult =
-              'Sinkronisasi selesai, belum ada data yang berhasil dikirim. '
-              'Periksa data panen dan coba lagi.';
-        }
+        _lastHarvestSyncResult = _buildHarvestPushSummary(pushResult);
         _lastSyncTime = DateTime.now();
       });
       _notifySyncCompleted();
+      return pushResult.didPushFreshHarvestData;
     } catch (e) {
       _logger.e('Harvest upload error: $e');
       setState(() {
@@ -733,10 +727,38 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
           action: 'upload data panen',
         );
       });
+      return false;
     } finally {
       setState(() => _isSyncingHarvest = false);
       await _refreshSyncIndicators();
     }
+  }
+
+  String _buildHarvestPushSummary(HarvestPushResult result) {
+    if (result.pendingBefore == 0) {
+      return 'Tidak ada data panen yang perlu dikirim';
+    }
+    if (result.syncedCount > 0 && result.pendingAfter == 0) {
+      return 'Berhasil: ${result.syncedCount} data panen berhasil dikirim ke server';
+    }
+    if (result.syncedCount > 0) {
+      return 'Sebagian berhasil: ${result.syncedCount} data terkirim, '
+          '${result.pendingAfter} data masih menunggu upload'
+          '${result.failedAfter > 0 ? ' (${result.failedAfter} gagal).' : '.'}';
+    }
+    if (result.recentErrors.isNotEmpty) {
+      final compactReason = _compactSyncError(result.recentErrors.first);
+      return 'Upload belum berhasil. Penyebab: $compactReason';
+    }
+    return 'Sinkronisasi selesai, belum ada data yang berhasil dikirim. '
+        'Periksa data panen dan coba lagi.';
+  }
+
+  String _buildSkippedPullSummary(HarvestPushResult pushResult) {
+    final uploadedCount = pushResult.syncedCount;
+    return 'Dilewati: update status belum perlu ditarik segera setelah upload'
+        '${uploadedCount > 0 ? ' ($uploadedCount data baru terkirim).' : '.'} '
+        'Lakukan sinkron ulang setelah approval tersedia.';
   }
 
   String _compactSyncError(String rawError) {
@@ -766,18 +788,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
       final syncService = sl<HarvestSyncService>();
       final result = await syncService.pullServerUpdatesWithResult();
       final bool hasUnsafe = result.hasUnsafeRecords;
-      final String summaryMessage;
-
-      if (result.totalReceived == 0) {
-        summaryMessage = 'Tidak ada update status panen baru';
-      } else if (!hasUnsafe) {
-        summaryMessage =
-            'Berhasil: ${result.appliedCount} update status diterapkan';
-      } else {
-        summaryMessage =
-            'Sebagian update diterapkan: ${result.appliedCount} sukses, '
-            '${result.skippedCount} tertunda. Silakan sinkron ulang.';
-      }
+      final String summaryMessage = _buildPullSummary(result);
 
       setState(() {
         _lastPullResult = summaryMessage;
@@ -800,6 +811,17 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
       setState(() => _isPullingUpdates = false);
       await _refreshSyncIndicators();
     }
+  }
+
+  String _buildPullSummary(PullServerUpdatesResult result) {
+    if (result.totalReceived == 0) {
+      return 'Tidak ada update status panen baru';
+    }
+    if (!result.hasUnsafeRecords) {
+      return 'Berhasil: ${result.appliedCount} update status diterapkan';
+    }
+    return 'Sebagian update diterapkan: ${result.appliedCount} sukses, '
+        '${result.skippedCount} tertunda. Silakan sinkron ulang.';
   }
 
   bool _isFailureMessage(String message) {

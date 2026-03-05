@@ -679,7 +679,7 @@ export function ManagerEstateTeamMonitor() {
             <div className="max-w-xl space-y-2">
               <p className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-900 dark:border-white/30 dark:bg-white/10 dark:text-white/95">
                 <Activity className="h-3.5 w-3.5" />
-                Monitor Tim Estate
+                Monitor Tim
               </p>
               <h2 className="text-2xl font-extrabold leading-tight sm:text-3xl">
                 Pantau produktivitas tim harian secara cepat

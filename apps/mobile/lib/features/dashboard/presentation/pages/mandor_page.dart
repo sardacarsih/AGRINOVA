@@ -8,6 +8,7 @@ import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../../core/services/role_service.dart';
 import '../../../../core/services/connectivity_service.dart';
 import '../../../../core/services/harvest_sync_service.dart';
+import '../../../../core/services/mandor_master_sync_service.dart';
 import '../../../../core/database/enhanced_database_service.dart';
 import '../../../../shared/widgets/logout_menu_widget.dart';
 import '../../../../core/di/dependency_injection.dart';
@@ -19,6 +20,7 @@ import 'mandor_dashboard/mandor_components.dart';
 import 'mandor_dashboard/atoms/mandor_icon_badge.dart';
 import 'mandor_dashboard/organisms/mandor_notification_page.dart';
 import 'mandor_dashboard/organisms/mandor_sync_page.dart';
+import 'mandor_perawatan_page.dart';
 
 // Import BLoCs
 import '../blocs/mandor_dashboard_bloc.dart';
@@ -51,11 +53,14 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
   int _currentNavIndex = 0;
   int _unreadNotificationCount = 0;
   StreamSubscription<int>? _unreadCountSubscription;
+  StreamSubscription<NetworkStatus>? _networkStatusSubscription;
   StreamSubscription<HarvestNotificationEvent>?
   _harvestNotificationSubscription;
   Timer? _harvestNotificationSyncDebounce;
   bool _isAutoSyncingApprovalUpdate = false;
   bool _isNavigatingToLogin = false;
+  bool _hasAttemptedInitialMasterWarmup = false;
+  bool _isInitialMasterWarmupInProgress = false;
   String? _lastRouteArgsSignature;
   String? _focusHarvestId;
   int _syncRefreshSignal = 0;
@@ -73,8 +78,20 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
             setState(() => _unreadNotificationCount = count);
           }
         });
+    _networkStatusSubscription = _connectivityService.networkStatusStream
+        .listen((status) {
+          if (status == NetworkStatus.online) {
+            _scheduleInitialMasterWarmupIfNeeded();
+          }
+        });
     _harvestNotificationSubscription = FCMService.harvestNotificationStream
         .listen(_handleHarvestNotification);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _scheduleInitialMasterWarmupIfNeeded();
+    });
   }
 
   Future<void> _loadUnreadCount() async {
@@ -87,6 +104,16 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
     } catch (e) {
       _logger.w('Failed to load unread count: $e');
     }
+  }
+
+  bool _supportsHarvestWorkflow(AuthAuthenticated authState) {
+    if (authState.user.role.toUpperCase() != 'MANDOR') {
+      return false;
+    }
+
+    final mandorType =
+        (authState.user.effectiveMandorType ?? 'PANEN').toUpperCase();
+    return mandorType != 'PERAWATAN';
   }
 
   void _applyRouteArgumentsIfNeeded(BuildContext blocContext) {
@@ -177,6 +204,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
   @override
   void dispose() {
     _unreadCountSubscription?.cancel();
+    _networkStatusSubscription?.cancel();
     _harvestNotificationSubscription?.cancel();
     _harvestNotificationSyncDebounce?.cancel();
     _mandorDashboardBloc.close();
@@ -194,7 +222,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
       return;
     }
 
-    if (authState.user.role.toUpperCase() != 'MANDOR') {
+    if (!_supportsHarvestWorkflow(authState)) {
       return;
     }
 
@@ -332,6 +360,72 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
     }
   }
 
+  void _scheduleInitialMasterWarmupIfNeeded() {
+    if (!mounted ||
+        _hasAttemptedInitialMasterWarmup ||
+        _isInitialMasterWarmupInProgress ||
+        !_connectivityService.isOnline) {
+      return;
+    }
+
+    final authState = context.read<AuthBloc>().state;
+    if (authState is! AuthAuthenticated || authState.isOfflineMode) {
+      return;
+    }
+
+    if (!_supportsHarvestWorkflow(authState)) {
+      return;
+    }
+
+    _hasAttemptedInitialMasterWarmup = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      unawaited(_runInitialMasterWarmup());
+    });
+  }
+
+  Future<void> _runInitialMasterWarmup() async {
+    if (!mounted || _isInitialMasterWarmupInProgress) {
+      return;
+    }
+
+    _isInitialMasterWarmupInProgress = true;
+    try {
+      _logger.i(
+        'Running background mandor master-data warmup after dashboard render',
+      );
+
+      final syncService = sl<MandorMasterSyncService>();
+      final result = await syncService.syncMasterData();
+      final hasUsableMasterData =
+          result.divisionsSuccess ||
+          result.employeesSuccess ||
+          result.blocksSuccess;
+
+      if (!mounted) {
+        return;
+      }
+
+      if (hasUsableMasterData) {
+        _handleMasterDataUpdated();
+      }
+
+      if (result.success) {
+        _logger.i('Initial mandor master-data warmup completed successfully');
+      } else {
+        _logger.w(
+          'Initial mandor master-data warmup incomplete: ${result.message}',
+        );
+      }
+    } catch (e) {
+      _logger.w('Initial mandor master-data warmup failed: $e');
+    } finally {
+      _isInitialMasterWarmupInProgress = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
@@ -362,6 +456,9 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
         },
         builder: (context, authState) {
           if (authState is AuthAuthenticated) {
+            if (!_supportsHarvestWorkflow(authState)) {
+              return const MandorPerawatanPage();
+            }
             _logger.i(
               'Rendering Mandor Dashboard for: ${authState.user.username}',
             );
@@ -491,12 +588,8 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
           showAppBar: false,
           refreshSignal: _syncRefreshSignal,
           onMasterSyncCompleted: () {
-            if (!context.mounted) return;
-            _reloadHarvestMasterData(context);
-            _refreshHarvestHistory(context);
-            context.read<MandorDashboardBloc>().add(
-              const MandorDashboardRefreshRequested(),
-            );
+            if (!mounted) return;
+            _handleMasterDataUpdated();
           },
         ),
       ],
@@ -833,6 +926,18 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
     final harvestBloc = blocContext.read<HarvestBloc>();
     harvestBloc.add(const HarvestEmployeesLoadRequested());
     harvestBloc.add(const HarvestBlocksLoadRequested());
+  }
+
+  void _handleMasterDataUpdated() {
+    _harvestBloc.add(const HarvestEmployeesLoadRequested());
+    _harvestBloc.add(const HarvestBlocksLoadRequested());
+    _refreshHarvestHistoryWithBloc(_harvestBloc);
+    _mandorDashboardBloc.add(const MandorDashboardRefreshRequested());
+    if (mounted) {
+      setState(() {
+        _syncRefreshSignal++;
+      });
+    }
   }
 
   void _refreshHarvestHistory(BuildContext blocContext) {

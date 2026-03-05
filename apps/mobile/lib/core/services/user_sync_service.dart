@@ -97,6 +97,7 @@ class UserSyncService {
     _debugLog('   - Full Name: ${user.fullName}');
     _debugLog('   - Email: ${user.email}');
     _debugLog('   - Role: ${user.role}');
+    _debugLog('   - Mandor Type: ${user.effectiveMandorType}');
     _debugLog('   - Company ID: $companyId');
 
     final userData = {
@@ -129,6 +130,9 @@ class UserSyncService {
     }
     if (userColumns.contains('manager_name')) {
       userData['manager_name'] = user.managerName;
+    }
+    if (userColumns.contains('mandor_type')) {
+      userData['mandor_type'] = user.effectiveMandorType;
     }
     if (userColumns.contains('reporting_to_area_manager_id')) {
       userData['reporting_to_area_manager_id'] = user.managerId;

@@ -37,7 +37,7 @@ import {
     Key
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { User, UserRole } from '@/gql/graphql';
+import { MandorType, User, UserRole } from '@/gql/graphql';
 
 interface UserListTableProps {
     users: User[];
@@ -91,6 +91,20 @@ export function UserListTable({
             case UserRole.Satpam: return 'border-slate-300 bg-slate-100 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200';
             default: return 'border-muted bg-muted text-muted-foreground';
         }
+    };
+
+    const getRoleDisplayLabel = (user: User) => {
+        if (user.role === UserRole.Mandor) {
+            if (user.effectiveMandorType === MandorType.Panen) {
+                return 'MANDOR/PANEN';
+            }
+            if (user.effectiveMandorType === MandorType.Perawatan) {
+                return 'MANDOR/PERAWATAN';
+            }
+            return 'MANDOR/UNKNOWN';
+        }
+
+        return user.role.replaceAll('_', ' ');
     };
 
     const getUserInitials = (user: User) => {
@@ -178,7 +192,7 @@ export function UserListTable({
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant="outline" className={getRoleBadgeColor(user.role)}>
-                                        {user.role.replace('_', ' ')}
+                                        {getRoleDisplayLabel(user)}
                                     </Badge>
                                 </TableCell>
                                 <TableCell>

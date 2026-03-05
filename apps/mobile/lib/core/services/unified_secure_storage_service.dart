@@ -193,6 +193,11 @@ class UnifiedSecureStorageService {
           key: ApiConstants.userInfoKey,
           value: jsonEncode(userJson),
         ),
+        if (response.assignments != null)
+          _secureStorage.write(
+            key: 'user_assignments',
+            value: jsonEncode(response.assignments!.toJson()),
+          ),
         if (response.session != null)
           _secureStorage.write(
             key: 'session_info',
@@ -226,6 +231,26 @@ class UnifiedSecureStorageService {
     } catch (e) {
       _logger.e('❌ Failed to store login tokens: $e');
       rethrow;
+    }
+  }
+
+  /// Get stored assignment data from the latest successful login
+  static Future<UserAssignments?> getUserAssignments() async {
+    try {
+      final raw = await _secureStorage.read(key: 'user_assignments');
+      if (raw == null || raw.trim().isEmpty) {
+        return null;
+      }
+
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        return null;
+      }
+
+      return UserAssignments.fromJson(decoded);
+    } catch (e) {
+      _logger.e('❌ Failed to read user assignments: $e');
+      return null;
     }
   }
 

@@ -128,6 +128,14 @@ export default function CompanyAdminUsersPage({ user }: CompanyAdminUsersPagePro
         setIsResetOpen(true);
     };
 
+    const getRoleFilterLabel = (role: UserRole, fallbackName: string) => {
+        if (role === UserRole.Mandor) {
+            return 'Mandor (Panen/Perawatan)';
+        }
+
+        return fallbackName;
+    };
+
     if (!companyId) {
         return (
             <CompanyAdminDashboardLayout>
@@ -181,7 +189,7 @@ export default function CompanyAdminUsersPage({ user }: CompanyAdminUsersPagePro
                             <SelectItem value="ALL">Semua Peran</SelectItem>
                             {manageableRoles.map((r) => (
                                 <SelectItem key={r.role} value={r.role}>
-                                    {r.name}
+                                    {getRoleFilterLabel(r.role, r.name)}
                                 </SelectItem>
                             ))}
                         </SelectContent>

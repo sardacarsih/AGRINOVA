@@ -10,6 +10,7 @@ import (
 	"agrinovagraphql/server/internal/graphql/domain/common"
 	"agrinovagraphql/server/internal/graphql/domain/mandor"
 	"agrinovagraphql/server/internal/graphql/domain/master"
+	"agrinovagraphql/server/internal/graphql/generated"
 	"agrinovagraphql/server/internal/middleware"
 	notificationModels "agrinovagraphql/server/internal/notifications/models"
 	notificationServices "agrinovagraphql/server/internal/notifications/services"
@@ -220,6 +221,7 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 	conflictsDetected := 0
 	createdCount := 0
 	updatedCount := 0
+	var createdNotificationBatch []*panenModels.HarvestRecord
 	var syncResults []*mandor.MandorSyncItemResult
 
 	stringValue := func(value *string) string {
@@ -228,52 +230,14 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 		}
 		return strings.TrimSpace(*value)
 	}
-	photoSummary := func(value *string) string {
-		raw := strings.TrimSpace(stringValue(value))
-		if raw == "" {
-			return ""
-		}
-		if strings.HasPrefix(raw, "data:image/") {
-			return fmt.Sprintf("data-uri(%d chars)", len(raw))
-		}
-		if len(raw) > 120 {
-			return raw[:120] + "..."
-		}
-		return raw
-	}
 
-	fmt.Printf(
-		"📥 [SyncHarvestRecords] deviceId=%s clientTimestamp=%s records=%d\n",
+	log.Printf(
+		"[SyncHarvestRecords] deviceId=%s clientTimestamp=%s records=%d",
 		strings.TrimSpace(input.DeviceID),
 		input.ClientTimestamp.Format(time.RFC3339),
 		len(input.Records),
 	)
-	for idx, recordInput := range input.Records {
-		if recordInput == nil {
-			fmt.Printf("⚠️ [SyncHarvestRecords][%d] record is nil\n", idx)
-			continue
-		}
-
-		fmt.Printf(
-			"📦 [SyncHarvestRecords][%d] localId=%s serverId=%s mandorId=%s blockId=%s karyawanId=%s nik=%q jumlahJanjang=%d beratTbs=%.2f status=%s companyId=%s estateId=%s divisionId=%s employeeDivisionId=%s employeeDivisionName=%s photo=%s\n",
-			idx,
-			strings.TrimSpace(recordInput.LocalID),
-			stringValue(recordInput.ServerID),
-			strings.TrimSpace(recordInput.MandorID),
-			strings.TrimSpace(recordInput.BlockID),
-			recordInput.KaryawanID,
-			strings.TrimSpace(recordInput.Nik),
-			recordInput.JumlahJanjang,
-			recordInput.BeratTbs,
-			stringValue(recordInput.Status),
-			stringValue(recordInput.CompanyID),
-			stringValue(recordInput.EstateID),
-			stringValue(recordInput.DivisionID),
-			stringValue(recordInput.EmployeeDivisionID),
-			stringValue(recordInput.EmployeeDivisionName),
-			photoSummary(recordInput.PhotoURL),
-		)
-	}
+	syncLookupCtx := r.PanenResolver.WithSyncLookupCache(ctx)
 
 	for _, recordInput := range input.Records {
 		if recordInput == nil {
@@ -333,7 +297,7 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 			// Determine if this is an UPDATE or CREATE based on ServerID presence.
 			if recordInput.ServerID != nil && *recordInput.ServerID != "" {
 				isUpdate = true
-				existing, findErr := scopedPanenResolver.HarvestRecord(ctx, *recordInput.ServerID)
+				existing, findErr := scopedPanenResolver.GetHarvestRecordLight(syncLookupCtx, *recordInput.ServerID)
 				if findErr != nil || existing == nil {
 					// Server record not found - fall back to create path.
 					isUpdate = false
@@ -343,7 +307,7 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 					}
 
 					isConflict, conflictErr := r.checkAndResolveConflict(
-						ctx,
+						syncLookupCtx,
 						(*panenModels.HarvestRecord)(existing),
 						recordInput,
 						effectiveDeviceID,
@@ -373,7 +337,7 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 					}
 
 					updatedRecord, updateErr := r.updateHarvestRecordFromSync(
-						ctx,
+						syncLookupCtx,
 						scopedPanenResolver,
 						*recordInput.ServerID,
 						recordInput,
@@ -396,7 +360,7 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 
 			// CREATE: No server ID or server record not found.
 			if !isUpdate {
-				existing, findErr := scopedPanenResolver.GetByLocalID(ctx, recordInput.LocalID, effectiveMandorID)
+				existing, findErr := scopedPanenResolver.GetByLocalIDLight(syncLookupCtx, recordInput.LocalID, effectiveMandorID)
 				if findErr == nil && existing != nil {
 					// Record already exists by LocalID - treat as success (idempotent).
 					record = (*mandor.HarvestRecord)(existing)
@@ -476,22 +440,10 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 					}
 				}
 
-				model, createErr := scopedPanenResolver.CreateHarvestRecord(ctx, createInput)
+				model, createErr := scopedPanenResolver.CreateHarvestRecordForSync(syncLookupCtx, createInput)
 				if createErr != nil {
 					return createErr
 				}
-				if enforceErr := r.enforceSyncIdentity(
-					ctx,
-					scopedPanenResolver,
-					model,
-					effectiveKaryawanID,
-					effectiveNik,
-					effectiveEmployeeDivisionID,
-					effectiveEmployeeDivisionName,
-				); enforceErr != nil {
-					return enforceErr
-				}
-
 				record = (*mandor.HarvestRecord)(model)
 				createdModel = model
 				recordCreated = true
@@ -523,7 +475,7 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 			}
 			if recordCreated {
 				createdCount++
-				r.notifyAsistenHarvestCreated(ctx, createdModel)
+				createdNotificationBatch = append(createdNotificationBatch, createdModel)
 				publishHarvestRecordCreated((*mandor.HarvestRecord)(createdModel))
 			}
 			itemResult.Success = true
@@ -533,6 +485,12 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 			}
 		}
 		syncResults = append(syncResults, itemResult)
+	}
+
+	if len(createdNotificationBatch) == 1 {
+		r.notifyAsistenHarvestCreated(ctx, createdNotificationBatch[0])
+	} else if len(createdNotificationBatch) > 1 {
+		r.notifyAsistenHarvestCreatedBatch(ctx, createdNotificationBatch)
 	}
 
 	transactionID := fmt.Sprintf("txn_%d", time.Now().UnixNano())
@@ -581,19 +539,47 @@ func (r *mutationResolver) notifyAsistenHarvestCreated(ctx context.Context, reco
 			blockName = name
 		}
 	}
+	blockID := strings.TrimSpace(record.BlockID)
 
 	harvestID := strings.TrimSpace(record.ID)
 	bunchCount := record.JumlahJanjang
+	weight := record.BeratTbs
 
 	notifier := r.FCMNotificationService
-	if !isNilValue(notifier) {
-		go func(notifier HarvestFCMNotifier) {
+	notificationService := r.NotificationService
+	if isNilValue(notifier) && notificationService == nil {
+		return
+	}
+
+	go func(
+		notifier HarvestFCMNotifier,
+		notificationService *notificationServices.NotificationService,
+		harvestID string,
+		mandorID string,
+		blockID string,
+		mandorName string,
+		blockName string,
+		bunchCount int32,
+		weight float64,
+	) {
+		lookupCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		resolvedMandorName, resolvedBlockName := r.resolveHarvestNotificationLabels(
+			lookupCtx,
+			mandorID,
+			blockID,
+			mandorName,
+			blockName,
+		)
+
+		if !isNilValue(notifier) {
 			err := notifier.NotifyAsistenNewHarvest(
 				context.Background(),
 				harvestID,
 				mandorID,
-				mandorName,
-				blockName,
+				resolvedMandorName,
+				resolvedBlockName,
 				bunchCount,
 			)
 			if err != nil {
@@ -604,18 +590,16 @@ func (r *mutationResolver) notifyAsistenHarvestCreated(ctx context.Context, reco
 					err,
 				)
 			}
-		}(notifier)
-	}
+		}
 
-	if r.NotificationService != nil {
-		go func() {
+		if notificationService != nil {
 			if err := r.notifyHarvestCreatedHierarchyNotifications(
 				context.Background(),
 				harvestID,
 				mandorID,
-				mandorName,
-				blockName,
-				record.BeratTbs,
+				resolvedMandorName,
+				resolvedBlockName,
+				weight,
 			); err != nil {
 				log.Printf(
 					"Failed to create hierarchical harvest-created notification for harvest %s: %v",
@@ -623,8 +607,80 @@ func (r *mutationResolver) notifyAsistenHarvestCreated(ctx context.Context, reco
 					err,
 				)
 			}
-		}()
+		}
+	}(
+		notifier,
+		notificationService,
+		harvestID,
+		mandorID,
+		blockID,
+		mandorName,
+		blockName,
+		bunchCount,
+		weight,
+	)
+}
+
+func (r *mutationResolver) resolveHarvestNotificationLabels(
+	ctx context.Context,
+	mandorID string,
+	blockID string,
+	fallbackMandorName string,
+	fallbackBlockName string,
+) (string, string) {
+	mandorName := strings.TrimSpace(fallbackMandorName)
+	if mandorName == "" {
+		mandorName = "Mandor"
 	}
+
+	blockName := strings.TrimSpace(fallbackBlockName)
+	if blockName == "" {
+		blockName = "Block"
+	}
+
+	if r.db == nil {
+		return mandorName, blockName
+	}
+
+	if mandorName == "Mandor" && strings.TrimSpace(mandorID) != "" {
+		var row struct {
+			Name     string `gorm:"column:name"`
+			Username string `gorm:"column:username"`
+		}
+		if err := r.db.WithContext(ctx).
+			Table("users").
+			Select("name", "username").
+			Where("id = ?", mandorID).
+			Limit(1).
+			Scan(&row).Error; err == nil {
+			if name := strings.TrimSpace(row.Name); name != "" {
+				mandorName = name
+			} else if username := strings.TrimSpace(row.Username); username != "" {
+				mandorName = username
+			}
+		}
+	}
+
+	if blockName == "Block" && strings.TrimSpace(blockID) != "" {
+		var row struct {
+			Name      string `gorm:"column:name"`
+			BlockCode string `gorm:"column:block_code"`
+		}
+		if err := r.db.WithContext(ctx).
+			Table("blocks").
+			Select("name", "block_code").
+			Where("id = ?", blockID).
+			Limit(1).
+			Scan(&row).Error; err == nil {
+			if name := strings.TrimSpace(row.Name); name != "" {
+				blockName = name
+			} else if code := strings.TrimSpace(row.BlockCode); code != "" {
+				blockName = code
+			}
+		}
+	}
+
+	return mandorName, blockName
 }
 
 type harvestNotificationRecipient struct {
@@ -1343,34 +1399,26 @@ func (r *mutationResolver) updateHarvestRecordFromSync(
 	}
 
 	// Call the update service
-	updated, err := panenResolver.UpdateHarvestRecord(ctx, updateInput)
+	updated, err := panenResolver.UpdateHarvestRecordForSync(ctx, updateInput)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update harvest record: %w", err)
 	}
 
 	updatedModel := (*panenModels.HarvestRecord)(updated)
+	needsSave := false
 	if input.PhotoURL != nil {
 		photoValue := strings.TrimSpace(*input.PhotoURL)
 		if photoValue == "" {
 			updatedModel.PhotoURL = nil
+			needsSave = true
 		} else {
 			resolvedPhotoURL, photoErr := r.saveHarvestPhotoFromPayload(input.LocalID, photoValue)
 			if photoErr != nil {
 				return nil, fmt.Errorf("failed to process harvest photo: %w", photoErr)
 			}
 			updatedModel.PhotoURL = &resolvedPhotoURL
+			needsSave = true
 		}
-	}
-	if err := r.enforceSyncIdentity(
-		ctx,
-		panenResolver,
-		updatedModel,
-		karyawanID,
-		nik,
-		employeeDivisionID,
-		employeeDivisionName,
-	); err != nil {
-		return nil, fmt.Errorf("failed to apply sync identity: %w", err)
 	}
 
 	// Correction flow: when mandor edits rejected data and resubmits,
@@ -1381,8 +1429,12 @@ func (r *mutationResolver) updateHarvestRecordFromSync(
 		updatedModel.RejectedReason = nil
 		updatedModel.ApprovedAt = nil
 		updatedModel.ApprovedBy = nil
+		needsSave = true
+	}
+
+	if needsSave {
 		if err := panenResolver.SaveHarvestRecord(ctx, updatedModel); err != nil {
-			return nil, fmt.Errorf("failed to reset corrected harvest status to pending: %w", err)
+			return nil, fmt.Errorf("failed to persist sync-only harvest updates: %w", err)
 		}
 	}
 
@@ -1441,31 +1493,6 @@ func (r *mutationResolver) resolveHarvestNikFromSyncInput(
 		return nil
 	}
 	return normalizeSyncNik(input.Nik)
-}
-
-func (r *mutationResolver) enforceSyncIdentity(
-	ctx context.Context,
-	panenResolver *panenResolvers.PanenResolver,
-	record *panenModels.HarvestRecord,
-	karyawanID *string,
-	nik *string,
-	employeeDivisionID *string,
-	employeeDivisionName *string,
-) error {
-	if record == nil {
-		return nil
-	}
-	if karyawanID != nil {
-		record.KaryawanID = karyawanID
-	}
-	record.Nik = nik
-	if employeeDivisionID != nil {
-		record.EmployeeDivisionID = employeeDivisionID
-	}
-	if employeeDivisionName != nil {
-		record.EmployeeDivisionName = employeeDivisionName
-	}
-	return panenResolver.SaveHarvestRecord(ctx, record)
 }
 
 func normalizeSyncKaryawanID(karyawanID string) *string {
@@ -1891,24 +1918,18 @@ func (r *queryResolver) MandorPendingSyncItems(ctx context.Context, deviceID str
 // MandorServerUpdates is the resolver for the mandorServerUpdates field.
 // This returns harvest records that have been updated since the given timestamp.
 // Used by mobile app to sync approval status changes from server.
-func (r *queryResolver) MandorServerUpdates(ctx context.Context, since time.Time, deviceID string) ([]*mandor.MandorHarvestRecord, error) {
-	fmt.Printf("📥 [MandorServerUpdates] Called with since=%v, deviceID=%s\n", since, deviceID)
-
+func (r *queryResolver) MandorServerUpdates(ctx context.Context, since time.Time, _ string) ([]*mandor.MandorHarvestRecord, error) {
 	// Get the authenticated user's ID from context
 	userID, ok := ctx.Value("user_id").(string)
 	if !ok || userID == "" {
-		fmt.Printf("❌ [MandorServerUpdates] User not authenticated\n")
 		return nil, fmt.Errorf("user not authenticated")
 	}
-	fmt.Printf("✅ [MandorServerUpdates] User ID: %s\n", userID)
 
 	// Query harvest records for this mandor that have been updated since the given time
 	records, err := r.PanenResolver.GetHarvestRecordsByMandorSince(ctx, userID, since)
 	if err != nil {
-		fmt.Printf("❌ [MandorServerUpdates] Database error: %v\n", err)
 		return nil, fmt.Errorf("failed to fetch harvest updates: %w", err)
 	}
-	fmt.Printf("✅ [MandorServerUpdates] Found %d records\n", len(records))
 
 	// Convert HarvestRecord to MandorHarvestRecord
 	result := make([]*mandor.MandorHarvestRecord, len(records))
@@ -1916,7 +1937,6 @@ func (r *queryResolver) MandorServerUpdates(ctx context.Context, since time.Time
 		result[i] = convertToMandorHarvestRecord(record)
 	}
 
-	fmt.Printf("✅ [MandorServerUpdates] Returning %d records\n", len(result))
 	return result, nil
 }
 
@@ -2079,6 +2099,139 @@ func (r *queryResolver) HarvestRecords(ctx context.Context, dateFrom *time.Time,
 	}
 
 	return result, nil
+}
+
+// HarvestRecordsPaginated is the resolver for the harvestRecordsPaginated field.
+func (r *queryResolver) HarvestRecordsPaginated(ctx context.Context, page *int32, limit *int32, status *mandor.HarvestStatus, search *string, sortBy *string, sortDir *string, dateFrom *time.Time, dateTo *time.Time) (*generated.HarvestRecordsPaginatedResponse, error) {
+	userID, role := getCurrentUserScope(ctx)
+	if userID == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
+
+	// Defaults
+	pageVal := int32(1)
+	if page != nil && *page > 0 {
+		pageVal = *page
+	}
+	limitVal := int32(10)
+	if limit != nil && *limit > 0 {
+		limitVal = *limit
+		if limitVal > 100 {
+			limitVal = 100
+		}
+	}
+	offset := int((pageVal - 1) * limitVal)
+	limitInt := int(limitVal)
+
+	// Build filters
+	filters := &panenModels.HarvestFilters{
+		DateFrom: dateFrom,
+		DateTo:   dateTo,
+		Status:   status,
+		Search:   search,
+		OrderBy:  sortBy,
+		OrderDir: sortDir,
+		Limit:    &limitInt,
+		Offset:   &offset,
+	}
+
+	// Count filters (same without pagination)
+	countFilters := &panenModels.HarvestFilters{
+		DateFrom: dateFrom,
+		DateTo:   dateTo,
+		Status:   status,
+		Search:   search,
+	}
+
+	var (
+		harvestModels []*panenModels.HarvestRecord
+		totalCount    int64
+		err           error
+		countErr      error
+	)
+
+	switch role {
+	case auth.UserRoleMandor:
+		harvestModels, err = r.PanenResolver.HarvestRecordsByMandor(ctx, userID, filters)
+		if err == nil {
+			mandorCountFilters := *countFilters
+			mandorID := userID
+			mandorCountFilters.MandorID = &mandorID
+			totalCount, countErr = r.PanenResolver.CountHarvestRecords(ctx, &mandorCountFilters)
+		}
+	case auth.UserRoleManager:
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, filters)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if hasScope {
+			harvestModels, err = r.PanenResolver.HarvestRecords(ctx, scopedFilters)
+			if err == nil {
+				scopedCountFilters, _, _ := r.buildScopedHarvestFilters(ctx, userID, role, countFilters)
+				totalCount, countErr = r.PanenResolver.CountHarvestRecords(ctx, scopedCountFilters)
+			}
+		} else {
+			harvestModels, err = r.PanenResolver.HarvestRecordsByManager(ctx, userID, filters)
+			if err == nil {
+				managerCountFilters := *countFilters
+				totalCount, countErr = r.PanenResolver.CountHarvestRecords(ctx, &managerCountFilters)
+			}
+		}
+	case auth.UserRoleAsisten, auth.UserRoleAreaManager, auth.UserRoleCompanyAdmin:
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, filters)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if hasScope {
+			harvestModels, err = r.PanenResolver.HarvestRecords(ctx, scopedFilters)
+			if err == nil {
+				scopedCountFilters, _, _ := r.buildScopedHarvestFilters(ctx, userID, role, countFilters)
+				totalCount, countErr = r.PanenResolver.CountHarvestRecords(ctx, scopedCountFilters)
+			}
+		} else {
+			hierarchyFilters, hasHierarchyScope, hierarchyErr := r.buildHierarchyMandorScopedHarvestFilters(ctx, userID, filters)
+			if hierarchyErr != nil {
+				return nil, hierarchyErr
+			}
+			if !hasHierarchyScope {
+				return &generated.HarvestRecordsPaginatedResponse{
+					Data:       []*mandor.HarvestRecord{},
+					TotalCount: 0,
+					HasMore:    false,
+				}, nil
+			}
+			harvestModels, err = r.PanenResolver.HarvestRecords(ctx, hierarchyFilters)
+			if err == nil {
+				hierarchyCountFilters, _, _ := r.buildHierarchyMandorScopedHarvestFilters(ctx, userID, countFilters)
+				totalCount, countErr = r.PanenResolver.CountHarvestRecords(ctx, hierarchyCountFilters)
+			}
+		}
+	default:
+		harvestModels, err = r.PanenResolver.HarvestRecords(ctx, filters)
+		if err == nil {
+			totalCount, countErr = r.PanenResolver.CountHarvestRecords(ctx, countFilters)
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	if countErr != nil {
+		return nil, countErr
+	}
+
+	result := make([]*mandor.HarvestRecord, len(harvestModels))
+	for i, model := range harvestModels {
+		result[i] = (*mandor.HarvestRecord)(model)
+	}
+
+	hasMore := int64(offset)+int64(len(result)) < totalCount
+
+	return &generated.HarvestRecordsPaginatedResponse{
+		Data:       result,
+		TotalCount: int32(totalCount),
+		HasMore:    hasMore,
+	}, nil
 }
 
 // HarvestRecord is the resolver for the harvestRecord field.

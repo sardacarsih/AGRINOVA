@@ -89,6 +89,18 @@ func (r *PanenRepository) GetHarvestRecordByID(ctx context.Context, id string) (
 	return &record, nil
 }
 
+// GetHarvestRecordByIDLight retrieves a harvest record by ID without preloading associations.
+func (r *PanenRepository) GetHarvestRecordByIDLight(ctx context.Context, id string) (*models.HarvestRecord, error) {
+	var record models.HarvestRecord
+	err := r.db.WithContext(ctx).
+		Where("id = ?", id).
+		First(&record).Error
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
 // GetByLocalID retrieves a harvest record by local ID and mandor ID
 func (r *PanenRepository) GetByLocalID(ctx context.Context, localID, mandorID string) (*models.HarvestRecord, error) {
 	var record models.HarvestRecord
@@ -101,6 +113,18 @@ func (r *PanenRepository) GetByLocalID(ctx context.Context, localID, mandorID st
 		Where("local_id = ? AND mandor_id = ?", localID, mandorID).
 		First(&record).Error
 
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+// GetByLocalIDLight retrieves a harvest record by local ID and mandor ID without preloading associations.
+func (r *PanenRepository) GetByLocalIDLight(ctx context.Context, localID, mandorID string) (*models.HarvestRecord, error) {
+	var record models.HarvestRecord
+	err := r.db.WithContext(ctx).
+		Where("local_id = ? AND mandor_id = ?", localID, mandorID).
+		First(&record).Error
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +147,77 @@ func (r *PanenRepository) GetHarvestRecords(ctx context.Context, filters *models
 	var records []*mandor.HarvestRecord
 	err := query.Find(&records).Error
 	return records, err
+}
+
+// CountHarvestRecords counts harvest records matching the given filters (no pagination/sorting applied).
+func (r *PanenRepository) CountHarvestRecords(ctx context.Context, filters *models.HarvestFilters) (int64, error) {
+	query := r.db.WithContext(ctx).Model(&mandor.HarvestRecord{})
+	query = r.applyHarvestWhereFilters(query, filters)
+
+	var count int64
+	err := query.Count(&count).Error
+	return count, err
+}
+
+// applyHarvestWhereFilters applies only WHERE conditions from filters (no order/limit/offset).
+// Used for counting total records.
+func (r *PanenRepository) applyHarvestWhereFilters(query *gorm.DB, filters *models.HarvestFilters) *gorm.DB {
+	if filters == nil {
+		return query
+	}
+
+	if len(filters.CompanyIDs) > 0 {
+		companyIDs := normalizeHarvestScopeIDs(filters.CompanyIDs)
+		if len(companyIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.company_id IN ?", companyIDs)
+	}
+	if len(filters.EstateIDs) > 0 {
+		estateIDs := normalizeHarvestScopeIDs(filters.EstateIDs)
+		if len(estateIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.estate_id IN ?", estateIDs)
+	}
+	if len(filters.DivisionIDs) > 0 {
+		divisionIDs := normalizeHarvestScopeIDs(filters.DivisionIDs)
+		if len(divisionIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.division_id IN ?", divisionIDs)
+	}
+	if len(filters.MandorIDs) > 0 {
+		mandorIDs := normalizeHarvestScopeIDs(filters.MandorIDs)
+		if len(mandorIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.mandor_id IN ?", mandorIDs)
+	}
+	if filters.MandorID != nil {
+		query = query.Where("harvest_records.mandor_id = ?", *filters.MandorID)
+	}
+	if filters.BlockID != nil {
+		query = query.Where("harvest_records.block_id = ?", *filters.BlockID)
+	}
+	if filters.Status != nil {
+		query = query.Where("harvest_records.status = ?", *filters.Status)
+	}
+	if filters.DateFrom != nil {
+		query = query.Where("harvest_records.tanggal >= ?", *filters.DateFrom)
+	}
+	if filters.DateTo != nil {
+		query = query.Where("harvest_records.tanggal <= ?", *filters.DateTo)
+	}
+	if filters.Search != nil && *filters.Search != "" {
+		searchTerm := "%" + strings.ToLower(*filters.Search) + "%"
+		query = query.Where(
+			"LOWER(COALESCE(harvest_records.nik, '')) LIKE ? OR LOWER(COALESCE(harvest_records.karyawan, '')) LIKE ? OR LOWER(COALESCE(harvest_records.notes, '')) LIKE ?",
+			searchTerm, searchTerm, searchTerm,
+		)
+	}
+
+	return query
 }
 
 // GetHarvestRecordsByStatus retrieves harvest records filtered by status
@@ -225,6 +320,34 @@ func (r *PanenRepository) UpdateHarvestRecord(ctx context.Context, id string, up
 			Preload("Block.Division.Estate.Company").
 			Where("id = ?", id).
 			First(&record).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &record, nil
+}
+
+// UpdateHarvestRecordLight updates an existing harvest record and returns the row without preloaded associations.
+func (r *PanenRepository) UpdateHarvestRecordLight(ctx context.Context, id string, updates map[string]interface{}) (*models.HarvestRecord, error) {
+	var record models.HarvestRecord
+
+	filteredUpdates, err := r.filterHarvestRecordColumns(ctx, updates)
+	if err != nil {
+		return nil, err
+	}
+	if len(filteredUpdates) == 0 {
+		filteredUpdates = map[string]interface{}{"updated_at": time.Now()}
+	}
+
+	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if updateErr := tx.Model(&models.HarvestRecord{}).
+			Where("id = ?", id).
+			Updates(filteredUpdates).Error; updateErr != nil {
+			return updateErr
+		}
+
+		return tx.Where("id = ?", id).First(&record).Error
 	})
 	if err != nil {
 		return nil, err
@@ -406,15 +529,29 @@ func (r *PanenRepository) CanModifyHarvestRecord(ctx context.Context, id string)
 // This is used for mobile sync to pull approval status updates from the server
 func (r *PanenRepository) GetHarvestRecordsByMandorSince(ctx context.Context, mandorID string, since time.Time) ([]*mandor.HarvestRecord, error) {
 	var records []*mandor.HarvestRecord
+	relevantStatuses := []models.HarvestStatus{
+		models.HarvestApproved,
+		models.HarvestRejected,
+	}
 	query := r.db.WithContext(ctx).
-		Preload("Mandor").
-		Preload("Block").
-		Preload("Block.Division").
-		Preload("Block.Division.Estate").
-		Preload("Block.Division.Estate.Company").
-		Where("harvest_records.mandor_id = ? AND harvest_records.updated_at > ?", mandorID, since).
+		Model(&mandor.HarvestRecord{}).
+		Select(
+			"id",
+			"local_id",
+			"mandor_id",
+			"status",
+			"approved_by",
+			"approved_at",
+			"rejected_reason",
+			"updated_at",
+		).
+		Where(
+			"harvest_records.mandor_id = ? AND harvest_records.updated_at > ? AND harvest_records.status IN ?",
+			mandorID,
+			since,
+			relevantStatuses,
+		).
 		Order("harvest_records.updated_at DESC")
-	query = r.applyEmployeeWorkerNameJoin(query)
 	err := query.Find(&records).Error
 
 	return records, err
