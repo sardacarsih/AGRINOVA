@@ -375,6 +375,57 @@ type BlockTariffChangeLogPaginationResponse struct {
 	Pagination *master.Pagination      `json:"pagination"`
 }
 
+// BlockTreatmentSemesterRequest represents manager submission for semester block treatment changes.
+type BlockTreatmentSemesterRequest struct {
+	ID             string                               `json:"id"`
+	CompanyID      string                               `json:"companyId"`
+	CompanyName    *string                              `json:"companyName,omitempty"`
+	Semester       string                               `json:"semester"`
+	Status         BlockTreatmentRequestStatus          `json:"status"`
+	Notes          *string                              `json:"notes,omitempty"`
+	RevisionNo     int32                                `json:"revisionNo"`
+	SubmittedAt    *time.Time                           `json:"submittedAt,omitempty"`
+	ReviewedBy     *string                              `json:"reviewedBy,omitempty"`
+	ReviewedByName *string                              `json:"reviewedByName,omitempty"`
+	ReviewedAt     *time.Time                           `json:"reviewedAt,omitempty"`
+	ApprovedBy     *string                              `json:"approvedBy,omitempty"`
+	ApprovedByName *string                              `json:"approvedByName,omitempty"`
+	ApprovedAt     *time.Time                           `json:"approvedAt,omitempty"`
+	RejectedReason *string                              `json:"rejectedReason,omitempty"`
+	AppliedBy      *string                              `json:"appliedBy,omitempty"`
+	AppliedByName  *string                              `json:"appliedByName,omitempty"`
+	AppliedAt      *time.Time                           `json:"appliedAt,omitempty"`
+	CreatedBy      string                               `json:"createdBy"`
+	CreatedByName  *string                              `json:"createdByName,omitempty"`
+	CreatedAt      time.Time                            `json:"createdAt"`
+	UpdatedAt      time.Time                            `json:"updatedAt"`
+	Items          []*BlockTreatmentSemesterRequestItem `json:"items"`
+}
+
+// BlockTreatmentSemesterRequestItem stores a block-level proposed treatment change.
+type BlockTreatmentSemesterRequestItem struct {
+	ID                  string    `json:"id"`
+	RequestID           string    `json:"requestId"`
+	BlockID             string    `json:"blockId"`
+	BlockCode           string    `json:"blockCode"`
+	BlockName           string    `json:"blockName"`
+	DivisionName        *string   `json:"divisionName,omitempty"`
+	EstateName          *string   `json:"estateName,omitempty"`
+	CurrentTarifBlokID  *string   `json:"currentTarifBlokId,omitempty"`
+	CurrentPerlakuan    *string   `json:"currentPerlakuan,omitempty"`
+	ProposedTarifBlokID string    `json:"proposedTarifBlokId"`
+	ProposedPerlakuan   *string   `json:"proposedPerlakuan,omitempty"`
+	ImpactSummary       *string   `json:"impactSummary,omitempty"`
+	CreatedAt           time.Time `json:"createdAt"`
+	UpdatedAt           time.Time `json:"updatedAt"`
+}
+
+type BlockTreatmentSemesterRequestItemInput struct {
+	BlockID             string  `json:"blockId"`
+	ProposedTarifBlokID string  `json:"proposedTarifBlokId"`
+	ImpactSummary       *string `json:"impactSummary,omitempty"`
+}
+
 // CompanyAdminDashboardData represents dashboard for Company Admin.
 type CompanyAdminDashboardData struct {
 	// User information
@@ -773,6 +824,13 @@ type CreateBkmCompanyBridgeInput struct {
 	Priority     *int32  `json:"priority,omitempty"`
 	IsActive     *bool   `json:"isActive,omitempty"`
 	Notes        *string `json:"notes,omitempty"`
+}
+
+type CreateBlockTreatmentSemesterRequestInput struct {
+	CompanyID string                                    `json:"companyId"`
+	Semester  string                                    `json:"semester"`
+	Notes     *string                                   `json:"notes,omitempty"`
+	Items     []*BlockTreatmentSemesterRequestItemInput `json:"items"`
 }
 
 // CreateCompanyAdminInput for creating company.
@@ -2163,6 +2221,21 @@ type SystemStats struct {
 	SystemHealth *SystemHealth `json:"systemHealth,omitempty"`
 }
 
+// TariffManagementDecision stores management-level decisions for direct tariff changes.
+type TariffManagementDecision struct {
+	ID             string    `json:"id"`
+	EntityType     string    `json:"entityType"`
+	EntityID       string    `json:"entityId"`
+	ActionType     string    `json:"actionType"`
+	CompanyID      string    `json:"companyId"`
+	DecisionNo     string    `json:"decisionNo"`
+	DecisionReason string    `json:"decisionReason"`
+	EffectiveNote  string    `json:"effectiveNote"`
+	DecidedBy      string    `json:"decidedBy"`
+	DecidedAt      time.Time `json:"decidedAt"`
+	Metadata       *string   `json:"metadata,omitempty"`
+}
+
 // TariffRuleOverride stores contextual tariff override with optional period.
 type TariffRuleOverride struct {
 	ID            string             `json:"id"`
@@ -3015,6 +3088,72 @@ func (e *AreaManagerActionType) UnmarshalJSON(b []byte) error {
 }
 
 func (e AreaManagerActionType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// BlockTreatmentRequestStatus represents lifecycle status for semester treatment requests.
+type BlockTreatmentRequestStatus string
+
+const (
+	BlockTreatmentRequestStatusDraft       BlockTreatmentRequestStatus = "DRAFT"
+	BlockTreatmentRequestStatusSubmitted   BlockTreatmentRequestStatus = "SUBMITTED"
+	BlockTreatmentRequestStatusUnderReview BlockTreatmentRequestStatus = "UNDER_REVIEW"
+	BlockTreatmentRequestStatusApproved    BlockTreatmentRequestStatus = "APPROVED"
+	BlockTreatmentRequestStatusRejected    BlockTreatmentRequestStatus = "REJECTED"
+	BlockTreatmentRequestStatusApplied     BlockTreatmentRequestStatus = "APPLIED"
+	BlockTreatmentRequestStatusCancelled   BlockTreatmentRequestStatus = "CANCELLED"
+)
+
+var AllBlockTreatmentRequestStatus = []BlockTreatmentRequestStatus{
+	BlockTreatmentRequestStatusDraft,
+	BlockTreatmentRequestStatusSubmitted,
+	BlockTreatmentRequestStatusUnderReview,
+	BlockTreatmentRequestStatusApproved,
+	BlockTreatmentRequestStatusRejected,
+	BlockTreatmentRequestStatusApplied,
+	BlockTreatmentRequestStatusCancelled,
+}
+
+func (e BlockTreatmentRequestStatus) IsValid() bool {
+	switch e {
+	case BlockTreatmentRequestStatusDraft, BlockTreatmentRequestStatusSubmitted, BlockTreatmentRequestStatusUnderReview, BlockTreatmentRequestStatusApproved, BlockTreatmentRequestStatusRejected, BlockTreatmentRequestStatusApplied, BlockTreatmentRequestStatusCancelled:
+		return true
+	}
+	return false
+}
+
+func (e BlockTreatmentRequestStatus) String() string {
+	return string(e)
+}
+
+func (e *BlockTreatmentRequestStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = BlockTreatmentRequestStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid BlockTreatmentRequestStatus", str)
+	}
+	return nil
+}
+
+func (e BlockTreatmentRequestStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *BlockTreatmentRequestStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e BlockTreatmentRequestStatus) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
