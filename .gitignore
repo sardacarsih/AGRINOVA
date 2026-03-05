@@ -183,8 +183,14 @@ apps/web/public/*.aab
 
 # Local temp/debug artifacts
 /.tmp_*
+.tmp-k6-*.json
 apps/golang/.gocache/
 apps/golang/gocache/
+apps/golang/tmp-go-cache/
 apps/golang/codex-tmp/
 apps/golang/uploads/avatars/
 apps/golang/uploads/harvest_photos/
+apps/golang/uploads/satpam_photos/
+apps/golang/scripts/k6/.tmp-*.json
+apps/golang/scripts/k6/*summary*.json
+apps/mobile/.tmp_figma_mcp/

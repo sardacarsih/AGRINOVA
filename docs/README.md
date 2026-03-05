@@ -720,6 +720,17 @@ CREATE INDEX CONCURRENTLY idx_tbs_collection_time ON tbs (collection_time);
    ```
 7. **Push and create PR**
 
+### Source-of-Truth Local Workflow
+
+Gunakan pola ini saat branch lokal ditetapkan sebagai baseline kerja:
+
+1. **Jangan pull/merge ke worktree yang kotor**
+   - Simpan perubahan ke branch lokal atau stash dulu.
+2. **Selalu kerja di feature branch atau worktree terpisah**
+   - Hindari commit langsung di `develop`.
+3. **Publish snapshot branch saat perlu baseline remote**
+   - Contoh: `snapshot/local-source-truth-YYYYMMDD-HHMMSS`.
+
 ### Code Style
 
 - **TypeScript** for type safety
