@@ -2,25 +2,27 @@
 
 import React, { useCallback } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { FileText, History, LandPlot, LayoutGrid } from 'lucide-react';
+import { FileText, GitPullRequestArrow, History, LandPlot, LayoutGrid } from 'lucide-react';
 import { CompanyAdminDashboardLayout } from '@/components/layouts/role-layouts/CompanyAdminDashboardLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CompanyAdminLandTypesPage from './CompanyAdminLandTypesPage';
 import CompanyAdminBlocksPage from './CompanyAdminBlocksPage';
 import CompanyAdminTarifBlokPage from './CompanyAdminTarifBlokPage';
 import CompanyAdminBlockAuditPage from './CompanyAdminBlockAuditPage';
+import BlockTreatmentWorkflowPage from './BlockTreatmentWorkflowPage';
 
 interface CompanyAdminBlocksTabsPageProps {
   user?: unknown;
   locale?: string;
 }
 
-type BlocksTabValue = 'land-types' | 'blocks' | 'tarif-blok' | 'audit';
+type BlocksTabValue = 'land-types' | 'blocks' | 'tarif-blok' | 'audit' | 'workflow';
 
 const DEFAULT_TAB: BlocksTabValue = 'blocks';
 const LAND_TYPES_TAB: BlocksTabValue = 'land-types';
 const TARIF_BLOK_TAB: BlocksTabValue = 'tarif-blok';
 const AUDIT_TAB: BlocksTabValue = 'audit';
+const WORKFLOW_TAB: BlocksTabValue = 'workflow';
 
 export default function CompanyAdminBlocksTabsPage({ user }: CompanyAdminBlocksTabsPageProps) {
   const router = useRouter();
@@ -33,6 +35,8 @@ export default function CompanyAdminBlocksTabsPage({ user }: CompanyAdminBlocksT
       ? TARIF_BLOK_TAB
       : searchParams?.get('tab') === AUDIT_TAB
         ? AUDIT_TAB
+        : searchParams?.get('tab') === WORKFLOW_TAB
+          ? WORKFLOW_TAB
       : DEFAULT_TAB;
 
   const handleTabChange = useCallback((nextValue: string) => {
@@ -42,6 +46,8 @@ export default function CompanyAdminBlocksTabsPage({ user }: CompanyAdminBlocksT
         ? TARIF_BLOK_TAB
         : nextValue === AUDIT_TAB
           ? AUDIT_TAB
+          : nextValue === WORKFLOW_TAB
+            ? WORKFLOW_TAB
         : DEFAULT_TAB;
     const params = new URLSearchParams(searchParams?.toString());
 
@@ -64,7 +70,7 @@ export default function CompanyAdminBlocksTabsPage({ user }: CompanyAdminBlocksT
       contentPaddingClass="px-2 py-4 sm:px-3 sm:py-5 lg:px-4 lg:py-6"
     >
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="grid w-full max-w-4xl grid-cols-4">
+        <TabsList className="grid w-full max-w-5xl grid-cols-5">
           <TabsTrigger value="land-types" className="flex items-center gap-2">
             <LandPlot className="h-4 w-4" />
             Land Types
@@ -81,6 +87,10 @@ export default function CompanyAdminBlocksTabsPage({ user }: CompanyAdminBlocksT
             <History className="h-4 w-4" />
             Audit Blok
           </TabsTrigger>
+          <TabsTrigger value="workflow" className="flex items-center gap-2">
+            <GitPullRequestArrow className="h-4 w-4" />
+            Workflow
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="land-types" className="space-y-6">
@@ -94,6 +104,9 @@ export default function CompanyAdminBlocksTabsPage({ user }: CompanyAdminBlocksT
         </TabsContent>
         <TabsContent value="audit" className="space-y-6">
           <CompanyAdminBlockAuditPage user={user} withLayout={false} />
+        </TabsContent>
+        <TabsContent value="workflow" className="space-y-6">
+          <BlockTreatmentWorkflowPage user={user} withLayout={false} />
         </TabsContent>
       </Tabs>
     </CompanyAdminDashboardLayout>
