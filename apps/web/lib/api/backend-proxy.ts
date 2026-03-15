@@ -87,3 +87,60 @@ export async function proxyToBackend(
   return nextResponse;
 }
 
+export async function proxyMultipartToBackend(
+  request: NextRequest,
+  targetPath: string,
+  method: 'POST' | 'PUT' = 'POST'
+): Promise<NextResponse> {
+  const baseUrl = getBackendBaseUrl();
+  const target = new URL(targetPath, `${baseUrl}/`);
+
+  if (request.nextUrl.search) {
+    target.search = request.nextUrl.search;
+  }
+
+  const headers = new Headers();
+  headers.set('Accept', 'application/json');
+  headers.set('Cookie', request.headers.get('cookie') || '');
+  headers.set('Authorization', request.headers.get('authorization') || '');
+  headers.set('X-CSRF-Token', request.headers.get('x-csrf-token') || '');
+
+  const contentType = request.headers.get('content-type');
+  if (contentType) {
+    headers.set('Content-Type', contentType);
+  }
+
+  const response = await fetch(target.toString(), {
+    method,
+    headers,
+    body: await request.arrayBuffer(),
+  });
+
+  const raw = await response.text();
+  let parsed: unknown = null;
+  if (raw.trim()) {
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      parsed = { message: raw };
+    }
+  }
+
+  const nextResponse = NextResponse.json(parsed, { status: response.status });
+
+  // @ts-ignore - available in Node runtime
+  if (typeof response.headers.getSetCookie === 'function') {
+    // @ts-ignore
+    const setCookies = response.headers.getSetCookie() as string[];
+    for (const cookie of setCookies) {
+      nextResponse.headers.append('set-cookie', rewriteSetCookieHeader(cookie, request));
+    }
+  } else {
+    const singleCookie = response.headers.get('set-cookie');
+    if (singleCookie) {
+      nextResponse.headers.set('set-cookie', rewriteSetCookieHeader(singleCookie, request));
+    }
+  }
+
+  return nextResponse;
+}

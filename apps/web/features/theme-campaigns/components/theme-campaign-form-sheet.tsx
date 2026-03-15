@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import NextImage from 'next/image';
 import { ImagePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +26,11 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ThemeCampaignApi } from '@/features/theme-campaigns/api/theme-campaign-api';
+import { MobileAppUiRuntimePreview } from '@/features/theme-campaigns/components/mobile-app-ui-runtime-preview';
 import {
+  ThemeAppUiSlot,
+  ThemeAppUiSlots,
   ThemeCampaign,
   ThemeCampaignFormValues,
   ThemeEntity,
@@ -64,6 +69,9 @@ interface FormDraft {
 }
 
 type AssetFieldKey = 'backgroundImage' | 'illustration';
+type PlatformAssetEditableKey = Exclude<keyof ThemePlatformAssets, 'app_ui'>;
+type AppUiSlotKey = keyof ThemeAppUiSlots;
+type AppUiSlotFieldKey = keyof ThemeAppUiSlot;
 
 interface AssetFieldFeedback {
   error: string;
@@ -75,15 +83,50 @@ const EMPTY_PLATFORM_ASSETS: ThemePlatformAssets = {
   illustration: '',
   iconPack: 'outline-enterprise',
   accentAsset: 'none',
+  app_ui: {},
 };
+
+const APP_UI_SLOT_CONFIG: Array<{ key: AppUiSlotKey; label: string; description: string }> = [
+  { key: 'navbar', label: 'Navbar', description: 'AppBar title, icon, and navbar surface' },
+  { key: 'sidebar', label: 'Sidebar', description: 'Drawer, popup menu, and side menu surface' },
+  { key: 'footer', label: 'Footer', description: 'Bottom navigation background and states' },
+  { key: 'dashboard', label: 'Dashboard', description: 'Dashboard background, card surface, and border' },
+  {
+    key: 'notification_banner',
+    label: 'Notification Banner',
+    description: 'Snackbar and notification banner colors',
+  },
+  {
+    key: 'empty_state_illustration',
+    label: 'Empty State Illustration',
+    description: 'Illustration URL/asset for empty state',
+  },
+  {
+    key: 'modal_accent',
+    label: 'Modal Accent',
+    description: 'Dialog background and action accents',
+  },
+];
+
+const APP_UI_SLOT_FIELD_CONFIG: Array<{
+  key: AppUiSlotFieldKey;
+  label: string;
+  placeholder: string;
+}> = [
+  { key: 'backgroundColor', label: 'backgroundColor', placeholder: '#0F172A' },
+  { key: 'foregroundColor', label: 'foregroundColor', placeholder: '#FFFFFF' },
+  { key: 'textColor', label: 'textColor', placeholder: '#E2E8F0' },
+  { key: 'borderColor', label: 'borderColor', placeholder: '#1F2937' },
+  { key: 'accentColor', label: 'accentColor', placeholder: '#34D399' },
+  { key: 'iconColor', label: 'iconColor', placeholder: '#93C5FD' },
+  { key: 'asset', label: 'asset', placeholder: 'https://.../asset.svg' },
+];
 
 const MAX_UPLOAD_SIZE_BYTES = 2 * 1024 * 1024;
 const MAX_UPLOAD_SIZE_LABEL = '2MB';
-const TARGET_IMAGE_MIME = 'image/webp';
-const MIN_IMAGE_QUALITY = 0.55;
-const QUALITY_STEP = 0.07;
-const SCALE_STEP = 0.9;
 const SVG_MIME_TYPE = 'image/svg+xml';
+const IMAGE_RESIZE_SCALE_STEPS = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4];
+const IMAGE_QUALITY_STEPS = [0.9, 0.82, 0.74, 0.66, 0.58, 0.5];
 
 const RECOMMENDED_DIMENSIONS: Record<
   ThemePlatform,
@@ -110,6 +153,17 @@ const EMPTY_ASSET_FEEDBACK: Record<
   mobile: {
     backgroundImage: { error: '', warning: '' },
     illustration: { error: '', warning: '' },
+  },
+};
+
+const EMPTY_ASSET_UPLOAD_STATE: Record<ThemePlatform, Record<AssetFieldKey, boolean>> = {
+  web: {
+    backgroundImage: false,
+    illustration: false,
+  },
+  mobile: {
+    backgroundImage: false,
+    illustration: false,
   },
 };
 
@@ -146,11 +200,28 @@ const toIsoValue = (localValue?: string) => {
   return date.toISOString();
 };
 
+const normalizeAppUiSlot = (slot?: ThemeAppUiSlot): ThemeAppUiSlot => ({
+  backgroundColor: slot?.backgroundColor || '',
+  foregroundColor: slot?.foregroundColor || '',
+  textColor: slot?.textColor || '',
+  borderColor: slot?.borderColor || '',
+  accentColor: slot?.accentColor || '',
+  iconColor: slot?.iconColor || '',
+  asset: slot?.asset || '',
+});
+
+const mapAppUiSlots = (slots?: ThemeAppUiSlots): ThemeAppUiSlots =>
+  APP_UI_SLOT_CONFIG.reduce<ThemeAppUiSlots>((acc, slot) => {
+    acc[slot.key] = normalizeAppUiSlot(slots?.[slot.key]);
+    return acc;
+  }, {});
+
 const mapPlatformAssets = (assets?: ThemePlatformAssets): ThemePlatformAssets => ({
   backgroundImage: assets?.backgroundImage || '',
   illustration: assets?.illustration || '',
   iconPack: assets?.iconPack || 'outline-enterprise',
   accentAsset: assets?.accentAsset || 'none',
+  app_ui: mapAppUiSlots(assets?.app_ui),
 });
 
 const readImageDimensions = (file: File): Promise<{ width: number; height: number }> =>
@@ -179,6 +250,137 @@ const isSvgFile = (file: File): boolean => {
   const lowerName = file.name.toLowerCase();
   const lowerMime = file.type.toLowerCase();
   return lowerName.endsWith('.svg') || lowerMime === SVG_MIME_TYPE;
+};
+
+const formatFileSizeMB = (bytes: number): string => `${(bytes / (1024 * 1024)).toFixed(2)}MB`;
+
+const fitWithinBounds = (
+  sourceWidth: number,
+  sourceHeight: number,
+  maxWidth: number,
+  maxHeight: number
+): { width: number; height: number } => {
+  if (sourceWidth <= 0 || sourceHeight <= 0 || maxWidth <= 0 || maxHeight <= 0) {
+    return { width: sourceWidth, height: sourceHeight };
+  }
+
+  let width = sourceWidth;
+  let height = sourceHeight;
+
+  if (width > maxWidth) {
+    height = Math.round((height * maxWidth) / width);
+    width = maxWidth;
+  }
+  if (height > maxHeight) {
+    width = Math.round((width * maxHeight) / height);
+    height = maxHeight;
+  }
+
+  return {
+    width: Math.max(1, width),
+    height: Math.max(1, height),
+  };
+};
+
+const canvasToBlob = (
+  canvas: HTMLCanvasElement,
+  mimeType: string,
+  quality?: number
+): Promise<Blob | null> =>
+  new Promise((resolve) => {
+    canvas.toBlob(
+      (blob) => {
+        resolve(blob);
+      },
+      mimeType,
+      quality
+    );
+  });
+
+const optimizedFileName = (file: File, mimeType: string): string => {
+  const baseName = file.name.replace(/\.[^/.]+$/, '');
+  if (mimeType === 'image/webp') return `${baseName}.webp`;
+  if (mimeType === 'image/jpeg') return `${baseName}.jpg`;
+  return file.name;
+};
+
+const optimizeRasterImageForUpload = async (
+  file: File,
+  recommendation: { width: number; height: number }
+): Promise<{ file: File; note?: string }> => {
+  if (file.size <= MAX_UPLOAD_SIZE_BYTES || isSvgFile(file) || !file.type.startsWith('image/')) {
+    return { file };
+  }
+
+  const sourceDimensions = await readImageDimensions(file);
+  const target = fitWithinBounds(
+    sourceDimensions.width,
+    sourceDimensions.height,
+    recommendation.width,
+    recommendation.height
+  );
+
+  const objectUrl = URL.createObjectURL(file);
+  const image = new Image();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error('Gagal memproses gambar untuk kompresi otomatis.'));
+      image.src = objectUrl;
+    });
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) {
+      return { file };
+    }
+
+    for (const scale of IMAGE_RESIZE_SCALE_STEPS) {
+      const width = Math.max(1, Math.round(target.width * scale));
+      const height = Math.max(1, Math.round(target.height * scale));
+      canvas.width = width;
+      canvas.height = height;
+      context.clearRect(0, 0, width, height);
+      context.drawImage(image, 0, 0, width, height);
+
+      for (const quality of IMAGE_QUALITY_STEPS) {
+        const webpBlob = await canvasToBlob(canvas, 'image/webp', quality);
+        if (webpBlob && webpBlob.size > 0 && webpBlob.size <= MAX_UPLOAD_SIZE_BYTES) {
+          return {
+            file: new File([webpBlob], optimizedFileName(file, 'image/webp'), {
+              type: 'image/webp',
+              lastModified: Date.now(),
+            }),
+            note: `Ukuran file dikompres otomatis dari ${formatFileSizeMB(file.size)} ke ${formatFileSizeMB(
+              webpBlob.size
+            )}.`,
+          };
+        }
+
+        const jpegBlob = await canvasToBlob(canvas, 'image/jpeg', quality);
+        if (jpegBlob && jpegBlob.size > 0 && jpegBlob.size <= MAX_UPLOAD_SIZE_BYTES) {
+          return {
+            file: new File([jpegBlob], optimizedFileName(file, 'image/jpeg'), {
+              type: 'image/jpeg',
+              lastModified: Date.now(),
+            }),
+            note: `Ukuran file dikompres otomatis dari ${formatFileSizeMB(file.size)} ke ${formatFileSizeMB(
+              jpegBlob.size
+            )}.`,
+          };
+        }
+      }
+    }
+
+    return {
+      file,
+      note: `Ukuran awal ${formatFileSizeMB(
+        file.size
+      )}. Kompresi otomatis di browser belum mencapai ${MAX_UPLOAD_SIZE_LABEL}; server akan mencoba optimasi.`,
+    };
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 };
 
 const parseSvgLength = (value: string | null): number | null => {
@@ -222,100 +424,6 @@ const readSvgDimensions = async (file: File): Promise<{ width: number; height: n
   };
 };
 
-const readFileAsDataUrl = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result);
-        return;
-      }
-      reject(new Error('failed to read file'));
-    };
-    reader.onerror = () => reject(new Error('failed to read file'));
-    reader.readAsDataURL(file);
-  });
-
-const dataUrlSizeBytes = (dataUrl: string): number => {
-  const commaIndex = dataUrl.indexOf(',');
-  if (commaIndex < 0) return 0;
-  const base64Length = dataUrl.length - commaIndex - 1;
-  return Math.ceil((base64Length * 3) / 4);
-};
-
-const drawToDataUrl = (
-  image: HTMLImageElement,
-  width: number,
-  height: number,
-  quality: number
-): string => {
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.max(1, Math.round(width));
-  canvas.height = Math.max(1, Math.round(height));
-  const context = canvas.getContext('2d');
-  if (!context) return '';
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL(TARGET_IMAGE_MIME, quality);
-};
-
-const loadImageElement = (file: File): Promise<HTMLImageElement> =>
-  new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const image = new Image();
-
-    image.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve(image);
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error('failed to load image'));
-    };
-
-    image.src = objectUrl;
-  });
-
-const resizeAndCompressImage = async (
-  file: File,
-  targetWidth: number,
-  targetHeight: number
-): Promise<{ dataUrl: string; width: number; height: number; sizeBytes: number }> => {
-  const image = await loadImageElement(file);
-  const baseScale = Math.min(targetWidth / image.naturalWidth, targetHeight / image.naturalHeight, 1);
-
-  let width = Math.max(1, Math.round(image.naturalWidth * baseScale));
-  let height = Math.max(1, Math.round(image.naturalHeight * baseScale));
-  let quality = 0.92;
-  let dataUrl = drawToDataUrl(image, width, height, quality);
-  let sizeBytes = dataUrlSizeBytes(dataUrl);
-
-  while (sizeBytes > MAX_UPLOAD_SIZE_BYTES && quality > MIN_IMAGE_QUALITY) {
-    quality = Math.max(MIN_IMAGE_QUALITY, quality - QUALITY_STEP);
-    dataUrl = drawToDataUrl(image, width, height, quality);
-    sizeBytes = dataUrlSizeBytes(dataUrl);
-  }
-
-  while (sizeBytes > MAX_UPLOAD_SIZE_BYTES && (width > 320 || height > 320)) {
-    width = Math.max(1, Math.round(width * SCALE_STEP));
-    height = Math.max(1, Math.round(height * SCALE_STEP));
-    quality = 0.9;
-    dataUrl = drawToDataUrl(image, width, height, quality);
-    sizeBytes = dataUrlSizeBytes(dataUrl);
-
-    while (sizeBytes > MAX_UPLOAD_SIZE_BYTES && quality > MIN_IMAGE_QUALITY) {
-      quality = Math.max(MIN_IMAGE_QUALITY, quality - QUALITY_STEP);
-      dataUrl = drawToDataUrl(image, width, height, quality);
-      sizeBytes = dataUrlSizeBytes(dataUrl);
-    }
-  }
-
-  if (!dataUrl) {
-    throw new Error('failed to transform image');
-  }
-
-  return { dataUrl, width, height, sizeBytes };
-};
-
 export function ThemeCampaignFormSheet({
   open,
   mode,
@@ -331,6 +439,7 @@ export function ThemeCampaignFormSheet({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [assetFeedback, setAssetFeedback] = useState(EMPTY_ASSET_FEEDBACK);
+  const [isUploadingAssets, setIsUploadingAssets] = useState(EMPTY_ASSET_UPLOAD_STATE);
 
   useEffect(() => {
     if (!open) return;
@@ -355,6 +464,7 @@ export function ThemeCampaignFormSheet({
       setErrors({});
       setSubmitError(null);
       setAssetFeedback(EMPTY_ASSET_FEEDBACK);
+      setIsUploadingAssets(EMPTY_ASSET_UPLOAD_STATE);
       return;
     }
 
@@ -362,6 +472,7 @@ export function ThemeCampaignFormSheet({
     setErrors({});
     setSubmitError(null);
     setAssetFeedback(EMPTY_ASSET_FEEDBACK);
+    setIsUploadingAssets(EMPTY_ASSET_UPLOAD_STATE);
   }, [campaign, mode, open]);
 
   const normalizedIconPackOptions = useMemo(() => {
@@ -372,6 +483,12 @@ export function ThemeCampaignFormSheet({
     const source = accentAssetOptions.length > 0 ? accentAssetOptions : ['none'];
     return Array.from(new Set(source));
   }, [accentAssetOptions]);
+  const hasAssetUploadInProgress = useMemo(
+    () =>
+      Object.values(isUploadingAssets.web).some(Boolean) ||
+      Object.values(isUploadingAssets.mobile).some(Boolean),
+    [isUploadingAssets]
+  );
 
   const updateField = <K extends keyof FormDraft>(key: K, value: FormDraft[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
@@ -379,7 +496,7 @@ export function ThemeCampaignFormSheet({
 
   const updatePlatformAssetField = (
     platform: ThemePlatform,
-    key: keyof ThemePlatformAssets,
+    key: PlatformAssetEditableKey,
     value: string
   ) => {
     setForm((current) => ({
@@ -389,6 +506,29 @@ export function ThemeCampaignFormSheet({
         [platform]: {
           ...current.assets[platform],
           [key]: value,
+        },
+      },
+    }));
+  };
+
+  const updateAppUiSlotField = (
+    slotKey: AppUiSlotKey,
+    fieldKey: AppUiSlotFieldKey,
+    value: string
+  ) => {
+    setForm((current) => ({
+      ...current,
+      assets: {
+        ...current.assets,
+        mobile: {
+          ...current.assets.mobile,
+          app_ui: {
+            ...mapAppUiSlots(current.assets.mobile.app_ui),
+            [slotKey]: {
+              ...normalizeAppUiSlot(current.assets.mobile.app_ui?.[slotKey]),
+              [fieldKey]: value,
+            },
+          },
         },
       },
     }));
@@ -411,6 +551,20 @@ export function ThemeCampaignFormSheet({
     }));
   };
 
+  const setAssetUploadingState = (
+    platform: ThemePlatform,
+    key: AssetFieldKey,
+    value: boolean
+  ) => {
+    setIsUploadingAssets((current) => ({
+      ...current,
+      [platform]: {
+        ...current[platform],
+        [key]: value,
+      },
+    }));
+  };
+
   const handleFileToPreview = async (
     event: React.ChangeEvent<HTMLInputElement>,
     platform: ThemePlatform,
@@ -421,142 +575,89 @@ export function ThemeCampaignFormSheet({
 
     const recommendation = RECOMMENDED_DIMENSIONS[platform][key];
     setAssetFieldFeedback(platform, key, { error: '', warning: '' });
+    setAssetUploadingState(platform, key, true);
     const isMobileBackground = platform === 'mobile' && key === 'backgroundImage';
 
-    if (isMobileBackground) {
-      if (!isSvgFile(file)) {
-        setAssetFieldFeedback(platform, key, {
-          error: 'backgroundImage mobile wajib file SVG.',
-          warning: '',
-        });
-        event.target.value = '';
-        return;
-      }
+    try {
+      let warningMessage = '';
+      if (isMobileBackground) {
+        if (!isSvgFile(file)) {
+          throw new Error('backgroundImage mobile wajib file SVG.');
+        }
 
-      if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-        setAssetFieldFeedback(platform, key, {
-          error: `Ukuran file melebihi ${MAX_UPLOAD_SIZE_LABEL}.`,
-          warning: '',
-        });
-        event.target.value = '';
-        return;
-      }
+        if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+          warningMessage = `Ukuran awal ${formatFileSizeMB(
+            file.size
+          )}. File akan dioptimasi otomatis di server jika diperlukan.`;
+        }
 
-      try {
         const dimensions = await readSvgDimensions(file);
         if (!dimensions) {
-          setAssetFieldFeedback(platform, key, {
-            error:
-              'Dimensi SVG tidak dapat dibaca. Pastikan SVG memiliki width/height atau viewBox yang valid.',
-            warning: '',
-          });
-          event.target.value = '';
-          return;
+          throw new Error(
+            'Dimensi SVG tidak dapat dibaca. Pastikan SVG memiliki width/height atau viewBox yang valid.'
+          );
         }
 
-        const { width, height } = dimensions;
-        if (height <= width) {
-          setAssetFieldFeedback(platform, key, {
-            error: 'backgroundImage mobile wajib portrait (tinggi harus lebih besar dari lebar).',
-            warning: '',
-          });
-          event.target.value = '';
-          return;
+        if (dimensions.height <= dimensions.width) {
+          throw new Error('backgroundImage mobile wajib portrait (tinggi harus lebih besar dari lebar).');
         }
 
-        const result = await readFileAsDataUrl(file);
-        updatePlatformAssetField(platform, key, result);
+        if (
+          dimensions.width !== recommendation.width ||
+          dimensions.height !== recommendation.height
+        ) {
+          warningMessage = warningMessage
+            ? `${warningMessage} Ukuran SVG terdeteksi ${dimensions.width}x${dimensions.height}px. Disarankan ${recommendation.width}x${recommendation.height}px.`
+            : `Ukuran SVG terdeteksi ${dimensions.width}x${dimensions.height}px. Disarankan ${recommendation.width}x${recommendation.height}px.`;
+        }
 
-        const warningMessage =
-          width !== recommendation.width || height !== recommendation.height
-            ? `Ukuran SVG terdeteksi ${width}x${height}px. Disarankan ${recommendation.width}x${recommendation.height}px.`
-            : '';
+        const uploaded = await ThemeCampaignApi.uploadAsset(file, {
+          platform,
+          assetKey: key,
+        });
+        if (!uploaded.path?.trim()) {
+          throw new Error('Upload gagal: path asset kosong.');
+        }
+
+        updatePlatformAssetField(platform, key, uploaded.path.trim());
         setAssetFieldFeedback(platform, key, {
           error: '',
           warning: warningMessage,
         });
-      } catch {
-        setAssetFieldFeedback(platform, key, {
-          error: 'Gagal membaca file SVG.',
-          warning: '',
+      } else {
+        const optimized = await optimizeRasterImageForUpload(file, recommendation);
+        const fileToUpload = optimized.file;
+        const dimensions = await readImageDimensions(fileToUpload);
+        if (dimensions.width !== recommendation.width || dimensions.height !== recommendation.height) {
+          warningMessage = `Ukuran terdeteksi ${dimensions.width}x${dimensions.height}px. Disarankan ${recommendation.width}x${recommendation.height}px.`;
+        }
+        if (optimized.note) {
+          warningMessage = warningMessage ? `${optimized.note} ${warningMessage}` : optimized.note;
+        }
+
+        const uploaded = await ThemeCampaignApi.uploadAsset(fileToUpload, {
+          platform,
+          assetKey: key,
         });
-        event.target.value = '';
+        if (!uploaded.path?.trim()) {
+          throw new Error('Upload gagal: path asset kosong.');
+        }
+
+        updatePlatformAssetField(platform, key, uploaded.path.trim());
+        setAssetFieldFeedback(platform, key, {
+          error: '',
+          warning: warningMessage,
+        });
       }
-
-      return;
-    }
-
-    let warningMessage = '';
-    let shouldAutoTransform = false;
-    let detectedWidth = 0;
-    let detectedHeight = 0;
-    try {
-      const { width, height } = await readImageDimensions(file);
-      detectedWidth = width;
-      detectedHeight = height;
-      shouldAutoTransform =
-        file.size > MAX_UPLOAD_SIZE_BYTES ||
-        width > recommendation.width ||
-        height > recommendation.height;
-
-      if (width !== recommendation.width || height !== recommendation.height) {
-        warningMessage = `Ukuran terdeteksi ${width}x${height}px. Disarankan ${recommendation.width}x${recommendation.height}px.`;
-      }
-    } catch {
+    } catch (error: unknown) {
       setAssetFieldFeedback(platform, key, {
-        error: 'Dimensi gambar tidak dapat dibaca. Pastikan file image valid.',
+        error: error instanceof Error ? error.message : 'Upload asset gagal.',
         warning: '',
       });
+    } finally {
+      setAssetUploadingState(platform, key, false);
       event.target.value = '';
-      return;
     }
-
-    if (shouldAutoTransform) {
-      try {
-        const transformed = await resizeAndCompressImage(
-          file,
-          recommendation.width,
-          recommendation.height
-        );
-        updatePlatformAssetField(platform, key, transformed.dataUrl);
-        warningMessage = `File otomatis diresize/kompresi ke ${transformed.width}x${transformed.height}px (${Math.round(
-          transformed.sizeBytes / 1024
-        )}KB).`;
-      } catch {
-        setAssetFieldFeedback(platform, key, {
-          error: `Gagal memproses gambar otomatis. Gunakan file <= ${MAX_UPLOAD_SIZE_LABEL} dengan dimensi lebih kecil.`,
-          warning: '',
-        });
-        event.target.value = '';
-        return;
-      }
-    } else {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = typeof reader.result === 'string' ? reader.result : '';
-        updatePlatformAssetField(platform, key, result);
-      };
-      reader.readAsDataURL(file);
-    }
-
-    const isStillOverLimit = file.size > MAX_UPLOAD_SIZE_BYTES && !shouldAutoTransform;
-    if (isStillOverLimit) {
-      setAssetFieldFeedback(platform, key, {
-        error: `Ukuran file melebihi ${MAX_UPLOAD_SIZE_LABEL}.`,
-        warning: '',
-      });
-      event.target.value = '';
-      return;
-    }
-
-    if (!warningMessage && (detectedWidth !== recommendation.width || detectedHeight !== recommendation.height)) {
-      warningMessage = `Ukuran terdeteksi ${detectedWidth}x${detectedHeight}px. Disarankan ${recommendation.width}x${recommendation.height}px.`;
-    }
-
-    setAssetFieldFeedback(platform, key, {
-      error: '',
-      warning: warningMessage,
-    });
   };
 
   const validate = () => {
@@ -579,6 +680,10 @@ export function ThemeCampaignFormSheet({
   };
 
   const handleSubmit = async () => {
+    if (hasAssetUploadInProgress) {
+      setSubmitError('Tunggu sampai upload asset selesai.');
+      return;
+    }
     if (!validate()) return;
     setIsSubmitting(true);
     setSubmitError(null);
@@ -748,8 +853,9 @@ export function ThemeCampaignFormSheet({
             <section className={sectionClassName}>
                 <h3 className="font-medium">Aset Visual per Platform</h3>
                 <p className="text-xs text-muted-foreground">
-                  Batas upload: target maks {MAX_UPLOAD_SIZE_LABEL} per gambar. Untuk mobile `backgroundImage`,
-                  file wajib SVG portrait dan tidak dikonversi otomatis.
+                  Upload langsung ke server lokal, target maks {MAX_UPLOAD_SIZE_LABEL} per file. Jika ukuran
+                  lebih besar, sistem akan mencoba kompresi otomatis. Untuk mobile `backgroundImage`, file
+                  wajib SVG portrait.
                 </p>
               <Tabs defaultValue="web" className="space-y-3">
                 <TabsList className="grid w-full grid-cols-2">
@@ -765,6 +871,7 @@ export function ThemeCampaignFormSheet({
                     onFileChange={handleFileToPreview}
                     onAssetChange={updatePlatformAssetField}
                     feedback={assetFeedback.web}
+                    isUploading={isUploadingAssets.web}
                   />
                 </TabsContent>
                 <TabsContent value="mobile" className="space-y-3">
@@ -776,6 +883,12 @@ export function ThemeCampaignFormSheet({
                     onFileChange={handleFileToPreview}
                     onAssetChange={updatePlatformAssetField}
                     feedback={assetFeedback.mobile}
+                    isUploading={isUploadingAssets.mobile}
+                  />
+                  <Separator />
+                  <AppUiSlotsEditor
+                    slots={mapAppUiSlots(form.assets.mobile.app_ui)}
+                    onSlotFieldChange={updateAppUiSlotField}
                   />
                 </TabsContent>
               </Tabs>
@@ -799,7 +912,7 @@ export function ThemeCampaignFormSheet({
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
             Batal
           </Button>
-          <Button onClick={() => void handleSubmit()} disabled={isSubmitting}>
+          <Button onClick={() => void handleSubmit()} disabled={isSubmitting || hasAssetUploadInProgress}>
             {isSubmitting ? 'Menyimpan...' : mode === 'create' ? 'Buat Kampanye' : 'Simpan Perubahan'}
           </Button>
         </SheetFooter>
@@ -812,6 +925,7 @@ interface PlatformAssetsEditorProps {
   platform: ThemePlatform;
   assets: ThemePlatformAssets;
   feedback: Record<AssetFieldKey, AssetFieldFeedback>;
+  isUploading: Record<AssetFieldKey, boolean>;
   iconPackOptions: string[];
   accentAssetOptions: string[];
   onFileChange: (
@@ -821,7 +935,7 @@ interface PlatformAssetsEditorProps {
   ) => void;
   onAssetChange: (
     platform: ThemePlatform,
-    key: keyof ThemePlatformAssets,
+    key: PlatformAssetEditableKey,
     value: string
   ) => void;
 }
@@ -830,6 +944,7 @@ function PlatformAssetsEditor({
   platform,
   assets,
   feedback,
+  isUploading,
   iconPackOptions,
   accentAssetOptions,
   onFileChange,
@@ -840,10 +955,8 @@ function PlatformAssetsEditor({
   const iconPackId = `${platform}_icon_pack`;
   const accentAssetId = `${platform}_accent_asset`;
   const isMobileBackground = platform === 'mobile';
-  const backgroundPreviewClass = isMobileBackground
-    ? 'h-56 w-full object-contain bg-muted/20'
-    : 'h-28 w-full object-cover';
-  const backgroundPlaceholderClass = isMobileBackground ? 'h-56' : 'h-28';
+  const backgroundImageClass = isMobileBackground ? 'object-contain bg-muted/20' : 'object-cover';
+  const backgroundContainerClass = isMobileBackground ? 'h-56' : 'h-28';
 
   return (
     <>
@@ -861,23 +974,30 @@ function PlatformAssetsEditor({
             type="file"
             accept={isMobileBackground ? '.svg,image/svg+xml' : 'image/*'}
             onChange={(event) => onFileChange(event, platform, 'backgroundImage')}
+            disabled={isUploading.backgroundImage}
           />
+          {isUploading.backgroundImage ? (
+            <p className="text-xs text-muted-foreground">Mengunggah asset...</p>
+          ) : null}
           {feedback.backgroundImage.error ? (
             <p className="text-xs text-destructive">{feedback.backgroundImage.error}</p>
           ) : null}
           {!feedback.backgroundImage.error && feedback.backgroundImage.warning ? (
             <p className="text-xs text-amber-600">{feedback.backgroundImage.warning}</p>
           ) : null}
-          <div className="overflow-hidden rounded-lg border bg-card">
+          <div className={`relative overflow-hidden rounded-lg border bg-card ${backgroundContainerClass}`}>
             {assets.backgroundImage ? (
-              <img
+              <NextImage
                 src={assets.backgroundImage}
                 alt={`${platform} background preview`}
-                className={backgroundPreviewClass}
+                fill
+                unoptimized
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className={backgroundImageClass}
               />
             ) : (
               <div
-                className={`flex items-center justify-center text-xs text-muted-foreground ${backgroundPlaceholderClass}`}
+                className="flex h-full items-center justify-center text-xs text-muted-foreground"
               >
                 <ImagePlus className="mr-1 h-4 w-4" />
                 Belum ada gambar
@@ -897,22 +1017,29 @@ function PlatformAssetsEditor({
             type="file"
             accept="image/*"
             onChange={(event) => onFileChange(event, platform, 'illustration')}
+            disabled={isUploading.illustration}
           />
+          {isUploading.illustration ? (
+            <p className="text-xs text-muted-foreground">Mengunggah asset...</p>
+          ) : null}
           {feedback.illustration.error ? (
             <p className="text-xs text-destructive">{feedback.illustration.error}</p>
           ) : null}
           {!feedback.illustration.error && feedback.illustration.warning ? (
             <p className="text-xs text-amber-600">{feedback.illustration.warning}</p>
           ) : null}
-          <div className="overflow-hidden rounded-lg border bg-card">
+          <div className="relative h-28 overflow-hidden rounded-lg border bg-card">
             {assets.illustration ? (
-              <img
+              <NextImage
                 src={assets.illustration}
                 alt={`${platform} illustration preview`}
-                className="h-28 w-full object-cover"
+                fill
+                unoptimized
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="object-cover"
               />
             ) : (
-              <div className="flex h-28 items-center justify-center text-xs text-muted-foreground">
+              <div className="flex h-full items-center justify-center text-xs text-muted-foreground">
                 <ImagePlus className="mr-1 h-4 w-4" />
                 Belum ada gambar
               </div>
@@ -954,5 +1081,64 @@ function PlatformAssetsEditor({
         </div>
       </div>
     </>
+  );
+}
+
+interface AppUiSlotsEditorProps {
+  slots: ThemeAppUiSlots;
+  onSlotFieldChange: (
+    slotKey: AppUiSlotKey,
+    fieldKey: AppUiSlotFieldKey,
+    value: string
+  ) => void;
+}
+
+function AppUiSlotsEditor({ slots, onSlotFieldChange }: AppUiSlotsEditorProps) {
+  const mappedSlots = mapAppUiSlots(slots);
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <h4 className="text-sm font-medium">Mobile App UI Slots</h4>
+        <p className="text-xs text-muted-foreground">
+          Mapping slot runtime `assets.mobile.app_ui` untuk navbar, sidebar, footer, dashboard,
+          notification banner, empty state illustration, dan modal accent.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium text-muted-foreground">Runtime preview</p>
+        <MobileAppUiRuntimePreview slots={mappedSlots} className="mx-auto max-w-[320px]" />
+      </div>
+
+      <div className="space-y-3">
+        {APP_UI_SLOT_CONFIG.map((slot) => {
+          const slotValue = normalizeAppUiSlot(mappedSlots[slot.key]);
+          return (
+            <div key={slot.key} className="space-y-2 rounded-lg border bg-card p-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">{slot.label}</p>
+                <p className="text-xs text-muted-foreground">{slot.description}</p>
+              </div>
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                {APP_UI_SLOT_FIELD_CONFIG.map((field) => (
+                  <div key={`${slot.key}-${field.key}`} className="space-y-1">
+                    <Label htmlFor={`${slot.key}-${field.key}`}>{field.label}</Label>
+                    <Input
+                      id={`${slot.key}-${field.key}`}
+                      value={slotValue[field.key] || ''}
+                      onChange={(event) =>
+                        onSlotFieldChange(slot.key, field.key, event.target.value)
+                      }
+                      placeholder={field.placeholder}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }

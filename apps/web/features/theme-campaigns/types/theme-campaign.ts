@@ -7,6 +7,26 @@ export type ThemeCampaignStatus =
 
 export type ThemePlatform = 'web' | 'mobile';
 
+export interface ThemeAppUiSlot {
+  backgroundColor?: string;
+  foregroundColor?: string;
+  textColor?: string;
+  borderColor?: string;
+  accentColor?: string;
+  iconColor?: string;
+  asset?: string;
+}
+
+export interface ThemeAppUiSlots {
+  navbar?: ThemeAppUiSlot;
+  sidebar?: ThemeAppUiSlot;
+  footer?: ThemeAppUiSlot;
+  dashboard?: ThemeAppUiSlot;
+  notification_banner?: ThemeAppUiSlot;
+  empty_state_illustration?: ThemeAppUiSlot;
+  modal_accent?: ThemeAppUiSlot;
+}
+
 export interface ThemeTokenConfig {
   accentColor: string;
   accentSoftColor: string;
@@ -37,6 +57,7 @@ export interface ThemePlatformAssets {
   illustration?: string;
   iconPack: string;
   accentAsset: string;
+  app_ui?: ThemeAppUiSlots;
 }
 
 export interface ThemeCampaignAssets {
@@ -128,6 +149,7 @@ export const EMPTY_PLATFORM_ASSETS: ThemePlatformAssets = {
   illustration: '',
   iconPack: '',
   accentAsset: '',
+  app_ui: {},
 };
 
 export const EMPTY_THEME_CAMPAIGN_ASSETS: ThemeCampaignAssets = {

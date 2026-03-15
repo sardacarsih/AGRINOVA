@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Monitor, Moon, Smartphone, Sun } from 'lucide-react';
 import {
   Dialog,
@@ -16,6 +17,7 @@ import {
   ThemePlatform,
   ThemePlatformAssets,
 } from '@/features/theme-campaigns/types/theme-campaign';
+import { MobileAppUiRuntimePreview } from '@/features/theme-campaigns/components/mobile-app-ui-runtime-preview';
 
 interface ThemePreviewDialogProps {
   open: boolean;
@@ -181,11 +183,16 @@ function PreviewSurface({
           <div className="rounded-xl border bg-background/85 p-3 backdrop-blur-sm">
             <p className="mb-2 text-xs font-medium text-muted-foreground">Ilustrasi Hero</p>
             {assets.illustration ? (
-              <img
-                src={assets.illustration}
-                alt={`${platform} illustration preview`}
-                className="h-24 w-full rounded-lg object-cover"
-              />
+              <div className="relative h-24 w-full overflow-hidden rounded-lg">
+                <Image
+                  src={assets.illustration}
+                  alt={`${platform} illustration preview`}
+                  fill
+                  unoptimized
+                  sizes="(max-width: 768px) 100vw, 320px"
+                  className="object-cover"
+                />
+              </div>
             ) : (
               <div className="flex h-24 items-center justify-center rounded-lg border border-dashed text-xs text-muted-foreground">
                 Tidak ada aset ilustrasi
@@ -193,6 +200,17 @@ function PreviewSurface({
             )}
           </div>
         </div>
+
+        {platform === 'mobile' ? (
+          <div className="rounded-xl border bg-background/85 p-3 backdrop-blur-sm">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Pratinjau Slot App UI</p>
+            <MobileAppUiRuntimePreview
+              slots={assets.app_ui}
+              compact={true}
+              className="mx-auto max-w-[280px]"
+            />
+          </div>
+        ) : null}
       </div>
     </div>
   );

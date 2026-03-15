@@ -28,6 +28,14 @@ export interface ThemeCampaignDashboardResponse {
   };
 }
 
+export interface ThemeAssetUploadResponse {
+  success: boolean;
+  path: string;
+  contentType: string;
+  size: number;
+  originalName: string;
+}
+
 const parseResponse = async <T>(response: Response): Promise<T> => {
   const body = (await response.json()) as T & { message?: string };
   if (!response.ok) {
@@ -161,6 +169,27 @@ export class ThemeCampaignApi {
       body: JSON.stringify({ theme_id: themeID }),
     });
     return parseResponse<any>(response);
+  }
+
+  static async uploadAsset(
+    file: File,
+    params: {
+      platform: 'web' | 'mobile';
+      assetKey: 'backgroundImage' | 'illustration';
+    }
+  ) {
+    const formData = new FormData();
+    formData.set('file', file);
+    formData.set('platform', params.platform);
+    formData.set('assetKey', params.assetKey);
+
+    const response = await fetch('/api/theme-campaigns/assets/upload', {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+
+    return parseResponse<ThemeAssetUploadResponse>(response);
   }
 
   static async getRuntimeTheme(
