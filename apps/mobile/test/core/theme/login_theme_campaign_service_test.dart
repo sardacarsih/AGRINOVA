@@ -57,6 +57,7 @@ Map<String, dynamic> _runtimePayload({
   String? campaignId = 'cmp-ramadan-1',
   String? campaignName = 'Ramadan Core',
   Map<String, dynamic>? assetManifestJson,
+  Map<String, dynamic>? appUi,
 }) {
   return {
     'source': source,
@@ -85,6 +86,7 @@ Map<String, dynamic> _runtimePayload({
       'loginCardBorder': '#2DD4BF',
     },
     if (assetManifestJson != null) 'asset_manifest_json': assetManifestJson,
+    if (appUi != null) 'app_ui': appUi,
   };
 }
 
@@ -230,8 +232,8 @@ void main() {
         assetManifestJson: {
           'mobile': {
             'backgroundImage':
-                '/theme-dummy/ramadan-core/mobile-background.svg',
-            'illustration': 'theme-dummy/ramadan-core/mobile-illustration.svg',
+                '/uploads/theme-assets/ramadan-core/mobile-background.svg',
+            'illustration': 'uploads/theme-assets/ramadan-core/mobile-illustration.svg',
             'iconPack': 'rounded-enterprise',
             'accentAsset': 'diamond-grid',
           },
@@ -246,13 +248,13 @@ void main() {
     expect(
       assets.backgroundImage,
       equals(
-        'http://localhost:8080/theme-dummy/ramadan-core/mobile-background.svg',
+        'http://localhost:8080/uploads/theme-assets/ramadan-core/mobile-background.svg',
       ),
     );
     expect(
       assets.illustration,
       equals(
-        'http://localhost:8080/theme-dummy/ramadan-core/mobile-illustration.svg',
+        'http://localhost:8080/uploads/theme-assets/ramadan-core/mobile-illustration.svg',
       ),
     );
     expect(assets.iconPack, equals('rounded-enterprise'));
@@ -265,8 +267,8 @@ void main() {
         assetManifestJson: {
           'mobile': {'backgroundImage': '', 'illustration': ''},
           'web': {
-            'backgroundImage': '/theme-dummy/harvest-week/web-background.svg',
-            'illustration': '/theme-dummy/harvest-week/web-illustration.svg',
+            'backgroundImage': '/uploads/theme-assets/harvest-week/web-background.svg',
+            'illustration': '/uploads/theme-assets/harvest-week/web-illustration.svg',
             'iconPack': 'glyph-ops',
             'accentAsset': 'wave-bars',
           },
@@ -281,13 +283,13 @@ void main() {
     expect(
       assets.backgroundImage,
       equals(
-        'http://localhost:8080/theme-dummy/harvest-week/web-background.svg',
+        'http://localhost:8080/uploads/theme-assets/harvest-week/web-background.svg',
       ),
     );
     expect(
       assets.illustration,
       equals(
-        'http://localhost:8080/theme-dummy/harvest-week/web-illustration.svg',
+        'http://localhost:8080/uploads/theme-assets/harvest-week/web-illustration.svg',
       ),
     );
     expect(assets.iconPack, equals('glyph-ops'));
@@ -300,7 +302,7 @@ void main() {
         assetManifestJson: {
           'mobile': {
             'backgroundImage':
-                '/theme-dummy/ramadan-core/mobile-background.svg',
+                '/uploads/theme-assets/ramadan-core/mobile-background.svg',
           },
         },
       ),
@@ -318,10 +320,65 @@ void main() {
     expect(
       secondService.effectiveAssets.backgroundImage,
       equals(
-        'http://localhost:8080/theme-dummy/ramadan-core/mobile-background.svg',
+        'http://localhost:8080/uploads/theme-assets/ramadan-core/mobile-background.svg',
       ),
     );
     expect(secondService.runtimeMetadata.source, equals('ACTIVE_CAMPAIGN'));
+  });
+
+  test('parses typed app_ui slots from runtime payload', () async {
+    final service = LoginThemeCampaignService.test(
+      fetcher: () async => _runtimePayload(
+        appUi: {
+          'navbar': {
+            'backgroundColor': '#0F172A',
+            'foregroundColor': '#FFFFFF',
+          },
+          'sidebar': {
+            'backgroundColor': '#0B1220',
+            'foregroundColor': '#E2E8F0',
+            'iconColor': '#93C5FD',
+            'borderColor': '#1E293B',
+          },
+          'footer': {
+            'backgroundColor': '#111827',
+            'foregroundColor': '#9CA3AF',
+            'accentColor': '#34D399',
+            'borderColor': '#1F2937',
+          },
+          'notification_banner': {
+            'backgroundColor': '#1E3A8A',
+            'textColor': '#FFFFFF',
+          },
+          'empty_state_illustration': {
+            'asset': '/uploads/theme-assets/mobile/illustration/theme-empty.svg',
+          },
+        },
+      ),
+    );
+
+    await service.initialize();
+    await service.refresh(force: true);
+
+    final appUi = service.effectiveAppUi;
+    expect(appUi.navbar.backgroundColor, equals('#0F172A'));
+    expect(appUi.navbar.foregroundColor, equals('#FFFFFF'));
+    expect(appUi.sidebar.backgroundColor, equals('#0B1220'));
+    expect(appUi.sidebar.foregroundColor, equals('#E2E8F0'));
+    expect(appUi.sidebar.iconColor, equals('#93C5FD'));
+    expect(appUi.sidebar.borderColor, equals('#1E293B'));
+    expect(appUi.footer.backgroundColor, equals('#111827'));
+    expect(appUi.footer.foregroundColor, equals('#9CA3AF'));
+    expect(appUi.footer.accentColor, equals('#34D399'));
+    expect(appUi.footer.borderColor, equals('#1F2937'));
+    expect(appUi.notificationBanner.backgroundColor, equals('#1E3A8A'));
+    expect(appUi.notificationBanner.textColor, equals('#FFFFFF'));
+    expect(
+      appUi.emptyStateIllustration.asset,
+      equals(
+        'http://localhost:8080/uploads/theme-assets/mobile/illustration/theme-empty.svg',
+      ),
+    );
   });
 
   test(
@@ -401,3 +458,4 @@ void main() {
     },
   );
 }
+

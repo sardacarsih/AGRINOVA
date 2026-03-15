@@ -109,6 +109,175 @@ func TestCollectVisualOptions_CombinesDefaultThemeAndCampaignValues(t *testing.T
 	}
 }
 
+func TestNormalizeCampaignAssets_RejectsLegacyThemePaths(t *testing.T) {
+	input := JSONMap{
+		"web": JSONMap{
+			"backgroundImage": "/theme-dummy/ramadan-core/web-background.svg",
+			"illustration":    "/theme-assets/ramadan-core/web-illustration.svg",
+		},
+		"mobile": JSONMap{
+			"backgroundImage": "theme-dummy/ramadan-core/mobile-background.svg",
+			"illustration":    "theme-assets/ramadan-core/mobile-illustration.svg",
+		},
+	}
+
+	normalized := normalizeCampaignAssets(input)
+	web := normalizePlatformAssets(normalized["web"])
+	mobile := normalizePlatformAssets(normalized["mobile"])
+
+	if web["backgroundImage"] != "" {
+		t.Fatalf("expected legacy web background path to be rejected")
+	}
+	if web["illustration"] != "" {
+		t.Fatalf("expected legacy web illustration path to be rejected")
+	}
+	if mobile["backgroundImage"] != "" {
+		t.Fatalf("expected legacy mobile background path to be rejected")
+	}
+	if mobile["illustration"] != "" {
+		t.Fatalf("expected legacy mobile illustration path to be rejected")
+	}
+}
+
+func TestNormalizeCampaignAssets_RejectsDataURLs(t *testing.T) {
+	input := JSONMap{
+		"backgroundImage": "data:image/svg+xml;base64,AAA",
+		"illustration":    "javascript:alert(1)",
+		"iconPack":        "outline-enterprise",
+		"accentAsset":     "none",
+	}
+
+	normalized := normalizeCampaignAssets(input)
+	web := normalizePlatformAssets(normalized["web"])
+
+	if web["backgroundImage"] != "" {
+		t.Fatalf("expected backgroundImage data url to be removed")
+	}
+	if web["illustration"] != "" {
+		t.Fatalf("expected illustration javascript url to be removed")
+	}
+}
+
+func TestNormalizeThemeAssetManifest_MapsLegacyValuesIntoAppUISlots(t *testing.T) {
+	manifest := normalizeThemeAssetManifest(JSONMap{
+		"backgroundImage": "https://example.com/base-bg.png",
+		"illustration":    "https://example.com/empty-state.png",
+		"accentAsset":     "leaf-ribbon",
+	})
+
+	appUI := normalizeAppUISlots(manifest["app_ui"])
+	emptyState, _ := appUI["empty_state_illustration"].(JSONMap)
+	dashboard, _ := appUI["dashboard"].(JSONMap)
+	modalAccent, _ := appUI["modal_accent"].(JSONMap)
+
+	if emptyState["asset"] != "https://example.com/empty-state.png" {
+		t.Fatalf("expected empty state illustration asset fallback from legacy illustration")
+	}
+	if dashboard["asset"] != "https://example.com/base-bg.png" {
+		t.Fatalf("expected dashboard asset fallback from legacy background")
+	}
+	if modalAccent["accentColor"] != "leaf-ribbon" {
+		t.Fatalf("expected modal accent fallback from legacy accent asset")
+	}
+}
+
+func TestNormalizeCampaignAssets_PreservesTypedAppUISlots(t *testing.T) {
+	normalized := normalizeCampaignAssets(JSONMap{
+		"mobile": JSONMap{
+			"app_ui": JSONMap{
+				"navbar": JSONMap{
+					"backgroundColor": "#0F172A",
+					"foregroundColor": "#FFFFFF",
+				},
+			},
+		},
+	})
+
+	mobile := normalizePlatformAssets(normalized["mobile"])
+	appUI := normalizeAppUISlots(mobile["app_ui"])
+	navbar, _ := appUI["navbar"].(JSONMap)
+
+	if navbar["backgroundColor"] != "#0F172A" {
+		t.Fatalf("expected typed app_ui.navbar.backgroundColor to be preserved")
+	}
+	if navbar["foregroundColor"] != "#FFFFFF" {
+		t.Fatalf("expected typed app_ui.navbar.foregroundColor to be preserved")
+	}
+}
+
+func TestMergeThemeAssetsWithCampaign_MergesTypedAppUISlots(t *testing.T) {
+	base := JSONMap{
+		"app_ui": JSONMap{
+			"navbar": JSONMap{
+				"backgroundColor": "#14532D",
+			},
+		},
+	}
+	override := JSONMap{
+		"app_ui": JSONMap{
+			"navbar": JSONMap{
+				"foregroundColor": "#FFFFFF",
+			},
+		},
+	}
+
+	merged := mergeThemeAssetsWithCampaign(base, override)
+	appUI := normalizeAppUISlots(merged["app_ui"])
+	navbar, _ := appUI["navbar"].(JSONMap)
+
+	if navbar["backgroundColor"] != "#14532D" {
+		t.Fatalf("expected base app_ui slot value to remain when campaign is blank")
+	}
+	if navbar["foregroundColor"] != "#FFFFFF" {
+		t.Fatalf("expected campaign app_ui slot value to override/add")
+	}
+}
+
+func TestValidateThemeInputRejectsUnsupportedAppUISlot(t *testing.T) {
+	err := validateThemeInput(ThemeInput{
+		Code:     "base-default",
+		Name:     "Base Default",
+		Type:     "base",
+		IsActive: true,
+		AssetManifestJSON: JSONMap{
+			"app_ui": JSONMap{
+				"unknown_slot": JSONMap{
+					"backgroundColor": "#FFFFFF",
+				},
+			},
+		},
+	})
+
+	if err == nil {
+		t.Fatalf("expected unsupported app_ui slot to fail validation")
+	}
+}
+
+func TestValidateCampaignInputRejectsNonStringAppUIProperty(t *testing.T) {
+	err := validateCampaignInput(CampaignInput{
+		CampaignGroupKey: "ramadan-core",
+		CampaignName:     "Ramadan Core",
+		ThemeID:          "00000000-0000-0000-0000-000000000101",
+		Enabled:          true,
+		Priority:         90,
+		LightModeEnabled: true,
+		DarkModeEnabled:  true,
+		Assets: JSONMap{
+			"mobile": JSONMap{
+				"app_ui": JSONMap{
+					"navbar": JSONMap{
+						"backgroundColor": 123,
+					},
+				},
+			},
+		},
+	})
+
+	if err == nil {
+		t.Fatalf("expected non-string app_ui property value to fail validation")
+	}
+}
+
 func containsValue(values []string, target string) bool {
 	for _, value := range values {
 		if value == target {

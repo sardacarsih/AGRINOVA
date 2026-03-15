@@ -3,6 +3,8 @@ package theme
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"path"
 	"sort"
 	"strings"
 	"time"
@@ -26,6 +28,27 @@ var campaignAssetKeys = []string{
 	"illustration",
 	"iconPack",
 	"accentAsset",
+	"app_ui",
+}
+
+var appUISlotKeys = []string{
+	"navbar",
+	"sidebar",
+	"footer",
+	"dashboard",
+	"notification_banner",
+	"empty_state_illustration",
+	"modal_accent",
+}
+
+var appUISlotPropertyKeys = []string{
+	"backgroundColor",
+	"foregroundColor",
+	"textColor",
+	"borderColor",
+	"accentColor",
+	"iconColor",
+	"asset",
 }
 
 var defaultIconPackOptions = []string{
@@ -147,6 +170,7 @@ type RuntimeThemePayload struct {
 	Campaign          *CampaignDTO `json:"campaign,omitempty"`
 	Token             JSONMap      `json:"token_json"`
 	Assets            JSONMap      `json:"asset_manifest_json"`
+	AppUI             JSONMap      `json:"app_ui"`
 }
 
 type Service struct {
@@ -913,6 +937,8 @@ func (s *Service) ResolveRuntimeTheme(ctx context.Context, runtimeCtx RuntimeThe
 	if err != nil {
 		return nil, err
 	}
+	baseAssets := normalizeThemeAssetManifest(theme.AssetManifestJSON)
+	baseAppUI := normalizeAppUISlots(baseAssets["app_ui"])
 
 	payload := &RuntimeThemePayload{
 		Source:            "BASE_THEME",
@@ -926,10 +952,11 @@ func (s *Service) ResolveRuntimeTheme(ctx context.Context, runtimeCtx RuntimeThe
 			Type:     theme.Type,
 			IsActive: theme.IsActive,
 			Tokens:   cloneJSONMap(theme.TokenJSON),
-			Assets:   cloneJSONMap(theme.AssetManifestJSON),
+			Assets:   cloneJSONMap(baseAssets),
 		},
 		Token:  cloneJSONMap(theme.TokenJSON),
-		Assets: cloneJSONMap(theme.AssetManifestJSON),
+		Assets: cloneJSONMap(baseAssets),
+		AppUI:  cloneJSONMap(baseAppUI),
 	}
 
 	if settings.GlobalKillSwitch {
@@ -970,7 +997,8 @@ func (s *Service) ResolveRuntimeTheme(ctx context.Context, runtimeCtx RuntimeThe
 	}
 
 	platformAssets := selectCampaignPlatformAssets(candidate.AssetsJSON, platform)
-	assets := mergeThemeAssetsWithCampaign(resolvedTheme.AssetManifestJSON, platformAssets)
+	resolvedThemeAssets := normalizeThemeAssetManifest(resolvedTheme.AssetManifestJSON)
+	assets := mergeThemeAssetsWithCampaign(resolvedThemeAssets, platformAssets)
 
 	payload.Source = "ACTIVE_CAMPAIGN"
 	payload.ModeAllowed = true
@@ -981,11 +1009,12 @@ func (s *Service) ResolveRuntimeTheme(ctx context.Context, runtimeCtx RuntimeThe
 		Type:     resolvedTheme.Type,
 		IsActive: resolvedTheme.IsActive,
 		Tokens:   cloneJSONMap(resolvedTheme.TokenJSON),
-		Assets:   cloneJSONMap(resolvedTheme.AssetManifestJSON),
+		Assets:   cloneJSONMap(resolvedThemeAssets),
 	}
 	payload.Campaign = &campaignDTO
 	payload.Token = cloneJSONMap(resolvedTheme.TokenJSON)
 	payload.Assets = assets
+	payload.AppUI = normalizeAppUISlots(assets["app_ui"])
 	return payload, nil
 
 }
@@ -1044,6 +1073,9 @@ func validateCampaignInput(input CampaignInput) error {
 	if input.EndAt != nil && input.StartAt != nil && input.EndAt.Before(*input.StartAt) {
 		return fmt.Errorf("end date cannot be earlier than start date")
 	}
+	if err := validateAppUIInAssetContainer(input.Assets, "assets"); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1058,6 +1090,9 @@ func validateThemeInput(input ThemeInput) error {
 	themeType := strings.ToLower(strings.TrimSpace(input.Type))
 	if themeType != "base" && themeType != "seasonal" {
 		return fmt.Errorf("type must be either base or seasonal")
+	}
+	if err := validateAppUIInAssetContainer(input.AssetManifestJSON, "asset_manifest_json"); err != nil {
+		return err
 	}
 
 	return nil
@@ -1083,6 +1118,7 @@ func resolveCampaignStatus(campaign ThemeCampaign, now time.Time) CampaignStatus
 }
 
 func toThemeDTO(theme Theme) ThemeDTO {
+	normalizedAssets := normalizeThemeAssetManifest(theme.AssetManifestJSON)
 	return ThemeDTO{
 		ID:       theme.ID,
 		Code:     theme.Code,
@@ -1090,7 +1126,7 @@ func toThemeDTO(theme Theme) ThemeDTO {
 		Type:     theme.Type,
 		IsActive: theme.IsActive,
 		Tokens:   cloneJSONMap(theme.TokenJSON),
-		Assets:   cloneJSONMap(theme.AssetManifestJSON),
+		Assets:   cloneJSONMap(normalizedAssets),
 	}
 }
 
@@ -1386,17 +1422,31 @@ func normalizeThemeAssetManifest(input JSONMap) JSONMap {
 	}
 
 	result := emptyPlatformAssets()
-	for _, key := range campaignAssetKeys {
-		if value := toTrimmedString(input[key]); value != "" {
-			result[key] = value
-		}
-	}
+	result["backgroundImage"] = normalizeThemeAssetReference(toTrimmedString(input["backgroundImage"]))
+	result["illustration"] = normalizeThemeAssetReference(toTrimmedString(input["illustration"]))
+	result["iconPack"] = strings.TrimSpace(toTrimmedString(input["iconPack"]))
+	result["accentAsset"] = strings.TrimSpace(toTrimmedString(input["accentAsset"]))
+	result["app_ui"] = normalizeAppUISlots(input["app_ui"])
+
 	if result["iconPack"] == "" {
 		result["iconPack"] = defaultIconPackOptions[0]
 	}
 	if result["accentAsset"] == "" {
 		result["accentAsset"] = defaultAccentAssetOptions[0]
 	}
+
+	if webRaw, exists := input["web"]; exists {
+		result["web"] = normalizePlatformAssets(webRaw)
+	}
+	if mobileRaw, exists := input["mobile"]; exists {
+		result["mobile"] = normalizePlatformAssets(mobileRaw)
+	}
+
+	// Backward compatibility: map legacy illustration/background values into typed app_ui slots.
+	result["app_ui"] = applyLegacyAssetFallbackToAppUI(
+		normalizeAppUISlots(result["app_ui"]),
+		result,
+	)
 
 	for key, value := range input {
 		if _, exists := result[key]; exists {
@@ -1420,6 +1470,9 @@ func selectCampaignPlatformAssets(campaignAssets JSONMap, platform string) JSONM
 func mergeThemeAssetsWithCampaign(baseAssets JSONMap, platformAssets JSONMap) JSONMap {
 	merged := cloneJSONMap(baseAssets)
 	for _, key := range campaignAssetKeys {
+		if key == "app_ui" {
+			continue
+		}
 		value, ok := platformAssets[key]
 		if !ok {
 			continue
@@ -1428,12 +1481,27 @@ func mergeThemeAssetsWithCampaign(baseAssets JSONMap, platformAssets JSONMap) JS
 		if !ok {
 			continue
 		}
-		trimmed := strings.TrimSpace(stringValue)
-		if trimmed == "" {
-			continue
+		switch key {
+		case "backgroundImage", "illustration":
+			normalized := normalizeThemeAssetReference(stringValue)
+			if normalized == "" {
+				continue
+			}
+			merged[key] = normalized
+		default:
+			trimmed := strings.TrimSpace(stringValue)
+			if trimmed == "" {
+				continue
+			}
+			merged[key] = trimmed
 		}
-		merged[key] = trimmed
 	}
+
+	merged["app_ui"] = mergeAppUISlots(
+		normalizeAppUISlots(merged["app_ui"]),
+		normalizeAppUISlots(platformAssets["app_ui"]),
+	)
+
 	return merged
 }
 
@@ -1479,11 +1547,20 @@ func normalizePlatformAssets(raw interface{}) JSONMap {
 		if !ok {
 			continue
 		}
+		if key == "app_ui" {
+			result[key] = normalizeAppUISlots(candidate)
+			continue
+		}
 		stringValue, ok := candidate.(string)
 		if !ok {
 			continue
 		}
-		result[key] = strings.TrimSpace(stringValue)
+		switch key {
+		case "backgroundImage", "illustration":
+			result[key] = normalizeThemeAssetReference(stringValue)
+		default:
+			result[key] = strings.TrimSpace(stringValue)
+		}
 	}
 	return result
 }
@@ -1494,6 +1571,220 @@ func emptyPlatformAssets() JSONMap {
 		"illustration":    "",
 		"iconPack":        "",
 		"accentAsset":     "",
+		"app_ui":          emptyAppUISlots(),
+	}
+}
+
+func validateAppUIInAssetContainer(container JSONMap, fieldPrefix string) error {
+	if container == nil {
+		return nil
+	}
+
+	validateSlotObject := func(raw interface{}, field string) error {
+		if raw == nil {
+			return nil
+		}
+		if err := validateAppUISlots(raw); err != nil {
+			return fmt.Errorf("%s: %w", field, err)
+		}
+		return nil
+	}
+
+	if err := validateSlotObject(container["app_ui"], fieldPrefix+".app_ui"); err != nil {
+		return err
+	}
+
+	if webMap, ok := toInterfaceMap(container["web"]); ok {
+		if err := validateSlotObject(webMap["app_ui"], fieldPrefix+".web.app_ui"); err != nil {
+			return err
+		}
+	}
+	if mobileMap, ok := toInterfaceMap(container["mobile"]); ok {
+		if err := validateSlotObject(mobileMap["app_ui"], fieldPrefix+".mobile.app_ui"); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func validateAppUISlots(raw interface{}) error {
+	slotMap, ok := toInterfaceMap(raw)
+	if !ok {
+		return fmt.Errorf("must be an object")
+	}
+
+	allowedSlotSet := make(map[string]struct{}, len(appUISlotKeys))
+	for _, key := range appUISlotKeys {
+		allowedSlotSet[key] = struct{}{}
+	}
+
+	allowedPropertySet := make(map[string]struct{}, len(appUISlotPropertyKeys))
+	for _, key := range appUISlotPropertyKeys {
+		allowedPropertySet[key] = struct{}{}
+	}
+
+	for slotName, slotValue := range slotMap {
+		if _, allowed := allowedSlotSet[slotName]; !allowed {
+			return fmt.Errorf("unsupported slot %q", slotName)
+		}
+
+		slotProperties, ok := toInterfaceMap(slotValue)
+		if !ok {
+			return fmt.Errorf("slot %q must be an object", slotName)
+		}
+
+		for propertyName, propertyValue := range slotProperties {
+			if _, allowed := allowedPropertySet[propertyName]; !allowed {
+				return fmt.Errorf("unsupported property %q on slot %q", propertyName, slotName)
+			}
+			if _, ok := propertyValue.(string); !ok {
+				return fmt.Errorf("property %q on slot %q must be a string", propertyName, slotName)
+			}
+		}
+	}
+
+	return nil
+}
+
+func normalizeAppUISlots(raw interface{}) JSONMap {
+	result := emptyAppUISlots()
+
+	slotMap, ok := toInterfaceMap(raw)
+	if !ok {
+		return result
+	}
+
+	for _, slotKey := range appUISlotKeys {
+		candidate, exists := slotMap[slotKey]
+		if !exists {
+			continue
+		}
+		slotPayload, ok := toInterfaceMap(candidate)
+		if !ok {
+			continue
+		}
+		result[slotKey] = normalizeAppUISlotProperties(slotPayload)
+	}
+
+	return result
+}
+
+func normalizeAppUISlotProperties(slotPayload map[string]interface{}) JSONMap {
+	result := emptyAppUISlotProperties()
+	for _, propertyKey := range appUISlotPropertyKeys {
+		candidate, exists := slotPayload[propertyKey]
+		if !exists {
+			continue
+		}
+		stringValue, ok := candidate.(string)
+		if !ok {
+			continue
+		}
+		trimmed := strings.TrimSpace(stringValue)
+		if trimmed == "" {
+			continue
+		}
+		if propertyKey == "asset" {
+			normalized := normalizeThemeAssetReference(trimmed)
+			if normalized != "" {
+				result[propertyKey] = normalized
+			} else {
+				result[propertyKey] = trimmed
+			}
+			continue
+		}
+		result[propertyKey] = trimmed
+	}
+	return result
+}
+
+func mergeAppUISlots(base JSONMap, override JSONMap) JSONMap {
+	merged := normalizeAppUISlots(base)
+	overrideNormalized := normalizeAppUISlots(override)
+
+	for _, slotKey := range appUISlotKeys {
+		baseSlot, _ := toInterfaceMap(merged[slotKey])
+		overrideSlot, _ := toInterfaceMap(overrideNormalized[slotKey])
+
+		slotMerged := emptyAppUISlotProperties()
+		for _, propertyKey := range appUISlotPropertyKeys {
+			if baseValue, ok := baseSlot[propertyKey].(string); ok && strings.TrimSpace(baseValue) != "" {
+				slotMerged[propertyKey] = strings.TrimSpace(baseValue)
+			}
+			if overrideValue, ok := overrideSlot[propertyKey].(string); ok && strings.TrimSpace(overrideValue) != "" {
+				slotMerged[propertyKey] = strings.TrimSpace(overrideValue)
+			}
+		}
+		merged[slotKey] = slotMerged
+	}
+
+	return merged
+}
+
+func applyLegacyAssetFallbackToAppUI(appUI JSONMap, manifest JSONMap) JSONMap {
+	result := normalizeAppUISlots(appUI)
+
+	setSlotPropertyFallback := func(slotKey string, propertyKey string, candidate string) {
+		slotRaw, ok := result[slotKey]
+		if !ok {
+			return
+		}
+		slotMap, ok := toInterfaceMap(slotRaw)
+		if !ok {
+			return
+		}
+		existing, _ := slotMap[propertyKey].(string)
+		if strings.TrimSpace(existing) != "" {
+			return
+		}
+		if strings.TrimSpace(candidate) == "" {
+			return
+		}
+		slotMap[propertyKey] = candidate
+		result[slotKey] = JSONMap(slotMap)
+	}
+
+	legacyIllustration := normalizeThemeAssetReference(toTrimmedString(manifest["illustration"]))
+	legacyBackground := normalizeThemeAssetReference(toTrimmedString(manifest["backgroundImage"]))
+	legacyAccent := strings.TrimSpace(toTrimmedString(manifest["accentAsset"]))
+
+	setSlotPropertyFallback("empty_state_illustration", "asset", legacyIllustration)
+	setSlotPropertyFallback("dashboard", "asset", legacyBackground)
+	setSlotPropertyFallback("modal_accent", "accentColor", legacyAccent)
+	setSlotPropertyFallback("notification_banner", "accentColor", legacyAccent)
+
+	return result
+}
+
+func emptyAppUISlots() JSONMap {
+	result := JSONMap{}
+	for _, slotKey := range appUISlotKeys {
+		result[slotKey] = emptyAppUISlotProperties()
+	}
+	return result
+}
+
+func emptyAppUISlotProperties() JSONMap {
+	return JSONMap{
+		"backgroundColor": "",
+		"foregroundColor": "",
+		"textColor":       "",
+		"borderColor":     "",
+		"accentColor":     "",
+		"iconColor":       "",
+		"asset":           "",
+	}
+}
+
+func toInterfaceMap(raw interface{}) (map[string]interface{}, bool) {
+	switch value := raw.(type) {
+	case JSONMap:
+		return map[string]interface{}(value), true
+	case map[string]interface{}:
+		return value, true
+	default:
+		return nil, false
 	}
 }
 
@@ -1521,4 +1812,54 @@ func cloneJSONMap(input JSONMap) JSONMap {
 		result[key] = value
 	}
 	return result
+}
+
+func normalizeThemeAssetReference(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+
+	lower := strings.ToLower(trimmed)
+	if strings.HasPrefix(lower, "data:") || strings.HasPrefix(lower, "blob:") || strings.HasPrefix(lower, "javascript:") {
+		return ""
+	}
+	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+		parsed, err := url.Parse(trimmed)
+		if err != nil {
+			return ""
+		}
+		lowerPath := strings.ToLower(parsed.Path)
+		if strings.HasPrefix(lowerPath, "/theme-dummy/") || strings.HasPrefix(lowerPath, "/theme-assets/") {
+			return ""
+		}
+		return trimmed
+	}
+
+	normalized := strings.ReplaceAll(trimmed, "\\", "/")
+	lowerNormalized := strings.ToLower(normalized)
+	if strings.HasPrefix(lowerNormalized, "uploads/") {
+		return normalizeUploadThemeAssetPath("/" + normalized)
+	}
+	if strings.HasPrefix(lowerNormalized, "/uploads/") {
+		return normalizeUploadThemeAssetPath(normalized)
+	}
+
+	return ""
+}
+
+func normalizeUploadThemeAssetPath(raw string) string {
+	normalized := strings.TrimSpace(strings.ReplaceAll(raw, "\\", "/"))
+	if normalized == "" {
+		return ""
+	}
+	if !strings.HasPrefix(normalized, "/") {
+		normalized = "/" + normalized
+	}
+
+	cleaned := path.Clean(normalized)
+	if cleaned == "." || cleaned == "/" || !strings.HasPrefix(strings.ToLower(cleaned), "/uploads/") {
+		return ""
+	}
+	return cleaned
 }

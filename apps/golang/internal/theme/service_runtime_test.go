@@ -177,6 +177,118 @@ func TestResolveRuntimeThemeReturnsBaseThemeWhenNoActiveCampaign(t *testing.T) {
 	}
 }
 
+func TestResolveRuntimeThemeMergesAppUINavbarAndFooterForMobile(t *testing.T) {
+	service, db := newRuntimeThemeTestService(t)
+
+	var campaignTheme Theme
+	if err := db.First(&campaignTheme, "id = ?", testCampaignThemeID).Error; err != nil {
+		t.Fatalf("db.First(campaignTheme) error: %v", err)
+	}
+	campaignTheme.AssetManifestJSON = JSONMap{
+		"app_ui": JSONMap{
+			"navbar": JSONMap{
+				"backgroundColor": "#0F172A",
+				"foregroundColor": "#FFFFFF",
+			},
+			"footer": JSONMap{
+				"backgroundColor": "#111827",
+				"foregroundColor": "#9CA3AF",
+				"borderColor":     "#1F2937",
+			},
+		},
+	}
+	if err := db.Save(&campaignTheme).Error; err != nil {
+		t.Fatalf("db.Save(campaignTheme) error: %v", err)
+	}
+
+	now := time.Now().UTC()
+	startAt := now.Add(-30 * time.Minute)
+	endAt := now.Add(30 * time.Minute)
+
+	campaign := ThemeCampaign{
+		ID:               "00000000-0000-0000-0000-000000000205",
+		ThemeID:          testCampaignThemeID,
+		CampaignGroupKey: "group-mobile-app-ui",
+		CampaignName:     "Mobile App UI Campaign",
+		Enabled:          true,
+		StartAt:          &startAt,
+		EndAt:            &endAt,
+		Priority:         150,
+		LightModeEnabled: true,
+		DarkModeEnabled:  true,
+		AssetsJSON: JSONMap{
+			"mobile": JSONMap{
+				"app_ui": JSONMap{
+					"navbar": JSONMap{
+						"iconColor": "#A7F3D0",
+					},
+					"footer": JSONMap{
+						"accentColor": "#34D399",
+					},
+				},
+			},
+		},
+		UpdatedBy: "tester",
+	}
+	if err := db.Create(&campaign).Error; err != nil {
+		t.Fatalf("db.Create(campaign) error: %v", err)
+	}
+
+	payload, err := service.ResolveRuntimeTheme(context.Background(), RuntimeThemeContext{
+		Platform: "mobile",
+		Mode:     "light",
+	})
+	if err != nil {
+		t.Fatalf("ResolveRuntimeTheme(mobile,light) error: %v", err)
+	}
+
+	if payload.Source != "ACTIVE_CAMPAIGN" {
+		t.Fatalf("ResolveRuntimeTheme(mobile,light) source = %q, want %q", payload.Source, "ACTIVE_CAMPAIGN")
+	}
+
+	appUI := normalizeAppUISlots(payload.AppUI)
+	navbarRaw, ok := appUI["navbar"]
+	if !ok {
+		t.Fatalf("payload.AppUI missing navbar slot")
+	}
+	navbar, ok := toInterfaceMap(navbarRaw)
+	if !ok {
+		t.Fatalf("payload.AppUI navbar is not an object")
+	}
+
+	footerRaw, ok := appUI["footer"]
+	if !ok {
+		t.Fatalf("payload.AppUI missing footer slot")
+	}
+	footer, ok := toInterfaceMap(footerRaw)
+	if !ok {
+		t.Fatalf("payload.AppUI footer is not an object")
+	}
+
+	if navbar["backgroundColor"] != "#0F172A" {
+		t.Errorf("payload.AppUI.navbar.backgroundColor = %v, want %q", navbar["backgroundColor"], "#0F172A")
+	}
+	if navbar["foregroundColor"] != "#FFFFFF" {
+		t.Errorf("payload.AppUI.navbar.foregroundColor = %v, want %q", navbar["foregroundColor"], "#FFFFFF")
+	}
+	if navbar["iconColor"] != "#A7F3D0" {
+		t.Errorf("payload.AppUI.navbar.iconColor = %v, want %q", navbar["iconColor"], "#A7F3D0")
+	}
+
+	if footer["backgroundColor"] != "#111827" {
+		t.Errorf("payload.AppUI.footer.backgroundColor = %v, want %q", footer["backgroundColor"], "#111827")
+	}
+	if footer["foregroundColor"] != "#9CA3AF" {
+		t.Errorf("payload.AppUI.footer.foregroundColor = %v, want %q", footer["foregroundColor"], "#9CA3AF")
+	}
+	if footer["borderColor"] != "#1F2937" {
+		t.Errorf("payload.AppUI.footer.borderColor = %v, want %q", footer["borderColor"], "#1F2937")
+	}
+	if footer["accentColor"] != "#34D399" {
+		t.Errorf("payload.AppUI.footer.accentColor = %v, want %q", footer["accentColor"], "#34D399")
+	}
+}
+
 func newRuntimeThemeTestService(t *testing.T) (*Service, *gorm.DB) {
 	t.Helper()
 
