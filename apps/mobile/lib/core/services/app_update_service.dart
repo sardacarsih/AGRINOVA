@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -250,6 +251,21 @@ class AppUpdateService {
       }
 
       return updateInfo;
+    } on DioException catch (e, stackTrace) {
+      final statusCode = e.response?.statusCode;
+      if (statusCode == 404) {
+        _logger.i(
+          '$_tag: Server version-check endpoint unavailable (404), skipping server update source',
+        );
+        return null;
+      }
+
+      _logger.w(
+        '$_tag: Server version check failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return null;
     } catch (e, stackTrace) {
       _logger.w(
         '$_tag: Server version check failed',

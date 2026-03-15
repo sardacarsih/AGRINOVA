@@ -387,6 +387,14 @@ class _LoginPageState extends State<LoginPage>
                   ),
                 ),
               ),
+              if (kDebugMode)
+                Positioned(
+                  left: 8,
+                  bottom: 8,
+                  child: SafeArea(
+                    child: _buildRuntimeThemeDiagnosticsBadge(isDark: isDark),
+                  ),
+                ),
             ],
           ),
         );
@@ -415,7 +423,8 @@ class _LoginPageState extends State<LoginPage>
           ),
           child: IconButton(
             onPressed: () {
-              ThemeModeService.instance.setDarkMode(!isDarkMode);
+              unawaited(ThemeModeService.instance.setDarkMode(!isDarkMode));
+              unawaited(LoginThemeCampaignService.instance.refresh(force: true));
             },
             icon: Icon(
               isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
@@ -500,6 +509,82 @@ class _LoginPageState extends State<LoginPage>
 
           return menuItems;
         },
+      ),
+    );
+  }
+
+  Widget _buildRuntimeThemeDiagnosticsBadge({required bool isDark}) {
+    final service = LoginThemeCampaignService.instance;
+    final diagnostics = service.runtimeDiagnostics;
+    final metadata = service.runtimeMetadata;
+    final source = metadata.source;
+    final themeLabel = service.effectiveThemeLabel;
+    final campaignName =
+        (metadata.campaignName ?? '').trim().isEmpty
+        ? '-'
+        : metadata.campaignName!.trim();
+
+    final cacheAge = diagnostics.cacheAge;
+    final cacheAgeLabel = cacheAge == null
+        ? '-'
+        : cacheAge.inMinutes >= 1
+        ? '${cacheAge.inMinutes}m'
+        : '${cacheAge.inSeconds}s';
+    final statusLabel = service.isFetching
+        ? 'fetching'
+        : diagnostics.lastError == null
+        ? 'ok'
+        : 'fallback';
+    final errorLabel = diagnostics.lastError == null
+        ? ''
+        : diagnostics.lastError!.split('\n').first;
+
+    final backgroundColor = isDark
+        ? Colors.black.withValues(alpha: 0.58)
+        : Colors.white.withValues(alpha: 0.92);
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.2)
+        : Colors.black.withValues(alpha: 0.08);
+    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final mutedColor = textColor.withValues(alpha: 0.76);
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 320),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: DefaultTextStyle(
+        style: TextStyle(
+          color: textColor,
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          height: 1.25,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Theme: $themeLabel | $source'),
+            Text(
+              'Campaign: $campaignName',
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              'Status: $statusLabel | Cache: $cacheAgeLabel',
+              style: TextStyle(color: mutedColor),
+            ),
+            if (errorLabel.isNotEmpty)
+              Text(
+                'Error: $errorLabel',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: const Color(0xFFDC2626)),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -595,7 +680,6 @@ class _LoginPageState extends State<LoginPage>
     LoginThemeTokenSet campaignTokens,
     LoginThemeAssetManifest runtimeAssets,
   ) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final titleColor = campaignTokens.textPrimary;
     final subtitleColor = campaignTokens.textSecondary;
 
@@ -606,29 +690,7 @@ class _LoginPageState extends State<LoginPage>
           const SizedBox(height: 20),
         ],
 
-        // Logo with neon glow
-        Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: campaignTokens.buttonGradient.first.withValues(
-                  alpha: isDark ? 0.35 : 0.25,
-                ),
-                blurRadius: 30,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: Image.asset('assets/images/logo.png', fit: BoxFit.cover),
-          ),
-        ),
-
-        const SizedBox(height: 24),
+        const SizedBox(height: 4),
 
         // Welcome text
         Text(
@@ -700,16 +762,76 @@ class _LoginPageState extends State<LoginPage>
       return errorFallback;
     }
 
-    if (_isSvgAssetUrl(trimmedUrl)) {
-      return SvgPicture.network(
+    if (_isLikelyRasterAssetUrl(trimmedUrl)) {
+      return _buildRasterNetworkImage(
         trimmedUrl,
         fit: fit,
-        placeholderBuilder: (context) => loadingFallback,
+        loadingFallback: loadingFallback,
+        errorFallback: errorFallback,
+        allowSvgFallback: true,
       );
     }
 
-    return Image.network(
+    if (_isSvgAssetUrl(trimmedUrl)) {
+      return _buildSvgNetworkImage(
+        trimmedUrl,
+        fit: fit,
+        loadingFallback: loadingFallback,
+        errorFallback: errorFallback,
+        allowRasterFallback: true,
+      );
+    }
+
+    // Unknown extension/format: try SVG first, then fallback to raster.
+    return _buildSvgNetworkImage(
       trimmedUrl,
+      fit: fit,
+      loadingFallback: loadingFallback,
+      errorFallback: errorFallback,
+      allowRasterFallback: true,
+    );
+  }
+
+  Widget _buildSvgNetworkImage(
+    String imageUrl, {
+    required BoxFit fit,
+    required Widget loadingFallback,
+    required Widget errorFallback,
+    required bool allowRasterFallback,
+  }) {
+    return SvgPicture.network(
+      imageUrl,
+      fit: fit,
+      placeholderBuilder: (context) => loadingFallback,
+      errorBuilder: (context, error, stackTrace) {
+        if (kDebugMode) {
+          debugPrint(
+            'Login campaign SVG asset failed: $imageUrl | error: $error',
+          );
+        }
+        if (!allowRasterFallback) {
+          return errorFallback;
+        }
+        return _buildRasterNetworkImage(
+          imageUrl,
+          fit: fit,
+          loadingFallback: loadingFallback,
+          errorFallback: errorFallback,
+          allowSvgFallback: false,
+        );
+      },
+    );
+  }
+
+  Widget _buildRasterNetworkImage(
+    String imageUrl, {
+    required BoxFit fit,
+    required Widget loadingFallback,
+    required Widget errorFallback,
+    required bool allowSvgFallback,
+  }) {
+    return Image.network(
+      imageUrl,
       fit: fit,
       filterQuality: FilterQuality.medium,
       loadingBuilder: (context, child, loadingProgress) {
@@ -719,10 +841,19 @@ class _LoginPageState extends State<LoginPage>
       errorBuilder: (context, error, stackTrace) {
         if (kDebugMode) {
           debugPrint(
-            'Login campaign asset failed: $trimmedUrl | error: $error',
+            'Login campaign raster asset failed: $imageUrl | error: $error',
           );
         }
-        return errorFallback;
+        if (!allowSvgFallback) {
+          return errorFallback;
+        }
+        return _buildSvgNetworkImage(
+          imageUrl,
+          fit: fit,
+          loadingFallback: loadingFallback,
+          errorFallback: errorFallback,
+          allowRasterFallback: false,
+        );
       },
     );
   }
@@ -733,8 +864,39 @@ class _LoginPageState extends State<LoginPage>
     if (normalized.contains('image/svg+xml')) return true;
 
     final uri = Uri.tryParse(normalized);
+    if (uri != null) {
+      const svgHintKeys = [
+        'format',
+        'mime',
+        'contentType',
+        'content_type',
+        'fileType',
+        'file_type',
+      ];
+      for (final key in svgHintKeys) {
+        final queryValue = uri.queryParameters[key];
+        if (queryValue != null && queryValue.toLowerCase().contains('svg')) {
+          return true;
+        }
+      }
+    }
     final path = uri?.path ?? normalized;
     return path.endsWith('.svg');
+  }
+
+  bool _isLikelyRasterAssetUrl(String imageUrl) {
+    final normalized = imageUrl.trim().toLowerCase();
+    if (normalized.isEmpty || normalized.contains('image/svg+xml')) {
+      return false;
+    }
+    final uri = Uri.tryParse(normalized);
+    final path = uri?.path ?? normalized;
+    return path.endsWith('.png') ||
+        path.endsWith('.jpg') ||
+        path.endsWith('.jpeg') ||
+        path.endsWith('.webp') ||
+        path.endsWith('.gif') ||
+        path.endsWith('.bmp');
   }
 
   Widget _buildConnectionPill() {

@@ -1126,6 +1126,11 @@ func AutoMigrate(db *gorm.DB) error {
 		return fmt.Errorf("failed migration 000073 rename theme asset keys: %w", err)
 	}
 
+	// Remove legacy theme asset URL prefixes and standardize to /uploads/theme-assets/*.
+	if err := migrations.Migration000074RemoveThemeDummyAssetPaths(db); err != nil {
+		return fmt.Errorf("failed migration 000074 remove legacy theme asset paths: %w", err)
+	}
+
 	legacyMasterColumns, err := hasLegacyMasterColumns(db)
 	if err != nil {
 		return fmt.Errorf("failed checking legacy master columns: %w", err)

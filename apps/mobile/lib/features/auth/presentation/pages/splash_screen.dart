@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -32,6 +34,8 @@ class _SplashScreenState extends State<SplashScreen> {
   bool _isAnimationCompleted = false;
   bool _hasNavigated = false;
   bool _isListening = false;
+  bool _isNavigationScheduled = false;
+  StreamSubscription<AuthState>? _authStateSubscription;
 
   @override
   void didUpdateWidget(SplashScreen oldWidget) {
@@ -55,7 +59,8 @@ class _SplashScreenState extends State<SplashScreen> {
       _checkAndNavigate();
 
       // Listen to state changes
-      authBloc.stream.listen((state) {
+      _authStateSubscription?.cancel();
+      _authStateSubscription = authBloc.stream.listen((state) {
         debugPrint(
           '🔐 SplashScreen: Auth state changed to ${state.runtimeType}',
         );
@@ -110,10 +115,28 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    _hasNavigated = true;
     debugPrint('🚀 SplashScreen: All conditions met, navigating...');
 
-    // Navigate based on auth state
+    _scheduleNavigation(authState);
+  }
+
+  void _scheduleNavigation(AuthState authState) {
+    if (_hasNavigated || _isNavigationScheduled || !mounted) return;
+
+    _isNavigationScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _hasNavigated) {
+        _isNavigationScheduled = false;
+        return;
+      }
+
+      _hasNavigated = true;
+      _isNavigationScheduled = false;
+      _navigateByAuthState(authState);
+    });
+  }
+
+  void _navigateByAuthState(AuthState authState) {
     if (authState is AuthAuthenticated) {
       final route = AppRoutes.getDashboardRoute(
         authState.user.role,
@@ -121,24 +144,34 @@ class _SplashScreenState extends State<SplashScreen> {
       );
       debugPrint('➡️ Navigating to dashboard: $route');
       Navigator.of(context).pushReplacementNamed(route);
-    } else if (authState is AuthOfflineMode) {
+      return;
+    }
+
+    if (authState is AuthOfflineMode) {
       final route = AppRoutes.getDashboardRoute(
         authState.user.role,
         mandorType: authState.user.effectiveMandorType,
       );
       debugPrint('➡️ Navigating to dashboard (offline): $route');
       Navigator.of(context).pushReplacementNamed(route);
-    } else if (authState is AuthBiometricRequired) {
+      return;
+    }
+
+    if (authState is AuthBiometricRequired) {
       debugPrint('➡️ Showing biometric screen');
       _navigateToPage(_buildBiometricScreen(authState));
-    } else if (authState is AuthError) {
+      return;
+    }
+
+    if (authState is AuthError) {
       debugPrint('➡️ Navigating to login (error: ${authState.message})');
       _navigateToLoginWithError(authState.message);
-    } else {
-      // AuthUnauthenticated or any other state -> Login page
-      debugPrint('➡️ Navigating to login (unauthenticated)');
-      _navigateToPage(const LoginPage());
+      return;
     }
+
+    // AuthUnauthenticated or any other state -> Login page
+    debugPrint('➡️ Navigating to login (unauthenticated)');
+    _navigateToPage(const LoginPage());
   }
 
   void _navigateToPage(Widget targetPage) {
@@ -240,5 +273,11 @@ class _SplashScreenState extends State<SplashScreen> {
         );
       },
     );
+  }
+
+  @override
+  void dispose() {
+    _authStateSubscription?.cancel();
+    super.dispose();
   }
 }
