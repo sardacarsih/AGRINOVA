@@ -40,7 +40,7 @@ class GenZWelcomeHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildUserInfo(),
+          _buildUserInfo(context),
           if (isOffline) ...[
             const SizedBox(height: 14),
             const GenZOfflineBanner(),
@@ -50,13 +50,13 @@ class GenZWelcomeHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildUserInfo() {
+  Widget _buildUserInfo(BuildContext context) {
     return Row(
       children: [
         _buildAvatar(),
         const SizedBox(width: 16),
-        Expanded(child: _buildUserDetails()),
-        if (currentTime != null) _buildTimeBadge(),
+        Expanded(child: _buildUserDetails(context)),
+        if (currentTime != null) _buildTimeBadge(context),
       ],
     );
   }
@@ -76,13 +76,13 @@ class GenZWelcomeHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildUserDetails() {
+  Widget _buildUserDetails(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Selamat Datang,',
-          style: MandorTheme.bodyMedium.copyWith(
+          style: MandorTheme.bodyMediumFor(context).copyWith(
             color: Colors.white.withValues(alpha: 0.8),
           ),
         ),
@@ -103,7 +103,7 @@ class GenZWelcomeHeader extends StatelessWidget {
             ),
             child: Text(
               'Mandor - $division',
-              style: MandorTheme.bodySmall.copyWith(
+              style: MandorTheme.bodySmallFor(context).copyWith(
                 color: Colors.white.withValues(alpha: 0.9),
                 fontWeight: FontWeight.w500,
               ),
@@ -114,7 +114,7 @@ class GenZWelcomeHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildTimeBadge() {
+  Widget _buildTimeBadge(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -134,7 +134,7 @@ class GenZWelcomeHeader extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             currentTime!,
-            style: MandorTheme.labelBold.copyWith(
+            style: MandorTheme.labelBoldFor(context).copyWith(
               fontSize: 13,
             ),
           ),
@@ -161,7 +161,7 @@ class GenZWelcomeHeaderCompact extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: MandorTheme.glassCardDark(),
+      decoration: MandorTheme.filledCardFor(context),
       child: Row(
         children: [
           Container(
@@ -179,9 +179,9 @@ class GenZWelcomeHeaderCompact extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(userName, style: MandorTheme.labelBold),
+                Text(userName, style: MandorTheme.labelBoldFor(context)),
                 const SizedBox(height: 2),
-                Text(subtitle, style: MandorTheme.bodySmall),
+                Text(subtitle, style: MandorTheme.bodySmallFor(context)),
               ],
             ),
           ),

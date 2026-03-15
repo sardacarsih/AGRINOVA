@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -16,6 +18,13 @@ import (
 	"agrinovagraphql/server/internal/graphql/domain/master"
 	"agrinovagraphql/server/internal/master/models"
 	"agrinovagraphql/server/internal/master/repositories"
+)
+
+const optimizeCurrentUserLookupEnv = "AGRINOVA_OPTIMIZE_CURRENT_USER_LOOKUP"
+
+var (
+	optimizeCurrentUserLookupOnce    sync.Once
+	optimizeCurrentUserLookupEnabled bool
 )
 
 // MasterService defines the interface for master data business logic
@@ -91,6 +100,45 @@ func NewMasterService(repo repositories.MasterRepository, db *gorm.DB) MasterSer
 		repo:      repo,
 		validator: validator.New(),
 		db:        db,
+	}
+}
+
+func isCurrentUserLookupOptimizationEnabled() bool {
+	optimizeCurrentUserLookupOnce.Do(func() {
+		value := strings.TrimSpace(strings.ToLower(os.Getenv(optimizeCurrentUserLookupEnv)))
+		optimizeCurrentUserLookupEnabled = value == "1" || value == "true" || value == "yes" || value == "on"
+	})
+
+	return optimizeCurrentUserLookupEnabled
+}
+
+func getContextRoleForUser(ctx context.Context, userID string) (auth.UserRole, bool) {
+	if !isCurrentUserLookupOptimizationEnabled() || ctx == nil {
+		return "", false
+	}
+
+	ctxUserID, _ := ctx.Value("user_id").(string)
+	if strings.TrimSpace(ctxUserID) == "" || !strings.EqualFold(strings.TrimSpace(ctxUserID), strings.TrimSpace(userID)) {
+		return "", false
+	}
+
+	roleValue := ctx.Value("user_role")
+	switch role := roleValue.(type) {
+	case auth.UserRole:
+		trimmed := auth.UserRole(strings.TrimSpace(string(role)))
+		return trimmed, trimmed != ""
+	case string:
+		trimmed := auth.UserRole(strings.TrimSpace(role))
+		return trimmed, trimmed != ""
+	case fmt.Stringer:
+		trimmed := auth.UserRole(strings.TrimSpace(role.String()))
+		return trimmed, trimmed != ""
+	default:
+		if roleValue == nil {
+			return "", false
+		}
+		trimmed := auth.UserRole(strings.TrimSpace(fmt.Sprint(roleValue)))
+		return trimmed, trimmed != "" && trimmed != auth.UserRole("<nil>")
 	}
 }
 
@@ -282,13 +330,13 @@ func (s *masterService) validateTariffManagementDecisionAndRole(
 	decisionReasonInput *string,
 	effectiveNoteInput *string,
 ) (string, string, string, error) {
-	actor, err := s.getUserByID(ctx, actorID)
+	actorRole, err := s.getUserRole(ctx, actorID)
 	if err != nil {
 		return "", "", "", err
 	}
 
 	return validateTariffManagementDecisionInputForRole(
-		actor.Role,
+		actorRole,
 		decisionNoInput,
 		decisionReasonInput,
 		effectiveNoteInput,
@@ -819,12 +867,12 @@ func (s *masterService) CreateCompany(ctx context.Context, req *models.CreateCom
 	}
 
 	// Check if creator has permission (only Super Admin can create companies)
-	creator, err := s.getUserByID(ctx, creatorID)
+	creatorRole, err := s.getUserRole(ctx, creatorID)
 	if err != nil {
 		return nil, err
 	}
 
-	if creator.Role != auth.UserRoleSuperAdmin {
+	if creatorRole != auth.UserRoleSuperAdmin {
 		return nil, models.NewMasterDataError(models.ErrCodePermissionDenied, "only super admin can create companies", "")
 	}
 
@@ -885,7 +933,7 @@ func (s *masterService) GetCompanyByID(ctx context.Context, id string, userID st
 }
 
 func (s *masterService) GetCompanies(ctx context.Context, filters *models.MasterFilters, userID string) ([]*models.Company, error) {
-	user, err := s.getUserByID(ctx, userID)
+	userRole, err := s.getUserRole(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -896,7 +944,7 @@ func (s *masterService) GetCompanies(ctx context.Context, filters *models.Master
 	}
 
 	// Apply company-level access control
-	switch user.Role {
+	switch userRole {
 	case auth.UserRoleSuperAdmin:
 		// Super admin can see all companies
 	case auth.UserRoleAreaManager:
@@ -927,7 +975,7 @@ func (s *masterService) GetCompanies(ctx context.Context, filters *models.Master
 }
 
 func (s *masterService) CountCompanies(ctx context.Context, filters *models.MasterFilters, userID string) (int64, error) {
-	user, err := s.getUserByID(ctx, userID)
+	userRole, err := s.getUserRole(ctx, userID)
 	if err != nil {
 		return 0, err
 	}
@@ -938,7 +986,7 @@ func (s *masterService) CountCompanies(ctx context.Context, filters *models.Mast
 	}
 
 	// Apply company-level access control
-	switch user.Role {
+	switch userRole {
 	case auth.UserRoleSuperAdmin:
 		// Super admin can see all companies
 	default:
@@ -1013,12 +1061,12 @@ func (s *masterService) UpdateCompany(ctx context.Context, req *models.UpdateCom
 
 func (s *masterService) DeleteCompany(ctx context.Context, id string, deleterID string) error {
 	// Check if deleter has permission (only Super Admin can delete companies)
-	deleter, err := s.getUserByID(ctx, deleterID)
+	deleterRole, err := s.getUserRole(ctx, deleterID)
 	if err != nil {
 		return err
 	}
 
-	if deleter.Role != auth.UserRoleSuperAdmin {
+	if deleterRole != auth.UserRoleSuperAdmin {
 		return models.NewMasterDataError(models.ErrCodePermissionDenied, "only super admin can delete companies", "")
 	}
 
@@ -1091,13 +1139,13 @@ func (s *masterService) CreateEstate(ctx context.Context, req *models.CreateEsta
 	}
 
 	// Check if creator has permission
-	creator, err := s.getUserByID(ctx, creatorID)
+	creatorRole, err := s.getUserRole(ctx, creatorID)
 	if err != nil {
 		return nil, err
 	}
 
 	allowedRoles := []auth.UserRole{auth.UserRoleSuperAdmin, auth.UserRoleCompanyAdmin}
-	if err := s.ValidateUserRole(creator.Role, allowedRoles); err != nil {
+	if err := s.ValidateUserRole(creatorRole, allowedRoles); err != nil {
 		return nil, err
 	}
 
@@ -1137,7 +1185,7 @@ func (s *masterService) GetEstateByID(ctx context.Context, id string, userID str
 }
 
 func (s *masterService) GetEstates(ctx context.Context, filters *models.MasterFilters, userID string) ([]*models.Estate, error) {
-	user, err := s.getUserByID(ctx, userID)
+	userRole, err := s.getUserRole(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -1148,7 +1196,7 @@ func (s *masterService) GetEstates(ctx context.Context, filters *models.MasterFi
 	}
 
 	// Apply estate-level access control
-	switch user.Role {
+	switch userRole {
 	case auth.UserRoleSuperAdmin:
 		// Super admin can see all estates
 	case auth.UserRoleAreaManager:
@@ -1397,7 +1445,7 @@ func (s *masterService) GetBlockByID(ctx context.Context, id string, userID stri
 }
 
 func (s *masterService) GetBlocks(ctx context.Context, filters *models.MasterFilters, userID string) ([]*models.Block, error) {
-	user, err := s.getUserByID(ctx, userID)
+	userRole, err := s.getUserRole(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -1408,7 +1456,7 @@ func (s *masterService) GetBlocks(ctx context.Context, filters *models.MasterFil
 	}
 
 	// Apply access control based on user role
-	switch user.Role {
+	switch userRole {
 	case auth.UserRoleSuperAdmin:
 		// Super admin can see all blocks
 	default:
@@ -1611,12 +1659,12 @@ func (s *masterService) DeleteLandType(ctx context.Context, id string, deleterID
 }
 
 func (s *masterService) GetTarifBloks(ctx context.Context, userID string) ([]*models.TarifBlok, error) {
-	user, err := s.getUserByID(ctx, userID)
+	userRole, err := s.getUserRole(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	if user.Role == auth.UserRoleSuperAdmin {
+	if userRole == auth.UserRoleSuperAdmin {
 		return s.repo.GetTarifBloks(ctx, nil)
 	}
 
@@ -1659,22 +1707,9 @@ func (s *masterService) resolveCreateTarifBlokCompanyScope(
 ) (string, error) {
 	trimmedRequested := strings.TrimSpace(requestedCompanyID)
 
-	user, err := s.getUserByID(ctx, creatorID)
+	userRole, err := s.getUserRole(ctx, creatorID)
 	if err != nil {
 		return "", err
-	}
-	roleFromContext := auth.UserRole("")
-	if roleValue := ctx.Value("user_role"); roleValue != nil {
-		switch role := roleValue.(type) {
-		case auth.UserRole:
-			roleFromContext = role
-		case string:
-			roleFromContext = auth.UserRole(strings.TrimSpace(role))
-		}
-	}
-	userRole := user.Role
-	if roleFromContext != "" {
-		userRole = roleFromContext
 	}
 
 	// Super admin can target any company.
@@ -2478,7 +2513,7 @@ func (s *masterService) GetDivisionByID(ctx context.Context, id string, userID s
 }
 
 func (s *masterService) GetDivisions(ctx context.Context, filters *models.MasterFilters, userID string) ([]*models.Division, error) {
-	user, err := s.getUserByID(ctx, userID)
+	userRole, err := s.getUserRole(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -2489,7 +2524,7 @@ func (s *masterService) GetDivisions(ctx context.Context, filters *models.Master
 	}
 
 	// Apply access control based on user role
-	switch user.Role {
+	switch userRole {
 	case auth.UserRoleSuperAdmin:
 		// Super admin can see all divisions
 	default:
@@ -2615,7 +2650,7 @@ func (s *masterService) AssignUserToEstate(ctx context.Context, req *models.Assi
 	}
 
 	// Get user to validate role
-	user, err := s.getUserByID(ctx, req.UserID)
+	userRole, err := s.getUserRole(ctx, req.UserID)
 	if err != nil {
 		return nil, models.NewMasterDataError(models.ErrCodeNotFound, "user not found", "user_id")
 	}
@@ -2626,17 +2661,17 @@ func (s *masterService) AssignUserToEstate(ctx context.Context, req *models.Assi
 		auth.UserRoleAsisten,
 		auth.UserRoleMandor,
 	}
-	if err := s.ValidateUserRole(user.Role, allowedRoles); err != nil {
+	if err := s.ValidateUserRole(userRole, allowedRoles); err != nil {
 		return nil, models.NewMasterDataError(models.ErrCodeInvalidInput, "only managers, asisten, or mandor can be assigned to estates", "user_id")
 	}
-	if user.Role == auth.UserRoleManager {
+	if userRole == auth.UserRoleManager {
 		if err := s.ensureNoActiveEstateAssignmentConflictByRole(ctx, req.EstateID, req.UserID, auth.UserRoleManager); err != nil {
 			return nil, err
 		}
 	}
 
 	// MANDATORY DIVISION CHECK for ASISTEN and MANDOR
-	if user.Role == auth.UserRoleAsisten || user.Role == auth.UserRoleMandor {
+	if userRole == auth.UserRoleAsisten || userRole == auth.UserRoleMandor {
 		divisionAssignments, err := s.repo.GetUserDivisionAssignments(ctx, req.UserID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to check division assignments: %w", err)
@@ -2711,14 +2746,14 @@ func (s *masterService) AssignUserToDivision(ctx context.Context, req *models.As
 	}
 
 	// Get user to validate role
-	user, err := s.getUserByID(ctx, req.UserID)
+	userRole, err := s.getUserRole(ctx, req.UserID)
 	if err != nil {
 		return nil, models.NewMasterDataError(models.ErrCodeNotFound, "user not found", "user_id")
 	}
 
 	// Only asisten and mandor can be assigned to divisions
 	allowedRoles := []auth.UserRole{auth.UserRoleAsisten, auth.UserRoleMandor}
-	if err := s.ValidateUserRole(user.Role, allowedRoles); err != nil {
+	if err := s.ValidateUserRole(userRole, allowedRoles); err != nil {
 		return nil, models.NewMasterDataError(models.ErrCodeInvalidInput, "only asisten or mandor can be assigned to divisions", "user_id")
 	}
 
@@ -2759,23 +2794,23 @@ func (s *masterService) AssignUserToCompany(ctx context.Context, req *models.Ass
 	}
 
 	// Only super admin can assign users to companies
-	assigner, err := s.getUserByID(ctx, assignerID)
+	assignerRole, err := s.getUserRole(ctx, assignerID)
 	if err != nil {
 		return nil, err
 	}
 
-	if assigner.Role != auth.UserRoleSuperAdmin {
+	if assignerRole != auth.UserRoleSuperAdmin {
 		return nil, models.NewMasterDataError(models.ErrCodePermissionDenied, "only super admin can assign users to companies", "")
 	}
 
 	// Get user to validate role
-	user, err := s.getUserByID(ctx, req.UserID)
+	userRole, err := s.getUserRole(ctx, req.UserID)
 	if err != nil {
 		return nil, models.NewMasterDataError(models.ErrCodeNotFound, "user not found", "user_id")
 	}
 
 	// Only area managers can be assigned to companies
-	if user.Role != auth.UserRoleAreaManager {
+	if userRole != auth.UserRoleAreaManager {
 		return nil, models.NewMasterDataError(models.ErrCodeInvalidInput, "only area managers can be assigned to companies", "user_id")
 	}
 	if err := s.ensureNoActiveCompanyAssignmentConflictByRole(ctx, req.CompanyID, req.UserID, auth.UserRoleAreaManager); err != nil {
@@ -2854,12 +2889,12 @@ func (s *masterService) RemoveDivisionAssignment(ctx context.Context, id string,
 
 func (s *masterService) RemoveCompanyAssignment(ctx context.Context, id string, removerID string) error {
 	// Only super admin can remove company assignments
-	remover, err := s.getUserByID(ctx, removerID)
+	removerRole, err := s.getUserRole(ctx, removerID)
 	if err != nil {
 		return err
 	}
 
-	if remover.Role != auth.UserRoleSuperAdmin {
+	if removerRole != auth.UserRoleSuperAdmin {
 		return models.NewMasterDataError(models.ErrCodePermissionDenied, "only super admin can remove company assignments", "")
 	}
 
@@ -2894,13 +2929,13 @@ func (s *masterService) GetUserAssignments(ctx context.Context, userID string) (
 // Validation and utility methods
 
 func (s *masterService) ValidateCompanyAccess(ctx context.Context, userID string, companyID string) error {
-	user, err := s.getUserByID(ctx, userID)
+	userRole, err := s.getUserRole(ctx, userID)
 	if err != nil {
 		return err
 	}
 
 	// Apply company-level access control
-	switch user.Role {
+	switch userRole {
 	case auth.UserRoleSuperAdmin:
 		// Super admin can see all companies
 	case auth.UserRoleAreaManager:
@@ -2960,7 +2995,7 @@ func (s *masterService) ValidateCompanyAccess(ctx context.Context, userID string
 }
 
 func (s *masterService) ValidateEstateAccess(ctx context.Context, userID string, estateID string) error {
-	user, err := s.getUserByID(ctx, userID)
+	userRole, err := s.getUserRole(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -2973,7 +3008,7 @@ func (s *masterService) ValidateEstateAccess(ctx context.Context, userID string,
 		return fmt.Errorf("failed to get estate: %w", err)
 	}
 
-	switch user.Role {
+	switch userRole {
 	case auth.UserRoleSuperAdmin:
 		return nil // Super admin has access to all estates
 	case auth.UserRoleAreaManager:
@@ -3012,7 +3047,7 @@ func (s *masterService) ValidateEstateAccess(ctx context.Context, userID string,
 }
 
 func (s *masterService) ValidateDivisionAccess(ctx context.Context, userID string, divisionID string) error {
-	user, err := s.getUserByID(ctx, userID)
+	userRole, err := s.getUserRole(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -3025,7 +3060,7 @@ func (s *masterService) ValidateDivisionAccess(ctx context.Context, userID strin
 		return fmt.Errorf("failed to get division: %w", err)
 	}
 
-	switch user.Role {
+	switch userRole {
 	case auth.UserRoleSuperAdmin:
 		return nil // Super admin has access to all divisions
 	case auth.UserRoleAreaManager:
@@ -3499,9 +3534,28 @@ func (s *masterService) ensureBlockNameUniqueInCompany(
 }
 
 // Helper function to get user by ID
+func (s *masterService) getUserRole(ctx context.Context, userID string) (auth.UserRole, error) {
+	if role, ok := getContextRoleForUser(ctx, userID); ok {
+		return role, nil
+	}
+
+	var user auth.User
+	if err := s.db.WithContext(ctx).Select("role").Where("id = ?", userID).Take(&user).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return "", models.NewMasterDataError(models.ErrCodeNotFound, "user not found", "user_id")
+		}
+		return "", fmt.Errorf("failed to get user role: %w", err)
+	}
+
+	return user.Role, nil
+}
+
 func (s *masterService) getUserByID(ctx context.Context, userID string) (*auth.User, error) {
 	var user auth.User
-	if err := s.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
+	if err := s.db.WithContext(ctx).
+		Select("id", "username", "role", "is_active").
+		Where("id = ?", userID).
+		Take(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, models.NewMasterDataError(models.ErrCodeNotFound, "user not found", "user_id")
 		}

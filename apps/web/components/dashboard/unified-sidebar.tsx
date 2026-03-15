@@ -35,7 +35,8 @@ import {
   UserCog,
   Menu,
   LayoutGrid,
-  Link2
+  Link2,
+  Palette
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -172,6 +173,7 @@ const roleBasedNavigation = {
       { name: "API Management", href: "/api-management", icon: Lock, current: false },
       { name: "Roles & Permissions", href: "/rbac-management", icon: ShieldCheck, current: false },
       { name: "Management Sessions", href: "/management-sessions", icon: Clock, current: false },
+      { name: "Theme Campaigns", href: "/theme-campaigns", icon: Palette, current: false },
       { name: "Management Token", href: "/management-token", icon: Lock, current: false },
     ]
   }

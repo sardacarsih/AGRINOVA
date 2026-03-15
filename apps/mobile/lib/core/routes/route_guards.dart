@@ -82,7 +82,7 @@ class RouteGuard {
         return ['view_company_stats', 'monitoring_company'];
 
       case AppRoutes.satpam:
-        return ['gate_check'];
+        return ['gate_check', 'gate_check_input'];
 
       case AppRoutes.companyAdmin:
         return ['user_management', 'harvest_view_company'];
@@ -98,7 +98,7 @@ class RouteGuard {
         return ['harvest_input'];
 
       case '/gate-check':
-        return ['gate_check'];
+        return ['gate_check', 'gate_check_input'];
 
       case '/approvals':
         return ['harvest_approval'];
@@ -240,7 +240,8 @@ class RouteGuard {
       );
     }
 
-    if (permissions.contains('gate_check')) {
+    if (permissions.contains('gate_check') ||
+        permissions.contains('gate_check_input')) {
       navigationItems.add(
         NavigationItem(
           route: '/gate-check',

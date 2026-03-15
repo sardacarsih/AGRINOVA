@@ -1,7 +1,8 @@
 // Gen Z Tab Container - Organism Component
-// Base container with dark gradient background
+// Base container with brightness-aware gradient background
 
 import 'package:flutter/material.dart';
+import '../genz_theme.dart';
 
 /// Base container for Gen Z styled tabs
 class GenZTabContainer extends StatelessWidget {
@@ -17,15 +18,8 @@ class GenZTabContainer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF111827),
-            Color(0xFF1F2937),
-          ],
-        ),
+      decoration: BoxDecoration(
+        gradient: GenZTheme.backgroundGradientFor(context),
       ),
       child: padding != null
           ? Padding(padding: padding!, child: child)

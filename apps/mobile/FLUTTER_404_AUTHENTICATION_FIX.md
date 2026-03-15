@@ -66,22 +66,22 @@ Added detailed logging in `DioClient` to show:
 
 ```bash
 # Test 1: mandor credentials - SUCCESS
-curl -X POST http://localhost:3001/api/v1/auth/login \
-  -H "x-platform: ANDROID" \
-  -d '{"username":"mandor","password":"demo123","deviceId":"test","deviceFingerprint":"test"}'
+curl -X POST http://localhost:3001/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation MobileLogin($input: MobileLoginInput!){mobileLogin(input:$input){accessToken refreshToken user{id username role}}}","variables":{"input":{"identifier":"mandor","password":"demo123","platform":"ANDROID","deviceId":"test","deviceFingerprint":"test"}}}'
 # Result: 200 OK with JWT tokens
 
-# Test 2: satpam credentials - SUCCESS  
-curl -X POST http://localhost:3001/api/v1/auth/login \
-  -H "x-platform: ANDROID" \
-  -d '{"username":"satpam","password":"demo123","deviceId":"test","deviceFingerprint":"test"}'
+# Test 2: satpam credentials - SUCCESS
+curl -X POST http://localhost:3001/graphql \
+  -H "Content-Type: application/json" \
+  -d '{"query":"mutation MobileLogin($input: MobileLoginInput!){mobileLogin(input:$input){accessToken refreshToken user{id username role}}}","variables":{"input":{"identifier":"satpam","password":"demo123","platform":"ANDROID","deviceId":"test","deviceFingerprint":"test"}}}'
 # Result: 200 OK with JWT tokens
 ```
 
 ### Network Configuration Verification
 
 - ✅ **API Server**: Running and accessible at `localhost:3001`
-- ✅ **Unified Endpoint**: `/api/v1/auth/login` working correctly
+- ✅ **Auth Endpoint**: `POST /graphql` with `mobileLogin` mutation working correctly
 - ✅ **Platform Detection**: Smart detection via `x-platform` header
 - ✅ **Mobile JWT Response**: Complete JWT tokens with device binding
 
@@ -174,8 +174,8 @@ print('Auth test result: ${authTest['overallResult']}');
 - ✅ `lib/core/utils/network_debug_helper.dart` - New debugging utilities
 
 ### API Endpoints Verified:
-- ✅ `POST /api/v1/auth/login` - Unified authentication endpoint
-- ✅ Platform detection via `x-platform: ANDROID/IOS` header
+- ✅ `POST /graphql` - mobile authentication via `mobileLogin` mutation
+- ✅ Platform detection via GraphQL login payload (`platform: ANDROID/IOS`)
 - ✅ JWT token response with device binding
 - ✅ Proper error handling and validation
 

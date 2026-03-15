@@ -46,17 +46,17 @@ class GenZActionsGrid extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildTitle(),
+        _buildTitle(context),
         const SizedBox(height: 14),
         _buildGrid(),
       ],
     );
   }
 
-  Widget _buildTitle() {
+  Widget _buildTitle(BuildContext context) {
     return Text(
       'Aksi Cepat',
-      style: MandorTheme.headingSmall,
+      style: MandorTheme.headingSmallFor(context),
     );
   }
 
@@ -125,7 +125,7 @@ class GenZCustomActionsGrid extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (title != null) ...[
-          Text(title!, style: MandorTheme.headingSmall),
+          Text(title!, style: MandorTheme.headingSmallFor(context)),
           const SizedBox(height: 14),
         ],
         GridView.count(

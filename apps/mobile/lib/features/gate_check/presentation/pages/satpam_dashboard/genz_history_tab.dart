@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'genz_components.dart';
+import 'genz_theme.dart';
 
-/// Gen Z Styled History Tab with Modern Dark Theme
+/// Gen Z Styled History Tab with Brightness-Aware Theme
 /// Displays gate check history with filtering capabilities
 /// Matches the premium design with glassmorphism effects
 class GenZHistoryTab extends StatefulWidget {
@@ -63,33 +64,35 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
 
       if (itemDate != null) {
         return itemDate.year == _selectedDate.year &&
-               itemDate.month == _selectedDate.month &&
-               itemDate.day == _selectedDate.day;
+            itemDate.month == _selectedDate.month &&
+            itemDate.day == _selectedDate.day;
       }
 
       // Include items without date info (for backward compatibility)
       return true;
     }).toList();
-    
+
     // Then filter by action type
     if (_currentFilter == 'Semua') {
       return dateFilteredData;
     } else if (_currentFilter == 'Masuk') {
-      return dateFilteredData.where((item) => 
-        (item['action'] as String?)?.toUpperCase() == 'ENTRY'
-      ).toList();
+      return dateFilteredData
+          .where(
+            (item) => (item['action'] as String?)?.toUpperCase() == 'ENTRY',
+          )
+          .toList();
     } else {
-      return dateFilteredData.where((item) => 
-        (item['action'] as String?)?.toUpperCase() == 'EXIT'
-      ).toList();
+      return dateFilteredData
+          .where((item) => (item['action'] as String?)?.toUpperCase() == 'EXIT')
+          .toList();
     }
   }
 
   bool get _isToday {
     final now = DateTime.now();
     return _selectedDate.year == now.year &&
-           _selectedDate.month == now.month &&
-           _selectedDate.day == now.day;
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day;
   }
 
   String get _dateButtonText {
@@ -101,12 +104,15 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
   }
 
   int get _totalCount => _filteredData.length;
-  int get _entryCount => _filteredData.where((item) => 
-    (item['action'] as String?)?.toUpperCase() == 'ENTRY').length;
-  int get _exitCount => _filteredData.where((item) => 
-    (item['action'] as String?)?.toUpperCase() == 'EXIT').length;
+  int get _entryCount => _filteredData
+      .where((item) => (item['action'] as String?)?.toUpperCase() == 'ENTRY')
+      .length;
+  int get _exitCount => _filteredData
+      .where((item) => (item['action'] as String?)?.toUpperCase() == 'EXIT')
+      .length;
 
   Future<void> _selectDate(BuildContext context) async {
+    final themeColors = GenZTheme.of(context);
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -115,12 +121,15 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color(0xFF8B5CF6),
+            colorScheme: ColorScheme.dark(
+              primary: const Color(0xFF8B5CF6),
               onPrimary: Colors.white,
-              surface: Color(0xFF1F2937),
-              onSurface: Colors.white,
-            ), dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF1F2937)),
+              surface: themeColors.cardBackground,
+              onSurface: themeColors.headingColor,
+            ),
+            dialogTheme: DialogThemeData(
+              backgroundColor: themeColors.cardBackground,
+            ),
           ),
           child: child!,
         );
@@ -154,17 +163,17 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
         // Header Card with glassmorphism effect
         _buildHeaderCard(),
         const SizedBox(height: 20),
-        
+
         // Date filter and Toggle buttons row
-        _buildDateFilterRow(),
+        _buildDateFilterRow(context),
         const SizedBox(height: 16),
-        
+
         // Quick Stats Bar
-        _buildQuickStats(),
+        _buildQuickStats(context),
         const SizedBox(height: 20),
-        
+
         // History list
-        _buildHistoryList(),
+        _buildHistoryList(context),
       ],
     );
   }
@@ -205,7 +214,7 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
             ),
           ),
           const SizedBox(width: 16),
-          
+
           // Title and Subtitle
           Expanded(
             child: Column(
@@ -231,7 +240,7 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
               ],
             ),
           ),
-          
+
           // Refresh button
           if (widget.onRefresh != null)
             GestureDetector(
@@ -255,7 +264,9 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
   }
 
   /// Date filter row with "Hari Ini" button and filter chips
-  Widget _buildDateFilterRow() {
+  Widget _buildDateFilterRow(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
+
     return Row(
       children: [
         // Date picker button
@@ -264,14 +275,14 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              color: _isToday 
+              color: _isToday
                   ? const Color(0xFF8B5CF6).withValues(alpha: 0.15)
-                  : const Color(0xFF1F2937),
+                  : themeColors.cardBackground,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: _isToday 
+                color: _isToday
                     ? const Color(0xFF8B5CF6).withValues(alpha: 0.5)
-                    : const Color(0xFF374151),
+                    : themeColors.borderColor,
               ),
             ),
             child: Row(
@@ -282,9 +293,9 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: _isToday 
+                    color: _isToday
                         ? const Color(0xFF8B5CF6)
-                        : const Color(0xFF9CA3AF),
+                        : themeColors.bodySecondary,
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -305,28 +316,28 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF1F2937),
+                color: themeColors.cardBackground,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF374151)),
+                border: Border.all(color: themeColors.borderColor),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.today_rounded,
                 size: 16,
-                color: Color(0xFF9CA3AF),
+                color: themeColors.bodySecondary,
               ),
             ),
           ),
         ],
         const SizedBox(width: 12),
-        
+
         // Filter chips (Semua, Masuk, Keluar)
         Expanded(
           child: Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: const Color(0xFF1F2937),
+              color: themeColors.cardBackground,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF374151)),
+              border: Border.all(color: themeColors.borderColor),
             ),
             child: Row(
               children: _filterOptions.map((filter) {
@@ -338,8 +349,8 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
                       duration: const Duration(milliseconds: 200),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
-                        color: isSelected 
-                            ? const Color(0xFF8B5CF6) 
+                        color: isSelected
+                            ? const Color(0xFF8B5CF6)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -348,8 +359,12 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                          color: isSelected ? Colors.white : const Color(0xFF9CA3AF),
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? Colors.white
+                              : themeColors.bodySecondary,
                         ),
                       ),
                     ),
@@ -364,31 +379,34 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
   }
 
   /// Quick stats bar with Total, Masuk, Keluar counts
-  Widget _buildQuickStats() {
+  Widget _buildQuickStats(BuildContext context) {
     return Row(
       children: [
         // Total stat
         _buildStatChip(
+          context: context,
           label: 'Total:',
           value: _totalCount.toString(),
           color: const Color(0xFF6B7280),
           isOutlined: true,
         ),
         const SizedBox(width: 10),
-        
+
         // Masuk stat with green accent
         Expanded(
           child: _buildStatChip(
+            context: context,
             label: 'Masuk:',
             value: _entryCount.toString(),
             color: const Color(0xFF34D399),
           ),
         ),
         const SizedBox(width: 10),
-        
+
         // Keluar stat with red accent
         Expanded(
           child: _buildStatChip(
+            context: context,
             label: 'Keluar:',
             value: _exitCount.toString(),
             color: const Color(0xFFEF4444),
@@ -399,21 +417,24 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
   }
 
   Widget _buildStatChip({
+    required BuildContext context,
     required String label,
     required String value,
     required Color color,
     bool isOutlined = false,
   }) {
+    final themeColors = GenZTheme.of(context);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
-        color: isOutlined 
-            ? const Color(0xFF1F2937) 
+        color: isOutlined
+            ? themeColors.cardBackground
             : color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isOutlined 
-              ? const Color(0xFF374151) 
+          color: isOutlined
+              ? themeColors.borderColor
               : color.withValues(alpha: 0.4),
         ),
       ),
@@ -425,7 +446,7 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: isOutlined ? const Color(0xFF9CA3AF) : color,
+              color: isOutlined ? themeColors.bodySecondary : color,
             ),
           ),
           const SizedBox(width: 4),
@@ -434,7 +455,7 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: isOutlined ? Colors.white : color,
+              color: isOutlined ? themeColors.headingColor : color,
             ),
           ),
         ],
@@ -442,27 +463,32 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
     );
   }
 
-  Widget _buildHistoryList() {
+  Widget _buildHistoryList(BuildContext context) {
     if (_filteredData.isEmpty) {
-      return _buildEmptyState();
+      return _buildEmptyState(context);
     }
 
     return Column(
       children: _filteredData.map((item) {
         final isEntry = (item['action'] as String?)?.toUpperCase() == 'ENTRY';
-        final plate = item['plate'] as String? ?? item['vehicle_plate'] as String? ?? 'N/A';
+        final plate =
+            item['plate'] as String? ??
+            item['vehicle_plate'] as String? ??
+            'N/A';
         // Check all possible name fields: driver_name, driver, name
-        final driver = item['driver_name'] as String? ??
-                       item['driver'] as String? ??
-                       item['name'] as String? ??
-                       'Unknown';
+        final driver =
+            item['driver_name'] as String? ??
+            item['driver'] as String? ??
+            item['name'] as String? ??
+            'Unknown';
         final time = item['time'] as String? ?? '--:--';
         final registrationSource = item['registration_source'] as String?;
         final destination = item['destination'] as String?;
-        
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: _buildHistoryItem(
+            context: context,
             isEntry: isEntry,
             plate: plate,
             driver: driver,
@@ -477,6 +503,7 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
 
   /// Premium history item matching the design exactly
   Widget _buildHistoryItem({
+    required BuildContext context,
     required bool isEntry,
     required String plate,
     required String driver,
@@ -485,14 +512,17 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
     String? registrationSource,
   }) {
     final color = isEntry ? const Color(0xFF34D399) : const Color(0xFFEF4444);
-    final neonBlue = const Color(0xFF3B82F6);
-    
+    const neonBlue = Color(0xFF3B82F6);
+    final themeColors = GenZTheme.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2937).withValues(alpha: 0.8),
+        color: themeColors.cardBackground.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF374151).withValues(alpha: 0.5)),
+        border: Border.all(
+          color: themeColors.borderColor.withValues(alpha: 0.5),
+        ),
       ),
       child: Row(
         children: [
@@ -503,21 +533,20 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.15),
               shape: BoxShape.circle,
-              border: Border.all(
-                color: color.withValues(alpha: 0.3),
-                width: 2,
-              ),
+              border: Border.all(color: color.withValues(alpha: 0.3), width: 2),
             ),
             child: Center(
               child: Icon(
-                isEntry ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                isEntry
+                    ? Icons.arrow_upward_rounded
+                    : Icons.arrow_downward_rounded,
                 color: color,
                 size: 22,
               ),
             ),
           ),
           const SizedBox(width: 14),
-          
+
           // Content
           Expanded(
             child: Column(
@@ -528,22 +557,33 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
                   children: [
                     Text(
                       plate,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: Colors.white,
+                        color: themeColors.headingColor,
                         letterSpacing: 0.5,
                       ),
                     ),
                     if (registrationSource != null) ...[
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 1,
+                        ),
                         decoration: BoxDecoration(
-                          color: (registrationSource == 'QR_SCAN' ? neonBlue : Colors.orange).withValues(alpha: 0.15),
+                          color:
+                              (registrationSource == 'QR_SCAN'
+                                      ? neonBlue
+                                      : Colors.orange)
+                                  .withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
                           border: Border.all(
-                            color: (registrationSource == 'QR_SCAN' ? neonBlue : Colors.orange).withValues(alpha: 0.4),
+                            color:
+                                (registrationSource == 'QR_SCAN'
+                                        ? neonBlue
+                                        : Colors.orange)
+                                    .withValues(alpha: 0.4),
                             width: 0.5,
                           ),
                         ),
@@ -551,9 +591,13 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              registrationSource == 'QR_SCAN' ? Icons.qr_code_2_rounded : Icons.edit_note_rounded,
+                              registrationSource == 'QR_SCAN'
+                                  ? Icons.qr_code_2_rounded
+                                  : Icons.edit_note_rounded,
                               size: 10,
-                              color: registrationSource == 'QR_SCAN' ? neonBlue : Colors.orange[300],
+                              color: registrationSource == 'QR_SCAN'
+                                  ? neonBlue
+                                  : Colors.orange[300],
                             ),
                             const SizedBox(width: 3),
                             Text(
@@ -561,7 +605,9 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
                               style: TextStyle(
                                 fontSize: 9,
                                 fontWeight: FontWeight.bold,
-                                color: registrationSource == 'QR_SCAN' ? neonBlue : Colors.orange[300],
+                                color: registrationSource == 'QR_SCAN'
+                                    ? neonBlue
+                                    : Colors.orange[300],
                               ),
                             ),
                           ],
@@ -571,24 +617,24 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
                   ],
                 ),
                 const SizedBox(height: 2),
-                
+
                 // Driver name
                 Text(
                   driver,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF9CA3AF),
+                    color: themeColors.bodySecondary,
                   ),
                 ),
-                
+
                 // Destination if available
                 if (destination != null && destination.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
                     destination,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF6B7280),
+                      color: themeColors.bodyTertiary,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -597,20 +643,20 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
               ],
             ),
           ),
-          
+
           // Time
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: Text(
               time,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF9CA3AF),
+                color: themeColors.bodySecondary,
               ),
             ),
           ),
-          
+
           // Status badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -633,13 +679,18 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
+
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(40),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2937).withValues(alpha: 0.6),
+        color: themeColors.cardBackground.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF374151).withValues(alpha: 0.5)),
+        border: Border.all(
+          color: themeColors.borderColor.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -647,33 +698,30 @@ class _GenZHistoryTabState extends State<GenZHistoryTab> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF374151).withValues(alpha: 0.3),
+              color: themeColors.borderColor.withValues(alpha: 0.3),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.inbox_rounded,
               size: 48,
-              color: Color(0xFF6B7280),
+              color: themeColors.bodyTertiary,
             ),
           ),
           const SizedBox(height: 16),
           Text(
-            _currentFilter == 'Semua' 
-                ? 'Belum ada riwayat' 
+            _currentFilter == 'Semua'
+                ? 'Belum ada riwayat'
                 : 'Tidak ada data $_currentFilter',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF9CA3AF),
+              color: themeColors.bodySecondary,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Data akan muncul setelah ada aktivitas',
-            style: TextStyle(
-              fontSize: 13,
-              color: Color(0xFF6B7280),
-            ),
+            style: TextStyle(fontSize: 13, color: themeColors.bodyTertiary),
           ),
         ],
       ),

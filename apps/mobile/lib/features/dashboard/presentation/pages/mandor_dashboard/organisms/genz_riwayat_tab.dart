@@ -171,7 +171,9 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
         }
       },
       child: Container(
-        decoration: BoxDecoration(gradient: MandorTheme.darkGradient),
+        decoration: BoxDecoration(
+          gradient: MandorTheme.backgroundGradientFor(context),
+        ),
         child: RefreshIndicator(
           onRefresh: () async {
             await _loadHistory();
@@ -217,7 +219,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: MandorTheme.glassCardBox,
+      decoration: MandorTheme.glassCardFor(context),
       child: Row(
         children: [
           Container(
@@ -239,18 +241,24 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Riwayat Panen', style: MandorTheme.headingSmall),
+                Text(
+                  'Riwayat Panen',
+                  style: MandorTheme.headingSmallFor(context),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   'Data panen ${_getDateRangeText()}',
-                  style: MandorTheme.bodySmall,
+                  style: MandorTheme.bodySmallFor(context),
                 ),
               ],
             ),
           ),
           IconButton(
             onPressed: _loadHistory,
-            icon: Icon(Icons.refresh_rounded, color: MandorTheme.gray400),
+            icon: Icon(
+              Icons.refresh_rounded,
+              color: MandorTheme.of(context).bodySecondary,
+            ),
             tooltip: 'Muat Ulang',
           ),
         ],
@@ -291,11 +299,11 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
             colorScheme: ColorScheme.dark(
               primary: MandorTheme.forestGreen,
               onPrimary: Colors.white,
-              surface: MandorTheme.gray800,
-              onSurface: Colors.white,
+              surface: MandorTheme.of(context).cardBackground,
+              onSurface: MandorTheme.of(context).headingColor,
             ),
-            dialogTheme: const DialogThemeData(
-              backgroundColor: MandorTheme.gray800,
+            dialogTheme: DialogThemeData(
+              backgroundColor: MandorTheme.of(context).cardBackground,
             ),
           ),
           child: child!,
@@ -334,18 +342,20 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
             icon: Icon(
               Icons.calendar_today_rounded,
               size: 16,
-              color: MandorTheme.gray300,
+              color: MandorTheme.of(context).bodyColor,
             ),
             label: Text(
               _dateButtonText,
-              style: MandorTheme.bodyMedium.copyWith(
-                color: MandorTheme.gray300,
+              style: MandorTheme.bodyMediumFor(context).copyWith(
+                color: MandorTheme.of(context).bodyColor,
                 fontWeight: FontWeight.w600,
               ),
             ),
             style: OutlinedButton.styleFrom(
-              backgroundColor: MandorTheme.gray800.withValues(alpha: 0.8),
-              side: BorderSide(color: MandorTheme.gray700),
+              backgroundColor: MandorTheme.of(
+                context,
+              ).cardBackground.withValues(alpha: 0.8),
+              side: BorderSide(color: MandorTheme.of(context).borderColor),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -372,9 +382,9 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: MandorTheme.gray800,
+        color: MandorTheme.of(context).cardBackground,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: MandorTheme.gray700),
+        border: Border.all(color: MandorTheme.of(context).borderColor),
       ),
       child: Row(
         children: _filterOptions.map((filter) {
@@ -396,7 +406,9 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                    color: isSelected ? Colors.white : MandorTheme.gray400,
+                    color: isSelected
+                        ? Colors.white
+                        : MandorTheme.of(context).bodySecondary,
                   ),
                 ),
               ),
@@ -530,12 +542,12 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
         decoration: BoxDecoration(
           color: isHighlighted
               ? MandorTheme.electricBlue.withValues(alpha: 0.18)
-              : MandorTheme.gray800.withValues(alpha: 0.6),
+              : MandorTheme.of(context).cardBackground.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: isHighlighted
                 ? MandorTheme.electricBlue
-                : MandorTheme.gray700,
+                : MandorTheme.of(context).borderColor,
             width: isHighlighted ? 1.6 : 1,
           ),
         ),
@@ -560,8 +572,8 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                       Expanded(
                         child: Text(
                           harvest.employeeName,
-                          style: MandorTheme.bodyMedium.copyWith(
-                            color: Colors.white,
+                          style: MandorTheme.bodyMediumFor(context).copyWith(
+                            color: MandorTheme.of(context).headingColor,
                             fontWeight: FontWeight.w600,
                           ),
                           maxLines: 1,
@@ -619,12 +631,12 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                   const SizedBox(height: 4),
                   Text(
                     '${harvest.blockName} - ${harvest.tbsQuantity.toStringAsFixed(0)} janjang',
-                    style: MandorTheme.bodySmall,
+                    style: MandorTheme.bodySmallFor(context),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     _formatDate(harvest.createdAt),
-                    style: MandorTheme.labelSmall,
+                    style: MandorTheme.labelSmallFor(context),
                   ),
                 ],
               ),
@@ -653,7 +665,10 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                 ],
               )
             else
-              Icon(Icons.chevron_right_rounded, color: MandorTheme.gray500),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: MandorTheme.of(context).bodyTertiary,
+              ),
           ],
         ),
       ),
@@ -780,35 +795,46 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: MandorTheme.gray800,
+        backgroundColor: MandorTheme.of(dialogContext).cardBackground,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        title: Text(
           'Detail Panen',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: MandorTheme.of(dialogContext).headingColor),
         ),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDetailRow('ID Panen', harvest.id),
-              _buildDetailRow('Karyawan', harvest.employeeName),
-              _buildDetailRow('Blok', harvest.blockName),
-              _buildDetailRow('Divisi', harvest.divisionName),
-              _buildDetailRow('Status', harvest.status.toUpperCase()),
+              _buildDetailRow(dialogContext, 'ID Panen', harvest.id),
+              _buildDetailRow(dialogContext, 'Karyawan', harvest.employeeName),
+              _buildDetailRow(dialogContext, 'Blok', harvest.blockName),
+              _buildDetailRow(dialogContext, 'Divisi', harvest.divisionName),
               _buildDetailRow(
+                dialogContext,
+                'Status',
+                harvest.status.toUpperCase(),
+              ),
+              _buildDetailRow(
+                dialogContext,
                 'Jumlah Janjang',
                 harvest.tbsQuantity.toStringAsFixed(0),
               ),
               _buildDetailRow(
+                dialogContext,
                 'Tanggal Panen',
                 _formatDate(harvest.harvestDate),
               ),
               if (harvest.notes != null && harvest.notes!.trim().isNotEmpty)
-                _buildDetailRow('Catatan', harvest.notes!.trim()),
+                _buildDetailRow(
+                  dialogContext,
+                  'Catatan',
+                  harvest.notes!.trim(),
+                ),
               if (harvest.rejectionReason != null &&
                   harvest.rejectionReason!.trim().isNotEmpty)
                 _buildDetailRow(
+                  dialogContext,
                   'Alasan Penolakan',
                   harvest.rejectionReason!.trim(),
                 ),
@@ -817,9 +843,9 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
                     'Gunakan tombol Perbaiki untuk kirim ulang sebagai data Pending.',
-                    style: MandorTheme.labelSmall.copyWith(
-                      color: MandorTheme.amberOrange,
-                    ),
+                    style: MandorTheme.labelSmallFor(
+                      dialogContext,
+                    ).copyWith(color: MandorTheme.amberOrange),
                   ),
                 ),
             ],
@@ -828,7 +854,10 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text('Tutup', style: TextStyle(color: MandorTheme.gray300)),
+            child: Text(
+              'Tutup',
+              style: TextStyle(color: MandorTheme.of(dialogContext).bodyColor),
+            ),
           ),
           if (_canEditHarvest(harvest))
             ElevatedButton(
@@ -848,7 +877,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
     );
   }
 
-  Widget _buildDetailRow(String label, String value) {
+  Widget _buildDetailRow(BuildContext context, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Column(
@@ -856,12 +885,16 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
         children: [
           Text(
             label,
-            style: MandorTheme.labelSmall.copyWith(color: MandorTheme.gray400),
+            style: MandorTheme.labelSmallFor(
+              context,
+            ).copyWith(color: MandorTheme.of(context).bodySecondary),
           ),
           const SizedBox(height: 2),
           Text(
             value,
-            style: MandorTheme.bodySmall.copyWith(color: Colors.white),
+            style: MandorTheme.bodySmallFor(
+              context,
+            ).copyWith(color: MandorTheme.of(context).headingColor),
           ),
         ],
       ),
@@ -878,17 +911,25 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: MandorTheme.gray800,
+        backgroundColor: MandorTheme.of(dialogContext).cardBackground,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Panen', style: TextStyle(color: Colors.white)),
+        title: Text(
+          'Hapus Panen',
+          style: TextStyle(color: MandorTheme.of(dialogContext).headingColor),
+        ),
         content: Text(
           'Yakin hapus data panen ${harvest.employeeName} di blok ${harvest.blockName}?',
-          style: MandorTheme.bodySmall,
+          style: MandorTheme.bodySmallFor(dialogContext),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text('Batal', style: TextStyle(color: MandorTheme.gray400)),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: MandorTheme.of(dialogContext).bodySecondary,
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -966,13 +1007,17 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
             final isMatch = quantity > 0 && totalQuality == quantity;
 
             return AlertDialog(
-              backgroundColor: MandorTheme.gray800,
+              backgroundColor: MandorTheme.of(
+                dialogBuilderContext,
+              ).cardBackground,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              title: const Text(
+              title: Text(
                 'Edit Panen',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(
+                  color: MandorTheme.of(dialogBuilderContext).headingColor,
+                ),
               ),
               content: SingleChildScrollView(
                 child: Column(
@@ -981,40 +1026,46 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                   children: [
                     Text(
                       '${harvest.employeeName} - ${harvest.blockName}',
-                      style: MandorTheme.bodySmall,
+                      style: MandorTheme.bodySmallFor(dialogBuilderContext),
                     ),
                     const SizedBox(height: 12),
                     _buildEditNumberField(
+                      dialogBuilderContext,
                       controller: quantityController,
                       label: 'Jumlah Janjang',
                       onChanged: (_) => setDialogState(recalculateMatang),
                     ),
                     const SizedBox(height: 10),
                     _buildEditNumberField(
+                      dialogBuilderContext,
                       controller: matangController,
                       label: 'Jjg Matang (otomatis)',
                       readOnly: true,
                     ),
                     const SizedBox(height: 10),
                     _buildEditNumberField(
+                      dialogBuilderContext,
                       controller: mentahController,
                       label: 'Jjg Mentah',
                       onChanged: (_) => setDialogState(recalculateMatang),
                     ),
                     const SizedBox(height: 10),
                     _buildEditNumberField(
+                      dialogBuilderContext,
                       controller: lewatMatangController,
                       label: 'Jjg Lewat Matang',
                       onChanged: (_) => setDialogState(recalculateMatang),
                     ),
                     const SizedBox(height: 10),
                     _buildEditNumberField(
+                      dialogBuilderContext,
                       controller: busukController,
                       label: 'Jjg Busuk/Abnormal',
                       onChanged: (_) => setDialogState(recalculateMatang),
                     ),
                     const SizedBox(height: 10),
                     _buildEditNumberField(
+                      dialogBuilderContext,
                       controller: tangkaiController,
                       label: 'Jjg Tangkai Panjang',
                       onChanged: (_) => setDialogState(recalculateMatang),
@@ -1022,25 +1073,33 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                     const SizedBox(height: 10),
                     Text(
                       'Total kualitas: $totalQuality / $quantity',
-                      style: MandorTheme.bodySmall.copyWith(
-                        color: isMatch
-                            ? MandorTheme.forestGreen
-                            : MandorTheme.coralRed,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: MandorTheme.bodySmallFor(dialogBuilderContext)
+                          .copyWith(
+                            color: isMatch
+                                ? MandorTheme.forestGreen
+                                : MandorTheme.coralRed,
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: notesController,
                       maxLines: 3,
-                      style: MandorTheme.bodySmall.copyWith(
-                        color: Colors.white,
-                      ),
+                      style: MandorTheme.bodySmallFor(dialogBuilderContext)
+                          .copyWith(
+                            color: MandorTheme.of(
+                              dialogBuilderContext,
+                            ).headingColor,
+                          ),
                       decoration: InputDecoration(
                         labelText: 'Catatan',
-                        labelStyle: MandorTheme.labelSmall,
+                        labelStyle: MandorTheme.labelSmallFor(
+                          dialogBuilderContext,
+                        ),
                         filled: true,
-                        fillColor: MandorTheme.gray900,
+                        fillColor: MandorTheme.of(
+                          dialogBuilderContext,
+                        ).scaffoldBackground,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
                           borderSide: BorderSide.none,
@@ -1055,7 +1114,9 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                   onPressed: () => Navigator.of(dialogContext).pop(),
                   child: Text(
                     'Batal',
-                    style: TextStyle(color: MandorTheme.gray400),
+                    style: TextStyle(
+                      color: MandorTheme.of(dialogBuilderContext).bodySecondary,
+                    ),
                   ),
                 ),
                 ElevatedButton(
@@ -1123,7 +1184,8 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
     );
   }
 
-  Widget _buildEditNumberField({
+  Widget _buildEditNumberField(
+    BuildContext context, {
     required TextEditingController controller,
     required String label,
     bool readOnly = false,
@@ -1133,12 +1195,16 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
       controller: controller,
       keyboardType: TextInputType.number,
       readOnly: readOnly,
-      style: MandorTheme.bodySmall.copyWith(color: Colors.white),
+      style: MandorTheme.bodySmallFor(
+        context,
+      ).copyWith(color: MandorTheme.of(context).headingColor),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: MandorTheme.labelSmall,
+        labelStyle: MandorTheme.labelSmallFor(context),
         filled: true,
-        fillColor: readOnly ? MandorTheme.gray700 : MandorTheme.gray900,
+        fillColor: readOnly
+            ? MandorTheme.of(context).borderColor
+            : MandorTheme.of(context).scaffoldBackground,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
@@ -1159,7 +1225,7 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
       case 'REJECTED':
         return MandorTheme.coralRed;
       default:
-        return MandorTheme.gray400;
+        return MandorTheme.electricBlue;
     }
   }
 
@@ -1195,11 +1261,14 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
 
   Widget _buildEmptyState() {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(40),
       decoration: BoxDecoration(
-        color: MandorTheme.gray800.withValues(alpha: 0.6),
+        color: MandorTheme.of(context).cardBackground.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: MandorTheme.gray700.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: MandorTheme.of(context).borderColor.withValues(alpha: 0.5),
+        ),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1207,13 +1276,13 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: MandorTheme.gray700.withValues(alpha: 0.3),
+              color: MandorTheme.of(context).borderColor.withValues(alpha: 0.3),
               shape: BoxShape.circle,
             ),
             child: Icon(
               Icons.inbox_rounded,
               size: 48,
-              color: MandorTheme.gray500,
+              color: MandorTheme.of(context).bodyTertiary,
             ),
           ),
           const SizedBox(height: 16),
@@ -1221,12 +1290,14 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
             _currentFilter == 'Semua'
                 ? 'Belum ada riwayat panen'
                 : 'Tidak ada data $_currentFilter',
-            style: MandorTheme.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+            style: MandorTheme.bodyMediumFor(
+              context,
+            ).copyWith(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Text(
             'Data akan muncul setelah ada input panen',
-            style: MandorTheme.bodySmall,
+            style: MandorTheme.bodySmallFor(context),
             textAlign: TextAlign.center,
           ),
         ],

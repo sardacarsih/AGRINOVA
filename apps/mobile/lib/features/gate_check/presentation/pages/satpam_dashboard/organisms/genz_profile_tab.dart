@@ -8,6 +8,7 @@ import '../../../../../../core/constants/api_constants.dart';
 import '../../../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../../../auth/presentation/pages/change_password_page.dart';
 import '../../../../../../core/services/profile_photo_service.dart';
+import '../../../../../../core/theme/theme_mode_service.dart';
 import '../../../../../../shared/widgets/current_user_avatar.dart';
 import '../genz_theme.dart';
 
@@ -60,19 +61,15 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
         if (state is AuthAuthenticated) {
           return _buildContent(context, state);
         }
-        return _buildLoadingState();
+        return _buildLoadingState(context);
       },
     );
   }
 
-  Widget _buildLoadingState() {
+  Widget _buildLoadingState(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF111827), Color(0xFF1F2937)],
-        ),
+      decoration: BoxDecoration(
+        gradient: GenZTheme.backgroundGradientFor(context),
       ),
       child: const Center(
         child: CircularProgressIndicator(
@@ -84,23 +81,19 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
 
   Widget _buildContent(BuildContext context, AuthAuthenticated state) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF111827), Color(0xFF1F2937)],
-        ),
+      decoration: BoxDecoration(
+        gradient: GenZTheme.backgroundGradientFor(context),
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             // Profile Card
-            _buildProfileCard(state),
+            _buildProfileCard(context, state),
             const SizedBox(height: 24),
 
             // Quick Info
-            _buildQuickInfo(state),
+            _buildQuickInfo(context, state),
             const SizedBox(height: 24),
 
             // Settings Section
@@ -108,7 +101,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
             const SizedBox(height: 24),
 
             // App Info
-            _buildAppInfo(),
+            _buildAppInfo(context),
             const SizedBox(height: 24),
 
             // Logout Button
@@ -121,7 +114,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
     );
   }
 
-  Widget _buildProfileCard(AuthAuthenticated state) {
+  Widget _buildProfileCard(BuildContext context, AuthAuthenticated state) {
     final user = state.user;
 
     return Container(
@@ -144,7 +137,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
         children: [
           // Avatar with photo upload
           GestureDetector(
-            onTap: () => _showPhotoOptions(state.user.id),
+            onTap: () => _showPhotoOptions(context, state.user.id),
             child: Stack(
               children: [
                 Container(
@@ -195,7 +188,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
                       color: GenZTheme.electricPurple,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: const Color(0xFF111827),
+                        color: GenZTheme.of(context).scaffoldBackground,
                         width: 2,
                       ),
                     ),
@@ -214,10 +207,10 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
           // Name
           Text(
             user.fullName,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
-              color: Colors.white,
+              color: GenZTheme.of(context).headingColor,
             ),
             textAlign: TextAlign.center,
           ),
@@ -249,7 +242,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
             '@${user.username}',
             style: TextStyle(
               fontSize: 14,
-              color: Colors.white.withValues(alpha: 0.6),
+              color: GenZTheme.of(context).bodySecondary,
             ),
           ),
         ],
@@ -257,10 +250,12 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
     );
   }
 
-  void _showPhotoOptions(String userId) {
+  void _showPhotoOptions(BuildContext context, String userId) {
+    final themeColors = GenZTheme.of(context);
+
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1F2937),
+      backgroundColor: themeColors.cardBackground,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -274,21 +269,22 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.3),
+                  color: GenZTheme.of(context).bodyTertiary,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Ubah Foto Profil',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: GenZTheme.of(context).headingColor,
                 ),
               ),
               const SizedBox(height: 20),
               _buildPhotoOption(
+                context: context,
                 icon: Icons.camera_alt_rounded,
                 label: 'Ambil Foto',
                 onTap: () {
@@ -298,6 +294,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
               ),
               const SizedBox(height: 12),
               _buildPhotoOption(
+                context: context,
                 icon: Icons.photo_library_rounded,
                 label: 'Pilih dari Galeri',
                 onTap: () {
@@ -308,6 +305,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
               if (_profilePhotoPath != null) ...[
                 const SizedBox(height: 12),
                 _buildPhotoOption(
+                  context: context,
                   icon: Icons.delete_rounded,
                   label: 'Hapus Foto',
                   isDestructive: true,
@@ -326,11 +324,14 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
   }
 
   Widget _buildPhotoOption({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required VoidCallback onTap,
     bool isDestructive = false,
   }) {
+    final themeColors = GenZTheme.of(context);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -340,12 +341,12 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
         decoration: BoxDecoration(
           color: isDestructive
               ? Colors.red.withValues(alpha: 0.1)
-              : Colors.white.withValues(alpha: 0.05),
+              : themeColors.surfaceOverlay,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isDestructive
                 ? Colors.red.withValues(alpha: 0.3)
-                : Colors.white.withValues(alpha: 0.1),
+                : themeColors.borderColor,
           ),
         ),
         child: Row(
@@ -359,7 +360,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
               label,
               style: TextStyle(
                 fontSize: 16,
-                color: isDestructive ? Colors.red : Colors.white,
+                color: isDestructive ? Colors.red : themeColors.headingColor,
               ),
             ),
           ],
@@ -466,10 +467,12 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
     );
   }
 
-  Widget _buildQuickInfo(AuthAuthenticated state) {
+  Widget _buildQuickInfo(BuildContext context, AuthAuthenticated state) {
+    final themeColors = GenZTheme.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: GenZTheme.glassCardDark(),
+      decoration: GenZTheme.filledCardFor(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -483,18 +486,21 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
           ),
           const SizedBox(height: 16),
           _buildInfoRow(
+            context: context,
             icon: Icons.business_rounded,
             label: 'Perusahaan',
             value: state.user.companyName ?? 'Agrinova Palm Oil',
           ),
-          const Divider(color: Color(0xFF374151), height: 24),
+          Divider(color: themeColors.borderColor, height: 24),
           _buildInfoRow(
+            context: context,
             icon: Icons.email_rounded,
             label: 'Email',
             value: state.user.email,
           ),
-          const Divider(color: Color(0xFF374151), height: 24),
+          Divider(color: themeColors.borderColor, height: 24),
           _buildInfoRow(
+            context: context,
             icon: Icons.wifi_off_rounded,
             label: 'Mode Offline',
             value: state.isOfflineMode ? 'Aktif' : 'Tidak Aktif',
@@ -508,20 +514,23 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
   }
 
   Widget _buildInfoRow({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required String value,
     Color? valueColor,
   }) {
+    final themeColors = GenZTheme.of(context);
+
     return Row(
       children: [
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: const Color(0xFF374151),
+            color: themeColors.borderColor,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: const Color(0xFF9CA3AF), size: 18),
+          child: Icon(icon, color: themeColors.bodySecondary, size: 18),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -530,10 +539,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.white.withValues(alpha: 0.5),
-                ),
+                style: TextStyle(fontSize: 12, color: themeColors.bodyTertiary),
               ),
               const SizedBox(height: 2),
               Text(
@@ -541,7 +547,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: valueColor ?? Colors.white,
+                  color: valueColor ?? themeColors.headingColor,
                 ),
               ),
             ],
@@ -553,7 +559,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
 
   Widget _buildSettingsSection(BuildContext context) {
     return Container(
-      decoration: GenZTheme.glassCardDark(),
+      decoration: GenZTheme.filledCardFor(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -569,6 +575,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
             ),
           ),
           _buildSettingItem(
+            context: context,
             icon: Icons.fingerprint_rounded,
             title: 'Keamanan Biometrik / PIN',
             subtitle: 'Sidik jari, wajah, atau PIN perangkat',
@@ -577,24 +584,29 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
             },
           ),
           _buildSettingItem(
+            context: context,
             icon: Icons.lock_outline_rounded,
             title: 'Ubah Password',
             subtitle: 'Ganti password akun',
             onTap: () => _openChangePassword(),
           ),
           _buildSettingItem(
+            context: context,
             icon: Icons.notifications_rounded,
             title: 'Notifikasi',
             subtitle: 'Atur pemberitahuan',
             onTap: () => _showComingSoon(context),
           ),
           _buildSettingItem(
+            context: context,
             icon: Icons.language_rounded,
             title: 'Bahasa',
             subtitle: 'Indonesia',
             onTap: () => _showComingSoon(context),
           ),
+          _buildThemeSwitchItem(context),
           _buildSettingItem(
+            context: context,
             icon: Icons.help_rounded,
             title: 'Bantuan',
             subtitle: 'FAQ dan panduan',
@@ -606,13 +618,87 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
     );
   }
 
+  Widget _buildThemeSwitchItem(BuildContext context) {
+    return AnimatedBuilder(
+      animation: ThemeModeService.instance,
+      builder: (context, _) {
+        final themeColors = GenZTheme.of(context);
+        final isDarkMode = ThemeModeService.instance.isDarkMode;
+
+        return Column(
+          children: [
+            InkWell(
+              onTap: () {
+                ThemeModeService.instance.setDarkMode(!isDarkMode);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: themeColors.borderColor,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        isDarkMode
+                            ? Icons.dark_mode_rounded
+                            : Icons.light_mode_rounded,
+                        color: themeColors.bodySecondary,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tema Gelap',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: themeColors.headingColor,
+                            ),
+                          ),
+                          Text(
+                            isDarkMode ? 'Aktif' : 'Nonaktif',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: themeColors.bodyTertiary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch.adaptive(
+                      value: isDarkMode,
+                      onChanged: ThemeModeService.instance.setDarkMode,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Divider(color: themeColors.borderColor, height: 1, indent: 56),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildSettingItem({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
     bool showDivider = true,
   }) {
+    final themeColors = GenZTheme.of(context);
+
     return Column(
       children: [
         InkWell(
@@ -624,10 +710,10 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF374151),
+                    color: themeColors.borderColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, color: const Color(0xFF9CA3AF), size: 18),
+                  child: Icon(icon, color: themeColors.bodySecondary, size: 18),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -636,39 +722,41 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
-                          color: Colors.white,
+                          color: themeColors.headingColor,
                         ),
                       ),
                       Text(
                         subtitle,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.5),
+                          color: themeColors.bodyTertiary,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.chevron_right_rounded,
-                  color: Color(0xFF6B7280),
+                  color: themeColors.bodyTertiary,
                 ),
               ],
             ),
           ),
         ),
         if (showDivider)
-          const Divider(color: Color(0xFF374151), height: 1, indent: 56),
+          Divider(color: themeColors.borderColor, height: 1, indent: 56),
       ],
     );
   }
 
-  Widget _buildAppInfo() {
+  Widget _buildAppInfo(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: GenZTheme.glassCardDark(),
+      decoration: GenZTheme.filledCardFor(context),
       child: Row(
         children: [
           Container(
@@ -690,11 +778,11 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Agrinova Mobile',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white,
+                    color: themeColors.headingColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -702,7 +790,7 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
                   'v${ApiConstants.appVersionDisplay} - Satpam Dashboard',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: themeColors.bodyTertiary,
                   ),
                 ),
               ],
@@ -739,32 +827,31 @@ class _GenZProfileTabState extends State<GenZProfileTab> {
   }
 
   void _confirmLogout(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1F2937),
+        backgroundColor: themeColors.cardBackground,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        title: Text(
           'Keluar Aplikasi?',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: themeColors.headingColor,
           ),
         ),
         content: Text(
           'Anda yakin ingin keluar dari aplikasi?',
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.white.withValues(alpha: 0.7),
-          ),
+          style: TextStyle(fontSize: 14, color: themeColors.bodySecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
               'Batal',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+              style: TextStyle(color: themeColors.bodySecondary),
             ),
           ),
           TextButton(

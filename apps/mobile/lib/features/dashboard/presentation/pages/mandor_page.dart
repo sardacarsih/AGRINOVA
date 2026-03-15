@@ -14,6 +14,7 @@ import '../../../../shared/widgets/logout_menu_widget.dart';
 import '../../../../core/di/dependency_injection.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/fcm_service.dart';
+import '../../../../core/theme/theme_mode_service.dart';
 
 // Import Mandor Dashboard Components
 import 'mandor_dashboard/mandor_components.dart';
@@ -111,8 +112,8 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
       return false;
     }
 
-    final mandorType =
-        (authState.user.effectiveMandorType ?? 'PANEN').toUpperCase();
+    final mandorType = (authState.user.effectiveMandorType ?? 'PANEN')
+        .toUpperCase();
     return mandorType != 'PERAWATAN';
   }
 
@@ -474,7 +475,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
 
   Widget _buildScaffold(BuildContext context, AuthAuthenticated authState) {
     return Scaffold(
-      backgroundColor: MandorTheme.gray900,
+      backgroundColor: MandorTheme.of(context).scaffoldBackground,
       appBar: _buildAppBar(context, authState),
       body: _buildBody(context, authState),
       floatingActionButton: _buildFAB(),
@@ -498,6 +499,23 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
       foregroundColor: Colors.white,
       elevation: 0,
       actions: [
+        AnimatedBuilder(
+          animation: ThemeModeService.instance,
+          builder: (context, _) {
+            final isDarkMode = ThemeModeService.instance.isDarkMode;
+            return IconButton(
+              onPressed: () {
+                ThemeModeService.instance.setDarkMode(!isDarkMode);
+              },
+              icon: Icon(
+                isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                color: Colors.white,
+              ),
+              tooltip: isDarkMode ? 'Mode gelap aktif' : 'Mode terang aktif',
+            );
+          },
+        ),
+
         // Notification Button
         IconButton(
           icon: MandorIconBadge(
@@ -690,7 +708,9 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
 
   Widget _buildLoadingContent() {
     return Container(
-      decoration: BoxDecoration(gradient: MandorTheme.darkGradient),
+      decoration: BoxDecoration(
+        gradient: MandorTheme.backgroundGradientFor(context),
+      ),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -701,7 +721,10 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
               ),
             ),
             const SizedBox(height: 16),
-            Text('Memuat data dashboard...', style: MandorTheme.bodyMedium),
+            Text(
+              'Memuat data dashboard...',
+              style: MandorTheme.bodyMediumFor(context),
+            ),
           ],
         ),
       ),
@@ -710,7 +733,9 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
 
   Widget _buildErrorContent(BuildContext context, String message) {
     return Container(
-      decoration: BoxDecoration(gradient: MandorTheme.darkGradient),
+      decoration: BoxDecoration(
+        gradient: MandorTheme.backgroundGradientFor(context),
+      ),
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -723,11 +748,14 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
                 color: MandorTheme.coralRed.withValues(alpha: 0.7),
               ),
               const SizedBox(height: 16),
-              Text('Gagal memuat data', style: MandorTheme.headingSmall),
+              Text(
+                'Gagal memuat data',
+                style: MandorTheme.headingSmallFor(context),
+              ),
               const SizedBox(height: 8),
               Text(
                 message,
-                style: MandorTheme.bodySmall,
+                style: MandorTheme.bodySmallFor(context),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
@@ -755,7 +783,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
 
   Widget _buildLoadingScreen() {
     return Scaffold(
-      backgroundColor: MandorTheme.gray900,
+      backgroundColor: MandorTheme.of(context).scaffoldBackground,
       appBar: AppBar(
         title: const Text('Mandor Dashboard'),
         backgroundColor: MandorTheme.darkGreen,
@@ -771,7 +799,10 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
               ),
             ),
             const SizedBox(height: 16),
-            Text('Memuat dashboard...', style: MandorTheme.bodyMedium),
+            Text(
+              'Memuat dashboard...',
+              style: MandorTheme.bodyMediumFor(context),
+            ),
           ],
         ),
       ),
@@ -802,7 +833,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: color ?? MandorTheme.gray700,
+        backgroundColor: color ?? MandorTheme.of(context).cardBackground,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -909,7 +940,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
     await Navigator.of(blocContext).push(
       MaterialPageRoute(
         builder: (context) => Scaffold(
-          backgroundColor: MandorTheme.gray900,
+          backgroundColor: MandorTheme.of(context).scaffoldBackground,
           appBar: AppBar(
             title: const Text('Profil Mandor'),
             backgroundColor: MandorTheme.darkGreen,

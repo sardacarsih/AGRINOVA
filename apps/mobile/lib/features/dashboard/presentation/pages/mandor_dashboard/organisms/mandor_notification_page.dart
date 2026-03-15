@@ -43,7 +43,7 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: MandorTheme.gray900,
+      backgroundColor: MandorTheme.of(context).scaffoldBackground,
       appBar: _buildAppBar(),
       body: _isLoading ? _buildLoadingState() : _buildBody(),
     );
@@ -139,7 +139,9 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
       children: [
         Text(
           title,
-          style: MandorTheme.labelMedium.copyWith(color: MandorTheme.gray400),
+          style: MandorTheme.labelMediumFor(context).copyWith(
+            color: MandorTheme.of(context).bodySecondary,
+          ),
         ),
         if (count != null) ...[
           const SizedBox(width: 8),
@@ -168,11 +170,11 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: notif.isRead
-            ? MandorTheme.gray800
+            ? MandorTheme.of(context).cardBackground
             : MandorTheme.forestGreen.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: notif.isRead
-            ? Border.all(color: MandorTheme.gray700)
+            ? Border.all(color: MandorTheme.of(context).borderColor)
             : Border.all(color: MandorTheme.forestGreen.withValues(alpha: 0.3)),
       ),
       child: Material(
@@ -216,7 +218,7 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
                                     ? FontWeight.w500
                                     : FontWeight.w600,
                                 fontSize: 14,
-                                color: Colors.white,
+                                color: MandorTheme.of(context).headingColor,
                               ),
                             ),
                           ),
@@ -236,7 +238,7 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
                         notif.message,
                         style: TextStyle(
                           fontSize: 13,
-                          color: MandorTheme.gray400,
+                          color: MandorTheme.of(context).bodySecondary,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -246,7 +248,7 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
                         notif.relativeTime,
                         style: TextStyle(
                           fontSize: 12,
-                          color: MandorTheme.gray500,
+                          color: MandorTheme.of(context).bodyTertiary,
                         ),
                       ),
                     ],
@@ -268,19 +270,21 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
           Icon(
             Icons.notifications_none_rounded,
             size: 80,
-            color: MandorTheme.gray600,
+            color: MandorTheme.of(context).borderColor,
           ),
           const SizedBox(height: 16),
           Text(
             'Tidak ada notifikasi',
-            style: MandorTheme.headingSmall.copyWith(
-              color: MandorTheme.gray400,
+            style: MandorTheme.headingSmallFor(context).copyWith(
+              color: MandorTheme.of(context).bodySecondary,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Notifikasi dari Asisten akan muncul di sini',
-            style: MandorTheme.bodySmall.copyWith(color: MandorTheme.gray500),
+            style: MandorTheme.bodySmallFor(context).copyWith(
+              color: MandorTheme.of(context).bodyTertiary,
+            ),
           ),
           const SizedBox(height: 24),
           TextButton.icon(
@@ -375,15 +379,15 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
   void _showClearAllConfirmation() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: MandorTheme.gray800,
-        title: const Text(
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: MandorTheme.of(dialogContext).cardBackground,
+        title: Text(
           'Hapus Semua Notifikasi?',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: MandorTheme.of(dialogContext).headingColor),
         ),
-        content: const Text(
+        content: Text(
           'Semua notifikasi akan dihapus secara permanen.',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(color: MandorTheme.of(dialogContext).bodyColor),
         ),
         actions: [
           TextButton(

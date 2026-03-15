@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../genz_theme.dart';
 import '../molecules/genz_section_header.dart';
 import 'genz_tab_container.dart';
 
@@ -63,7 +64,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     )..repeat(reverse: true);
-    
+
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
@@ -94,31 +95,33 @@ class _GenZValidationTabState extends State<GenZValidationTab>
           subtitle: 'Scan QR atau input manual',
         ),
         const SizedBox(height: 24),
-        _buildScannerArea(),
+        _buildScannerArea(context),
         const SizedBox(height: 16),
-        _buildControlButtons(),
+        _buildControlButtons(context),
         const SizedBox(height: 24),
-        _buildManualEntryButton(),
+        _buildManualEntryButton(context),
         if (widget.recentScans.isNotEmpty) ...[
           const SizedBox(height: 24),
-          _buildRecentScansSection(),
+          _buildRecentScansSection(context),
         ],
       ],
     );
   }
 
-  Widget _buildScannerArea() {
+  Widget _buildScannerArea(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
+
     return Stack(
       children: [
         Container(
           height: 320,
           decoration: BoxDecoration(
-            color: const Color(0xFF1F2937),
+            color: themeColors.cardBackground,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: widget.isScanning 
-                  ? const Color(0xFF3B82F6).withValues(alpha: 0.5) 
-                  : const Color(0xFF374151),
+              color: widget.isScanning
+                  ? const Color(0xFF3B82F6).withValues(alpha: 0.5)
+                  : themeColors.borderColor,
               width: widget.isScanning ? 2 : 1,
             ),
             boxShadow: widget.isScanning
@@ -151,7 +154,9 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                       animation: _pulseAnimation,
                       builder: (context, child) {
                         return Transform.scale(
-                          scale: widget.isScanning ? 1.0 : _pulseAnimation.value,
+                          scale: widget.isScanning
+                              ? 1.0
+                              : _pulseAnimation.value,
                           child: child,
                         );
                       },
@@ -165,13 +170,19 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                                 colors: [
-                                  const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                                  const Color(0xFF3B82F6).withValues(alpha: 0.2),
+                                  const Color(
+                                    0xFF8B5CF6,
+                                  ).withValues(alpha: 0.2),
+                                  const Color(
+                                    0xFF3B82F6,
+                                  ).withValues(alpha: 0.2),
                                 ],
                               ),
                               shape: BoxShape.circle,
                               border: Border.all(
-                                color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                                color: const Color(
+                                  0xFF8B5CF6,
+                                ).withValues(alpha: 0.3),
                                 width: 2,
                               ),
                             ),
@@ -182,12 +193,12 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                             ),
                           ),
                           const SizedBox(height: 20),
-                          const Text(
+                          Text(
                             'Tap untuk scan QR',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF9CA3AF),
+                              color: themeColors.bodySecondary,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -195,7 +206,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                             'Arahkan kamera ke kode QR',
                             style: TextStyle(
                               fontSize: 12,
-                              color: const Color(0xFF6B7280).withValues(alpha: 0.8),
+                              color: themeColors.bodyTertiary,
                             ),
                           ),
                         ],
@@ -203,7 +214,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                     ),
                   ),
                 ),
-              
+
               // Top buttons row (Flash + Close)
               if (widget.isScanning)
                 Positioned(
@@ -215,15 +226,15 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                     children: [
                       // Flash toggle button
                       _buildCircleButton(
-                        icon: widget.isFlashOn 
-                            ? Icons.flash_on_rounded 
+                        icon: widget.isFlashOn
+                            ? Icons.flash_on_rounded
                             : Icons.flash_off_rounded,
-                        color: widget.isFlashOn 
-                            ? const Color(0xFFFBBF24) 
+                        color: widget.isFlashOn
+                            ? const Color(0xFFFBBF24)
                             : Colors.white,
                         backgroundColor: widget.isFlashOn
                             ? const Color(0xFFFBBF24).withValues(alpha: 0.2)
-                            : Colors.black.withValues(alpha: 0.5),
+                            : GenZTheme.gray900.withValues(alpha: 0.5),
                         onTap: () {
                           _triggerHapticFeedback();
                           widget.onFlashToggle?.call();
@@ -233,7 +244,9 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                       _buildCircleButton(
                         icon: Icons.close_rounded,
                         color: Colors.white,
-                        backgroundColor: Colors.black.withValues(alpha: 0.5),
+                        backgroundColor: GenZTheme.gray900.withValues(
+                          alpha: 0.5,
+                        ),
                         onTap: () {
                           _triggerHapticFeedback();
                           widget.onScanQR?.call();
@@ -256,7 +269,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.6),
+                        color: GenZTheme.gray900.withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
@@ -298,7 +311,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
+                color: GenZTheme.gray900.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Center(
@@ -308,18 +321,20 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1F2937),
+                        color: themeColors.cardBackground,
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
+                            color: const Color(
+                              0xFF3B82F6,
+                            ).withValues(alpha: 0.3),
                             blurRadius: 20,
                           ),
                         ],
                       ),
-                      child: Column(
+                      child: const Column(
                         children: [
-                          const SizedBox(
+                          SizedBox(
                             width: 48,
                             height: 48,
                             child: CircularProgressIndicator(
@@ -329,8 +344,8 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          const Text(
+                          SizedBox(height: 16),
+                          Text(
                             'Memproses QR Code...',
                             style: TextStyle(
                               color: Colors.white,
@@ -338,11 +353,11 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                               fontWeight: FontWeight.w500,
                             ),
                           ),
-                          const SizedBox(height: 4),
+                          SizedBox(height: 4),
                           Text(
                             'Mohon tunggu sebentar',
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.6),
+                              color: Colors.white60,
                               fontSize: 12,
                             ),
                           ),
@@ -381,11 +396,12 @@ class _GenZValidationTabState extends State<GenZValidationTab>
     );
   }
 
-  Widget _buildControlButtons() {
+  Widget _buildControlButtons(BuildContext context) {
     return Row(
       children: [
         Expanded(
           child: _buildQuickActionButton(
+            context: context,
             icon: Icons.flash_on_rounded,
             label: widget.isFlashOn ? 'Flash On' : 'Flash Off',
             isActive: widget.isFlashOn,
@@ -398,6 +414,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
         const SizedBox(width: 12),
         Expanded(
           child: _buildQuickActionButton(
+            context: context,
             icon: Icons.qr_code_scanner_rounded,
             label: widget.isScanning ? 'Stop Scan' : 'Start Scan',
             isActive: widget.isScanning,
@@ -413,16 +430,18 @@ class _GenZValidationTabState extends State<GenZValidationTab>
   }
 
   Widget _buildQuickActionButton({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required VoidCallback onTap,
     bool isActive = false,
     bool isPrimary = false,
   }) {
-    final activeColor = isPrimary 
-        ? const Color(0xFF3B82F6) 
+    final activeColor = isPrimary
+        ? const Color(0xFF3B82F6)
         : const Color(0xFFFBBF24);
-    
+    final themeColors = GenZTheme.of(context);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -431,12 +450,12 @@ class _GenZValidationTabState extends State<GenZValidationTab>
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
-            color: isActive 
-                ? activeColor.withValues(alpha: 0.15) 
-                : const Color(0xFF1F2937),
+            color: isActive
+                ? activeColor.withValues(alpha: 0.15)
+                : themeColors.cardBackground,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isActive ? activeColor : const Color(0xFF374151),
+              color: isActive ? activeColor : themeColors.borderColor,
             ),
           ),
           child: Row(
@@ -444,7 +463,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
             children: [
               Icon(
                 icon,
-                color: isActive ? activeColor : const Color(0xFF9CA3AF),
+                color: isActive ? activeColor : themeColors.bodySecondary,
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -453,7 +472,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: isActive ? activeColor : const Color(0xFF9CA3AF),
+                  color: isActive ? activeColor : themeColors.bodySecondary,
                 ),
               ),
             ],
@@ -466,8 +485,8 @@ class _GenZValidationTabState extends State<GenZValidationTab>
   List<Widget> _buildCornerDecorations() {
     const cornerSize = 24.0;
     const borderWidth = 3.0;
-    final color = widget.isScanning 
-        ? const Color(0xFF3B82F6) 
+    final color = widget.isScanning
+        ? const Color(0xFF3B82F6)
         : const Color(0xFF8B5CF6);
 
     return [
@@ -498,7 +517,13 @@ class _GenZValidationTabState extends State<GenZValidationTab>
     ];
   }
 
-  Widget _buildCorner(Color color, double size, double width, bool isTop, bool isLeft) {
+  Widget _buildCorner(
+    Color color,
+    double size,
+    double width,
+    bool isTop,
+    bool isLeft,
+  ) {
     return SizedBox(
       width: size,
       height: size,
@@ -513,7 +538,9 @@ class _GenZValidationTabState extends State<GenZValidationTab>
     );
   }
 
-  Widget _buildManualEntryButton() {
+  Widget _buildManualEntryButton(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -525,21 +552,25 @@ class _GenZValidationTabState extends State<GenZValidationTab>
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF1F2937),
+            color: themeColors.cardBackground,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF374151)),
+            border: Border.all(color: themeColors.borderColor),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.keyboard_rounded, color: Color(0xFF9CA3AF), size: 20),
-              SizedBox(width: 12),
+              Icon(
+                Icons.keyboard_rounded,
+                color: themeColors.bodySecondary,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
               Text(
                 'Input Manual Plat Kendaraan',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF9CA3AF),
+                  color: themeColors.bodySecondary,
                 ),
               ),
             ],
@@ -549,45 +580,45 @@ class _GenZValidationTabState extends State<GenZValidationTab>
     );
   }
 
-  Widget _buildRecentScansSection() {
+  Widget _buildRecentScansSection(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Scan Terakhir',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: themeColors.headingColor,
               ),
             ),
             Text(
               '${widget.recentScans.length} item',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.white.withValues(alpha: 0.5),
-              ),
+              style: TextStyle(fontSize: 12, color: themeColors.bodyTertiary),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        ...widget.recentScans.take(3).map(_buildRecentScanItem),
+        ...widget.recentScans
+            .take(3)
+            .map((scan) => _buildRecentScanItem(context, scan)),
       ],
     );
   }
 
-  Widget _buildRecentScanItem(RecentScanData scan) {
+  Widget _buildRecentScanItem(BuildContext context, RecentScanData scan) {
     final isEntry = scan.action.toUpperCase() == 'ENTRY';
-    final actionColor = isEntry 
-        ? const Color(0xFF10B981) 
+    final actionColor = isEntry
+        ? const Color(0xFF10B981)
         : const Color(0xFFF59E0B);
-    final actionIcon = isEntry 
-        ? Icons.login_rounded 
-        : Icons.logout_rounded;
+    final actionIcon = isEntry ? Icons.login_rounded : Icons.logout_rounded;
     final actionText = isEntry ? 'MASUK' : 'KELUAR';
+    final themeColors = GenZTheme.of(context);
 
     final timeAgo = _formatTimeAgo(scan.timestamp);
 
@@ -595,11 +626,11 @@ class _GenZValidationTabState extends State<GenZValidationTab>
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2937),
+        color: themeColors.cardBackground,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: scan.isSuccess 
-              ? const Color(0xFF374151) 
+          color: scan.isSuccess
+              ? themeColors.borderColor
               : const Color(0xFFEF4444).withValues(alpha: 0.3),
         ),
       ),
@@ -622,10 +653,10 @@ class _GenZValidationTabState extends State<GenZValidationTab>
               children: [
                 Text(
                   scan.vehiclePlate,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: themeColors.headingColor,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -633,7 +664,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
                   scan.driverName,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.6),
+                    color: themeColors.bodySecondary,
                   ),
                 ),
               ],
@@ -661,10 +692,7 @@ class _GenZValidationTabState extends State<GenZValidationTab>
               const SizedBox(height: 4),
               Text(
                 timeAgo,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.4),
-                ),
+                style: TextStyle(fontSize: 11, color: themeColors.bodyTertiary),
               ),
             ],
           ),
@@ -712,7 +740,7 @@ class _CornerPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final path = Path();
-    
+
     if (isTop && isLeft) {
       path.moveTo(0, size.height);
       path.lineTo(0, 0);
@@ -737,4 +765,3 @@ class _CornerPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

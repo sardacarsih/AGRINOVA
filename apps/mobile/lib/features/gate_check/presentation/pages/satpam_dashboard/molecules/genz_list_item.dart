@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import '../atoms/genz_icon_badge.dart';
+import '../genz_theme.dart';
 
 /// Premium history/activity list item
 class GenZListItem extends StatelessWidget {
@@ -69,18 +70,21 @@ class GenZListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF1F2937),
+          color: themeColors.cardBackground,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF374151).withValues(alpha: 0.5)),
+          border: Border.all(
+            color: themeColors.borderColor.withValues(alpha: 0.5),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
+              color: themeColors.shadowColor,
               blurRadius: 8,
               spreadRadius: -4,
               offset: const Offset(0, 4),
@@ -92,7 +96,7 @@ class GenZListItem extends StatelessWidget {
             // Icon with glow
             GenZIconBadgeSmall(icon: icon, color: iconColor),
             const SizedBox(width: 14),
-            
+
             // Content
             Expanded(
               child: Column(
@@ -101,46 +105,54 @@ class GenZListItem extends StatelessWidget {
                   // Title
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: Colors.white,
+                      color: themeColors.headingColor,
                       letterSpacing: 0.5,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  
+
                   // Subtitle
                   Row(
                     children: [
-                      const Icon(Icons.person_rounded, size: 14, color: Color(0xFF6B7280)),
+                      Icon(
+                        Icons.person_rounded,
+                        size: 14,
+                        color: themeColors.bodyTertiary,
+                      ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           subtitle,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF9CA3AF),
+                            color: themeColors.bodySecondary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
-                  
+
                   // Detail
                   if (detail != null) ...[
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF6B7280)),
+                        Icon(
+                          Icons.access_time_rounded,
+                          size: 14,
+                          color: themeColors.bodyTertiary,
+                        ),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             detail!,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF6B7280),
+                              color: themeColors.bodyTertiary,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -151,14 +163,17 @@ class GenZListItem extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // Badge and trailing
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (badge != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       color: iconColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
@@ -177,9 +192,9 @@ class GenZListItem extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     trailing!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: Color(0xFF6B7280),
+                      color: themeColors.bodyTertiary,
                     ),
                   ),
                 ],
@@ -191,7 +206,3 @@ class GenZListItem extends StatelessWidget {
     );
   }
 }
-
-
-
-

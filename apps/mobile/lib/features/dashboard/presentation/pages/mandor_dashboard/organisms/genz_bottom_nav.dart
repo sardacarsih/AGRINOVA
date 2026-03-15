@@ -66,7 +66,7 @@ class GenZBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: MandorTheme.bottomNavDecoration,
+      decoration: MandorTheme.bottomNavDecorationFor(context),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -193,7 +193,7 @@ class GenZFloatingActionButton extends StatelessWidget {
                 const SizedBox(width: 10),
                 Text(
                   label,
-                  style: MandorTheme.labelBold.copyWith(
+                  style: MandorTheme.labelBoldFor(context).copyWith(
                     fontSize: 15,
                   ),
                 ),

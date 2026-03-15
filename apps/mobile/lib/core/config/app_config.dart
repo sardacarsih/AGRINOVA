@@ -18,7 +18,8 @@ class AppConfig {
   static const String wsEndpoint = EnvConfig.wsPath;
 
   // GraphQL URLs
-  static String get graphqlUrl => '${EnvConfig.baseUrl}${EnvConfig.graphqlPath}';
+  static String get graphqlUrl =>
+      '${EnvConfig.baseUrl}${EnvConfig.graphqlPath}';
   static String get graphqlWsUrl => '${EnvConfig.wsUrl}${EnvConfig.wsPath}';
 
   // JWT Configuration
@@ -83,6 +84,7 @@ class AppConfig {
       'realtime_notifications',
     ],
     'satpam': [
+      'gate_check',
       'gate_check_input',
       'view_gate_logs',
       'qr_scanner',

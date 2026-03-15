@@ -5,6 +5,7 @@ import '../../../../../../core/constants/api_constants.dart';
 import '../../../../../../core/database/enhanced_database_service.dart';
 import '../../../../../../core/models/jwt_models.dart';
 import '../../../../../../core/services/unified_secure_storage_service.dart';
+import '../../../../../../core/theme/theme_mode_service.dart';
 import '../../../../../../shared/widgets/current_user_avatar.dart';
 import '../mandor_theme.dart';
 import '../../../../../auth/presentation/blocs/auth_bloc.dart';
@@ -36,11 +37,15 @@ class GenZProfileTab extends StatelessWidget {
   }
 
   Widget _buildLoadingState() {
-    return Container(
-      decoration: BoxDecoration(gradient: MandorTheme.darkGradient),
-      child: Center(
-        child: CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation(MandorTheme.forestGreen),
+    return Builder(
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          gradient: MandorTheme.backgroundGradientFor(context),
+        ),
+        child: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation(MandorTheme.forestGreen),
+          ),
         ),
       ),
     );
@@ -48,17 +53,19 @@ class GenZProfileTab extends StatelessWidget {
 
   Widget _buildContent(BuildContext context, AuthAuthenticated state) {
     return Container(
-      decoration: BoxDecoration(gradient: MandorTheme.darkGradient),
+      decoration: BoxDecoration(
+        gradient: MandorTheme.backgroundGradientFor(context),
+      ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             // Profile Card
-            _buildProfileCard(state),
+            _buildProfileCard(context, state),
             const SizedBox(height: 24),
 
             // Quick Info
-            _buildQuickInfo(state),
+            _buildQuickInfo(context, state),
             const SizedBox(height: 24),
 
             // Settings Section
@@ -66,7 +73,7 @@ class GenZProfileTab extends StatelessWidget {
             const SizedBox(height: 24),
 
             // App Info
-            _buildAppInfo(),
+            _buildAppInfo(context),
             const SizedBox(height: 24),
 
             // Logout Button
@@ -79,7 +86,7 @@ class GenZProfileTab extends StatelessWidget {
     );
   }
 
-  Widget _buildProfileCard(AuthAuthenticated state) {
+  Widget _buildProfileCard(BuildContext context, AuthAuthenticated state) {
     final user = state.user;
 
     return Container(
@@ -129,7 +136,7 @@ class GenZProfileTab extends StatelessWidget {
           // Name
           Text(
             user.fullName.isNotEmpty ? user.fullName : user.username,
-            style: MandorTheme.headingMedium,
+            style: MandorTheme.headingMediumFor(context),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 4),
@@ -156,18 +163,18 @@ class GenZProfileTab extends StatelessWidget {
           const SizedBox(height: 8),
 
           // Username
-          Text('@${user.username}', style: MandorTheme.bodySmall),
+          Text('@${user.username}', style: MandorTheme.bodySmallFor(context)),
         ],
       ),
     );
   }
 
-  Widget _buildQuickInfo(AuthAuthenticated state) {
+  Widget _buildQuickInfo(BuildContext context, AuthAuthenticated state) {
     final fallbackInfo = _buildFallbackAssignmentInfo(state.user);
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: MandorTheme.glassCardBox,
+      decoration: MandorTheme.glassCardFor(context),
       child: FutureBuilder<_ProfileAssignmentInfo>(
         future: _resolveProfileAssignmentInfo(state.user),
         initialData: fallbackInfo,
@@ -177,32 +184,35 @@ class GenZProfileTab extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Informasi', style: MandorTheme.labelMedium),
+              Text('Informasi', style: MandorTheme.labelMediumFor(context)),
               const SizedBox(height: 16),
               _buildInfoRow(
+                context: context,
                 icon: Icons.business_rounded,
                 label: 'Company',
                 value: profileInfo.company,
               ),
-              const Divider(color: Color(0xFF374151), height: 24),
+              Divider(color: MandorTheme.of(context).borderColor, height: 24),
               _buildInfoRow(
+                context: context,
                 icon: Icons.park_rounded,
                 label: 'Estate',
                 value: profileInfo.estates,
               ),
-              const Divider(color: Color(0xFF374151), height: 24),
+              Divider(color: MandorTheme.of(context).borderColor, height: 24),
               _buildInfoRow(
+                context: context,
                 icon: Icons.location_city_rounded,
                 label: 'Divisi',
                 value: profileInfo.divisions,
               ),
-              const Divider(color: Color(0xFF374151), height: 24),
+              Divider(color: MandorTheme.of(context).borderColor, height: 24),
               FutureBuilder<String>(
                 future: _resolveSupervisorName(
                   state.user.id,
                   state.user.managerId,
                 ),
-                builder: (context, snapshot) {
+                builder: (innerContext, snapshot) {
                   final fallback =
                       _normalizeValue(state.user.managerName) ?? '-';
                   final resolvedName = _normalizeValue(snapshot.data);
@@ -211,20 +221,23 @@ class GenZProfileTab extends StatelessWidget {
                       : (resolvedName ?? fallback);
 
                   return _buildInfoRow(
+                    context: innerContext,
                     icon: Icons.supervisor_account_rounded,
                     label: 'Atasan',
                     value: supervisorName,
                   );
                 },
               ),
-              const Divider(color: Color(0xFF374151), height: 24),
+              Divider(color: MandorTheme.of(context).borderColor, height: 24),
               _buildInfoRow(
+                context: context,
                 icon: Icons.email_rounded,
                 label: 'Email',
                 value: _normalizeValue(state.user.email) ?? '-',
               ),
-              const Divider(color: Color(0xFF374151), height: 24),
+              Divider(color: MandorTheme.of(context).borderColor, height: 24),
               _buildInfoRow(
+                context: context,
                 icon: Icons.wifi_off_rounded,
                 label: 'Mode Offline',
                 value: state.isOfflineMode ? 'Aktif' : 'Tidak Aktif',
@@ -406,6 +419,7 @@ class GenZProfileTab extends StatelessWidget {
   }
 
   Widget _buildInfoRow({
+    required BuildContext context,
     required IconData icon,
     required String label,
     required String value,
@@ -416,22 +430,26 @@ class GenZProfileTab extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: MandorTheme.gray700,
+            color: MandorTheme.of(context).borderColor,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: MandorTheme.gray400, size: 18),
+          child: Icon(
+            icon,
+            color: MandorTheme.of(context).bodySecondary,
+            size: 18,
+          ),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: MandorTheme.labelSmall),
+              Text(label, style: MandorTheme.labelSmallFor(context)),
               const SizedBox(height: 2),
               Text(
                 value,
-                style: MandorTheme.bodyMedium.copyWith(
-                  color: valueColor ?? Colors.white,
+                style: MandorTheme.bodyMediumFor(context).copyWith(
+                  color: valueColor ?? MandorTheme.of(context).headingColor,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -444,39 +462,48 @@ class GenZProfileTab extends StatelessWidget {
 
   Widget _buildSettingsSection(BuildContext context) {
     return Container(
-      decoration: MandorTheme.glassCardBox,
+      decoration: MandorTheme.glassCardFor(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
             padding: const EdgeInsets.all(16),
-            child: Text('Pengaturan', style: MandorTheme.labelMedium),
+            child: Text(
+              'Pengaturan',
+              style: MandorTheme.labelMediumFor(context),
+            ),
           ),
           _buildSettingItem(
+            context: context,
             icon: Icons.lock_outline_rounded,
             title: 'Ubah Password',
             subtitle: 'Ganti password akun',
             onTap: () => _openChangePassword(context),
           ),
           _buildSettingItem(
+            context: context,
             icon: Icons.notifications_rounded,
             title: 'Notifikasi',
             subtitle: 'Atur pemberitahuan',
             onTap: () => _showComingSoon(context),
           ),
           _buildSettingItem(
+            context: context,
             icon: Icons.language_rounded,
             title: 'Bahasa',
             subtitle: 'Indonesia',
             onTap: () => _showComingSoon(context),
           ),
+          _buildThemeSwitchItem(context),
           _buildSettingItem(
+            context: context,
             icon: Icons.help_rounded,
             title: 'Bantuan',
             subtitle: 'FAQ dan panduan',
             onTap: () => _showComingSoon(context),
           ),
           _buildSettingItem(
+            context: context,
             icon: Icons.info_rounded,
             title: 'Tentang Aplikasi',
             subtitle: 'Versi dan informasi',
@@ -488,7 +515,78 @@ class GenZProfileTab extends StatelessWidget {
     );
   }
 
+  Widget _buildThemeSwitchItem(BuildContext context) {
+    return AnimatedBuilder(
+      animation: ThemeModeService.instance,
+      builder: (context, _) {
+        final isDarkMode = ThemeModeService.instance.isDarkMode;
+
+        return Column(
+          children: [
+            InkWell(
+              onTap: () {
+                ThemeModeService.instance.setDarkMode(!isDarkMode);
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: MandorTheme.of(context).borderColor,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        isDarkMode
+                            ? Icons.dark_mode_rounded
+                            : Icons.light_mode_rounded,
+                        color: MandorTheme.of(context).bodySecondary,
+                        size: 18,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tema Gelap',
+                            style: MandorTheme.bodyMediumFor(context).copyWith(
+                              color: MandorTheme.of(context).headingColor,
+                            ),
+                          ),
+                          Text(
+                            isDarkMode ? 'Aktif' : 'Nonaktif',
+                            style: MandorTheme.labelSmallFor(context),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch.adaptive(
+                      value: isDarkMode,
+                      onChanged: ThemeModeService.instance.setDarkMode,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Divider(
+              color: MandorTheme.of(context).borderColor,
+              height: 1,
+              indent: 56,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildSettingItem({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required String subtitle,
@@ -506,10 +604,14 @@ class GenZProfileTab extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: MandorTheme.gray700,
+                    color: MandorTheme.of(context).borderColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, color: MandorTheme.gray400, size: 18),
+                  child: Icon(
+                    icon,
+                    color: MandorTheme.of(context).bodySecondary,
+                    size: 18,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -518,29 +620,38 @@ class GenZProfileTab extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: MandorTheme.bodyMedium.copyWith(
-                          color: Colors.white,
-                        ),
+                        style: MandorTheme.bodyMediumFor(
+                          context,
+                        ).copyWith(color: MandorTheme.of(context).headingColor),
                       ),
-                      Text(subtitle, style: MandorTheme.labelSmall),
+                      Text(subtitle, style: MandorTheme.labelSmallFor(context)),
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right_rounded, color: MandorTheme.gray500),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: MandorTheme.of(context).bodyTertiary,
+                ),
               ],
             ),
           ),
         ),
         if (showDivider)
-          const Divider(color: Color(0xFF374151), height: 1, indent: 56),
+          Builder(
+            builder: (context) => Divider(
+              color: MandorTheme.of(context).borderColor,
+              height: 1,
+              indent: 56,
+            ),
+          ),
       ],
     );
   }
 
-  Widget _buildAppInfo() {
+  Widget _buildAppInfo(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: MandorTheme.glassCardBox,
+      decoration: MandorTheme.glassCardFor(context),
       child: Row(
         children: [
           Container(
@@ -562,14 +673,14 @@ class GenZProfileTab extends StatelessWidget {
               children: [
                 Text(
                   'Agrinova Mobile',
-                  style: MandorTheme.bodyMedium.copyWith(
-                    color: Colors.white,
+                  style: MandorTheme.bodyMediumFor(context).copyWith(
+                    color: MandorTheme.of(context).headingColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   'v${ApiConstants.appVersionDisplay}',
-                  style: MandorTheme.labelSmall,
+                  style: MandorTheme.labelSmallFor(context),
                 ),
               ],
             ),
@@ -607,22 +718,30 @@ class GenZProfileTab extends StatelessWidget {
   void _confirmLogout(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: MandorTheme.gray800,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: MandorTheme.of(dialogContext).cardBackground,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Keluar Aplikasi?', style: MandorTheme.headingSmall),
+        title: Text(
+          'Keluar Aplikasi?',
+          style: MandorTheme.headingSmallFor(dialogContext),
+        ),
         content: Text(
           'Anda yakin ingin keluar dari aplikasi?',
-          style: MandorTheme.bodyMedium,
+          style: MandorTheme.bodyMediumFor(dialogContext),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Batal', style: TextStyle(color: MandorTheme.gray400)),
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: MandorTheme.of(dialogContext).bodySecondary,
+              ),
+            ),
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               context.read<AuthBloc>().add(AuthLogoutRequested());
               onLogout?.call();
             },

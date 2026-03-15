@@ -2,6 +2,7 @@
 // Single stat display with color
 
 import 'package:flutter/material.dart';
+import '../genz_theme.dart';
 
 /// A single stat display item
 class GenZStatItem extends StatelessWidget {
@@ -32,9 +33,9 @@ class GenZStatItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11,
-            color: Color(0xFF9CA3AF),
+            color: GenZTheme.of(context).bodySecondary,
           ),
         ),
       ],
@@ -51,7 +52,7 @@ class GenZStatDivider extends StatelessWidget {
     return Container(
       height: 30,
       width: 1,
-      color: const Color(0xFF374151),
+      color: GenZTheme.of(context).borderColor,
     );
   }
 }

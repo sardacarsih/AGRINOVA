@@ -39,7 +39,10 @@
       "mcp__ide__getDiagnostics",
       "Bash(go test:*)",
       "Bash(xargs:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Read(//c/Users/dharyadi/.claude/plugins/**)",
+      "Read(//c/Users/dharyadi/.claude/**)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

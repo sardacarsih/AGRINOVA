@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import '../atoms/genz_icon_badge.dart';
+import '../genz_theme.dart';
 
 /// Section header with icon badge, title, and optional subtitle
 class GenZSectionHeader extends StatelessWidget {
@@ -76,6 +77,7 @@ class GenZSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
     return Row(
       children: [
         GenZIconBadge(
@@ -90,18 +92,18 @@ class GenZSectionHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: themeColors.headingColor,
                 ),
               ),
               if (subtitle != null)
                 Text(
                   subtitle!,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF9CA3AF),
+                    color: themeColors.bodySecondary,
                   ),
                 ),
             ],

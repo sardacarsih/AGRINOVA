@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../data/models/gate_check_models.dart';
 import '../../widgets/guest_registration_form.dart';
 import '../../widgets/gate_stat_card_widget.dart';
+import 'genz_theme.dart';
 import 'satpam_dashboard_constants.dart';
 
 /// Reusable UI components for Satpam Dashboard
@@ -397,18 +398,24 @@ class SatpamDashboardWidgets {
       },
     ];
 
-    return Column(
-      children: mockActivity
-          .map((activity) => buildRecentActivityItem(activity))
-          .toList(),
+    return Builder(
+      builder: (context) => Column(
+        children: mockActivity
+            .map((activity) => buildRecentActivityItem(context, activity))
+            .toList(),
+      ),
     );
   }
 
   /// Build individual recent activity item
-  static Widget buildRecentActivityItem(Map<String, dynamic> activity) {
+  static Widget buildRecentActivityItem(
+    BuildContext context,
+    Map<String, dynamic> activity,
+  ) {
     final action = activity['action'] as String;
     final isEntry = action == 'ENTRY';
     final actionColor = isEntry ? Colors.green : Colors.blue;
+    final themeColors = GenZTheme.of(context);
 
     return Container(
       margin: const EdgeInsets.only(
@@ -416,11 +423,11 @@ class SatpamDashboardWidgets {
       ),
       padding: const EdgeInsets.all(SatpamDashboardConstants.mediumPadding),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: themeColors.dialogSurface,
         borderRadius: BorderRadius.circular(
           SatpamDashboardConstants.borderRadius,
         ),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: themeColors.dividerSubtle),
       ),
       child: Row(
         children: [
@@ -454,7 +461,10 @@ class SatpamDashboardWidgets {
                 ),
                 Text(
                   '${activity['driver']} • ${activity['time']} • ${activity['duration']}',
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                  style: TextStyle(
+                    color: themeColors.bodySecondary,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
@@ -518,11 +528,7 @@ class SatpamDashboardWidgets {
                 children: [
                   Text(
                     'Generate QR Code Untuk:',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[800],
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   RadioGroup<String>(
@@ -607,14 +613,15 @@ class SatpamDashboardWidgets {
   }
 
   /// Build history filters section
-  static Widget buildHistoryFilters() {
+  static Widget buildHistoryFilters(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
     return Container(
       padding: const EdgeInsets.all(12),
       margin: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
+        color: themeColors.dialogSurface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey[200]!),
+        border: Border.all(color: themeColors.dividerSubtle),
       ),
       child: Column(
         children: [
@@ -672,7 +679,8 @@ class SatpamDashboardWidgets {
   }
 
   /// Build history list with mock data
-  static Widget buildHistoryList() {
+  static Widget buildHistoryList(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
     return ListView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -685,11 +693,11 @@ class SatpamDashboardWidgets {
           ),
           padding: const EdgeInsets.all(SatpamDashboardConstants.largePadding),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: themeColors.cardBackground,
             borderRadius: BorderRadius.circular(
               SatpamDashboardConstants.mediumPadding,
             ),
-            border: Border.all(color: Colors.grey[200]!),
+            border: Border.all(color: themeColors.dividerSubtle),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -741,19 +749,19 @@ class SatpamDashboardWidgets {
     );
   }
 
-  /// Build bottom navigation bar with dark theme to match GenZ dashboard
+  /// Build bottom navigation bar with brightness-aware theme to match GenZ dashboard
   static Widget buildBottomNavigation({
+    required BuildContext context,
     required int currentIndex,
     required Function(int) onTap,
   }) {
     // GenZ theme colors
-    const Color darkBg = Color(0xFF1a1a2e);
     const Color neonPurple = Color(0xFF8B5CF6);
-    const Color unselectedColor = Color(0xFF6B7280);
+    final themeColors = GenZTheme.of(context);
 
     return Container(
       decoration: BoxDecoration(
-        color: darkBg,
+        color: themeColors.navBackground,
         boxShadow: [
           BoxShadow(
             color: neonPurple.withValues(alpha: 0.15),
@@ -763,10 +771,7 @@ class SatpamDashboardWidgets {
           ),
         ],
         border: Border(
-          top: BorderSide(
-            color: Colors.white.withValues(alpha: 0.08),
-            width: 1,
-          ),
+          top: BorderSide(color: themeColors.surfaceOverlay, width: 1),
         ),
       ),
       child: BottomNavigationBar(
@@ -775,7 +780,7 @@ class SatpamDashboardWidgets {
         backgroundColor: Colors.transparent,
         elevation: 0,
         selectedItemColor: neonPurple,
-        unselectedItemColor: unselectedColor,
+        unselectedItemColor: themeColors.bodyTertiary,
         selectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 12,
@@ -788,7 +793,7 @@ class SatpamDashboardWidgets {
           BottomNavigationBarItem(
             icon: Icon(
               Icons.dashboard_outlined,
-              color: currentIndex == 0 ? neonPurple : unselectedColor,
+              color: currentIndex == 0 ? neonPurple : themeColors.bodyTertiary,
             ),
             activeIcon: Container(
               padding: const EdgeInsets.all(8),
@@ -803,7 +808,7 @@ class SatpamDashboardWidgets {
           BottomNavigationBarItem(
             icon: Icon(
               Icons.person_add_outlined,
-              color: currentIndex == 1 ? neonPurple : unselectedColor,
+              color: currentIndex == 1 ? neonPurple : themeColors.bodyTertiary,
             ),
             activeIcon: Container(
               padding: const EdgeInsets.all(8),
@@ -818,7 +823,7 @@ class SatpamDashboardWidgets {
           BottomNavigationBarItem(
             icon: Icon(
               Icons.qr_code_scanner_outlined,
-              color: currentIndex == 2 ? neonPurple : unselectedColor,
+              color: currentIndex == 2 ? neonPurple : themeColors.bodyTertiary,
             ),
             activeIcon: Container(
               padding: const EdgeInsets.all(8),
@@ -833,7 +838,7 @@ class SatpamDashboardWidgets {
           BottomNavigationBarItem(
             icon: Icon(
               Icons.history_outlined,
-              color: currentIndex == 3 ? neonPurple : unselectedColor,
+              color: currentIndex == 3 ? neonPurple : themeColors.bodyTertiary,
             ),
             activeIcon: Container(
               padding: const EdgeInsets.all(8),
@@ -848,7 +853,7 @@ class SatpamDashboardWidgets {
           BottomNavigationBarItem(
             icon: Icon(
               Icons.sync_outlined,
-              color: currentIndex == 4 ? neonPurple : unselectedColor,
+              color: currentIndex == 4 ? neonPurple : themeColors.bodyTertiary,
             ),
             activeIcon: Container(
               padding: const EdgeInsets.all(8),

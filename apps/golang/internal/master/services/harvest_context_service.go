@@ -16,14 +16,14 @@ import (
 
 // GetHarvestContext provides optimized harvest context with role-based defaults
 func (s *masterService) GetHarvestContext(ctx context.Context, userID string) (*models.HarvestContext, error) {
-	// Get user to determine role
-	user, err := s.getUserByID(ctx, userID)
+	// Get user role to determine behavior
+	userRole, err := s.getUserRole(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Build assignment summary
-	assignmentSummary, err := s.getAssignmentSummary(ctx, userID, user.Role)
+	assignmentSummary, err := s.getAssignmentSummary(ctx, userID, userRole)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (s *masterService) GetHarvestContext(ctx context.Context, userID string) (*
 
 	// Auto-load blocks for Mandor with single division
 	var defaultBlocks []*models.Block
-	if user.Role == auth.UserRoleMandor && assignmentSummary.TotalDivisions == 1 && assignmentSummary.PrimaryDivisionID != nil {
+	if userRole == auth.UserRoleMandor && assignmentSummary.TotalDivisions == 1 && assignmentSummary.PrimaryDivisionID != nil {
 		filters := &models.BlockFilters{
 			DivisionID:      *assignmentSummary.PrimaryDivisionID,
 			IncludeInactive: false,
@@ -128,7 +128,7 @@ func (s *masterService) getAssignmentSummary(ctx context.Context, userID string,
 // GetRecentBlocksByUser returns blocks recently used by a user
 func (s *masterService) GetRecentBlocksByUser(ctx context.Context, userID string, days int) ([]*models.BlockWithStats, error) {
 	// Validate user access
-	user, err := s.getUserByID(ctx, userID)
+	userRole, err := s.getUserRole(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,7 @@ func (s *masterService) GetRecentBlocksByUser(ctx context.Context, userID string
 	}
 
 	// If user is not Mandor, return empty array (only Mandor has harvest records)
-	if user.Role != auth.UserRoleMandor {
+	if userRole != auth.UserRoleMandor {
 		return []*models.BlockWithStats{}, nil
 	}
 

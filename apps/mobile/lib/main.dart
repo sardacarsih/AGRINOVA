@@ -10,6 +10,8 @@ import 'core/services/app_update_manager.dart';
 import 'features/auth/presentation/blocs/auth_bloc.dart';
 import 'features/auth/presentation/pages/unauthorized_page.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/login_theme_campaign_service.dart';
+import 'core/theme/theme_mode_service.dart';
 import 'core/routes/app_routes.dart';
 import 'core/routes/route_guards.dart';
 import 'features/auth/presentation/pages/splash_screen.dart';
@@ -52,6 +54,8 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
   Future<void> _initialize() async {
     try {
       await AppInitializer.initialize();
+      await ThemeModeService.instance.initialize();
+      await LoginThemeCampaignService.instance.initialize();
 
       if (mounted) {
         final authBloc = ServiceLocator.get<AuthBloc>()
@@ -133,54 +137,53 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
 
   @override
   Widget build(BuildContext context) {
-    // Single MaterialApp - use a wrapper to conditionally provide AuthBloc
-    return MaterialApp(
-      navigatorKey: AppRoutes.navigatorKey,
-      title: AppConfig.appName,
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.system,
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('id', 'ID'),
-        Locale('en', 'US'),
-      ],
-      home: _buildHome(),
-      onGenerateRoute: (settings) {
-        // Only allow route generation after initialization
-        if (!_isInitialized || _authBloc == null) {
-          return null;
-        }
-        return _generateGuardedRoute(settings);
-      },
-      builder: (context, child) {
-        if (_isInitialized) {
-          _initializeAppUpdateManager(context);
-          AppUpdateManager().updateContext(context);
-        }
+    return AnimatedBuilder(
+      animation: ThemeModeService.instance,
+      builder: (context, child) => MaterialApp(
+        navigatorKey: AppRoutes.navigatorKey,
+        title: AppConfig.appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeModeService.instance.themeMode,
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('id', 'ID'), Locale('en', 'US')],
+        home: _buildHome(),
+        onGenerateRoute: (settings) {
+          // Only allow route generation after initialization
+          if (!_isInitialized || _authBloc == null) {
+            return null;
+          }
+          return _generateGuardedRoute(settings);
+        },
+        builder: (context, child) {
+          if (_isInitialized) {
+            _initializeAppUpdateManager(context);
+            AppUpdateManager().updateContext(context);
+          }
 
-        Widget result = MediaQuery(
-          data: MediaQuery.of(
-            context,
-          ).copyWith(textScaler: const TextScaler.linear(1.0)),
-          child: child!,
-        );
-
-        // Wrap with BlocProvider if AuthBloc is available
-        if (_authBloc != null) {
-          result = BlocProvider<AuthBloc>.value(
-            value: _authBloc!,
-            child: result,
+          Widget result = MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(1.0)),
+            child: child!,
           );
-        }
 
-        return result;
-      },
+          // Wrap with BlocProvider if AuthBloc is available
+          if (_authBloc != null) {
+            result = BlocProvider<AuthBloc>.value(
+              value: _authBloc!,
+              child: result,
+            );
+          }
+
+          return result;
+        },
+      ),
     );
   }
 

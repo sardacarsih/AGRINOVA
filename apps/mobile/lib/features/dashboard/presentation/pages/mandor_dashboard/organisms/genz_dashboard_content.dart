@@ -63,7 +63,7 @@ class GenZDashboardContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: MandorTheme.darkGradient,
+        gradient: MandorTheme.backgroundGradientFor(context),
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -154,7 +154,7 @@ class GenZDashboardContentCompact extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: MandorTheme.darkGradient,
+        gradient: MandorTheme.backgroundGradientFor(context),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

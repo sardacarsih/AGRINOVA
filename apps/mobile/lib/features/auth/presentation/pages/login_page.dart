@@ -1,7 +1,9 @@
 import 'dart:async' show unawaited;
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -12,6 +14,8 @@ import '../../../../core/services/unified_secure_storage_service.dart';
 import '../../../../core/di/dependency_injection.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/server_status_service.dart';
+import '../../../../core/theme/login_theme_campaign_service.dart';
+import '../../../../core/theme/theme_mode_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -22,6 +26,8 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  static const String _autoThemeSelectionValue = '__auto__';
+
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -44,16 +50,6 @@ class _LoginPageState extends State<LoginPage>
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
-
-  // Gen Z Color Palette
-  static const _primaryGradient = [
-    Color(0xFF1a1a2e),
-    Color(0xFF16213e),
-    Color(0xFF0f3460),
-  ];
-  static const _accentNeon = Color(0xFF00ff87);
-  static const _accentCyan = Color(0xFF00d9ff);
-  static const _glassColor = Color(0x1AFFFFFF);
 
   @override
   void initState() {
@@ -80,6 +76,8 @@ class _LoginPageState extends State<LoginPage>
         );
 
     _usernameController.addListener(_handleUsernameChanged);
+    unawaited(LoginThemeCampaignService.instance.initialize());
+    unawaited(LoginThemeCampaignService.instance.refreshIfStale());
     _initializeLoginState();
     _animationController.forward();
     PackageInfo.fromPlatform().then((info) {
@@ -247,108 +245,266 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
+  LoginThemeTokenSet _campaignTokens(BuildContext context) {
+    return LoginThemeCampaignService.instance.resolveTokens(
+      brightness: Theme.of(context).brightness,
+    );
+  }
+
+  Color _accentPrimary(BuildContext context) {
+    return _campaignTokens(context).buttonGradient.first;
+  }
+
+  Color _accentSecondary(BuildContext context) {
+    return _campaignTokens(context).buttonGradient.last;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: _primaryGradient,
-          ),
-        ),
-        child: Stack(
-          children: [
-            // Animated background circles
-            _buildBackgroundDecoration(),
+    final themeService = LoginThemeCampaignService.instance;
+    return AnimatedBuilder(
+      animation: themeService,
+      builder: (context, _) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final campaignTokens = _campaignTokens(context);
+        final runtimeAssets = themeService.effectiveAssets;
+        final mediaQuery = MediaQuery.of(context);
+        final topSpacing = (mediaQuery.size.height * 0.08)
+            .clamp(24.0, 72.0)
+            .toDouble();
 
-            // Main content
-            SafeArea(
-              child: MultiBlocProvider(
-                providers: [
-                  BlocProvider.value(value: context.read<AuthBloc>()),
-                  BlocProvider.value(value: _biometricAuthBloc),
-                ],
-                child: MultiBlocListener(
-                  listeners: [
-                    BlocListener<AuthBloc, AuthState>(
-                      listener: (context, state) {
-                        if (state is AuthAuthenticated) {
-                          // Navigate to role-based dashboard
-                          final route = AppRoutes.getDashboardRoute(
-                            state.user.role,
-                            mandorType: state.user.effectiveMandorType,
-                          );
-                          Navigator.of(
-                            context,
-                          ).pushNamedAndRemoveUntil(route, (route) => false);
-                        } else if (state is AuthError) {
-                          _showErrorSnackBar(state.message);
-                        }
-                      },
-                    ),
-                    BlocListener<BiometricAuthBloc, BiometricAuthState>(
-                      listener: (context, state) {
-                        if (state is BiometricStatusLoaded) {
-                          setState(() {
-                            _biometricAvailable =
-                                state.capabilities.isFullySupported;
-                            _biometricRawEnabled = state.isEnabled;
-                            _biometricEnabled =
-                                _shouldEnableBiometricForCurrentInput();
-                          });
-                        } else if (state is BiometricAuthSuccess) {
-                          context.read<AuthBloc>().add(
-                            const AuthBiometricRequested(),
-                          );
-                        }
-                      },
-                    ),
+        return Scaffold(
+          body: Stack(
+            children: [
+              _buildBackgroundBase(campaignTokens),
+              if (runtimeAssets.backgroundImage.isNotEmpty)
+                _buildBackgroundImage(runtimeAssets.backgroundImage),
+              _buildBackgroundOverlay(campaignTokens),
+              _buildBackgroundDecoration(campaignTokens),
+
+              // Main content
+              SafeArea(
+                child: MultiBlocProvider(
+                  providers: [
+                    BlocProvider.value(value: context.read<AuthBloc>()),
+                    BlocProvider.value(value: _biometricAuthBloc),
                   ],
-                  child: BlocBuilder<AuthBloc, AuthState>(
-                    builder: (context, state) {
-                      return FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: SlideTransition(
-                          position: _slideAnimation,
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 16,
-                            ),
-                            child: Column(
-                              children: [
-                                SizedBox(
-                                  height:
-                                      MediaQuery.of(context).size.height * 0.08,
+                  child: MultiBlocListener(
+                    listeners: [
+                      BlocListener<AuthBloc, AuthState>(
+                        listener: (context, state) {
+                          if (state is AuthAuthenticated) {
+                            // Navigate to role-based dashboard
+                            final route = AppRoutes.getDashboardRoute(
+                              state.user.role,
+                              mandorType: state.user.effectiveMandorType,
+                            );
+                            Navigator.of(
+                              context,
+                            ).pushNamedAndRemoveUntil(route, (route) => false);
+                          } else if (state is AuthError) {
+                            _showErrorSnackBar(state.message);
+                          }
+                        },
+                      ),
+                      BlocListener<BiometricAuthBloc, BiometricAuthState>(
+                        listener: (context, state) {
+                          if (state is BiometricStatusLoaded) {
+                            setState(() {
+                              _biometricAvailable =
+                                  state.capabilities.isFullySupported;
+                              _biometricRawEnabled = state.isEnabled;
+                              _biometricEnabled =
+                                  _shouldEnableBiometricForCurrentInput();
+                            });
+                          } else if (state is BiometricAuthSuccess) {
+                            context.read<AuthBloc>().add(
+                              const AuthBiometricRequested(),
+                            );
+                          }
+                        },
+                      ),
+                    ],
+                    child: BlocBuilder<AuthBloc, AuthState>(
+                      builder: (context, state) {
+                        return FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: SlideTransition(
+                            position: _slideAnimation,
+                            child: SingleChildScrollView(
+                              keyboardDismissBehavior:
+                                  ScrollViewKeyboardDismissBehavior.onDrag,
+                              padding: EdgeInsets.fromLTRB(
+                                24,
+                                16,
+                                24,
+                                24 + mediaQuery.viewInsets.bottom,
+                              ),
+                              child: Center(
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 460,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      SizedBox(height: topSpacing),
+                                      _buildHeader(
+                                        campaignTokens,
+                                        runtimeAssets,
+                                      ),
+                                      const SizedBox(height: 48),
+                                      _buildGlassCard(state),
+                                      const SizedBox(height: 24),
+                                      _buildVersionBadge(),
+                                      const SizedBox(height: 12),
+                                      _buildLegalLinks(),
+                                    ],
+                                  ),
                                 ),
-                                _buildHeader(),
-                                const SizedBox(height: 48),
-                                _buildGlassCard(state),
-                                const SizedBox(height: 24),
-                                _buildVersionBadge(),
-                                const SizedBox(height: 12),
-                                _buildLegalLinks(),
-                              ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            // Settings FAB removed
-          ],
-        ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: SafeArea(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (kDebugMode) ...[
+                        _buildCampaignThemeButton(isDark: isDark),
+                        const SizedBox(width: 8),
+                      ],
+                      _buildThemeModeButton(isDark: isDark),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildThemeModeButton({required bool isDark}) {
+    final fgColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final bgColor = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.8);
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.15)
+        : const Color(0xFFCBD5E1);
+
+    return AnimatedBuilder(
+      animation: ThemeModeService.instance,
+      builder: (context, _) {
+        final isDarkMode = ThemeModeService.instance.isDarkMode;
+        return Container(
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: borderColor),
+          ),
+          child: IconButton(
+            onPressed: () {
+              ThemeModeService.instance.setDarkMode(!isDarkMode);
+            },
+            icon: Icon(
+              isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+              color: fgColor,
+            ),
+            tooltip: isDarkMode ? 'Mode gelap aktif' : 'Mode terang aktif',
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCampaignThemeButton({required bool isDark}) {
+    final service = LoginThemeCampaignService.instance;
+    final fgColor = isDark ? Colors.white : const Color(0xFF0F172A);
+    final bgColor = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.8);
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.15)
+        : const Color(0xFFCBD5E1);
+    final selectedValue = service.isAutoMode
+        ? _autoThemeSelectionValue
+        : service.selectedThemeId;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor),
+      ),
+      child: PopupMenuButton<String>(
+        tooltip: 'Tema login: ${service.effectiveThemeLabel}',
+        initialValue: selectedValue,
+        onSelected: (value) {
+          if (value == _autoThemeSelectionValue) {
+            unawaited(service.setAutoMode());
+            return;
+          }
+          unawaited(service.setManualTheme(value));
+        },
+        icon: Icon(Icons.palette_outlined, color: fgColor),
+        itemBuilder: (context) {
+          final menuItems = <PopupMenuEntry<String>>[
+            PopupMenuItem<String>(
+              value: _autoThemeSelectionValue,
+              child: Row(
+                children: [
+                  Icon(
+                    service.isAutoMode ? Icons.check : Icons.auto_awesome,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Text('Auto (${service.effectiveThemeLabel})'),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(),
+          ];
+
+          for (final theme in service.availableThemes) {
+            final isActive =
+                !service.isAutoMode && service.selectedThemeId == theme.id;
+            menuItems.add(
+              PopupMenuItem<String>(
+                value: theme.id,
+                child: Row(
+                  children: [
+                    Icon(
+                      isActive
+                          ? Icons.check_circle_outline
+                          : Icons.circle_outlined,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(theme.label)),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return menuItems;
+        },
       ),
     );
   }
 
-  Widget _buildBackgroundDecoration() {
+  Widget _buildBackgroundDecoration(LoginThemeTokenSet campaignTokens) {
     return Stack(
       children: [
         Positioned(
@@ -361,7 +517,7 @@ class _LoginPageState extends State<LoginPage>
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  _accentNeon.withValues(alpha: 0.15),
+                  campaignTokens.buttonGradient.first.withValues(alpha: 0.15),
                   Colors.transparent,
                 ],
               ),
@@ -378,7 +534,7 @@ class _LoginPageState extends State<LoginPage>
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  _accentCyan.withValues(alpha: 0.1),
+                  campaignTokens.buttonGradient.last.withValues(alpha: 0.1),
                   Colors.transparent,
                 ],
               ),
@@ -389,9 +545,67 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildBackgroundBase(LoginThemeTokenSet campaignTokens) {
+    return Positioned.fill(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: campaignTokens.bgGradient,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackgroundImage(String imageUrl) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: _buildRuntimeNetworkImage(
+          imageUrl,
+          fit: BoxFit.cover,
+          loadingFallback: const SizedBox.shrink(),
+          errorFallback: const SizedBox.shrink(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBackgroundOverlay(LoginThemeTokenSet campaignTokens) {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                campaignTokens.bgGradient.first.withValues(alpha: 0.45),
+                campaignTokens.bgGradient.last.withValues(alpha: 0.65),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(
+    LoginThemeTokenSet campaignTokens,
+    LoginThemeAssetManifest runtimeAssets,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final titleColor = campaignTokens.textPrimary;
+    final subtitleColor = campaignTokens.textSecondary;
+
     return Column(
       children: [
+        if (runtimeAssets.illustration.isNotEmpty) ...[
+          _buildHeaderIllustration(runtimeAssets.illustration),
+          const SizedBox(height: 20),
+        ],
+
         // Logo with neon glow
         Container(
           width: 100,
@@ -400,7 +614,9 @@ class _LoginPageState extends State<LoginPage>
             borderRadius: BorderRadius.circular(28),
             boxShadow: [
               BoxShadow(
-                color: _accentNeon.withValues(alpha: 0.4),
+                color: campaignTokens.buttonGradient.first.withValues(
+                  alpha: isDark ? 0.35 : 0.25,
+                ),
                 blurRadius: 30,
                 spreadRadius: 2,
               ),
@@ -415,12 +631,12 @@ class _LoginPageState extends State<LoginPage>
         const SizedBox(height: 24),
 
         // Welcome text
-        const Text(
+        Text(
           'Welcome back 👋',
           style: TextStyle(
             fontSize: 32,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: titleColor,
             letterSpacing: -1,
           ),
         ),
@@ -431,7 +647,7 @@ class _LoginPageState extends State<LoginPage>
           'Masuk ke akun Agrinova kamu',
           style: TextStyle(
             fontSize: 16,
-            color: Colors.white.withValues(alpha: 0.7),
+            color: subtitleColor,
             fontWeight: FontWeight.w400,
           ),
         ),
@@ -444,6 +660,83 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
+  Widget _buildHeaderIllustration(String imageUrl) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 360),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: AspectRatio(
+          aspectRatio: 2.5,
+          child: _buildRuntimeNetworkImage(
+            imageUrl,
+            fit: BoxFit.cover,
+            loadingFallback: const DecoratedBox(
+              decoration: BoxDecoration(color: Colors.transparent),
+            ),
+            errorFallback: const DecoratedBox(
+              decoration: BoxDecoration(color: Color(0x14000000)),
+              child: Center(
+                child: Icon(
+                  Icons.broken_image_outlined,
+                  color: Color(0xFF94A3B8),
+                  size: 28,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRuntimeNetworkImage(
+    String imageUrl, {
+    required BoxFit fit,
+    required Widget loadingFallback,
+    required Widget errorFallback,
+  }) {
+    final trimmedUrl = imageUrl.trim();
+    if (trimmedUrl.isEmpty) {
+      return errorFallback;
+    }
+
+    if (_isSvgAssetUrl(trimmedUrl)) {
+      return SvgPicture.network(
+        trimmedUrl,
+        fit: fit,
+        placeholderBuilder: (context) => loadingFallback,
+      );
+    }
+
+    return Image.network(
+      trimmedUrl,
+      fit: fit,
+      filterQuality: FilterQuality.medium,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return loadingFallback;
+      },
+      errorBuilder: (context, error, stackTrace) {
+        if (kDebugMode) {
+          debugPrint(
+            'Login campaign asset failed: $trimmedUrl | error: $error',
+          );
+        }
+        return errorFallback;
+      },
+    );
+  }
+
+  bool _isSvgAssetUrl(String imageUrl) {
+    final normalized = imageUrl.trim().toLowerCase();
+    if (normalized.isEmpty) return false;
+    if (normalized.contains('image/svg+xml')) return true;
+
+    final uri = Uri.tryParse(normalized);
+    final path = uri?.path ?? normalized;
+    return path.endsWith('.svg');
+  }
+
   Widget _buildConnectionPill() {
     final Color pillColor;
     final String label;
@@ -451,7 +744,7 @@ class _LoginPageState extends State<LoginPage>
 
     switch (_appStatus) {
       case AppStatus.online:
-        pillColor = _accentNeon;
+        pillColor = _accentPrimary(context);
         label = 'Online';
         subtext = null;
         break;
@@ -547,6 +840,9 @@ class _LoginPageState extends State<LoginPage>
 
   Widget _buildGlassCard(AuthState state) {
     final isLoading = state is AuthLoading;
+    final campaignTokens = _campaignTokens(context);
+    final glassColor = campaignTokens.surface;
+    final borderColor = campaignTokens.surfaceBorder;
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
@@ -555,12 +851,9 @@ class _LoginPageState extends State<LoginPage>
         child: Container(
           padding: const EdgeInsets.all(28),
           decoration: BoxDecoration(
-            color: _glassColor,
+            color: glassColor,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.1),
-              width: 1,
-            ),
+            border: Border.all(color: borderColor, width: 1),
           ),
           child: Form(
             key: _formKey,
@@ -572,6 +865,8 @@ class _LoginPageState extends State<LoginPage>
                   label: 'Username',
                   hint: 'Masukkan username',
                   icon: Icons.person_outline_rounded,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.username],
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Username wajib diisi';
@@ -585,6 +880,8 @@ class _LoginPageState extends State<LoginPage>
                   label: 'Password',
                   hint: 'Masukkan password',
                   icon: Icons.lock_outline_rounded,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.password],
                   isPassword: true,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -614,45 +911,59 @@ class _LoginPageState extends State<LoginPage>
     required String label,
     required String hint,
     required IconData icon,
+    required TextInputAction textInputAction,
+    required Iterable<String> autofillHints,
     bool isPassword = false,
     String? Function(String?)? validator,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final campaignTokens = _campaignTokens(context);
+    final textColor = campaignTokens.textPrimary;
+    final secondaryColor = campaignTokens.textSecondary;
+    final tertiaryColor = campaignTokens.textSecondary.withValues(
+      alpha: isDark ? 0.75 : 0.85,
+    );
+    final inputFill = campaignTokens.inputFill;
+    final inputBorder = campaignTokens.inputBorder;
+
     return TextFormField(
       controller: controller,
       obscureText: isPassword ? _obscurePassword : false,
-      style: const TextStyle(color: Colors.white, fontSize: 16),
+      textInputAction: textInputAction,
+      autofillHints: autofillHints,
+      style: TextStyle(color: textColor, fontSize: 16),
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        labelStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
-        prefixIcon: Icon(icon, color: _accentCyan),
+        labelStyle: TextStyle(color: secondaryColor),
+        hintStyle: TextStyle(color: tertiaryColor),
+        prefixIcon: Icon(icon, color: _accentSecondary(context)),
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(
                   _obscurePassword
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
-                  color: Colors.white.withValues(alpha: 0.5),
+                  color: tertiaryColor,
                 ),
                 onPressed: () =>
                     setState(() => _obscurePassword = !_obscurePassword),
               )
             : null,
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.05),
+        fillColor: inputFill,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          borderSide: BorderSide(color: inputBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          borderSide: BorderSide(color: inputBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: _accentNeon, width: 2),
+          borderSide: BorderSide(color: _accentPrimary(context), width: 2),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -667,6 +978,10 @@ class _LoginPageState extends State<LoginPage>
   }
 
   Widget _buildRememberDevice() {
+    final campaignTokens = _campaignTokens(context);
+    final borderColor = campaignTokens.inputBorder;
+    final textColor = campaignTokens.textSecondary;
+
     return Row(
       children: [
         SizedBox(
@@ -678,11 +993,11 @@ class _LoginPageState extends State<LoginPage>
                 setState(() => _rememberDevice = value ?? false),
             fillColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.selected)) {
-                return _accentNeon;
+                return _accentPrimary(context);
               }
               return Colors.transparent;
             }),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+            side: BorderSide(color: borderColor),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(4),
             ),
@@ -691,24 +1006,24 @@ class _LoginPageState extends State<LoginPage>
         const SizedBox(width: 10),
         Text(
           'Ingat perangkat ini',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.7),
-            fontSize: 14,
-          ),
+          style: TextStyle(color: textColor, fontSize: 14),
         ),
       ],
     );
   }
 
   Widget _buildLoginButton(bool isLoading) {
+    final campaignTokens = _campaignTokens(context);
+    final buttonTextColor = campaignTokens.buttonText;
+
     return Container(
       height: 56,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(colors: [_accentNeon, _accentCyan]),
+        gradient: LinearGradient(colors: campaignTokens.buttonGradient),
         boxShadow: [
           BoxShadow(
-            color: _accentNeon.withValues(alpha: 0.3),
+            color: campaignTokens.buttonGradient.first.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -724,20 +1039,20 @@ class _LoginPageState extends State<LoginPage>
           ),
         ),
         child: isLoading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 24,
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.5,
-                  color: Color(0xFF1a1a2e),
+                  color: buttonTextColor,
                 ),
               )
             : Text(
                 _isOnline ? 'Masuk' : 'Masuk Offline',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1a1a2e),
+                  color: buttonTextColor,
                   letterSpacing: 0.5,
                 ),
               ),
@@ -746,26 +1061,24 @@ class _LoginPageState extends State<LoginPage>
   }
 
   Widget _buildBiometricSection(bool isLoading) {
+    final campaignTokens = _campaignTokens(context);
+    final dividerColor = campaignTokens.surfaceBorder;
+    final textColor = campaignTokens.textSecondary.withValues(alpha: 0.85);
+    final accentColor = _accentSecondary(context);
+
     return Column(
       children: [
         Row(
           children: [
-            Expanded(
-              child: Divider(color: Colors.white.withValues(alpha: 0.2)),
-            ),
+            Expanded(child: Divider(color: dividerColor)),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
                 'atau',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.5),
-                  fontSize: 13,
-                ),
+                style: TextStyle(color: textColor, fontSize: 13),
               ),
             ),
-            Expanded(
-              child: Divider(color: Colors.white.withValues(alpha: 0.2)),
-            ),
+            Expanded(child: Divider(color: dividerColor)),
           ],
         ),
         const SizedBox(height: 20),
@@ -778,10 +1091,10 @@ class _LoginPageState extends State<LoginPage>
                 height: 72,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: _accentCyan, width: 2),
+                  border: Border.all(color: accentColor, width: 2),
                   boxShadow: [
                     BoxShadow(
-                      color: _accentCyan.withValues(alpha: 0.3),
+                      color: accentColor.withValues(alpha: 0.3),
                       blurRadius: 20,
                     ),
                   ],
@@ -793,11 +1106,11 @@ class _LoginPageState extends State<LoginPage>
                           height: 28,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: _accentCyan,
+                            color: accentColor,
                           ),
                         ),
                       )
-                    : Icon(Icons.fingerprint, size: 36, color: _accentCyan),
+                    : Icon(Icons.fingerprint, size: 36, color: accentColor),
               ),
             );
           },
@@ -805,26 +1118,27 @@ class _LoginPageState extends State<LoginPage>
         const SizedBox(height: 12),
         Text(
           'Tap untuk masuk dengan biometrik',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.5),
-            fontSize: 13,
-          ),
+          style: TextStyle(color: textColor, fontSize: 13),
         ),
       ],
     );
   }
 
   Widget _buildVersionBadge() {
+    final campaignTokens = _campaignTokens(context);
+    final bgColor = campaignTokens.surface.withValues(alpha: 0.8);
+    final textColor = campaignTokens.textSecondary.withValues(alpha: 0.8);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
+        color: bgColor,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         _appVersion.isEmpty ? '' : 'v$_appVersion',
         style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.4),
+          color: textColor,
           fontSize: 12,
           fontWeight: FontWeight.w500,
         ),
@@ -833,6 +1147,10 @@ class _LoginPageState extends State<LoginPage>
   }
 
   Widget _buildLegalLinks() {
+    final mutedColor = _campaignTokens(
+      context,
+    ).textSecondary.withValues(alpha: 0.8);
+
     return Wrap(
       alignment: WrapAlignment.center,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -842,7 +1160,7 @@ class _LoginPageState extends State<LoginPage>
         Text(
           'Dengan masuk, Anda menyetujui',
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.45),
+            color: mutedColor,
             fontSize: 11,
             fontWeight: FontWeight.w400,
           ),
@@ -856,7 +1174,7 @@ class _LoginPageState extends State<LoginPage>
         Text(
           'dan',
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.45),
+            color: mutedColor,
             fontSize: 11,
             fontWeight: FontWeight.w400,
           ),
@@ -875,21 +1193,23 @@ class _LoginPageState extends State<LoginPage>
     required String label,
     required VoidCallback onTap,
   }) {
+    final linkColor = _campaignTokens(context).link;
+
     return TextButton(
       onPressed: onTap,
       style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        minimumSize: const Size(0, 40),
+        tapTargetSize: MaterialTapTargetSize.padded,
       ),
       child: Text(
         label,
         style: TextStyle(
-          color: _accentCyan.withValues(alpha: 0.95),
+          color: linkColor.withValues(alpha: 0.95),
           fontSize: 11,
           fontWeight: FontWeight.w600,
           decoration: TextDecoration.underline,
-          decorationColor: _accentCyan.withValues(alpha: 0.85),
+          decorationColor: linkColor.withValues(alpha: 0.85),
         ),
       ),
     );
@@ -902,7 +1222,10 @@ class _LoginPageState extends State<LoginPage>
       if (opened) {
         return;
       }
-      final openedFallback = await launchUrl(uri, mode: LaunchMode.platformDefault);
+      final openedFallback = await launchUrl(
+        uri,
+        mode: LaunchMode.platformDefault,
+      );
       if (openedFallback) {
         return;
       }

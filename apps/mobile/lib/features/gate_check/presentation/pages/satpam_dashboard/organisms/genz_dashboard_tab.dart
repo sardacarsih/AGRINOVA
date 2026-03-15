@@ -5,6 +5,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'genz_tab_container.dart';
+import '../genz_theme.dart';
 import '../../../../../../../shared/widgets/current_user_avatar.dart';
 
 /// Complete Gen Z styled dashboard tab with Glassmorphism + Neon effects
@@ -54,7 +55,7 @@ class GenZDashboardTab extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
+              color: GenZTheme.of(context).surfaceOverlay,
               borderRadius: BorderRadius.circular(20),
             ),
             child: const CircularProgressIndicator(color: neonPurple),
@@ -65,19 +66,19 @@ class GenZDashboardTab extends StatelessWidget {
 
     return GenZScrollableTab(
       children: [
-        _buildWelcomeCard(),
+        _buildWelcomeCard(context),
         const SizedBox(height: 28),
-        _buildStatsSection(),
+        _buildStatsSection(context),
         const SizedBox(height: 28),
-        _buildSyncStatsSection(),
+        _buildSyncStatsSection(context),
         const SizedBox(height: 28),
-        _buildActivitySection(),
+        _buildActivitySection(context),
       ],
     );
   }
 
   /// Glassmorphism welcome card with purple neon glow
-  Widget _buildWelcomeCard() {
+  Widget _buildWelcomeCard(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
@@ -132,7 +133,7 @@ class GenZDashboardTab extends StatelessWidget {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
+                            color: GenZTheme.gray900.withValues(alpha: 0.1),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -207,10 +208,12 @@ class GenZDashboardTab extends StatelessWidget {
   Widget _buildRoleHeroCard() {
     final roleName = _getRoleDisplayName(userRole).toUpperCase();
     final bool isSatpamRole = userRole.toLowerCase() == 'satpam';
-    final roleDescription =
-        isSatpamRole ? 'Petugas Keamanan Pos Aktif' : 'Role Operasional Aktif';
-    final Color roleAccent =
-        isSatpamRole ? const Color(0xFF22D3EE) : const Color(0xFFE879F9);
+    final roleDescription = isSatpamRole
+        ? 'Petugas Keamanan Pos Aktif'
+        : 'Role Operasional Aktif';
+    final Color roleAccent = isSatpamRole
+        ? const Color(0xFF22D3EE)
+        : const Color(0xFFE879F9);
 
     return Container(
       width: double.infinity,
@@ -244,7 +247,7 @@ class GenZDashboardTab extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.18),
+              color: GenZTheme.gray900.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: roleAccent.withValues(alpha: 0.45)),
             ),
@@ -341,8 +344,9 @@ class GenZDashboardTab extends StatelessWidget {
   }
 
   /// Stats section with neon glowing cards
-  Widget _buildStatsSection() {
+  Widget _buildStatsSection(BuildContext context) {
     final total = totalEntry + totalExit;
+    final themeColors = GenZTheme.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,12 +355,12 @@ class GenZDashboardTab extends StatelessWidget {
           children: [
             const Icon(Icons.today_rounded, color: neonPurple, size: 20),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'Statistik Hari Ini',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: Colors.white,
+                color: themeColors.headingColor,
                 letterSpacing: 0.3,
               ),
             ),
@@ -368,6 +372,7 @@ class GenZDashboardTab extends StatelessWidget {
             // Total card - Frosted glass
             Expanded(
               child: _buildGlassStatCard(
+                context: context,
                 label: 'Total:',
                 value: total.toString(),
                 glowColor: neonPurple,
@@ -379,6 +384,7 @@ class GenZDashboardTab extends StatelessWidget {
             // Masuk card - Green neon glow
             Expanded(
               child: _buildGlassStatCard(
+                context: context,
                 label: 'Masuk:',
                 value: totalEntry.toString(),
                 glowColor: neonGreen,
@@ -389,6 +395,7 @@ class GenZDashboardTab extends StatelessWidget {
             // Keluar card - Red neon glow
             Expanded(
               child: _buildGlassStatCard(
+                context: context,
                 label: 'Keluar:',
                 value: totalExit.toString(),
                 glowColor: neonRed,
@@ -402,7 +409,9 @@ class GenZDashboardTab extends StatelessWidget {
   }
 
   /// Sync statistics section with glassmorphism styling
-  Widget _buildSyncStatsSection() {
+  Widget _buildSyncStatsSection(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -410,12 +419,12 @@ class GenZDashboardTab extends StatelessWidget {
           children: [
             const Icon(Icons.sync_rounded, color: neonBlue, size: 20),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               'Status Sync',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: Colors.white,
+                color: themeColors.headingColor,
                 letterSpacing: 0.3,
               ),
             ),
@@ -427,6 +436,7 @@ class GenZDashboardTab extends StatelessWidget {
             // Total Records
             Expanded(
               child: _buildGlassStatCard(
+                context: context,
                 label: 'Total:',
                 value: totalRecords.toString(),
                 glowColor: neonBlue,
@@ -437,6 +447,7 @@ class GenZDashboardTab extends StatelessWidget {
             // Synced Records
             Expanded(
               child: _buildGlassStatCard(
+                context: context,
                 label: 'Synced:',
                 value: syncedRecords.toString(),
                 glowColor: neonGreen,
@@ -447,6 +458,7 @@ class GenZDashboardTab extends StatelessWidget {
             // Pending Records
             Expanded(
               child: _buildGlassStatCard(
+                context: context,
                 label: 'Pending:',
                 value: pendingRecords.toString(),
                 glowColor: const Color(0xFFF59E0B), // Always yellow/amber
@@ -461,12 +473,15 @@ class GenZDashboardTab extends StatelessWidget {
 
   /// Glassmorphism stat card with neon glow
   Widget _buildGlassStatCard({
+    required BuildContext context,
     required String label,
     required String value,
     required Color glowColor,
     IconData? icon,
     bool isNeutral = false,
   }) {
+    final themeColors = GenZTheme.of(context);
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
@@ -491,8 +506,8 @@ class GenZDashboardTab extends StatelessWidget {
                 end: Alignment.bottomRight,
                 colors: isNeutral
                     ? [
-                        const Color(0xFF1F2937).withValues(alpha: 0.9),
-                        const Color(0xFF374151).withValues(alpha: 0.7),
+                        themeColors.cardBackground.withValues(alpha: 0.9),
+                        themeColors.borderColor.withValues(alpha: 0.7),
                       ]
                     : [
                         glowColor.withValues(alpha: 0.25),
@@ -502,7 +517,7 @@ class GenZDashboardTab extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: isNeutral
-                    ? Colors.white.withValues(alpha: 0.1)
+                    ? themeColors.surfaceOverlay
                     : glowColor.withValues(alpha: 0.4),
                 width: 1.5,
               ),
@@ -517,7 +532,7 @@ class GenZDashboardTab extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Colors.white.withValues(alpha: 0.8),
+                        color: themeColors.bodySecondary,
                       ),
                     ),
                     if (icon != null) ...[
@@ -532,7 +547,7 @@ class GenZDashboardTab extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w800,
-                    color: isNeutral ? Colors.white : glowColor,
+                    color: isNeutral ? themeColors.headingColor : glowColor,
                     shadows: isNeutral
                         ? null
                         : [
@@ -552,19 +567,21 @@ class GenZDashboardTab extends StatelessWidget {
   }
 
   /// Activity section with glassmorphism list items
-  Widget _buildActivitySection() {
+  Widget _buildActivitySection(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Aktivitas Terbaru',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: Colors.white,
+                color: themeColors.headingColor,
                 letterSpacing: 0.3,
               ),
             ),
@@ -572,8 +589,10 @@ class GenZDashboardTab extends StatelessWidget {
               GestureDetector(
                 onTap: onViewAllHistory,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: neonPurple.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
@@ -595,11 +614,11 @@ class GenZDashboardTab extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         if (recentActivities.isEmpty)
-          _buildEmptyActivity()
+          _buildEmptyActivity(context)
         else
           Column(
             children: recentActivities.take(5).map((activity) {
-              return _buildGlassActivityItem(activity);
+              return _buildGlassActivityItem(context, activity);
             }).toList(),
           ),
       ],
@@ -607,11 +626,13 @@ class GenZDashboardTab extends StatelessWidget {
   }
 
   /// Glassmorphism activity item with neon accent
-  Widget _buildGlassActivityItem(ActivityData activity) {
+  Widget _buildGlassActivityItem(BuildContext context, ActivityData activity) {
     final isEntry = activity.isEntry;
     final accentColor = isEntry ? neonGreen : neonRed;
-    final arrowIcon =
-        isEntry ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded;
+    final arrowIcon = isEntry
+        ? Icons.arrow_upward_rounded
+        : Icons.arrow_downward_rounded;
+    final themeColors = GenZTheme.of(context);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -637,14 +658,12 @@ class GenZDashboardTab extends StatelessWidget {
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
                 colors: [
-                  const Color(0xFF1F2937).withValues(alpha: 0.9),
-                  const Color(0xFF1F2937).withValues(alpha: 0.7),
+                  themeColors.cardBackground.withValues(alpha: 0.9),
+                  themeColors.cardBackground.withValues(alpha: 0.7),
                 ],
               ),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.08),
-              ),
+              border: Border.all(color: themeColors.surfaceOverlay),
             ),
             child: Row(
               children: [
@@ -666,11 +685,7 @@ class GenZDashboardTab extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Icon(
-                    arrowIcon,
-                    color: accentColor,
-                    size: 24,
-                  ),
+                  child: Icon(arrowIcon, color: accentColor, size: 24),
                 ),
 
                 const SizedBox(width: 16),
@@ -682,10 +697,10 @@ class GenZDashboardTab extends StatelessWidget {
                     children: [
                       Text(
                         activity.plate,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: themeColors.headingColor,
                           letterSpacing: 1,
                         ),
                       ),
@@ -699,19 +714,22 @@ class GenZDashboardTab extends StatelessWidget {
                                     : 'Keluar Kendaraan'),
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.white.withValues(alpha: 0.5),
+                              color: themeColors.bodyTertiary,
                             ),
                           ),
                           if (activity.registrationSource != null) ...[
                             const SizedBox(width: 8),
                             Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 1),
+                                horizontal: 6,
+                                vertical: 1,
+                              ),
                               decoration: BoxDecoration(
-                                color: (activity.registrationSource == 'QR_SCAN'
-                                        ? neonBlue
-                                        : Colors.orange)
-                                    .withValues(alpha: 0.2),
+                                color:
+                                    (activity.registrationSource == 'QR_SCAN'
+                                            ? neonBlue
+                                            : Colors.orange)
+                                        .withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(4),
                                 border: Border.all(
                                   color:
@@ -732,8 +750,8 @@ class GenZDashboardTab extends StatelessWidget {
                                     size: 10,
                                     color:
                                         activity.registrationSource == 'QR_SCAN'
-                                            ? neonBlue
-                                            : Colors.orange[300],
+                                        ? neonBlue
+                                        : Colors.orange[300],
                                   ),
                                   const SizedBox(width: 3),
                                   Text(
@@ -743,7 +761,8 @@ class GenZDashboardTab extends StatelessWidget {
                                     style: TextStyle(
                                       fontSize: 9,
                                       fontWeight: FontWeight.bold,
-                                      color: activity.registrationSource ==
+                                      color:
+                                          activity.registrationSource ==
                                               'QR_SCAN'
                                           ? neonBlue
                                           : Colors.orange[300],
@@ -765,25 +784,19 @@ class GenZDashboardTab extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: Colors.white.withValues(alpha: 0.6),
+                    color: themeColors.bodySecondary,
                   ),
                 ),
 
                 const SizedBox(width: 16),
 
-                // Time with subtle glow
+                // Time
                 Text(
                   activity.time,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    shadows: [
-                      Shadow(
-                        color: Colors.white.withValues(alpha: 0.3),
-                        blurRadius: 6,
-                      ),
-                    ],
+                    color: themeColors.headingColor,
                   ),
                 ),
               ],
@@ -794,7 +807,9 @@ class GenZDashboardTab extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyActivity() {
+  Widget _buildEmptyActivity(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
@@ -802,11 +817,9 @@ class GenZDashboardTab extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(48),
           decoration: BoxDecoration(
-            color: const Color(0xFF1F2937).withValues(alpha: 0.6),
+            color: themeColors.cardBackground.withValues(alpha: 0.6),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.1),
-            ),
+            border: Border.all(color: themeColors.surfaceOverlay),
           ),
           child: Center(
             child: Column(
@@ -814,14 +827,14 @@ class GenZDashboardTab extends StatelessWidget {
                 Icon(
                   Icons.inbox_rounded,
                   size: 56,
-                  color: Colors.white.withValues(alpha: 0.3),
+                  color: themeColors.bodyTertiary,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   'Belum ada aktivitas hari ini',
                   style: TextStyle(
                     fontSize: 15,
-                    color: Colors.white.withValues(alpha: 0.5),
+                    color: themeColors.bodySecondary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -853,8 +866,10 @@ class GenZDashboardTab extends StatelessWidget {
         return role
             .split('_')
             .where((part) => part.isNotEmpty)
-            .map((part) =>
-                '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}')
+            .map(
+              (part) =>
+                  '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+            )
             .join(' ');
     }
   }
@@ -883,4 +898,3 @@ class ActivityData {
     this.registrationSource,
   });
 }
-

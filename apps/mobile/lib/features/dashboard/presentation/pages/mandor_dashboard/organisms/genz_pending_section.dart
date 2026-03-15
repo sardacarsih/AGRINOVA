@@ -41,18 +41,18 @@ class GenZPendingSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildHeader(),
+        _buildHeader(context),
         const SizedBox(height: 14),
-        items.isEmpty ? _buildEmptyState() : _buildItemsList(),
+        items.isEmpty ? _buildEmptyState(context) : _buildItemsList(),
       ],
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('Menunggu Persetujuan', style: MandorTheme.headingSmall),
+        Text('Menunggu Persetujuan', style: MandorTheme.headingSmallFor(context)),
         TextButton(
           onPressed: onViewAll,
           style: TextButton.styleFrom(
@@ -82,7 +82,7 @@ class GenZPendingSection extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -101,7 +101,7 @@ class GenZPendingSection extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             'Tidak ada data menunggu persetujuan',
-            style: MandorTheme.bodyLarge.copyWith(
+            style: MandorTheme.bodyLargeFor(context).copyWith(
               color: MandorTheme.amberOrange,
             ),
             textAlign: TextAlign.center,
@@ -109,7 +109,7 @@ class GenZPendingSection extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'Data yang Anda input akan muncul di sini',
-            style: MandorTheme.bodySmall.copyWith(
+            style: MandorTheme.bodySmallFor(context).copyWith(
               color: MandorTheme.amberOrange.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
@@ -121,7 +121,7 @@ class GenZPendingSection extends StatelessWidget {
 
   Widget _buildItemsList() {
     final displayItems = items.take(maxItems).toList();
-    
+
     return Column(
       children: displayItems.map((item) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
@@ -141,10 +141,11 @@ class _PendingItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = MandorTheme.of(context);
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: MandorTheme.gray800.withValues(alpha: 0.6),
+        color: theme.cardBackground.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: MandorTheme.amberOrange.withValues(alpha: 0.2),
@@ -154,7 +155,7 @@ class _PendingItemCard extends StatelessWidget {
         children: [
           _buildIcon(),
           const SizedBox(width: 14),
-          Expanded(child: _buildContent()),
+          Expanded(child: _buildContent(context)),
           _buildStatusBadge(),
         ],
       ),
@@ -176,20 +177,20 @@ class _PendingItemCard extends StatelessWidget {
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           item.title,
-          style: MandorTheme.labelBold,
+          style: MandorTheme.labelBoldFor(context),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 3),
         Text(
           '${item.subtitle} • ${item.time}',
-          style: MandorTheme.bodySmall,
+          style: MandorTheme.bodySmallFor(context),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -216,4 +217,3 @@ class _PendingItemCard extends StatelessWidget {
     );
   }
 }
-

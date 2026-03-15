@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import '../atoms/genz_stat_item.dart';
+import '../genz_theme.dart';
 
 /// Colors for stats
 class GenZStatsColors {
@@ -26,17 +27,18 @@ class GenZQuickStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF1F2937),
-            const Color(0xFF1F2937).withValues(alpha: 0.8),
+            themeColors.cardBackground,
+            themeColors.cardBackground.withValues(alpha: 0.8),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF374151).withValues(alpha: 0.5)),
+        border: Border.all(color: themeColors.borderColor.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
@@ -80,17 +82,18 @@ class GenZStatsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF1F2937),
-            const Color(0xFF1F2937).withValues(alpha: 0.8),
+            themeColors.cardBackground,
+            themeColors.cardBackground.withValues(alpha: 0.8),
           ],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF374151).withValues(alpha: 0.5)),
+        border: Border.all(color: themeColors.borderColor.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: items.asMap().entries.map((entry) {
@@ -127,4 +130,3 @@ class GenZStatData {
     required this.color,
   });
 }
-

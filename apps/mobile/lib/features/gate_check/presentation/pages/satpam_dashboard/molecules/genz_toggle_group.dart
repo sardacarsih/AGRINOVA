@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import '../atoms/genz_chip.dart';
+import '../genz_theme.dart';
 
 /// A horizontal toggle group with animated selection
 class GenZToggleGroup extends StatelessWidget {
@@ -19,12 +20,13 @@ class GenZToggleGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFF1F2937),
+        color: themeColors.cardBackground,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF374151)),
+        border: Border.all(color: themeColors.borderColor),
       ),
       child: Row(
         children: items.map((item) {

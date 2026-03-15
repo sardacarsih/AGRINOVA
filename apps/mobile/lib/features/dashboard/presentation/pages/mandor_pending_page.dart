@@ -26,7 +26,7 @@ class MandorPendingPage extends StatelessWidget {
         }
 
         return Scaffold(
-          backgroundColor: MandorTheme.gray900,
+          backgroundColor: MandorTheme.of(context).scaffoldBackground,
           appBar: AppBar(
             title: const Text(
               'Pending Persetujuan',
@@ -67,7 +67,7 @@ class MandorPendingPage extends StatelessWidget {
           padding: const EdgeInsets.all(24),
           child: Text(
             'Halaman ini hanya untuk role Mandor.',
-            style: MandorTheme.bodyMedium,
+            style: MandorTheme.bodyMediumFor(context),
             textAlign: TextAlign.center,
           ),
         ),

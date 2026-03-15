@@ -8,25 +8,26 @@ class SatpamDashboardConstants {
   static const int validationTabIndex = 2;
   static const int historyTabIndex = 3;
   static const int profileTabIndex = 4;
-  
+
   // Auto-refresh intervals
   static const Duration autoRefreshInterval = Duration(seconds: 30);
   static const Duration serviceInitRetryDelay = Duration(seconds: 2);
   static const int maxServiceInitRetries = 3;
-  
+
   // Colors
   static const Color primaryColor = Color(0xFF2E7D32);
   static const Color accentColor = Color(0xFF4CAF50);
   static const Color warningColor = Color(0xFFF57C00);
   static const Color errorColor = Color(0xFFD32F2F);
   static const Color successColor = Color(0xFF388E3C);
-  
+
   // Status colors
   static const Color onlineStatusColor = Colors.green;
   static const Color offlineStatusColor = Colors.orange;
   static const Color syncingStatusColor = Colors.blue;
   static const Color errorStatusColor = Colors.red;
-  
+  static const Color neutralStatusColor = Color(0xFF6B7280);
+
   // Sizes and dimensions
   static const double cardElevation = 4.0;
   static const double borderRadius = 8.0;
@@ -34,24 +35,24 @@ class SatpamDashboardConstants {
   static const double largePadding = 16.0;
   static const double mediumPadding = 12.0;
   static const double smallPadding = 8.0;
-  
+
   // Animation durations
   static const Duration tabSwitchDuration = Duration(milliseconds: 300);
   static const Duration loadingAnimationDuration = Duration(milliseconds: 500);
-  
+
   // Default values
   static const String defaultShiftInfo = 'Loading...';
   static const String defaultValidationAction = 'entry';
   static const int defaultTabLength = 5;
 }
 
-/// Dashboard utilities class 
+/// Dashboard utilities class
 class SatpamDashboardUtilities {
   /// Format timestamp to readable string
   static String formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
     final difference = now.difference(timestamp);
-    
+
     if (difference.inMinutes < 1) {
       return 'Baru saja';
     } else if (difference.inMinutes < 60) {
@@ -62,7 +63,7 @@ class SatpamDashboardUtilities {
       return '${difference.inDays} hari lalu';
     }
   }
-  
+
   /// Get status color based on sync status
   static Color getStatusColor(String status) {
     switch (status.toLowerCase()) {
@@ -80,10 +81,10 @@ class SatpamDashboardUtilities {
       case 'failed':
         return SatpamDashboardConstants.errorStatusColor;
       default:
-        return Colors.grey;
+        return SatpamDashboardConstants.neutralStatusColor;
     }
   }
-  
+
   /// Get status icon based on sync status
   static IconData getStatusIcon(String status) {
     switch (status.toLowerCase()) {
@@ -104,76 +105,87 @@ class SatpamDashboardUtilities {
         return Icons.help;
     }
   }
-  
+
   /// Build loading indicator
   static Widget buildLoadingIndicator([String? message]) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(SatpamDashboardConstants.primaryColor),
-          ),
-          if (message != null) ...[
-            const SizedBox(height: SatpamDashboardConstants.largePadding),
-            Text(
-              message,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
+    return Builder(
+      builder: (context) {
+        final textColor = Theme.of(context).colorScheme.onSurfaceVariant;
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  SatpamDashboardConstants.primaryColor,
+                ),
               ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ],
-      ),
+              if (message != null) ...[
+                const SizedBox(height: SatpamDashboardConstants.largePadding),
+                Text(
+                  message,
+                  style: TextStyle(fontSize: 14, color: textColor),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
-  
+
   /// Build error widget
   static Widget buildError(String error, VoidCallback? onRetry) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(SatpamDashboardConstants.largePadding),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: SatpamDashboardConstants.errorColor,
+    return Builder(
+      builder: (context) {
+        final theme = Theme.of(context);
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(
+              SatpamDashboardConstants.largePadding,
             ),
-            const SizedBox(height: SatpamDashboardConstants.largePadding),
-            Text(
-              'Terjadi Kesalahan',
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: SatpamDashboardConstants.smallPadding),
-            Text(
-              error,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: SatpamDashboardConstants.largePadding),
-              ElevatedButton(
-                onPressed: onRetry,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: SatpamDashboardConstants.primaryColor,
-                  foregroundColor: Colors.white,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: SatpamDashboardConstants.errorColor,
                 ),
-                child: const Text('Coba Lagi'),
-              ),
-            ],
-          ],
-        ),
-      ),
+                const SizedBox(height: SatpamDashboardConstants.largePadding),
+                Text(
+                  'Terjadi Kesalahan',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: SatpamDashboardConstants.smallPadding),
+                Text(
+                  error,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                if (onRetry != null) ...[
+                  const SizedBox(height: SatpamDashboardConstants.largePadding),
+                  ElevatedButton(
+                    onPressed: onRetry,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: SatpamDashboardConstants.primaryColor,
+                      foregroundColor: theme.colorScheme.onPrimary,
+                    ),
+                    child: const Text('Coba Lagi'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -197,7 +209,7 @@ class TabNavigationHelper {
         return 'Tab $index';
     }
   }
-  
+
   /// Get tab icon
   static IconData getTabIcon(int index) {
     switch (index) {
@@ -215,7 +227,7 @@ class TabNavigationHelper {
         return Icons.tab;
     }
   }
-  
+
   /// Get floating action button icon for tab
   static IconData? getFloatingActionButtonIcon(int index) {
     switch (index) {

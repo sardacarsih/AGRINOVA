@@ -1086,6 +1086,46 @@ func AutoMigrate(db *gorm.DB) error {
 		return fmt.Errorf("failed migration 000065 create block treatment request workflow: %w", err)
 	}
 
+	// Create runtime theme campaign tables and seed baseline theme campaign data.
+	if err := migrations.Migration000066CreateThemeCampaignTables(db); err != nil {
+		return fmt.Errorf("failed migration 000066 create theme campaign tables: %w", err)
+	}
+
+	// Refactor theme campaign architecture: shared campaign rules + platform-specific visual assets.
+	if err := migrations.Migration000067RefactorThemeCampaignSharedRules(db); err != nil {
+		return fmt.Errorf("failed migration 000067 refactor theme campaign shared rules: %w", err)
+	}
+
+	// Remove audience targeting columns so theme campaigns are global-only at runtime.
+	if err := migrations.Migration000068RemoveThemeCampaignTargeting(db); err != nil {
+		return fmt.Errorf("failed migration 000068 remove theme campaign targeting: %w", err)
+	}
+
+	// Backfill seeded Ramadan Core campaign visual assets with local dummy URLs for web/mobile.
+	if err := migrations.Migration000069BackfillRamadanCoreCampaignAssets(db); err != nil {
+		return fmt.Errorf("failed migration 000069 backfill ramadan core campaign assets: %w", err)
+	}
+
+	// Backfill seeded Harvest Week campaign visual assets with local dummy URLs for web/mobile.
+	if err := migrations.Migration000070BackfillHarvestWeekCampaignAssets(db); err != nil {
+		return fmt.Errorf("failed migration 000070 backfill harvest week campaign assets: %w", err)
+	}
+
+	// Ensure Harvest Week campaign keeps complete visual assets without overriding valid values.
+	if err := migrations.Migration000071EnsureHarvestWeekCampaignVisualAssetsComplete(db); err != nil {
+		return fmt.Errorf("failed migration 000071 ensure harvest week campaign visual assets complete: %w", err)
+	}
+
+	// Optimize runtime theme campaign lookup for active endpoint traffic.
+	if err := migrations.Migration000072OptimizeThemeRuntimeCampaignLookup(db); err != nil {
+		return fmt.Errorf("failed migration 000072 optimize theme runtime campaign lookup: %w", err)
+	}
+
+	// Rename theme asset keys to canonical names (backgroundImage + illustration).
+	if err := migrations.Migration000073RenameThemeAssetKeys(db); err != nil {
+		return fmt.Errorf("failed migration 000073 rename theme asset keys: %w", err)
+	}
+
 	legacyMasterColumns, err := hasLegacyMasterColumns(db)
 	if err != nil {
 		return fmt.Errorf("failed checking legacy master columns: %w", err)

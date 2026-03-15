@@ -144,7 +144,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
         }
       },
       child: Container(
-        decoration: BoxDecoration(gradient: MandorTheme.darkGradient),
+        decoration: BoxDecoration(gradient: MandorTheme.backgroundGradientFor(context)),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Form(
@@ -199,7 +199,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: MandorTheme.glassCardBox,
+      decoration: MandorTheme.glassCardFor(context),
       child: Row(
         children: [
           Container(
@@ -219,11 +219,11 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Input Panen Baru', style: MandorTheme.headingSmall),
+                Text('Input Panen Baru', style: MandorTheme.headingSmallFor(context)),
                 const SizedBox(height: 4),
                 Text(
                   'Isi data panen untuk hari ini',
-                  style: MandorTheme.bodySmall,
+                  style: MandorTheme.bodySmallFor(context),
                 ),
               ],
             ),
@@ -265,20 +265,20 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: MandorTheme.glassCardBox,
+        decoration: MandorTheme.glassCardFor(context),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: isEmpty
-                    ? MandorTheme.gray600.withValues(alpha: 0.3)
+                    ? MandorTheme.of(context).borderColor.withValues(alpha: 0.3)
                     : MandorTheme.forestGreen.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 icon,
-                color: isEmpty ? MandorTheme.gray400 : MandorTheme.forestGreen,
+                color: isEmpty ? MandorTheme.of(context).bodySecondary : MandorTheme.forestGreen,
                 size: 20,
               ),
             ),
@@ -287,22 +287,22 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: MandorTheme.labelSmall),
+                  Text(label, style: MandorTheme.labelSmallFor(context)),
                   const SizedBox(height: 2),
                   Text(
                     value,
                     style: isEmpty
-                        ? MandorTheme.bodyMedium.copyWith(
-                            color: MandorTheme.gray500,
+                        ? MandorTheme.bodyMediumFor(context).copyWith(
+                            color: MandorTheme.of(context).bodyTertiary,
                           )
-                        : MandorTheme.bodyMedium.copyWith(
+                        : MandorTheme.bodyMediumFor(context).copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: MandorTheme.gray500),
+            Icon(Icons.chevron_right_rounded, color: MandorTheme.of(context).bodyTertiary),
           ],
         ),
       ),
@@ -312,7 +312,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
   Widget _buildQuantityInput() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: MandorTheme.glassCardBox,
+      decoration: MandorTheme.glassCardFor(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -331,22 +331,22 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                 ),
               ),
               const SizedBox(width: 12),
-              Text('Jumlah Janjang', style: MandorTheme.labelMedium),
+              Text('Jumlah Janjang', style: MandorTheme.labelMediumFor(context)),
             ],
           ),
           const SizedBox(height: 12),
           TextFormField(
             controller: _quantityController,
             keyboardType: TextInputType.number,
-            style: MandorTheme.headingLarge.copyWith(color: Colors.white),
+            style: MandorTheme.headingLargeFor(context),
             textAlign: TextAlign.center,
             decoration: InputDecoration(
               hintText: '0',
-              hintStyle: MandorTheme.headingLarge.copyWith(
-                color: MandorTheme.gray600,
+              hintStyle: MandorTheme.headingLargeFor(context).copyWith(
+                color: MandorTheme.of(context).borderColor,
               ),
               filled: true,
-              fillColor: MandorTheme.gray800,
+              fillColor: MandorTheme.of(context).cardBackground,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -359,7 +359,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                 ),
               ),
               suffixText: 'janjang',
-              suffixStyle: MandorTheme.bodySmall,
+              suffixStyle: MandorTheme.bodySmallFor(context),
             ),
             validator: (value) {
               if (value == null || value.isEmpty) {
@@ -388,7 +388,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: MandorTheme.glassCardBox,
+      decoration: MandorTheme.glassCardFor(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -407,7 +407,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                 ),
               ),
               const SizedBox(width: 12),
-              Text('Kualitas Janjang', style: MandorTheme.labelMedium),
+              Text('Kualitas Janjang', style: MandorTheme.labelMediumFor(context)),
             ],
           ),
           const SizedBox(height: 12),
@@ -464,11 +464,11 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                     vertical: 14,
                   ),
                   decoration: BoxDecoration(
-                    color: MandorTheme.gray800,
+                    color: MandorTheme.of(context).cardBackground,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: quantity == 0
-                          ? MandorTheme.gray600
+                          ? MandorTheme.of(context).borderColor
                           : (isMatch
                                 ? MandorTheme.forestGreen
                                 : MandorTheme.coralRed),
@@ -477,13 +477,13 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Total Kualitas', style: MandorTheme.labelSmall),
+                      Text('Total Kualitas', style: MandorTheme.labelSmallFor(context)),
                       const SizedBox(height: 6),
                       Text(
                         '$totalQuality / $quantity',
-                        style: MandorTheme.bodyMedium.copyWith(
+                        style: MandorTheme.bodyMediumFor(context).copyWith(
                           color: quantity == 0
-                              ? MandorTheme.gray400
+                              ? MandorTheme.of(context).bodySecondary
                               : (isMatch
                                     ? MandorTheme.forestGreen
                                     : MandorTheme.coralRed),
@@ -511,14 +511,18 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
       readOnly: readOnly,
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      style: MandorTheme.bodyMedium.copyWith(color: Colors.white),
+      style: MandorTheme.bodyMediumFor(context).copyWith(
+        color: MandorTheme.of(context).headingColor,
+      ),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: MandorTheme.labelSmall,
+        labelStyle: MandorTheme.labelSmallFor(context),
         hintText: '0',
-        hintStyle: MandorTheme.bodySmall.copyWith(color: MandorTheme.gray500),
+        hintStyle: MandorTheme.bodySmallFor(context).copyWith(
+          color: MandorTheme.of(context).bodyTertiary,
+        ),
         filled: true,
-        fillColor: MandorTheme.gray800,
+        fillColor: MandorTheme.of(context).cardBackground,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide.none,
@@ -526,7 +530,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(
-            color: readOnly ? MandorTheme.gray600 : MandorTheme.forestGreen,
+            color: readOnly ? MandorTheme.of(context).borderColor : MandorTheme.forestGreen,
           ),
         ),
       ),
@@ -537,7 +541,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
   Widget _buildLocationDisplay() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: MandorTheme.glassCardBox,
+      decoration: MandorTheme.glassCardFor(context),
       child: Row(
         children: [
           Container(
@@ -545,7 +549,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
             decoration: BoxDecoration(
               color: _currentLocation != null
                   ? MandorTheme.electricBlue.withValues(alpha: 0.2)
-                  : MandorTheme.gray600.withValues(alpha: 0.3),
+                  : MandorTheme.of(context).borderColor.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(10),
             ),
             child: _isGettingLocation
@@ -563,7 +567,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                     Icons.gps_fixed_rounded,
                     color: _currentLocation != null
                         ? MandorTheme.electricBlue
-                        : MandorTheme.gray400,
+                        : MandorTheme.of(context).bodySecondary,
                     size: 20,
                   ),
           ),
@@ -572,7 +576,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Lokasi GPS', style: MandorTheme.labelSmall),
+                Text('Lokasi GPS', style: MandorTheme.labelSmallFor(context)),
                 const SizedBox(height: 2),
                 Text(
                   _currentLocation != null
@@ -580,10 +584,10 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                       : _isGettingLocation
                       ? 'Mendapatkan lokasi...'
                       : 'Lokasi tidak tersedia',
-                  style: MandorTheme.bodySmall.copyWith(
+                  style: MandorTheme.bodySmallFor(context).copyWith(
                     color: _currentLocation != null
                         ? MandorTheme.electricBlue
-                        : MandorTheme.gray500,
+                        : MandorTheme.of(context).bodyTertiary,
                   ),
                 ),
               ],
@@ -592,7 +596,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
           if (!_isGettingLocation)
             IconButton(
               onPressed: _getCurrentLocation,
-              icon: Icon(Icons.refresh_rounded, color: MandorTheme.gray400),
+              icon: Icon(Icons.refresh_rounded, color: MandorTheme.of(context).bodySecondary),
               tooltip: 'Perbarui Lokasi',
             ),
         ],
@@ -603,7 +607,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
   Widget _buildPhotoSection() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: MandorTheme.glassCardBox,
+      decoration: MandorTheme.glassCardFor(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -622,9 +626,9 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                 ),
               ),
               const SizedBox(width: 12),
-              Text('Foto Panen', style: MandorTheme.labelMedium),
+              Text('Foto Panen', style: MandorTheme.labelMediumFor(context)),
               const Spacer(),
-              Text('Opsional', style: MandorTheme.labelSmall),
+              Text('Opsional', style: MandorTheme.labelSmallFor(context)),
             ],
           ),
           const SizedBox(height: 12),
@@ -635,7 +639,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                   height: 120,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: MandorTheme.gray700,
+                    color: MandorTheme.of(context).borderColor,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: MandorTheme.forestGreen),
                   ),
@@ -684,10 +688,10 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
               child: Container(
                 height: 80,
                 decoration: BoxDecoration(
-                  color: MandorTheme.gray800,
+                  color: MandorTheme.of(context).cardBackground,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: MandorTheme.gray600,
+                    color: MandorTheme.of(context).borderColor,
                     style: BorderStyle.solid,
                   ),
                 ),
@@ -709,7 +713,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                             const SizedBox(width: 8),
                             Text(
                               'Membuka Kamera...',
-                              style: MandorTheme.bodyMedium,
+                              style: MandorTheme.bodyMediumFor(context),
                             ),
                           ],
                         )
@@ -718,10 +722,10 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                           children: [
                             Icon(
                               Icons.add_a_photo_rounded,
-                              color: MandorTheme.gray400,
+                              color: MandorTheme.of(context).bodySecondary,
                             ),
                             const SizedBox(width: 8),
-                            Text('Ambil Foto', style: MandorTheme.bodyMedium),
+                            Text('Ambil Foto', style: MandorTheme.bodyMediumFor(context)),
                           ],
                         ),
                 ),
@@ -735,31 +739,33 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
   Widget _buildNotesInput() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: MandorTheme.glassCardBox,
+      decoration: MandorTheme.glassCardFor(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.notes_rounded, color: MandorTheme.gray400, size: 20),
+              Icon(Icons.notes_rounded, color: MandorTheme.of(context).bodySecondary, size: 20),
               const SizedBox(width: 8),
-              Text('Catatan', style: MandorTheme.labelMedium),
+              Text('Catatan', style: MandorTheme.labelMediumFor(context)),
               const Spacer(),
-              Text('Opsional', style: MandorTheme.labelSmall),
+              Text('Opsional', style: MandorTheme.labelSmallFor(context)),
             ],
           ),
           const SizedBox(height: 12),
           TextFormField(
             controller: _notesController,
             maxLines: 3,
-            style: MandorTheme.bodyMedium.copyWith(color: Colors.white),
+            style: MandorTheme.bodyMediumFor(context).copyWith(
+              color: MandorTheme.of(context).headingColor,
+            ),
             decoration: InputDecoration(
               hintText: 'Tambahkan catatan jika perlu...',
-              hintStyle: MandorTheme.bodySmall.copyWith(
-                color: MandorTheme.gray500,
+              hintStyle: MandorTheme.bodySmallFor(context).copyWith(
+                color: MandorTheme.of(context).bodyTertiary,
               ),
               filled: true,
-              fillColor: MandorTheme.gray800,
+              fillColor: MandorTheme.of(context).cardBackground,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -808,7 +814,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                     children: [
                       const Icon(Icons.save_rounded),
                       const SizedBox(width: 8),
-                      Text('Simpan Panen', style: MandorTheme.buttonText),
+                      Text('Simpan Panen', style: MandorTheme.buttonTextFor(context)),
                     ],
                   ),
           ),
@@ -838,31 +844,31 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: MandorTheme.gray800,
+      backgroundColor: MandorTheme.of(context).cardBackground,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       isScrollControlled: true,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => DraggableScrollableSheet(
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setModalState) => DraggableScrollableSheet(
           initialChildSize: 0.6,
           minChildSize: 0.4,
           maxChildSize: 0.9,
           expand: false,
-          builder: (context, scrollController) => Column(
+          builder: (sheetContext, scrollController) => Column(
             children: [
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 12),
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: MandorTheme.gray600,
+                  color: MandorTheme.of(sheetContext).borderColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('Pilih Karyawan', style: MandorTheme.headingSmall),
+                child: Text('Pilih Karyawan', style: MandorTheme.headingSmallFor(sheetContext)),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -883,15 +889,17 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                       }
                     });
                   },
-                  style: MandorTheme.bodyMedium.copyWith(color: Colors.white),
+                  style: MandorTheme.bodyMediumFor(sheetContext).copyWith(
+                    color: MandorTheme.of(sheetContext).headingColor,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Cari karyawan, NIK, atau divisi',
-                    hintStyle: MandorTheme.bodySmall.copyWith(
-                      color: MandorTheme.gray500,
+                    hintStyle: MandorTheme.bodySmallFor(sheetContext).copyWith(
+                      color: MandorTheme.of(sheetContext).bodyTertiary,
                     ),
                     prefixIcon: Icon(
                       Icons.search_rounded,
-                      color: MandorTheme.gray500,
+                      color: MandorTheme.of(sheetContext).bodyTertiary,
                     ),
                     suffixIcon: _employeeSearchController.text.isEmpty
                         ? null
@@ -906,11 +914,11 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                             },
                             icon: Icon(
                               Icons.clear_rounded,
-                              color: MandorTheme.gray400,
+                              color: MandorTheme.of(sheetContext).bodySecondary,
                             ),
                           ),
                     filled: true,
-                    fillColor: MandorTheme.gray700,
+                    fillColor: MandorTheme.of(sheetContext).surfaceOverlay,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -927,27 +935,27 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                     ? Center(
                         child: Text(
                           'Tidak ada karyawan',
-                          style: MandorTheme.bodyMedium,
+                          style: MandorTheme.bodyMediumFor(sheetContext),
                         ),
                       )
                     : filteredEmployees.isEmpty
                     ? Center(
                         child: Text(
                           'Karyawan tidak ditemukan',
-                          style: MandorTheme.bodyMedium,
+                          style: MandorTheme.bodyMediumFor(sheetContext),
                         ),
                       )
                     : ListView.builder(
                         controller: scrollController,
                         itemCount: filteredEmployees.length,
-                        itemBuilder: (context, index) {
+                        itemBuilder: (sheetContext, index) {
                           final emp = filteredEmployees[index];
                           final isSelected = emp.id == _selectedEmployee?.id;
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundColor: isSelected
                                   ? MandorTheme.forestGreen
-                                  : MandorTheme.gray600,
+                                  : MandorTheme.of(sheetContext).borderColor,
                               child: Text(
                                 emp.name.isNotEmpty
                                     ? emp.name[0].toUpperCase()
@@ -957,8 +965,8 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                             ),
                             title: Text(
                               emp.name,
-                              style: MandorTheme.bodyMedium.copyWith(
-                                color: Colors.white,
+                              style: MandorTheme.bodyMediumFor(sheetContext).copyWith(
+                                color: MandorTheme.of(sheetContext).headingColor,
                                 fontWeight: isSelected
                                     ? FontWeight.w600
                                     : FontWeight.normal,
@@ -966,7 +974,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                             ),
                             subtitle: Text(
                               _buildEmployeeSubtitle(emp),
-                              style: MandorTheme.labelSmall,
+                              style: MandorTheme.labelSmallFor(sheetContext),
                             ),
                             trailing: isSelected
                                 ? Icon(
@@ -976,7 +984,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                                 : null,
                             onTap: () {
                               setState(() => _selectedEmployee = emp);
-                              Navigator.pop(context);
+                              Navigator.pop(sheetContext);
                             },
                           );
                         },
@@ -995,25 +1003,25 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: MandorTheme.gray800,
+      backgroundColor: MandorTheme.of(context).cardBackground,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       isScrollControlled: true,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) => DraggableScrollableSheet(
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setModalState) => DraggableScrollableSheet(
           initialChildSize: 0.6,
           minChildSize: 0.4,
           maxChildSize: 0.9,
           expand: false,
-          builder: (context, scrollController) => Column(
+          builder: (sheetContext, scrollController) => Column(
             children: [
               Container(
                 margin: const EdgeInsets.symmetric(vertical: 12),
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: MandorTheme.gray600,
+                  color: MandorTheme.of(sheetContext).borderColor,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1021,7 +1029,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                 padding: const EdgeInsets.all(16),
                 child: Text(
                   'Pilih Blok Panen',
-                  style: MandorTheme.headingSmall,
+                  style: MandorTheme.headingSmallFor(sheetContext),
                 ),
               ),
               Padding(
@@ -1045,15 +1053,17 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                       }
                     });
                   },
-                  style: MandorTheme.bodyMedium.copyWith(color: Colors.white),
+                  style: MandorTheme.bodyMediumFor(sheetContext).copyWith(
+                    color: MandorTheme.of(sheetContext).headingColor,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Cari blok, kode, divisi, atau estate',
-                    hintStyle: MandorTheme.bodySmall.copyWith(
-                      color: MandorTheme.gray500,
+                    hintStyle: MandorTheme.bodySmallFor(sheetContext).copyWith(
+                      color: MandorTheme.of(sheetContext).bodyTertiary,
                     ),
                     prefixIcon: Icon(
                       Icons.search_rounded,
-                      color: MandorTheme.gray500,
+                      color: MandorTheme.of(sheetContext).bodyTertiary,
                     ),
                     suffixIcon: _blockSearchController.text.isEmpty
                         ? null
@@ -1066,11 +1076,11 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                             },
                             icon: Icon(
                               Icons.clear_rounded,
-                              color: MandorTheme.gray400,
+                              color: MandorTheme.of(sheetContext).bodySecondary,
                             ),
                           ),
                     filled: true,
-                    fillColor: MandorTheme.gray700,
+                    fillColor: MandorTheme.of(sheetContext).surfaceOverlay,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -1087,20 +1097,20 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                     ? Center(
                         child: Text(
                           'Tidak ada blok',
-                          style: MandorTheme.bodyMedium,
+                          style: MandorTheme.bodyMediumFor(sheetContext),
                         ),
                       )
                     : filteredBlocks.isEmpty
                     ? Center(
                         child: Text(
                           'Blok tidak ditemukan',
-                          style: MandorTheme.bodyMedium,
+                          style: MandorTheme.bodyMediumFor(sheetContext),
                         ),
                       )
                     : ListView.builder(
                         controller: scrollController,
                         itemCount: filteredBlocks.length,
-                        itemBuilder: (context, index) {
+                        itemBuilder: (sheetContext, index) {
                           final block = filteredBlocks[index];
                           final isSelected = block.id == _selectedBlock?.id;
                           return ListTile(
@@ -1111,7 +1121,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                                     ? MandorTheme.forestGreen.withValues(
                                         alpha: 0.2,
                                       )
-                                    : MandorTheme.gray600.withValues(
+                                    : MandorTheme.of(sheetContext).borderColor.withValues(
                                         alpha: 0.3,
                                       ),
                                 borderRadius: BorderRadius.circular(8),
@@ -1120,13 +1130,13 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                                 Icons.location_on_rounded,
                                 color: isSelected
                                     ? MandorTheme.forestGreen
-                                    : MandorTheme.gray400,
+                                    : MandorTheme.of(sheetContext).bodySecondary,
                               ),
                             ),
                             title: Text(
                               block.name,
-                              style: MandorTheme.bodyMedium.copyWith(
-                                color: Colors.white,
+                              style: MandorTheme.bodyMediumFor(sheetContext).copyWith(
+                                color: MandorTheme.of(sheetContext).headingColor,
                                 fontWeight: isSelected
                                     ? FontWeight.w600
                                     : FontWeight.normal,
@@ -1134,7 +1144,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                             ),
                             subtitle: Text(
                               _buildBlockSubtitle(block),
-                              style: MandorTheme.labelSmall,
+                              style: MandorTheme.labelSmallFor(sheetContext),
                             ),
                             trailing: isSelected
                                 ? Icon(
@@ -1144,7 +1154,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                                 : null,
                             onTap: () {
                               setState(() => _selectedBlock = block);
-                              Navigator.pop(context);
+                              Navigator.pop(sheetContext);
                             },
                           );
                         },
@@ -1215,19 +1225,19 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: MandorTheme.gray800,
-        title: const Text(
+        backgroundColor: MandorTheme.of(dialogContext).cardBackground,
+        title: Text(
           'Izin Kamera Diperlukan',
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: MandorTheme.of(dialogContext).headingColor),
         ),
         content: Text(
           'Izin kamera ditolak permanen. Aktifkan izin kamera di pengaturan aplikasi.',
-          style: MandorTheme.bodySmall,
+          style: MandorTheme.bodySmallFor(dialogContext),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text('Batal', style: TextStyle(color: MandorTheme.gray300)),
+            child: Text('Batal', style: TextStyle(color: MandorTheme.of(dialogContext).bodyColor)),
           ),
           TextButton(
             onPressed: () async {
@@ -1336,8 +1346,8 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
   void _showSuccessDialog(String message) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: MandorTheme.gray800,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: MandorTheme.of(dialogContext).cardBackground,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1355,18 +1365,18 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
               ),
             ),
             const SizedBox(height: 16),
-            Text('Berhasil!', style: MandorTheme.headingSmall),
+            Text('Berhasil!', style: MandorTheme.headingSmallFor(dialogContext)),
             const SizedBox(height: 8),
             Text(
               message,
-              style: MandorTheme.bodySmall,
+              style: MandorTheme.bodySmallFor(dialogContext),
               textAlign: TextAlign.center,
             ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: Text('OK', style: TextStyle(color: MandorTheme.forestGreen)),
           ),
         ],

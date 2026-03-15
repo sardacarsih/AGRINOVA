@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'genz_theme.dart';
 
 /// Gen Z Sync Tab - Full Page Sync Dashboard
 ///
 /// Replaces the dialog-based sync with a comprehensive dashboard view.
-/// Features dark theme, neon accents, and detailed sync statistics.
+/// Features brightness-aware theme, neon accents, and detailed sync statistics.
 class GenZSyncTab extends StatelessWidget {
   final Map<String, dynamic> repositoryStats;
   final bool isSyncing;
@@ -19,14 +20,14 @@ class GenZSyncTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Colors
-    const darkBg = Color(0xFF111827);
-    const cardBg = Color(0xFF1F2937);
+    // Neon accent colors (unchanged)
     const neonPurple = Color(0xFF8B5CF6);
     const neonGreen = Color(0xFF10B981);
     const neonOrange = Color(0xFFF59E0B);
     const neonBlue = Color(0xFF3B82F6);
     const neonRed = Color(0xFFEF4444);
+
+    final themeColors = GenZTheme.of(context);
 
     // Stats
     final totalRecords =
@@ -43,7 +44,7 @@ class GenZSyncTab extends StatelessWidget {
     final dbSize = repositoryStats['database_storage']?['size_mb'] ?? '0.00';
 
     return Container(
-      color: darkBg,
+      color: themeColors.scaffoldBackground,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -71,7 +72,7 @@ class GenZSyncTab extends StatelessWidget {
             Text(
               'Statistik Database',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.9),
+                color: themeColors.headingColor,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
@@ -82,21 +83,21 @@ class GenZSyncTab extends StatelessWidget {
               children: [
                 Expanded(
                   child: _buildStatTile(
+                    context: context,
                     label: 'Total Record',
                     value: totalRecords.toString(),
                     icon: Icons.storage_rounded,
                     color: neonBlue,
-                    cardBg: cardBg,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildStatTile(
+                    context: context,
                     label: 'Terupload',
                     value: syncedRecords.toString(),
                     icon: Icons.cloud_done_rounded,
                     color: neonGreen,
-                    cardBg: cardBg,
                   ),
                 ),
               ],
@@ -106,21 +107,21 @@ class GenZSyncTab extends StatelessWidget {
               children: [
                 Expanded(
                   child: _buildStatTile(
+                    context: context,
                     label: 'Pending',
                     value: pendingSync.toString(),
                     icon: Icons.cloud_upload_rounded,
                     color: pendingSync > 0 ? neonOrange : neonGreen,
-                    cardBg: cardBg,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildStatTile(
+                    context: context,
                     label: 'Ukuran DB',
                     value: '$dbSize MB',
                     icon: Icons.data_usage_rounded,
                     color: Colors.pinkAccent,
-                    cardBg: cardBg,
                   ),
                 ),
               ],
@@ -130,18 +131,19 @@ class GenZSyncTab extends StatelessWidget {
               children: [
                 Expanded(
                   child: _buildStatTile(
+                    context: context,
                     label: 'Total Foto',
                     value:
                         (repositoryStats['photo_storage']?['total_files'] ?? 0)
                             .toString(),
                     icon: Icons.photo_camera_rounded,
                     color: Colors.cyanAccent,
-                    cardBg: cardBg,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildStatTile(
+                    context: context,
                     label: 'Foto Pending',
                     value:
                         (repositoryStats['photo_storage']?['pending_files'] ??
@@ -154,7 +156,6 @@ class GenZSyncTab extends StatelessWidget {
                             0
                         ? neonOrange
                         : neonGreen,
-                    cardBg: cardBg,
                   ),
                 ),
               ],
@@ -198,16 +199,18 @@ class GenZSyncTab extends StatelessWidget {
     Color neonGreen,
     Color neonRed,
   ) {
+    final themeColors = GenZTheme.of(context);
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Status Sinkronisasi',
               style: TextStyle(
-                color: Colors.white,
+                color: themeColors.headingColor,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -216,7 +219,7 @@ class GenZSyncTab extends StatelessWidget {
             Text(
               'Kelola data lokal dan cloud',
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.6),
+                color: themeColors.bodySecondary,
                 fontSize: 14,
               ),
             ),
@@ -263,6 +266,8 @@ class GenZSyncTab extends StatelessWidget {
     Color neonPurple,
     Color neonOrange,
   ) {
+    final themeColors = GenZTheme.of(context);
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -308,8 +313,8 @@ class GenZSyncTab extends StatelessWidget {
                           : (pendingSync > 0
                                 ? 'Data Belum Tersimpan'
                                 : 'Semua Data Tersimpan'),
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: themeColors.headingColor,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -318,7 +323,7 @@ class GenZSyncTab extends StatelessWidget {
                     Text(
                       'Terakhir sync: $lastSyncTime',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
+                        color: themeColors.bodySecondary,
                         fontSize: 13,
                       ),
                     ),
@@ -380,16 +385,18 @@ class GenZSyncTab extends StatelessWidget {
   }
 
   Widget _buildStatTile({
+    required BuildContext context,
     required String label,
     required String value,
     required IconData icon,
     required Color color,
-    required Color cardBg,
   }) {
+    final themeColors = GenZTheme.of(context);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: cardBg,
+        color: themeColors.cardBackground,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
@@ -407,8 +414,8 @@ class GenZSyncTab extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             value,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: themeColors.headingColor,
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
@@ -418,7 +425,7 @@ class GenZSyncTab extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.6),
+              color: themeColors.bodySecondary,
               fontSize: 12,
             ),
           ),

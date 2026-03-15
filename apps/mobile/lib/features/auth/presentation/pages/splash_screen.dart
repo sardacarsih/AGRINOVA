@@ -4,18 +4,19 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../shared/widgets/intro_animation/intro_animation.dart';
 import '../../../../shared/widgets/app_error_screen.dart';
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/theme/login_theme_campaign_service.dart';
 import '../blocs/auth_bloc.dart';
 import 'login_page.dart';
 
 /// Splash Screen with AGRINOVA Intro Animation
-/// 
+///
 /// Displays the Netflix-style intro animation when the app launches,
 /// then navigates directly to the appropriate screen based on auth state.
 class SplashScreen extends StatefulWidget {
   final bool isInitialized;
   final String? initError;
   final VoidCallback? onRetry;
-  
+
   const SplashScreen({
     super.key,
     this.isInitialized = false,
@@ -35,7 +36,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void didUpdateWidget(SplashScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
+
     // When initialization becomes available and we weren't listening before
     if (widget.isInitialized && !_isListening) {
       _startListeningToAuth();
@@ -44,18 +45,20 @@ class _SplashScreenState extends State<SplashScreen> {
 
   void _startListeningToAuth() {
     if (_isListening) return;
-    
+
     try {
       final authBloc = context.read<AuthBloc>();
       debugPrint('🔐 SplashScreen: AuthBloc available, listening to state');
       _isListening = true;
-      
+
       // Check initial state
       _checkAndNavigate();
-      
+
       // Listen to state changes
       authBloc.stream.listen((state) {
-        debugPrint('🔐 SplashScreen: Auth state changed to ${state.runtimeType}');
+        debugPrint(
+          '🔐 SplashScreen: Auth state changed to ${state.runtimeType}',
+        );
         if (mounted) {
           _checkAndNavigate();
         }
@@ -70,12 +73,12 @@ class _SplashScreenState extends State<SplashScreen> {
     setState(() {
       _isAnimationCompleted = true;
     });
-    
+
     // Try to start listening now if not already
     if (widget.isInitialized && !_isListening) {
       _startListeningToAuth();
     }
-    
+
     _checkAndNavigate();
   }
 
@@ -87,7 +90,7 @@ class _SplashScreenState extends State<SplashScreen> {
   void _checkAndNavigate() {
     if (_hasNavigated || !mounted) return;
     if (!widget.isInitialized) return;
-    
+
     // Check if AuthBloc is available
     AuthState? authState;
     try {
@@ -95,12 +98,12 @@ class _SplashScreenState extends State<SplashScreen> {
     } catch (e) {
       return;
     }
-    
+
     debugPrint('🧭 SplashScreen: Checking navigation...');
     debugPrint('   - isAnimationCompleted: $_isAnimationCompleted');
     debugPrint('   - authState: ${authState.runtimeType}');
     debugPrint('   - isAuthResolved: ${_isAuthResolved(authState)}');
-    
+
     // Wait for both: animation completed AND auth resolved
     if (!_isAnimationCompleted || !_isAuthResolved(authState)) {
       debugPrint('⏳ SplashScreen: Not ready to navigate yet');
@@ -137,43 +140,35 @@ class _SplashScreenState extends State<SplashScreen> {
       _navigateToPage(const LoginPage());
     }
   }
-  
+
   void _navigateToPage(Widget targetPage) {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) => targetPage,
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
+          return FadeTransition(opacity: animation, child: child);
         },
         transitionDuration: const Duration(milliseconds: 500),
       ),
     );
   }
-  
+
   void _navigateToLoginWithError(String message) {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const LoginPage(),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const LoginPage(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(
-            opacity: animation,
-            child: child,
-          );
+          return FadeTransition(opacity: animation, child: child);
         },
         transitionDuration: const Duration(milliseconds: 500),
       ),
     );
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(message),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
         );
       }
     });
@@ -185,11 +180,7 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.fingerprint,
-              size: 64,
-              color: Colors.blue,
-            ),
+            const Icon(Icons.fingerprint, size: 64, color: Colors.blue),
             const SizedBox(height: 16),
             Text(
               state.reason,
@@ -227,8 +218,27 @@ class _SplashScreenState extends State<SplashScreen> {
       );
     }
 
-    return AgrinovaIntroAnimation(
-      onCompleted: _onAnimationCompleted,
+    return AnimatedBuilder(
+      animation: LoginThemeCampaignService.instance,
+      builder: (context, _) {
+        final brightness = Theme.of(context).brightness;
+        final campaignTokens = LoginThemeCampaignService.instance.resolveTokens(
+          brightness: brightness,
+        );
+
+        return AgrinovaIntroAnimation(
+          onCompleted: _onAnimationCompleted,
+          palette: AgrinovaIntroPalette(
+            backgroundColor: campaignTokens.bgGradient.first,
+            accentPrimary: campaignTokens.buttonGradient.first,
+            accentSecondary: campaignTokens.buttonGradient.last,
+            accentTertiary: campaignTokens.link,
+            glowColor: campaignTokens.buttonGradient.first.withValues(
+              alpha: 0.6,
+            ),
+          ),
+        );
+      },
     );
   }
 }

@@ -114,6 +114,7 @@ dependencies:
 
   # Additional UI Components
   cached_network_image: ^3.3.1
+  flutter_svg: ^2.0.17
   shimmer: ^3.0.0
   # App Update & Version Management
   in_app_update: ^4.2.3

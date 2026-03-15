@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agrinova - Management Presentation</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #16a34a;
+    --green-dark: #14532d;
+    --green-light: #dcfce7;
+    --green-mid: #22c55e;
+    --gold: #ca8a04;
+    --gold-light: #fef9c3;
+    --blue: #1d4ed8;
+    --blue-light: #dbeafe;
+    --orange: #ea580c;
+    --orange-light: #ffedd5;
+    --purple: #7c3aed;
+    --purple-light: #ede9fe;
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-600: #4b5563;
+    --gray-800: #1f2937;
+    --white: #ffffff;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: #0f1a0f;
+    overflow: hidden;
+  }
+
+  /* ---- PRESENTATION WRAPPER ---- */
+  #presentation {
+    width: 100vw; height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+
+  /* ---- SLIDE BASE ---- */
+  .slide {
+    position: absolute;
+    width: min(100vw, calc(100vh * 16/9));
+    height: min(100vh, calc(100vw * 9/16));
+    background: var(--white);
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    opacity: 0;
+    transform: translateX(60px);
+    transition: opacity 0.45s ease, transform 0.45s ease;
+    pointer-events: none;
+    box-shadow: 0 25px 80px rgba(0,0,0,0.6);
+  }
+  .slide.active {
+    opacity: 1; transform: translateX(0);
+    pointer-events: all;
+  }
+  .slide.prev {
+    opacity: 0; transform: translateX(-60px);
+  }
+
+  /* ---- NAVIGATION ---- */
+  #nav {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 16px;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+    padding: 10px 20px; border-radius: 40px;
+    z-index: 100;
+  }
+  .nav-btn {
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+    color: #fff; width: 38px; height: 38px; border-radius: 50%;
+    cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s;
+  }
+  .nav-btn:hover { background: var(--green); }
+  #slide-counter { color: rgba(255,255,255,0.8); font-size: 13px; min-width: 60px; text-align: center; }
+  #progress-bar {
+    position: fixed; top: 0; left: 0; height: 3px;
+    background: linear-gradient(90deg, var(--green), var(--gold));
+    transition: width 0.4s ease;
+    z-index: 101;
+  }
+
+  /* ---- PRINT BUTTON ---- */
+  #btn-print {
+    background: rgba(22,163,74,0.25); border: 1px solid rgba(22,163,74,0.5);
+    color: #fff; padding: 0 14px; height: 38px; border-radius: 30px;
+    cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: 0.3px;
+    display: flex; align-items: center; gap: 6px;
+    transition: background 0.2s;
+    white-space: nowrap;
+  }
+  #btn-print:hover { background: var(--green); }
+
+  /* ---- COMMON LAYOUT HELPERS ---- */
+  .slide-header {
+    padding: 32px 48px 20px;
+    border-bottom: 3px solid var(--green-light);
+    background: linear-gradient(135deg, #f0fdf4 0%, #fff 100%);
+  }
+  .slide-header .label {
+    font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: var(--green); margin-bottom: 6px;
+  }
+  .slide-header h2 {
+    font-size: clamp(18px, 2.8vw, 32px); font-weight: 800;
+    color: var(--gray-800); line-height: 1.15;
+  }
+  .slide-body {
+    flex: 1; padding: 28px 48px;
+    display: flex; flex-direction: column; justify-content: center;
+    overflow: hidden;
+  }
+
+  /* ---- CARD GRID ---- */
+  .card-grid { display: grid; gap: 16px; }
+  .card-grid-2 { grid-template-columns: 1fr 1fr; }
+  .card-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card-grid-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+  .card {
+    border-radius: 12px; padding: 20px;
+    border: 1px solid var(--gray-200);
+    background: var(--gray-50);
+  }
+  .card-icon { font-size: 28px; margin-bottom: 10px; }
+  .card h3 { font-size: clamp(12px, 1.4vw, 16px); font-weight: 700; color: var(--gray-800); margin-bottom: 6px; }
+  .card p { font-size: clamp(10px, 1.1vw, 13px); color: var(--gray-600); line-height: 1.5; }
+
+  /* ---- PROBLEM LIST ---- */
+  .problem-list { list-style: none; display: flex; flex-direction: column; gap: 12px; }
+  .problem-list li {
+    display: flex; align-items: flex-start; gap: 14px;
+    background: #fff5f5; border: 1px solid #fecaca; border-radius: 10px;
+    padding: 14px 18px;
+  }
+  .problem-list .icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+  .problem-list .text { font-size: clamp(11px, 1.3vw, 15px); color: #7f1d1d; font-weight: 500; }
+
+  /* ---- ROLE CARDS ---- */
+  .role-card {
+    border-radius: 12px; padding: 22px 18px;
+    text-align: center; border: 2px solid transparent;
+    transition: transform 0.2s;
+  }
+  .role-card:hover { transform: translateY(-3px); }
+  .role-card .badge { font-size: 32px; margin-bottom: 10px; }
+  .role-card h3 { font-size: clamp(13px, 1.5vw, 17px); font-weight: 800; margin-bottom: 6px; }
+  .role-card p { font-size: clamp(10px, 1.1vw, 12px); line-height: 1.5; }
+
+  /* ---- PHASE STEPS ---- */
+  .phases { display: flex; gap: 0; }
+  .phase {
+    flex: 1; padding: 20px 16px;
+    border-radius: 12px; margin: 0 6px;
+    text-align: center; position: relative;
+  }
+  .phase .num {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 16px;
+    margin: 0 auto 10px;
+    background: var(--green); color: #fff;
+  }
+  .phase h3 { font-size: clamp(11px, 1.3vw, 14px); font-weight: 700; margin-bottom: 6px; color: var(--gray-800); }
+  .phase p { font-size: clamp(9px, 1vw, 12px); color: var(--gray-600); line-height: 1.5; }
+
+  /* ---- FLOW DIAGRAM ---- */
+  .flow { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: nowrap; }
+  .flow-node {
+    background: var(--green); color: #fff;
+    border-radius: 10px; padding: 12px 16px;
+    text-align: center; font-size: clamp(9px, 1.2vw, 13px);
+    font-weight: 700; flex: 1; max-width: 130px;
+  }
+  .flow-node .icon { font-size: 22px; margin-bottom: 4px; }
+  .flow-arrow { color: var(--green); font-size: 22px; flex-shrink: 0; }
+
+  /* ---- STAT BOXES ---- */
+  .stat-box {
+    background: var(--green); color: #fff;
+    border-radius: 12px; padding: 20px; text-align: center;
+  }
+  .stat-box .value { font-size: clamp(22px, 3vw, 36px); font-weight: 900; line-height: 1; margin-bottom: 6px; }
+  .stat-box .label { font-size: clamp(10px, 1.1vw, 13px); opacity: 0.85; }
+
+  /* ---- HIGHLIGHT ROW ---- */
+  .highlight-row {
+    display: flex; gap: 16px;
+    background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+    border: 1px solid #bbf7d0; border-radius: 12px;
+    padding: 18px 24px; align-items: center;
+  }
+  .highlight-row .hi-icon { font-size: 32px; flex-shrink: 0; }
+  .highlight-row h3 { font-size: clamp(13px, 1.5vw, 17px); font-weight: 800; color: var(--green-dark); margin-bottom: 4px; }
+  .highlight-row p { font-size: clamp(10px, 1.1vw, 13px); color: var(--gray-600); }
+
+  /* ======================================
+     SLIDE 1: COVER
+  ====================================== */
+  #slide-1 {
+    background: linear-gradient(160deg, #052e16 0%, #14532d 40%, #166534 70%, #052e16 100%);
+    align-items: center; justify-content: center; text-align: center;
+    flex-direction: column;
+  }
+  #slide-1 .bg-pattern {
+    position: absolute; inset: 0; opacity: 0.06;
+    background-image: repeating-linear-gradient(
+      45deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px
+    ), repeating-linear-gradient(
+      -45deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px
+    );
+  }
+  #slide-1 .logo-ring {
+    width: clamp(80px, 12vw, 120px); height: clamp(80px, 12vw, 120px);
+    border-radius: 50%; background: linear-gradient(135deg, var(--green-mid), var(--gold));
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(36px, 6vw, 60px);
+    margin-bottom: 24px;
+    box-shadow: 0 0 40px rgba(22,163,74,0.5);
+    animation: pulse 3s ease-in-out infinite;
+    position: relative; z-index: 1;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 40px rgba(22,163,74,0.5); }
+    50% { box-shadow: 0 0 70px rgba(22,163,74,0.8), 0 0 120px rgba(202,138,4,0.3); }
+  }
+  #slide-1 .brand {
+    font-size: clamp(36px, 7vw, 80px); font-weight: 900;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    background: linear-gradient(135deg, #ffffff, #86efac, #fde68a);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; line-height: 1;
+    margin-bottom: 12px; position: relative; z-index: 1;
+  }
+  #slide-1 .tagline {
+    font-size: clamp(13px, 2vw, 22px); color: rgba(255,255,255,0.85);
+    font-weight: 600; margin-bottom: 10px; position: relative; z-index: 1;
+  }
+  #slide-1 .subtitle {
+    font-size: clamp(11px, 1.5vw, 16px); color: rgba(255,255,255,0.55);
+    letter-spacing: 0.05em; position: relative; z-index: 1;
+  }
+  #slide-1 .leaf-deco {
+    position: absolute; font-size: clamp(40px, 8vw, 100px); opacity: 0.07;
+  }
+  #slide-1 .leaf-1 { top: 5%; left: 3%; transform: rotate(-20deg); }
+  #slide-1 .leaf-2 { bottom: 5%; right: 3%; transform: rotate(160deg); }
+  #slide-1 .leaf-3 { top: 40%; left: 1%; transform: rotate(30deg); font-size: clamp(30px, 5vw, 60px); }
+  #slide-1 .leaf-4 { top: 20%; right: 2%; transform: rotate(-30deg); font-size: clamp(30px, 5vw, 60px); }
+  #slide-1 .gold-bar {
+    width: clamp(60px, 10vw, 120px); height: 4px;
+    background: linear-gradient(90deg, var(--gold), #fbbf24);
+    border-radius: 2px; margin: 18px auto 0;
+    position: relative; z-index: 1;
+  }
+
+  /* ======================================
+     SLIDE 2: PROBLEM
+  ====================================== */
+  #slide-2 .slide-body { background: #fff; }
+
+  /* ======================================
+     SLIDE 3: SOLUTION
+  ====================================== */
+  #slide-3 .platform-cards { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 16px; }
+  #slide-3 .platform-card {
+    border-radius: 12px; padding: 20px; text-align: center;
+    border: 2px solid;
+  }
+  #slide-3 .platform-card.mobile { background: #f0fdf4; border-color: #86efac; }
+  #slide-3 .platform-card.web { background: #eff6ff; border-color: #93c5fd; }
+  #slide-3 .platform-card.backend { background: #fefce8; border-color: #fde047; }
+  #slide-3 .platform-card .icon { font-size: 30px; margin-bottom: 8px; }
+  #slide-3 .platform-card h3 { font-size: clamp(12px, 1.4vw, 16px); font-weight: 800; margin-bottom: 5px; }
+  #slide-3 .platform-card p { font-size: clamp(9px, 1vw, 12px); color: var(--gray-600); line-height: 1.5; }
+  #slide-3 .platform-card .tag {
+    display: inline-block; margin-top: 8px; padding: 3px 10px;
+    border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+  }
+  #slide-3 .platform-card.mobile .tag { background: #dcfce7; color: var(--green-dark); }
+  #slide-3 .platform-card.web .tag { background: #dbeafe; color: #1e40af; }
+  #slide-3 .platform-card.backend .tag { background: #fef9c3; color: #92400e; }
+
+  /* ======================================
+     SLIDE 4: ROLES (3 roles)
+  ====================================== */
+  #slide-4 .role-card.mandor { background: #f0fdf4; border-color: #86efac; }
+  #slide-4 .role-card.mandor h3 { color: var(--green-dark); }
+  #slide-4 .role-card.asisten { background: var(--blue-light); border-color: #93c5fd; }
+  #slide-4 .role-card.asisten h3 { color: #1e3a8a; }
+  #slide-4 .role-card.manager { background: var(--purple-light); border-color: #c4b5fd; }
+  #slide-4 .role-card.manager h3 { color: #4c1d95; }
+  #slide-4 .role-card.area-manager { background: #fefce8; border-color: #fde047; }
+  #slide-4 .role-card.area-manager h3 { color: #78350f; }
+  #slide-4 .role-card p { color: var(--gray-600); font-size: clamp(10px, 1.1vw, 13px); }
+
+  /* ======================================
+     SLIDE 5: OFFLINE FIRST
+  ====================================== */
+  #slide-5 .feature-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  #slide-5 .detail-card {
+    border-radius: 12px; padding: 18px; border: 1px solid #e5e7eb;
+    background: var(--gray-50); display: flex; gap: 12px; align-items: flex-start;
+  }
+  #slide-5 .detail-card .icon { font-size: 24px; flex-shrink: 0; }
+  #slide-5 .detail-card h3 { font-size: clamp(11px, 1.3vw, 14px); font-weight: 700; color: var(--gray-800); margin-bottom: 4px; }
+  #slide-5 .detail-card p { font-size: clamp(9px, 1.1vw, 12px); color: var(--gray-600); line-height: 1.5; }
+  #slide-5 .sync-visual {
+    background: linear-gradient(135deg, var(--green-dark), var(--green));
+    border-radius: 12px; padding: 20px; color: #fff; text-align: center;
+    margin-bottom: 16px;
+  }
+  #slide-5 .sync-visual h3 { font-size: clamp(13px, 1.5vw, 18px); font-weight: 800; margin-bottom: 6px; }
+  #slide-5 .sync-visual p { font-size: clamp(10px, 1.2vw, 14px); opacity: 0.85; }
+  #slide-5 .sync-icons { font-size: clamp(18px, 2.5vw, 28px); margin-bottom: 8px; letter-spacing: 8px; }
+
+  /* ======================================
+     SLIDE 6: DASHBOARD
+  ====================================== */
+  #slide-6 .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+  #slide-6 .stat-box { border-radius: 10px; }
+  #slide-6 .stat-box:nth-child(1) { background: var(--green); }
+  #slide-6 .stat-box:nth-child(2) { background: var(--blue); }
+  #slide-6 .stat-box:nth-child(3) { background: var(--gold); }
+  #slide-6 .stat-box:nth-child(4) { background: var(--purple); }
+
+  /* ======================================
+     SLIDE 7: LAPORAN PANEN & KUALITAS TBS
+  ====================================== */
+  #slide-7 .report-banner {
+    background: linear-gradient(135deg, var(--green-dark), var(--green));
+    border-radius: 12px; padding: 16px 24px; color: #fff;
+    display: flex; align-items: center; gap: 16px; margin-bottom: 14px;
+  }
+  #slide-7 .report-banner .icon { font-size: 36px; flex-shrink: 0; }
+  #slide-7 .report-banner h3 { font-size: clamp(13px, 1.6vw, 19px); font-weight: 800; margin-bottom: 4px; }
+  #slide-7 .report-banner p { font-size: clamp(10px, 1.1vw, 13px); opacity: 0.9; }
+  #slide-7 .report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  #slide-7 .report-card {
+    border-radius: 12px; padding: 18px; border: 1px solid #e5e7eb;
+    background: var(--gray-50); text-align: center;
+  }
+  #slide-7 .report-card .icon { font-size: 32px; margin-bottom: 8px; }
+  #slide-7 .report-card h3 { font-size: clamp(12px, 1.3vw, 15px); font-weight: 700; color: var(--gray-800); margin-bottom: 4px; }
+  #slide-7 .report-card p { font-size: clamp(9px, 1.1vw, 12px); color: var(--gray-600); line-height: 1.5; }
+
+  /* ======================================
+     SLIDE 8: SECURITY
+  ====================================== */
+  #slide-8 .security-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  #slide-8 .sec-card {
+    border-radius: 12px; padding: 18px;
+    display: flex; gap: 14px; align-items: flex-start;
+    border: 1px solid;
+  }
+  #slide-8 .sec-card.green { background: #f0fdf4; border-color: #86efac; }
+  #slide-8 .sec-card.blue { background: #eff6ff; border-color: #93c5fd; }
+  #slide-8 .sec-card.purple { background: #f5f3ff; border-color: #c4b5fd; }
+  #slide-8 .sec-card.gold { background: #fefce8; border-color: #fde047; }
+  #slide-8 .sec-card .icon { font-size: 26px; flex-shrink: 0; }
+  #slide-8 .sec-card h3 { font-size: clamp(11px, 1.3vw, 14px); font-weight: 700; color: var(--gray-800); margin-bottom: 4px; }
+  #slide-8 .sec-card p { font-size: clamp(9px, 1.1vw, 12px); color: var(--gray-600); line-height: 1.5; }
+
+  /* ======================================
+     SLIDE 9: ROI
+  ====================================== */
+  #slide-9 .roi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  #slide-9 .roi-card {
+    border-radius: 12px; padding: 20px;
+    display: flex; flex-direction: column; gap: 8px;
+    border-left: 5px solid;
+  }
+  #slide-9 .roi-card.c1 { background: #f0fdf4; border-color: var(--green); }
+  #slide-9 .roi-card.c2 { background: var(--blue-light); border-color: var(--blue); }
+  #slide-9 .roi-card.c3 { background: #fefce8; border-color: var(--gold); }
+  #slide-9 .roi-card.c4 { background: var(--purple-light); border-color: var(--purple); }
+  #slide-9 .roi-card .icon { font-size: 26px; }
+  #slide-9 .roi-card h3 { font-size: clamp(12px, 1.4vw, 16px); font-weight: 800; color: var(--gray-800); }
+  #slide-9 .roi-card p { font-size: clamp(10px, 1.1vw, 13px); color: var(--gray-600); line-height: 1.5; }
+
+  /* ======================================
+     SLIDE 10: ARCHITECTURE
+  ====================================== */
+  #slide-10 .arch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  #slide-10 .tech-row {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;
+  }
+  #slide-10 .tech-badge {
+    background: var(--gray-800); color: #fff;
+    padding: 4px 12px; border-radius: 20px;
+    font-size: clamp(9px, 1vw, 12px); font-weight: 700; font-family: monospace;
+  }
+
+  /* ======================================
+     SLIDE 11: IMPLEMENTATION
+  ====================================== */
+  #slide-11 .phase { background: var(--gray-50); border: 1px solid var(--gray-200); }
+  #slide-11 .phase:nth-child(1) .num { background: var(--green); }
+  #slide-11 .phase:nth-child(2) .num { background: var(--blue); }
+  #slide-11 .phase:nth-child(3) .num { background: var(--gold); }
+  #slide-11 .phase:nth-child(4) .num { background: var(--purple); }
+
+  /* ======================================
+     SLIDE 12: CTA
+  ====================================== */
+  #slide-12 {
+    background: linear-gradient(160deg, #052e16 0%, #14532d 50%, #052e16 100%);
+    align-items: center; justify-content: center; text-align: center;
+    flex-direction: column;
+  }
+  #slide-12 .bg-pattern {
+    position: absolute; inset: 0; opacity: 0.05;
+    background-image: radial-gradient(circle, #fff 1px, transparent 1px);
+    background-size: 30px 30px;
+  }
+  #slide-12 .cta-content { position: relative; z-index: 1; max-width: 70%; }
+  #slide-12 .cta-badge {
+    display: inline-block; background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3); border-radius: 30px;
+    padding: 6px 20px; color: rgba(255,255,255,0.8);
+    font-size: clamp(10px, 1.2vw, 13px); font-weight: 600; letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 20px;
+  }
+  #slide-12 h2 {
+    font-size: clamp(20px, 4vw, 48px); font-weight: 900;
+    background: linear-gradient(135deg, #ffffff, #86efac, #fde68a);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 14px; line-height: 1.1;
+  }
+  #slide-12 .sub {
+    font-size: clamp(11px, 1.5vw, 17px); color: rgba(255,255,255,0.7); margin-bottom: 32px;
+  }
+  #slide-12 .cta-box {
+    background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 16px; padding: 24px 32px; margin-bottom: 24px;
+  }
+  #slide-12 .cta-box h3 {
+    font-size: clamp(13px, 1.8vw, 22px); color: #fff; font-weight: 800; margin-bottom: 8px;
+  }
+  #slide-12 .cta-box p {
+    font-size: clamp(10px, 1.2vw, 14px); color: rgba(255,255,255,0.7); line-height: 1.6;
+  }
+  #slide-12 .next-steps {
+    display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+  }
+  #slide-12 .step-chip {
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25);
+    color: #fff; padding: 8px 18px; border-radius: 30px;
+    font-size: clamp(10px, 1.1vw, 13px); font-weight: 600;
+  }
+  #slide-12 .brand-footer {
+    position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+    z-index: 1; display: flex; align-items: center; gap: 8px;
+    color: rgba(255,255,255,0.4); font-size: 12px; letter-spacing: 2px;
+  }
+
+  /* ======================================
+     SLIDES 13–16: LAMPIRAN / APPENDIX
+  ====================================== */
+
+  /* Nota Dinas (slide 13) */
+  .nota-dinas {
+    background: #fff; border: 1px solid var(--gray-200); border-radius: 10px;
+    padding: clamp(12px,1.5vw,20px) clamp(16px,2vw,28px);
+    font-size: clamp(9px,1.1vw,12px); color: var(--gray-800); line-height: 1.7;
+    flex: 1; display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .nota-header { border-bottom: 3px solid var(--green); padding-bottom: 8px; margin-bottom: 10px; }
+  .nota-name { font-size: clamp(13px,1.7vw,19px); font-weight: 900; color: var(--green-dark); letter-spacing: 0.1em; }
+  .nota-number { font-size: clamp(8px,0.9vw,10px); color: var(--gray-600); margin-top: 2px; }
+  .nota-meta {
+    display: flex; flex-direction: column; gap: 3px;
+    margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--gray-200);
+  }
+  .nota-meta-row { display: flex; font-size: clamp(9px,1vw,11px); }
+  .nota-meta-row .mk { min-width: clamp(55px,5.5vw,75px); font-weight: 700; color: var(--gray-600); flex-shrink: 0; }
+  .nota-body { display: flex; flex-direction: column; gap: 5px; font-size: clamp(9px,1.05vw,12px); flex: 1; }
+  .nota-sign { display: flex; justify-content: flex-end; padding-top: 6px; }
+  .sign-block { text-align: center; font-size: clamp(8px,1vw,11px); }
+  .sign-space {
+    height: clamp(24px,3.5vw,44px); border-bottom: 1px solid var(--gray-800);
+    width: clamp(80px,9vw,120px); margin: 0 auto 4px;
+  }
+  .sign-name { font-weight: 700; }
+
+  /* Resource table (slide 14) */
+  #slide-14 .resource-table {
+    width: 100%; border-collapse: collapse;
+    font-size: clamp(9px,1.1vw,12px); margin-bottom: 12px;
+  }
+  #slide-14 .resource-table th {
+    background: var(--green-dark); color: #fff;
+    padding: 9px 14px; text-align: left; font-size: clamp(9px,1vw,11px); font-weight: 700;
+  }
+  #slide-14 .resource-table td {
+    padding: 8px 14px; border-bottom: 1px solid var(--gray-200);
+    color: var(--gray-800); line-height: 1.5; vertical-align: top;
+  }
+  #slide-14 .resource-table tr:nth-child(even) td { background: var(--gray-50); }
+  #slide-14 .res-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  #slide-14 .res-box { border-radius: 10px; padding: 12px 14px; border: 1px solid; text-align: center; }
+  #slide-14 .res-box .res-icon { font-size: 22px; margin-bottom: 4px; }
+  #slide-14 .res-box h4 { font-size: clamp(10px,1.2vw,13px); font-weight: 700; color: var(--gray-800); margin-bottom: 3px; }
+  #slide-14 .res-box p { font-size: clamp(8px,1vw,11px); color: var(--gray-600); line-height: 1.4; }
+
+  /* Pilot plan (slide 15) */
+  #slide-15 .pilot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  #slide-15 .pilot-section { border-radius: 10px; padding: 12px 16px; border: 1px solid var(--gray-200); background: var(--gray-50); }
+  #slide-15 .pilot-section h3 { font-size: clamp(10px,1.2vw,13px); font-weight: 800; color: var(--green-dark); margin-bottom: 6px; }
+  #slide-15 .pilot-section ul { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+  #slide-15 .pilot-section ul li { font-size: clamp(9px,1vw,11px); color: var(--gray-600); padding-left: 12px; position: relative; line-height: 1.5; }
+  #slide-15 .pilot-section ul li::before { content: '▸'; position: absolute; left: 0; color: var(--green); }
+  #slide-15 .pilot-timeline { display: flex; gap: 6px; }
+  #slide-15 .tl-phase { flex: 1; border-radius: 8px; padding: 10px 8px; text-align: center; color: #fff; }
+  #slide-15 .tl-phase .tl-period { font-weight: 800; font-size: clamp(9px,1.1vw,12px); margin-bottom: 3px; }
+  #slide-15 .tl-phase .tl-label { font-size: clamp(8px,0.9vw,10px); opacity: 0.9; line-height: 1.4; }
+
+  /* Evaluation & Rollout (slide 16) */
+  #slide-16 .eval-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  #slide-16 .eval-section { border-radius: 10px; padding: 14px 16px; border-left: 4px solid; }
+  #slide-16 .eval-section h3 { font-size: clamp(11px,1.3vw,14px); font-weight: 800; color: var(--gray-800); margin-bottom: 7px; }
+  #slide-16 .eval-section ul { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+  #slide-16 .eval-section ul li { font-size: clamp(9px,1vw,11px); color: var(--gray-600); display: flex; align-items: flex-start; gap: 6px; line-height: 1.5; }
+  #slide-16 .rollout-timeline { display: flex; gap: 6px; }
+  #slide-16 .rt-phase { flex: 1; border-radius: 8px; padding: 10px 8px; text-align: center; color: #fff; }
+  #slide-16 .rt-phase .rt-label { font-weight: 800; font-size: clamp(9px,1.1vw,13px); margin-bottom: 3px; }
+  #slide-16 .rt-phase .rt-desc { font-size: clamp(8px,0.9vw,10px); opacity: 0.9; line-height: 1.3; }
+
+  /* ======================================
+     PRINT STYLES
+  ====================================== */
+  @media print {
+    html, body {
+      overflow: visible;
+      background: #fff;
+      width: auto; height: auto;
+    }
+    #nav, #progress-bar, #btn-print { display: none !important; }
+    #presentation {
+      display: block;
+      width: auto; height: auto;
+      position: static;
+    }
+    .slide {
+      position: relative;
+      width: 100%;
+      height: auto;
+      min-height: 56.25vw; /* 16:9 ratio */
+      opacity: 1 !important;
+      transform: none !important;
+      pointer-events: all;
+      box-shadow: none;
+      border-radius: 0;
+      display: flex;
+      page-break-after: always;
+      break-after: page;
+    }
+    .slide:last-child {
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+    /* Cover slide colors in print */
+    #slide-1, #slide-12 {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<div id="presentation">
+
+  <!-- ===== SLIDE 1: COVER ===== -->
+  <div class="slide active" id="slide-1">
+    <div class="bg-pattern"></div>
+    <span class="leaf-deco leaf-1">&#127796;</span>
+    <span class="leaf-deco leaf-2">&#127796;</span>
+    <span class="leaf-deco leaf-3">&#127807;</span>
+    <span class="leaf-deco leaf-4">&#127807;</span>
+    <div class="logo-ring">&#127806;</div>
+    <div class="brand">AGRINOVA</div>
+    <div class="tagline">Sistem Digital Manajemen Panen Kebun Sawit</div>
+    <div class="gold-bar"></div>
+    <div class="subtitle" style="margin-top:16px;">Presentasi Internal &mdash; Departemen IT kepada Manajemen</div>
+    <div class="subtitle" style="margin-top:8px; font-size:clamp(10px,1.2vw,14px); opacity:0.4; letter-spacing:0.12em;">DEPARTEMEN TEKNOLOGI INFORMASI &bull; 2025</div>
+  </div>
+
+  <!-- ===== SLIDE 2: PROBLEM ===== -->
+  <div class="slide" id="slide-2">
+    <div class="slide-header">
+      <div class="label">Slide 2 / Latar Belakang</div>
+      <h2>Tantangan yang Kami Identifikasi di Lapangan</h2>
+    </div>
+    <div class="slide-body">
+      <ul class="problem-list">
+        <li>
+          <span class="icon">&#128203;</span>
+          <span class="text">Data panen manual &amp; berbasis kertas — rentan hilang, rusak, dan salah catat</span>
+        </li>
+        <li>
+          <span class="icon">&#9200;</span>
+          <span class="text">Keterlambatan laporan panen ke manajemen — keputusan produksi tertunda berjam-jam hingga berhari-hari</span>
+        </li>
+        <li>
+          <span class="icon">&#128202;</span>
+          <span class="text">Tidak ada data akurat tonase per mandor &amp; divisi — sulit menghitung produktivitas panen yang sesungguhnya</span>
+        </li>
+        <li>
+          <span class="icon">&#128225;</span>
+          <span class="text">Sulit memantau produktivitas panen secara real-time lintas divisi &amp; kebun</span>
+        </li>
+        <li>
+          <span class="icon">&#128260;</span>
+          <span class="text">Proses approval panen lambat, tidak terstruktur, dan tidak tercatat dengan baik</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 3: SOLUTION ===== -->
+  <div class="slide" id="slide-3">
+    <div class="slide-header">
+      <div class="label">Slide 3 / Solusi IT</div>
+      <h2>Solusi yang Kami Kembangkan: Platform Terintegrasi End-to-End</h2>
+    </div>
+    <div class="slide-body">
+      <div class="flow" style="margin-bottom:18px;">
+        <div class="flow-node">
+          <div class="icon">&#127807;</div>
+          Lapangan
+        </div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node" style="background:var(--green-dark);">
+          <div class="icon">&#128241;</div>
+          Mobile App
+        </div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node" style="background:var(--blue);">
+          <div class="icon">&#9729;&#65039;</div>
+          Server
+        </div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node" style="background:var(--gold);">
+          <div class="icon">&#128187;</div>
+          Dashboard
+        </div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node" style="background:var(--purple);">
+          <div class="icon">&#128084;</div>
+          Manajemen
+        </div>
+      </div>
+      <div class="platform-cards">
+        <div class="platform-card mobile">
+          <div class="icon">&#128241;</div>
+          <h3>Mobile App</h3>
+          <p>Input data panen dari lapangan.<br>Offline-first, sinkronisasi otomatis.</p>
+          <span class="tag">Flutter · Android</span>
+        </div>
+        <div class="platform-card web">
+          <div class="icon">&#128187;</div>
+          <h3>Web Dashboard</h3>
+          <p>Monitoring real-time, approval workflow, analytics multi-kebun.</p>
+          <span class="tag">Next.js · Real-time</span>
+        </div>
+        <div class="platform-card backend">
+          <div class="icon">&#9881;&#65039;</div>
+          <h3>Backend API</h3>
+          <p>Infrastruktur aman, skalabel, &amp; multi-tenant untuk seluruh operasi.</p>
+          <span class="tag">Go · GraphQL · PostgreSQL</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 4: ROLES (3 peran utama panen) ===== -->
+  <div class="slide" id="slide-4">
+    <div class="slide-header">
+      <div class="label">Slide 4 / Pengguna</div>
+      <h2>Untuk Siapa? — 3 Peran Utama Manajemen Panen</h2>
+    </div>
+    <div class="slide-body">
+      <div class="card-grid card-grid-4" style="margin-bottom:16px;">
+        <div class="role-card mandor">
+          <div class="badge">&#128119;</div>
+          <h3>Mandor</h3>
+          <p>Input data panen harian langsung dari lapangan via mobile app. Bekerja tanpa sinyal sekalipun.</p>
+        </div>
+        <div class="role-card asisten">
+          <div class="badge">&#128203;</div>
+          <h3>Asisten</h3>
+          <p>Approval &amp; monitoring produktivitas panen per divisi kebun secara real-time.</p>
+        </div>
+        <div class="role-card manager">
+          <div class="badge">&#128200;</div>
+          <h3>Manager Kebun</h3>
+          <p>Monitoring menyeluruh per kebun, analytics, &amp; konfigurasi sistem panen di estate-nya.</p>
+        </div>
+        <div class="role-card area-manager">
+          <div class="badge">&#127963;&#65039;</div>
+          <h3>Area Manager</h3>
+          <p>Dashboard analytics lintas kebun &amp; perusahaan — laporan konsolidasi untuk pengambilan keputusan manajemen internal.</p>
+        </div>
+      </div>
+      <div class="highlight-row">
+        <div class="hi-icon">&#128084;</div>
+        <div>
+          <h3>9 Level Hierarki — Satu Platform Panen</h3>
+          <p>Area Manager memantau kinerja lintas kebun dalam satu dashboard. Dari Direktur hingga Mandor, setiap peran mendapat akses sesuai wewenangnya. Data kebun terisolasi antar perusahaan.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 5: OFFLINE FIRST ===== -->
+  <div class="slide" id="slide-5">
+    <div class="slide-header">
+      <div class="label">Slide 5 / Fitur Unggulan 1</div>
+      <h2>Offline-First Mobile App — Input Panen di Mana Saja</h2>
+    </div>
+    <div class="slide-body">
+      <div class="sync-visual">
+        <div class="sync-icons">&#128241; &#8596;&#65039; &#9729;&#65039;</div>
+        <h3>Tidak Ada Sinyal? Tidak Masalah.</h3>
+        <p>Data panen tersimpan lokal, otomatis tersinkronisasi saat koneksi kembali tersedia.</p>
+      </div>
+      <div class="feature-detail">
+        <div class="detail-card">
+          <div class="icon">&#128190;</div>
+          <div>
+            <h3>SQLite Lokal</h3>
+            <p>Semua data panen tersimpan di perangkat. Tidak butuh internet untuk mencatat hasil panen.</p>
+          </div>
+        </div>
+        <div class="detail-card">
+          <div class="icon">&#128260;</div>
+          <div>
+            <h3>Auto-Sync Cerdas</h3>
+            <p>Begitu ada koneksi, data panen otomatis dikirim ke server tanpa intervensi manual.</p>
+          </div>
+        </div>
+        <div class="detail-card">
+          <div class="icon">&#9989;</div>
+          <div>
+            <h3>Recovery &gt;95%</h3>
+            <p>Tingkat pemulihan data panen yang sangat tinggi meski koneksi bermasalah berulang kali.</p>
+          </div>
+        </div>
+        <div class="detail-card">
+          <div class="icon">&#129302;</div>
+          <div>
+            <h3>Conflict Resolution</h3>
+            <p>Konflik data panen antar perangkat diselesaikan otomatis oleh sistem.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 6: DASHBOARD ===== -->
+  <div class="slide" id="slide-6">
+    <div class="slide-header">
+      <div class="label">Slide 6 / Fitur Unggulan 2</div>
+      <h2>Real-Time Dashboard — Pantau Panen dari Satu Layar</h2>
+    </div>
+    <div class="slide-body">
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="value">&#8804;30m</div>
+          <div class="label">Data panen lapangan muncul di dashboard</div>
+        </div>
+        <div class="stat-box">
+          <div class="value">Live</div>
+          <div class="label">Update via WebSocket real-time</div>
+        </div>
+        <div class="stat-box" style="background:var(--gold);">
+          <div class="value">100%</div>
+          <div class="label">Approval workflow digital &amp; tercatat</div>
+        </div>
+        <div class="stat-box" style="background:var(--purple);">
+          <div class="value">Multi</div>
+          <div class="label">Monitor banyak kebun sekaligus</div>
+        </div>
+      </div>
+      <div class="card-grid card-grid-3">
+        <div class="card">
+          <div class="card-icon">&#128202;</div>
+          <h3>Analytics Produktivitas Panen</h3>
+          <p>Grafik hasil panen per divisi, per mandor, per periode — langsung dari data lapangan.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">&#9997;&#65039;</div>
+          <h3>Digital Approval</h3>
+          <p>Asisten &amp; Manager menyetujui laporan panen secara digital, audit trail tersimpan otomatis.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">&#128276;</div>
+          <h3>Notifikasi &amp; Alert Panen</h3>
+          <p>Peringatan otomatis bila ada penyimpangan data atau target panen tidak tercapai.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 7: LAPORAN PANEN & KUALITAS TBS ===== -->
+  <div class="slide" id="slide-7">
+    <div class="slide-header">
+      <div class="label">Slide 7 / Fitur Unggulan 3</div>
+      <h2>Laporan Panen &amp; Kualitas TBS — Data Lengkap, Siap Audit</h2>
+    </div>
+    <div class="slide-body">
+      <div class="report-banner">
+        <div class="icon">&#128196;</div>
+        <div>
+          <h3>Laporan Otomatis Harian, Mingguan, &amp; Bulanan</h3>
+          <p>Per mandor &amp; per divisi — tersedia kapan saja, tanpa perlu menyusun manual.</p>
+        </div>
+      </div>
+      <div class="report-grid">
+        <div class="report-card">
+          <div class="icon">&#128200;</div>
+          <h3>Laporan Tonase per Mandor</h3>
+          <p>Rekap hasil panen harian setiap mandor &amp; divisi. Bandingkan target vs realisasi secara instan.</p>
+        </div>
+        <div class="report-card">
+          <div class="icon">&#127807;</div>
+          <h3>Grading Kualitas TBS</h3>
+          <p>Pencatatan fraksi TBS (Fraksi 00–05) langsung di lapangan. Kualitas termonitor sejak panen.</p>
+        </div>
+        <div class="report-card">
+          <div class="icon">&#127981;</div>
+          <h3>Integrasi Data ke PKS</h3>
+          <p>Data tonase TBS terintegrasi ke Pabrik Kelapa Sawit — verifikasi pengiriman &amp; penerimaan akurat.</p>
+        </div>
+        <div class="report-card">
+          <div class="icon">&#128229;</div>
+          <h3>Export Laporan Manajemen</h3>
+          <p>Ekspor laporan panen untuk kebutuhan manajemen, pelaporan perusahaan, &amp; keperluan audit.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 8: SECURITY & GOVERNANCE ===== -->
+  <div class="slide" id="slide-8">
+    <div class="slide-header">
+      <div class="label">Slide 8 / Keamanan</div>
+      <h2>Keamanan &amp; Governance — Integritas Data Panen Terjamin</h2>
+    </div>
+    <div class="slide-body">
+      <div class="security-grid">
+        <div class="sec-card green">
+          <div class="icon">&#127963;&#65039;</div>
+          <div>
+            <h3>9 Level RBAC Panen</h3>
+            <p>Akses data panen dikontrol ketat per hierarki — dari Direktur hingga Mandor. Setiap role hanya melihat data sesuai wewenangnya.</p>
+          </div>
+        </div>
+        <div class="sec-card blue">
+          <div class="icon">&#128220;</div>
+          <div>
+            <h3>Audit Trail Data Panen</h3>
+            <p>Setiap perubahan data panen tercatat: siapa, kapan, apa yang diubah. Jejak lengkap untuk compliance &amp; investigasi.</p>
+          </div>
+        </div>
+        <div class="sec-card purple">
+          <div class="icon">&#128272;</div>
+          <div>
+            <h3>JWT + Biometric Auth</h3>
+            <p>Autentikasi berlapis — token JWT untuk sesi aman &amp; biometrik untuk akses mobile mandor yang cepat &amp; aman di lapangan.</p>
+          </div>
+        </div>
+        <div class="sec-card gold">
+          <div class="icon">&#127963;&#65039;</div>
+          <div>
+            <h3>Multi-Tenant Isolation</h3>
+            <p>Data panen setiap perusahaan sepenuhnya terisolasi. Tidak ada kebocoran data antar tenant dalam satu sistem.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 9: ROI ===== -->
+  <div class="slide" id="slide-9">
+    <div class="slide-header">
+      <div class="label">Slide 9 / Proyeksi Nilai Bisnis</div>
+      <h2>Proyeksi Nilai Bisnis &amp; ROI yang Kami Targetkan</h2>
+    </div>
+    <div class="slide-body">
+      <div class="roi-grid">
+        <div class="roi-card c1">
+          <div class="icon">&#128176;</div>
+          <h3>Eliminasi Biaya Kertas</h3>
+          <p>Tidak ada lagi biaya cetak form panen, pengiriman dokumen, &amp; penyimpanan arsip fisik. Efisiensi operasional langsung terasa.</p>
+        </div>
+        <div class="roi-card c2">
+          <div class="icon">&#9889;</div>
+          <h3>Keputusan Panen Lebih Cepat</h3>
+          <p>Data akurat dari lapangan tersedia dalam 30 menit. Manajemen bisa bereaksi lebih cepat terhadap masalah produktivitas.</p>
+        </div>
+        <div class="roi-card c3">
+          <div class="icon">&#127919;</div>
+          <h3>Compliance &amp; Audit Mudah</h3>
+          <p>Audit trail lengkap siap kapan saja. Sertifikasi &amp; inspeksi tidak perlu persiapan dokumen manual berminggu-minggu.</p>
+        </div>
+        <div class="roi-card c4">
+          <div class="icon">&#128269;</div>
+          <h3>Deteksi Anomali Produktivitas</h3>
+          <p>Visibilitas real-time memungkinkan identifikasi dini penurunan hasil panen per mandor/divisi sebelum menjadi masalah besar.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 10: ARCHITECTURE ===== -->
+  <div class="slide" id="slide-10">
+    <div class="slide-header">
+      <div class="label">Slide 10 / Arsitektur</div>
+      <h2>Arsitektur &amp; Keandalan — Dibangun untuk Skala Enterprise</h2>
+    </div>
+    <div class="slide-body">
+      <div class="arch-grid">
+        <div class="card">
+          <div class="card-icon">&#128295;</div>
+          <h3>Stack Teknologi Modern</h3>
+          <p>Dibangun di atas teknologi terpercaya skala enterprise.</p>
+          <div class="tech-row">
+            <span class="tech-badge">Go</span>
+            <span class="tech-badge">Next.js</span>
+            <span class="tech-badge">Flutter</span>
+            <span class="tech-badge">PostgreSQL</span>
+            <span class="tech-badge">GraphQL</span>
+            <span class="tech-badge">WebSocket</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-icon">&#128246;</div>
+          <h3>Offline-First Resilient</h3>
+          <p>Tidak bergantung pada koneksi internet yang stabil. Operasi pencatatan panen tetap berjalan meski jaringan kebun putus.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">&#128200;</div>
+          <h3>Skalabel &amp; Multi-Tenant</h3>
+          <p>Mendukung banyak perusahaan, banyak kebun, banyak divisi dalam satu infrastruktur yang efisien.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">&#128640;</div>
+          <h3>CI/CD &amp; Load Tested</h3>
+          <p>Pipeline deployment otomatis. Sistem telah diuji beban untuk memastikan performa di peak season panen.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 11: IMPLEMENTATION ===== -->
+  <div class="slide" id="slide-11">
+    <div class="slide-header">
+      <div class="label">Slide 11 / Implementasi</div>
+      <h2>Proses Implementasi — Cepat, Terstruktur, Minim Risiko</h2>
+    </div>
+    <div class="slide-body">
+      <div class="phases">
+        <div class="phase">
+          <div class="num">1</div>
+          <h3>Setup Master Data</h3>
+          <p>Konfigurasi Perusahaan, Kebun, Divisi, &amp; Blok. Data awal dimigrasikan dari sistem lama.</p>
+        </div>
+        <div class="phase">
+          <div class="num">2</div>
+          <h3>Training Per Role</h3>
+          <p>Pelatihan khusus untuk Mandor, Asisten, Timbangan, Manager Kebun, &amp; Area Manager. Pendampingan on-site di awal operasi.</p>
+        </div>
+        <div class="phase">
+          <div class="num">3</div>
+          <h3>Go-Live Pilot</h3>
+          <p>Mulai dari 1 kebun terpilih. Evaluasi &amp; penyempurnaan sebelum rollout lebih luas.</p>
+        </div>
+        <div class="phase">
+          <div class="num">4</div>
+          <h3>Rollout Penuh</h3>
+          <p>Ekspansi ke seluruh kebun &amp; divisi. Dukungan teknis &amp; support berkelanjutan.</p>
+        </div>
+      </div>
+      <div class="highlight-row" style="margin-top:16px;">
+        <div class="hi-icon">&#128161;</div>
+        <div>
+          <h3>Pendekatan Bertahap = Risiko Minimal</h3>
+          <p>Pilot di 1 kebun memungkinkan validasi proses panen sebelum investasi penuh. Tim IT mendampingi di setiap fase hingga operasional berjalan lancar.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 12: CTA ===== -->
+  <div class="slide" id="slide-12">
+    <div class="bg-pattern"></div>
+    <div class="cta-content">
+      <div class="cta-badge">Rekomendasi IT</div>
+      <h2>Mohon Persetujuan:<br>Pilot Project di 1 Kebun</h2>
+      <div class="sub">Tim IT siap memulai implementasi dengan dukungan manajemen.</div>
+      <div class="cta-box">
+        <h3>&#128204; Rekomendasi Departemen IT</h3>
+        <p>
+          Kami merekomendasikan memulai dengan pilot di 1 kebun untuk memvalidasi sistem sebelum rollout penuh.<br>
+          Tim IT telah menyiapkan rencana implementasi, estimasi sumber daya, &amp; jadwal pelatihan per role.
+        </p>
+      </div>
+      <div class="next-steps">
+        <span class="step-chip">&#9989; Persetujuan Manajemen</span>
+        <span class="step-chip">&#128101; Alokasi Tim &amp; Resource</span>
+        <span class="step-chip">&#128640; Pilot 1 Kebun</span>
+        <span class="step-chip">&#128202; Evaluasi &amp; Rollout</span>
+      </div>
+    </div>
+    <div class="brand-footer">
+      <span>&#127806;</span>
+      <span>Departemen IT &bull; 2025</span>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 13: LAMPIRAN A — NOTA DINAS PERSETUJUAN ===== -->
+  <div class="slide" id="slide-13">
+    <div class="slide-header">
+      <div class="label">Lampiran A / Persetujuan</div>
+      <h2>Nota Dinas — Permohonan Persetujuan Pilot Project</h2>
+    </div>
+    <div class="slide-body">
+      <div class="nota-dinas">
+        <div>
+          <div class="nota-header">
+            <div>
+              <div class="nota-name">NOTA DINAS</div>
+              <div class="nota-number">Nomor: IT/ND/001/III/2025</div>
+            </div>
+          </div>
+          <div class="nota-meta">
+            <div class="nota-meta-row"><span class="mk">Kepada</span><span>&nbsp;: Direksi &amp; Manajemen</span></div>
+            <div class="nota-meta-row"><span class="mk">Dari</span><span>&nbsp;: Departemen Teknologi Informasi</span></div>
+            <div class="nota-meta-row"><span class="mk">Perihal</span><span>&nbsp;: Permohonan Persetujuan Pilot Project Sistem Manajemen Panen Digital (Agrinova)</span></div>
+            <div class="nota-meta-row"><span class="mk">Tanggal</span><span>&nbsp;: Maret 2025</span></div>
+          </div>
+          <div class="nota-body">
+            <p>Dengan hormat,</p>
+            <p>Sehubungan dengan rencana digitalisasi operasional panen kebun sawit, bersama ini kami dari Departemen Teknologi Informasi mengajukan permohonan persetujuan untuk pelaksanaan <strong>pilot project sistem Agrinova</strong> — platform manajemen panen digital — di <strong>1 (satu) kebun terpilih selama 3 (tiga) bulan</strong>.</p>
+            <p>Sistem ini menggantikan pencatatan panen manual dengan solusi digital yang mencakup: input panen <em>offline-first</em> via mobile app, dashboard monitoring real-time, laporan panen &amp; kualitas TBS otomatis, serta manajemen akses berbasis hierarki (Mandor, Asisten, Timbangan, Manager Kebun, Area Manager).</p>
+            <p>Kami memohon persetujuan manajemen untuk: <strong>(1)</strong> pelaksanaan pilot di 1 kebun, <strong>(2)</strong> alokasi tim IT &amp; sumber daya pendukung, dan <strong>(3)</strong> anggaran operasional pilot project.</p>
+            <p>Atas perhatian dan persetujuan Bapak/Ibu, kami ucapkan terima kasih.</p>
+          </div>
+        </div>
+        <div class="nota-sign">
+          <div class="sign-block">
+            <p>Hormat kami,</p>
+            <p>Departemen Teknologi Informasi</p>
+            <div class="sign-space"></div>
+            <p class="sign-name">Kepala Departemen IT</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 14: LAMPIRAN B — ALOKASI TIM & RESOURCE ===== -->
+  <div class="slide" id="slide-14">
+    <div class="slide-header">
+      <div class="label">Lampiran B / Sumber Daya</div>
+      <h2>Rencana Alokasi Tim &amp; Sumber Daya Pilot Project</h2>
+    </div>
+    <div class="slide-body">
+      <table class="resource-table">
+        <thead>
+          <tr>
+            <th>Peran</th>
+            <th>Personil</th>
+            <th>Tanggung Jawab</th>
+            <th>Durasi Keterlibatan</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>IT Project Lead</strong></td>
+            <td style="text-align:center; white-space:nowrap;">1 orang</td>
+            <td>Koordinasi proyek, deployment sistem, &amp; pelaporan progres ke manajemen</td>
+            <td style="white-space:nowrap;">3 bulan (full)</td>
+          </tr>
+          <tr>
+            <td><strong>IT Backend / DevOps</strong></td>
+            <td style="text-align:center; white-space:nowrap;">1 orang</td>
+            <td>Konfigurasi server, database PostgreSQL, &amp; integrasi API panen</td>
+            <td style="white-space:nowrap;">Bulan ke-1 + on-call</td>
+          </tr>
+          <tr>
+            <td><strong>IT Support / Helpdesk</strong></td>
+            <td style="text-align:center; white-space:nowrap;">2 orang</td>
+            <td>Support lapangan, troubleshooting perangkat mobile mandor, &amp; pendampingan user</td>
+            <td style="white-space:nowrap;">3 bulan (full)</td>
+          </tr>
+          <tr>
+            <td><strong>Trainer / Fasilitator</strong></td>
+            <td style="text-align:center; white-space:nowrap;">1 orang</td>
+            <td>Pelatihan Mandor, Asisten, Timbangan, Manager Kebun, &amp; Area Manager</td>
+            <td style="white-space:nowrap;">Bulan ke-1 (training)</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="res-summary">
+        <div class="res-box" style="background:#f0fdf4; border-color:#86efac;">
+          <div class="res-icon">&#128241;</div>
+          <h4>Perangkat Mobile</h4>
+          <p>Android device untuk seluruh Mandor aktif di kebun pilot</p>
+        </div>
+        <div class="res-box" style="background:#eff6ff; border-color:#93c5fd;">
+          <div class="res-icon">&#9729;&#65039;</div>
+          <h4>Infrastruktur Server</h4>
+          <p>1 server (cloud/on-premise) + koneksi internet di kantor kebun</p>
+        </div>
+        <div class="res-box" style="background:#fefce8; border-color:#fde047;">
+          <div class="res-icon">&#128197;</div>
+          <h4>Durasi Pilot</h4>
+          <p>3 bulan operasional, dimulai setelah persetujuan manajemen</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 15: LAMPIRAN C — RENCANA PILOT PROJECT ===== -->
+  <div class="slide" id="slide-15">
+    <div class="slide-header">
+      <div class="label">Lampiran C / Pilot Plan</div>
+      <h2>Rencana Pilot Project — 1 Kebun, 3 Bulan</h2>
+    </div>
+    <div class="slide-body">
+      <div class="pilot-grid">
+        <div class="pilot-section">
+          <h3>&#127919; Scope Pilot</h3>
+          <ul>
+            <li>1 kebun terpilih, semua divisi aktif</li>
+            <li>Semua role terlibat: Mandor, Asisten, Timbangan, Manager, Area Manager</li>
+            <li>Durasi: 3 bulan operasional penuh</li>
+            <li>Target: digitalisasi 100% proses panen di kebun pilot</li>
+          </ul>
+        </div>
+        <div class="pilot-section">
+          <h3>&#128200; KPI Keberhasilan</h3>
+          <ul>
+            <li>Data panen digital &gt;90% dari total input</li>
+            <li>Waktu laporan ke manajemen ≤30 menit dari lapangan</li>
+            <li>User adoption per role &gt;80% dalam 4 minggu pertama</li>
+            <li>Zero data loss — integritas data 100%</li>
+          </ul>
+        </div>
+        <div class="pilot-section">
+          <h3>&#9888;&#65039; Risiko &amp; Mitigasi</h3>
+          <ul>
+            <li><strong>Sinyal lemah</strong> &rarr; offline-first SQLite, auto-sync</li>
+            <li><strong>Resistensi user</strong> &rarr; training intensif &amp; pendampingan on-site</li>
+            <li><strong>Hardware rusak</strong> &rarr; spare device tersedia</li>
+            <li><strong>Data konflik</strong> &rarr; conflict resolution otomatis sistem</li>
+          </ul>
+        </div>
+        <div class="pilot-section">
+          <h3>&#128203; Deliverable</h3>
+          <ul>
+            <li>Laporan mingguan progres pilot ke manajemen</li>
+            <li>Laporan akhir pilot: analisis KPI, temuan, &amp; rekomendasi</li>
+            <li>Dokumen go/no-go untuk keputusan rollout penuh</li>
+            <li>Dokumentasi SOP penggunaan per role</li>
+          </ul>
+        </div>
+      </div>
+      <div class="pilot-timeline">
+        <div class="tl-phase" style="background:var(--green-dark);">
+          <div class="tl-period">Minggu 1–2</div>
+          <div class="tl-label">Setup &amp; Konfigurasi Master Data</div>
+        </div>
+        <div class="tl-phase" style="background:var(--blue);">
+          <div class="tl-period">Minggu 3–4</div>
+          <div class="tl-label">Training Per Role &amp; UAT</div>
+        </div>
+        <div class="tl-phase" style="background:var(--green);">
+          <div class="tl-period">Bulan 2</div>
+          <div class="tl-label">Live Operation &amp; Monitoring</div>
+        </div>
+        <div class="tl-phase" style="background:var(--gold);">
+          <div class="tl-period">Bulan 3</div>
+          <div class="tl-label">Evaluasi KPI &amp; Laporan Akhir</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 16: LAMPIRAN D — EVALUASI & ROLLOUT ===== -->
+  <div class="slide" id="slide-16">
+    <div class="slide-header">
+      <div class="label">Lampiran D / Evaluasi</div>
+      <h2>Framework Evaluasi &amp; Rencana Rollout Pasca Pilot</h2>
+    </div>
+    <div class="slide-body">
+      <div class="eval-grid">
+        <div class="eval-section" style="background:#f0fdf4; border-color:var(--green);">
+          <h3>&#9989; Kriteria Go — Lanjut Rollout</h3>
+          <ul>
+            <li><span>&#9679;</span> User adoption &gt;80% per role dalam 4 minggu operasi</li>
+            <li><span>&#9679;</span> Akurasi data panen &gt;95% vs catatan manual</li>
+            <li><span>&#9679;</span> Zero critical bug dalam 2 minggu terakhir pilot</li>
+            <li><span>&#9679;</span> Laporan otomatis berhasil dihasilkan setiap siklus</li>
+            <li><span>&#9679;</span> Manajemen kebun menyatakan proses lebih efisien</li>
+          </ul>
+        </div>
+        <div class="eval-section" style="background:#fff5f5; border-color:#f87171;">
+          <h3>&#10060; Kriteria No-Go — Tunda &amp; Perbaiki</h3>
+          <ul>
+            <li><span>&#9679;</span> User adoption &lt;60% setelah 6 minggu operasi</li>
+            <li><span>&#9679;</span> Critical bug berulang yang belum terselesaikan</li>
+            <li><span>&#9679;</span> Data loss atau inkonsistensi data ditemukan</li>
+            <li><span>&#9679;</span> Proses operasional terganggu akibat sistem</li>
+          </ul>
+        </div>
+        <div class="eval-section" style="background:#eff6ff; border-color:var(--blue);">
+          <h3>&#128202; Metrik Evaluasi</h3>
+          <ul>
+            <li><span>&#9679;</span> % input panen via digital vs manual</li>
+            <li><span>&#9679;</span> Rata-rata waktu laporan sampai ke manajemen</li>
+            <li><span>&#9679;</span> Jumlah approval digital per minggu</li>
+            <li><span>&#9679;</span> Sync success rate (offline &rarr; online)</li>
+            <li><span>&#9679;</span> Net Promoter Score (NPS) dari pengguna per role</li>
+          </ul>
+        </div>
+        <div class="eval-section" style="background:var(--purple-light); border-color:var(--purple);">
+          <h3>&#128640; Rencana Rollout (jika Go)</h3>
+          <ul>
+            <li><span>&#9679;</span> <strong>Bulan 4–5:</strong> Kebun 2 &amp; 3 (parallel onboarding)</li>
+            <li><span>&#9679;</span> <strong>Bulan 6–7:</strong> Kebun 4–6 + Area Manager aktif lintas kebun</li>
+            <li><span>&#9679;</span> <strong>Bulan 8+:</strong> Seluruh kebun &amp; operasi berjalan penuh</li>
+            <li><span>&#9679;</span> Tim IT maintain &amp; monitor pasca go-live</li>
+          </ul>
+        </div>
+      </div>
+      <div class="rollout-timeline">
+        <div class="rt-phase" style="background:var(--green-dark);">
+          <div class="rt-label">Bulan 1–3</div>
+          <div class="rt-desc">Pilot Kebun 1 &amp; Evaluasi</div>
+        </div>
+        <div class="rt-phase" style="background:var(--green);">
+          <div class="rt-label">Bulan 4–5</div>
+          <div class="rt-desc">Rollout Kebun 2 &amp; 3</div>
+        </div>
+        <div class="rt-phase" style="background:var(--blue);">
+          <div class="rt-label">Bulan 6–7</div>
+          <div class="rt-desc">Rollout Kebun 4–6</div>
+        </div>
+        <div class="rt-phase" style="background:var(--purple);">
+          <div class="rt-label">Bulan 8+</div>
+          <div class="rt-desc">Full Operasional &amp; Monitoring</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<div id="nav">
+  <button class="nav-btn" id="btn-prev" title="Previous (&#8592;)">&#8592;</button>
+  <span id="slide-counter">1 / 12</span>
+  <button class="nav-btn" id="btn-next" title="Next (&#8594;)">&#8594;</button>
+  <button id="btn-print" onclick="window.print()" title="Cetak / Simpan PDF">&#128424; Cetak / Simpan PDF</button>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const counter = document.getElementById('slide-counter');
+  const progressBar = document.getElementById('progress-bar');
+  const total = slides.length;
+  let current = 0;
+
+  function goTo(index) {
+    if (index < 0 || index >= total) return;
+    slides[current].classList.remove('active');
+    slides[current].classList.add('prev');
+    setTimeout(() => slides[current].classList.remove('prev'), 500);
+    current = index;
+    slides[current].classList.add('active');
+    counter.textContent = `${current + 1} / ${total}`;
+    progressBar.style.width = `${((current + 1) / total) * 100}%`;
+  }
+
+  document.getElementById('btn-prev').addEventListener('click', () => goTo(current - 1));
+  document.getElementById('btn-next').addEventListener('click', () => goTo(current + 1));
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+      e.preventDefault(); goTo(current + 1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault(); goTo(current - 1);
+    } else if (e.key === 'Home') {
+      goTo(0);
+    } else if (e.key === 'End') {
+      goTo(total - 1);
+    }
+  });
+
+  // Touch/swipe support
+  let touchStartX = 0;
+  document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) dx < 0 ? goTo(current + 1) : goTo(current - 1);
+  });
+
+  // Init progress bar
+  progressBar.style.width = `${(1 / total) * 100}%`;
+</script>
+
+</body>
+</html>

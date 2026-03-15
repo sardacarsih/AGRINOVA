@@ -300,6 +300,21 @@ func main() {
 
 	log.Info("🔑 External API routes registered at /api/external/*")
 
+	// ============================
+	// Theme Campaign REST Routes
+	// ============================
+	themeGroup := router.Group("/api/theme")
+	themeGroup.Use(
+		authMiddleware.GraphQLAuth(),
+		webAuthMiddleware.WebSessionMiddleware(),
+		webAuthMiddleware.GraphQLContextMiddleware(),
+	)
+	routes.SetupThemeCampaignRoutes(themeGroup, database.GetDB())
+
+	publicThemeGroup := router.Group("/api/public")
+	routes.SetupPublicThemeCampaignRoutes(publicThemeGroup, database.GetDB())
+	log.Info("🎨 Theme campaign routes registered at /api/theme/* and /api/public/theme-runtime")
+
 	// GraphQL playground endpoint
 	router.GET("/playground", gin.WrapH(playground.Handler("GraphQL playground", cfg.Server.GraphQLEndpoint)))
 

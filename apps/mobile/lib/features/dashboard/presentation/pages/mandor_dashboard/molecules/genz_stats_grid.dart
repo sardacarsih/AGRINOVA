@@ -33,17 +33,17 @@ class GenZStatsGrid extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildTitle(),
+        _buildTitle(context),
         const SizedBox(height: 14),
         _buildGrid(),
       ],
     );
   }
 
-  Widget _buildTitle() {
+  Widget _buildTitle(BuildContext context) {
     return Text(
       'Ringkasan Hari Ini',
-      style: MandorTheme.headingSmall,
+      style: MandorTheme.headingSmallFor(context),
     );
   }
 
@@ -144,20 +144,20 @@ class GenZQuickStatsBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: MandorTheme.glassCardDark(),
+      decoration: MandorTheme.filledCardFor(context),
       child: Row(
         children: [
-          _buildStatItem(totalLabel, totalValue, MandorTheme.forestGreen),
-          _buildDivider(),
-          _buildStatItem(firstLabel, firstValue, MandorTheme.electricBlue),
-          _buildDivider(),
-          _buildStatItem(secondLabel, secondValue, MandorTheme.amberOrange),
+          _buildStatItem(context, totalLabel, totalValue, MandorTheme.forestGreen),
+          _buildDivider(context),
+          _buildStatItem(context, firstLabel, firstValue, MandorTheme.electricBlue),
+          _buildDivider(context),
+          _buildStatItem(context, secondLabel, secondValue, MandorTheme.amberOrange),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(String label, String value, Color color) {
+  Widget _buildStatItem(BuildContext context, String label, String value, Color color) {
     return Expanded(
       child: Column(
         children: [
@@ -172,19 +172,20 @@ class GenZQuickStatsBar extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style:
-                MandorTheme.bodySmall.copyWith(color: color.withValues(alpha: 0.8)),
+            style: MandorTheme.bodySmallFor(context).copyWith(
+              color: color.withValues(alpha: 0.8),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDivider() {
+  Widget _buildDivider(BuildContext context) {
     return Container(
       width: 1,
       height: 40,
-      color: MandorTheme.gray700,
+      color: MandorTheme.of(context).borderColor,
     );
   }
 }

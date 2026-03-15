@@ -469,6 +469,12 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       permissions: ['system:config']
     },
     {
+      label: 'items.themeCampaigns',
+      path: '/theme-campaigns',
+      icon: 'palette',
+      permissions: ['system:config']
+    },
+    {
       label: 'items.managementToken',
       path: '/management-token',
       icon: 'key',

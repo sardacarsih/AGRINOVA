@@ -207,7 +207,7 @@ export function LoginForm({
                 <button
                   type="button"
                   onClick={onForgotPassword}
-                  className="text-sm font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 transition-colors touch-manipulation py-2 sm:py-1 underline-offset-4 hover:underline self-start sm:self-auto"
+                  className="login-accent-text text-sm font-medium transition-colors touch-manipulation py-2 sm:py-1 underline-offset-4 hover:underline self-start sm:self-auto"
                 >
                   Lupa password?
                 </button>
@@ -218,7 +218,7 @@ export function LoginForm({
             <Button
               type="submit"
               disabled={loading || isSubmitting || !isApiOnline}
-              className="w-full h-12 sm:h-11 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 dark:bg-emerald-600 dark:hover:bg-emerald-700 dark:active:bg-emerald-800 text-white font-semibold rounded-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed text-base sm:text-sm touch-manipulation mt-6 sm:mt-4"
+              className="login-submit-btn mt-6 h-12 w-full rounded-xl bg-emerald-600 text-base font-semibold text-white transition-all hover:bg-emerald-700 active:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-600 dark:hover:bg-emerald-700 dark:active:bg-emerald-800 sm:mt-4 sm:h-11 sm:text-sm touch-manipulation"
             >
               {loading || isSubmitting ? (
                 <>
