@@ -20,7 +20,21 @@ class AuthQueries {
           email
           avatar
           role
+          effectiveMandorType
           isActive
+          companyId
+          company {
+            id
+            name
+          }
+          estates {
+            id
+            name
+          }
+          divisions {
+            id
+            name
+          }
           managerId
           manager {
             id
@@ -72,7 +86,21 @@ class AuthQueries {
           email
           avatar
           role
+          effectiveMandorType
           isActive
+          companyId
+          company {
+            id
+            name
+          }
+          estates {
+            id
+            name
+          }
+          divisions {
+            id
+            name
+          }
           managerId
         }
         assignments {
@@ -116,7 +144,21 @@ class AuthQueries {
           email
           avatar
           role
+          effectiveMandorType
           isActive
+          companyId
+          company {
+            id
+            name
+          }
+          estates {
+            id
+            name
+          }
+          divisions {
+            id
+            name
+          }
           managerId
         }
         assignments {

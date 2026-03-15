@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/constants/api_constants.dart';
 import '../../core/di/dependency_injection.dart';
 import '../../core/routes/app_routes.dart';
+import '../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../features/auth/presentation/blocs/auth_bloc.dart';
 import '../../features/auth/presentation/blocs/biometric_auth_bloc.dart';
 import '../../features/auth/presentation/pages/biometric_settings_page.dart';
@@ -23,16 +24,21 @@ class LogoutMenuWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sidebarBg = RuntimeThemeSlotResolver.sidebarBackground(context);
+    final menuTextColor = RuntimeThemeSlotResolver.sidebarForeground(context);
+    final menuIconColor = RuntimeThemeSlotResolver.sidebarIcon(context);
+
     return PopupMenuButton<String>(
+      color: sidebarBg,
       onSelected: (value) => _handleMenuAction(context, value),
       itemBuilder: (context) => [
         PopupMenuItem(
           value: 'profile',
           child: Row(
             children: [
-              Icon(Icons.person, size: 20, color: Colors.grey[700]),
-              SizedBox(width: 12),
-              Text('Profile'),
+              Icon(Icons.person, size: 20, color: menuIconColor),
+              const SizedBox(width: 12),
+              Text('Profile', style: TextStyle(color: menuTextColor)),
             ],
           ),
         ),
@@ -40,9 +46,9 @@ class LogoutMenuWidget extends StatelessWidget {
           value: 'settings',
           child: Row(
             children: [
-              Icon(Icons.settings, size: 20, color: Colors.grey[700]),
-              SizedBox(width: 12),
-              Text('Settings'),
+              Icon(Icons.settings, size: 20, color: menuIconColor),
+              const SizedBox(width: 12),
+              Text('Settings', style: TextStyle(color: menuTextColor)),
             ],
           ),
         ),
@@ -50,9 +56,9 @@ class LogoutMenuWidget extends StatelessWidget {
           value: 'biometric',
           child: Row(
             children: [
-              Icon(Icons.fingerprint, size: 20, color: Colors.grey[700]),
-              SizedBox(width: 12),
-              Text('Biometric'),
+              Icon(Icons.fingerprint, size: 20, color: menuIconColor),
+              const SizedBox(width: 12),
+              Text('Biometric', style: TextStyle(color: menuTextColor)),
             ],
           ),
         ),
@@ -60,9 +66,9 @@ class LogoutMenuWidget extends StatelessWidget {
           value: 'web_qr_login',
           child: Row(
             children: [
-              Icon(Icons.qr_code_scanner, size: 20, color: Colors.grey[700]),
-              SizedBox(width: 12),
-              Text('QR Login Web'),
+              Icon(Icons.qr_code_scanner, size: 20, color: menuIconColor),
+              const SizedBox(width: 12),
+              Text('QR Login Web', style: TextStyle(color: menuTextColor)),
             ],
           ),
         ),
@@ -70,20 +76,20 @@ class LogoutMenuWidget extends StatelessWidget {
           value: 'about',
           child: Row(
             children: [
-              Icon(Icons.info_outline, size: 20, color: Colors.grey[700]),
-              SizedBox(width: 12),
-              Text('About'),
+              Icon(Icons.info_outline, size: 20, color: menuIconColor),
+              const SizedBox(width: 12),
+              Text('About', style: TextStyle(color: menuTextColor)),
             ],
           ),
         ),
-        PopupMenuDivider(),
+        const PopupMenuDivider(),
         PopupMenuItem(
           value: 'logout',
           child: Row(
             children: [
               Icon(Icons.logout, color: Colors.red, size: 20),
-              SizedBox(width: 12),
-              Text('Logout', style: TextStyle(color: Colors.red)),
+              const SizedBox(width: 12),
+              const Text('Logout', style: TextStyle(color: Colors.red)),
             ],
           ),
         ),
@@ -153,37 +159,47 @@ class LogoutMenuWidget extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: RuntimeThemeSlotResolver.modalBackground(
+          context,
+          fallback: Theme.of(context).dialogTheme.backgroundColor,
+        ),
         title: Row(
           children: [
-            Icon(Icons.info_outline, color: Colors.blue),
-            SizedBox(width: 8),
-            Text('About Agrinova'),
+            Icon(
+              Icons.info_outline,
+              color: RuntimeThemeSlotResolver.modalAccent(
+                context,
+                fallback: Colors.blue,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text('About Agrinova'),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Agrinova Mobile App'),
-            SizedBox(height: 8),
+            const Text('Agrinova Mobile App'),
+            const SizedBox(height: 8),
             Text('Version: ${ApiConstants.appVersionDisplay}'),
-            SizedBox(height: 8),
-            Text(
+            const SizedBox(height: 8),
+            const Text(
               'Palm oil management system with offline-first capabilities and JWT authentication.',
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             if (username != null || role != null) ...[
-              Divider(),
-              SizedBox(height: 8),
+              const Divider(),
+              const SizedBox(height: 8),
               if (username != null)
                 Text(
                   'User: $username',
-                  style: TextStyle(fontWeight: FontWeight.w500),
+                  style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
               if (role != null)
                 Text(
                   'Role: $role',
-                  style: TextStyle(fontWeight: FontWeight.w500),
+                  style: const TextStyle(fontWeight: FontWeight.w500),
                 ),
             ],
           ],
@@ -191,7 +207,15 @@ class LogoutMenuWidget extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Close'),
+            child: Text(
+              'Close',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.modalAccent(
+                  context,
+                  fallback: Theme.of(context).colorScheme.secondary,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -203,27 +227,31 @@ class LogoutMenuWidget extends StatelessWidget {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback: Theme.of(dialogContext).dialogTheme.backgroundColor,
+        ),
         title: Row(
           children: [
             Icon(Icons.logout, color: Colors.red),
-            SizedBox(width: 8),
-            Text('Konfirmasi Keluar'),
+            const SizedBox(width: 8),
+            const Text('Konfirmasi Keluar'),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Apakah Anda yakin ingin keluar?'),
-            SizedBox(height: 8),
+            const Text('Apakah Anda yakin ingin keluar?'),
+            const SizedBox(height: 8),
             if (username != null)
               Text(
                 'Pengguna: $username',
                 style: TextStyle(color: Colors.grey[600], fontSize: 14),
               ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Container(
-              padding: EdgeInsets.all(12),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.orange[50],
                 borderRadius: BorderRadius.circular(8),
@@ -231,8 +259,8 @@ class LogoutMenuWidget extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.warning, color: Colors.orange, size: 20),
-                  SizedBox(width: 8),
+                  const Icon(Icons.warning, color: Colors.orange, size: 20),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Data offline yang belum tersimpan tetap aman di perangkat dan akan sinkron saat Anda login kembali.',
@@ -247,15 +275,26 @@ class LogoutMenuWidget extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: Text('Batal'),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.modalAccent(
+                  dialogContext,
+                  fallback: Theme.of(dialogContext).colorScheme.secondary,
+                ),
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () => _performLogout(context, dialogContext),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+              backgroundColor: RuntimeThemeSlotResolver.modalAccent(
+                dialogContext,
+                fallback: Colors.red,
+              ),
               foregroundColor: Colors.white,
             ),
-            child: Text('Keluar'),
+            child: const Text('Keluar'),
           ),
         ],
       ),

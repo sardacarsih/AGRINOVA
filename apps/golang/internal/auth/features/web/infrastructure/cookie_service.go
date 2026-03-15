@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -17,6 +18,24 @@ type CookieService struct {
 // NewCookieService creates new cookie service
 func NewCookieService(config CookieConfig) *CookieService {
 	return &CookieService{config: config}
+}
+
+// SessionCookieName returns configured session cookie name with safe fallback.
+func (s *CookieService) SessionCookieName() string {
+	name := strings.TrimSpace(s.config.SessionCookieName)
+	if name == "" {
+		return "session_id"
+	}
+	return name
+}
+
+// CSRFCookieName returns configured CSRF cookie name with safe fallback.
+func (s *CookieService) CSRFCookieName() string {
+	name := strings.TrimSpace(s.config.CSRFCookieName)
+	if name == "" {
+		return "csrf_token"
+	}
+	return name
 }
 
 // SetAuthCookies sets authentication cookies
@@ -39,7 +58,7 @@ func (s *CookieService) SetAuthCookies(ctx context.Context, sessionID, csrfToken
 
 	// Set session cookie
 	sessionCookie := &http.Cookie{
-		Name:     s.config.SessionCookieName,
+		Name:     s.SessionCookieName(),
 		Value:    sessionID,
 		Path:     "/",
 		MaxAge:   int(s.config.SessionDuration.Seconds()),
@@ -53,7 +72,7 @@ func (s *CookieService) SetAuthCookies(ctx context.Context, sessionID, csrfToken
 
 	// Set CSRF cookie
 	csrfCookie := &http.Cookie{
-		Name:     s.config.CSRFCookieName,
+		Name:     s.CSRFCookieName(),
 		Value:    csrfToken,
 		Path:     "/",
 		MaxAge:   int(s.config.CSRFTokenDuration.Seconds()),
@@ -87,7 +106,7 @@ func (s *CookieService) ClearAuthCookies(ctx context.Context) error {
 
 	// Clear session cookie
 	sessionCookie := &http.Cookie{
-		Name:     s.config.SessionCookieName,
+		Name:     s.SessionCookieName(),
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
@@ -101,7 +120,7 @@ func (s *CookieService) ClearAuthCookies(ctx context.Context) error {
 
 	// Clear CSRF cookie
 	csrfCookie := &http.Cookie{
-		Name:     s.config.CSRFCookieName,
+		Name:     s.CSRFCookieName(),
 		Value:    "",
 		Path:     "/",
 		MaxAge:   -1,
@@ -138,7 +157,7 @@ func (s *CookieService) ValidateCSRF(ctx context.Context, token string) error {
 		return errors.New("HTTP request not found in context")
 	}
 
-	cookie, err := request.Cookie(s.config.CSRFCookieName)
+	cookie, err := request.Cookie(s.CSRFCookieName())
 	if err != nil {
 		return errors.New("CSRF cookie not found")
 	}
@@ -177,12 +196,12 @@ func (s *CookieService) getSameSitePolicy() http.SameSite {
 
 // CookieConfig holds cookie configuration
 type CookieConfig struct {
-	SessionCookieName   string
-	CSRFCookieName      string
-	Domain              string
-	SecureCookies       bool
-	SameSitePolicy      string
-	SessionDuration     time.Duration
-	CSRFTokenDuration   time.Duration
-	CSRFSecret          []byte
+	SessionCookieName string
+	CSRFCookieName    string
+	Domain            string
+	SecureCookies     bool
+	SameSitePolicy    string
+	SessionDuration   time.Duration
+	CSRFTokenDuration time.Duration
+	CSRFSecret        []byte
 }

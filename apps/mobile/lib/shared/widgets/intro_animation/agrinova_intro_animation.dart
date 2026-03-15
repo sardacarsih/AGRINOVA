@@ -5,6 +5,30 @@ import 'package:flutter/services.dart';
 import 'agrinova_intro_theme.dart';
 import 'vignette_background.dart';
 
+class AgrinovaIntroPalette {
+  final Color backgroundColor;
+  final Color accentPrimary;
+  final Color accentSecondary;
+  final Color accentTertiary;
+  final Color glowColor;
+
+  const AgrinovaIntroPalette({
+    required this.backgroundColor,
+    required this.accentPrimary,
+    required this.accentSecondary,
+    required this.accentTertiary,
+    required this.glowColor,
+  });
+
+  static const AgrinovaIntroPalette fallback = AgrinovaIntroPalette(
+    backgroundColor: AgrinovaIntroTheme.backgroundDark,
+    accentPrimary: AgrinovaIntroTheme.springGreen,
+    accentSecondary: AgrinovaIntroTheme.techGreen,
+    accentTertiary: AgrinovaIntroTheme.deepForest,
+    glowColor: AgrinovaIntroTheme.glowColor,
+  );
+}
+
 /// A Netflix-style intro animation for the AGRINOVA brand.
 ///
 /// This widget displays an animated logo with:
@@ -33,12 +57,16 @@ class AgrinovaIntroAnimation extends StatefulWidget {
   /// Whether to auto-start the animation.
   final bool autoStart;
 
+  /// Optional campaign palette override for splash/login seasonal themes.
+  final AgrinovaIntroPalette? palette;
+
   const AgrinovaIntroAnimation({
     super.key,
     this.onCompleted,
     this.duration = AgrinovaIntroTheme.animationDuration,
     this.immersiveMode = true,
     this.autoStart = true,
+    this.palette,
   });
 
   @override
@@ -102,19 +130,20 @@ class _AgrinovaIntroAnimationState extends State<AgrinovaIntroAnimation>
     );
 
     // Zoom animation (0.0 - 0.5)
-    _zoomAnimation = Tween<double>(
-      begin: AgrinovaIntroTheme.initialScale,
-      end: AgrinovaIntroTheme.finalScale,
-    ).animate(
-      CurvedAnimation(
-        parent: _mainController,
-        curve: const Interval(
-          AgrinovaIntroTheme.zoomStart,
-          AgrinovaIntroTheme.zoomEnd,
-          curve: Curves.easeOutCubic,
-        ),
-      ),
-    );
+    _zoomAnimation =
+        Tween<double>(
+          begin: AgrinovaIntroTheme.initialScale,
+          end: AgrinovaIntroTheme.finalScale,
+        ).animate(
+          CurvedAnimation(
+            parent: _mainController,
+            curve: const Interval(
+              AgrinovaIntroTheme.zoomStart,
+              AgrinovaIntroTheme.zoomEnd,
+              curve: Curves.easeOutCubic,
+            ),
+          ),
+        );
 
     // Shimmer animation (0.15 - 0.75)
     _shimmerAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -142,10 +171,7 @@ class _AgrinovaIntroAnimationState extends State<AgrinovaIntroAnimation>
 
     // Glow pulse animation
     _glowAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _glowController,
-        curve: Curves.easeInOut,
-      ),
+      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
 
     // Listen for completion
@@ -199,13 +225,15 @@ class _AgrinovaIntroAnimationState extends State<AgrinovaIntroAnimation>
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
+    final palette = widget.palette ?? AgrinovaIntroPalette.fallback;
 
     return RepaintBoundary(
       child: AnimatedBuilder(
         animation: Listenable.merge([_mainController, _glowController]),
         builder: (context, child) {
           // Calculate current opacity (fade-in then fade-out)
-          final opacity = _mainController.value < AgrinovaIntroTheme.fadeOutStart
+          final opacity =
+              _mainController.value < AgrinovaIntroTheme.fadeOutStart
               ? _fadeInAnimation.value
               : _fadeOutAnimation.value;
 
@@ -213,15 +241,16 @@ class _AgrinovaIntroAnimationState extends State<AgrinovaIntroAnimation>
           final shimmerProgress = _shimmerAnimation.value;
           final isShimmerActive =
               _mainController.value >= AgrinovaIntroTheme.shimmerStart &&
-                  _mainController.value <= AgrinovaIntroTheme.shimmerEnd;
+              _mainController.value <= AgrinovaIntroTheme.shimmerEnd;
 
           // Calculate glow intensity
           final glowIntensity = _glowAnimation.value;
           final isGlowActive =
               _mainController.value >= AgrinovaIntroTheme.glowStart &&
-                  _mainController.value <= AgrinovaIntroTheme.glowEnd;
+              _mainController.value <= AgrinovaIntroTheme.glowEnd;
 
           return VignetteBackground(
+            backgroundColor: palette.backgroundColor,
             child: Center(
               child: Opacity(
                 opacity: opacity.clamp(0.0, 1.0),
@@ -233,6 +262,7 @@ class _AgrinovaIntroAnimationState extends State<AgrinovaIntroAnimation>
                     isShimmerActive: isShimmerActive,
                     glowIntensity: glowIntensity,
                     isGlowActive: isGlowActive,
+                    palette: palette,
                   ),
                 ),
               ),
@@ -249,6 +279,7 @@ class _AgrinovaIntroAnimationState extends State<AgrinovaIntroAnimation>
     required bool isShimmerActive,
     required double glowIntensity,
     required bool isGlowActive,
+    required AgrinovaIntroPalette palette,
   }) {
     final textStyle = AgrinovaIntroTheme.getLogoTextStyle(screenWidth);
 
@@ -265,8 +296,9 @@ class _AgrinovaIntroAnimationState extends State<AgrinovaIntroAnimation>
             child: Text(
               'AGRINOVA',
               style: textStyle.copyWith(
-                color: AgrinovaIntroTheme.springGreen
-                    .withValues(alpha: 0.5 + (0.3 * glowIntensity)),
+                color: palette.accentPrimary.withValues(
+                  alpha: 0.5 + (0.3 * glowIntensity),
+                ),
               ),
             ),
           ),
@@ -276,22 +308,33 @@ class _AgrinovaIntroAnimationState extends State<AgrinovaIntroAnimation>
           shaderCallback: (bounds) {
             if (!isShimmerActive) {
               // No shimmer - just show the text gradient
-              return AgrinovaIntroTheme.textGradient.createShader(bounds);
+              return LinearGradient(
+                colors: [
+                  palette.accentPrimary,
+                  palette.accentSecondary,
+                  palette.accentTertiary,
+                  palette.accentSecondary,
+                  palette.accentPrimary,
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ).createShader(bounds);
             }
 
             // Calculate shimmer position
             final shimmerWidth = AgrinovaIntroTheme.shimmerWidth;
-            final start = -shimmerWidth + (shimmerProgress * (1.0 + shimmerWidth * 2));
+            final start =
+                -shimmerWidth + (shimmerProgress * (1.0 + shimmerWidth * 2));
 
             return LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
               colors: [
-                AgrinovaIntroTheme.springGreen,
-                AgrinovaIntroTheme.techGreen,
+                palette.accentPrimary,
+                palette.accentSecondary,
                 Colors.white.withValues(alpha: 0.9), // Bright shimmer center
-                AgrinovaIntroTheme.techGreen,
-                AgrinovaIntroTheme.springGreen,
+                palette.accentSecondary,
+                palette.accentPrimary,
               ],
               stops: [
                 (start - 0.1).clamp(0.0, 1.0),
@@ -303,10 +346,7 @@ class _AgrinovaIntroAnimationState extends State<AgrinovaIntroAnimation>
             ).createShader(bounds);
           },
           blendMode: BlendMode.srcIn,
-          child: Text(
-            'AGRINOVA',
-            style: textStyle,
-          ),
+          child: Text('AGRINOVA', style: textStyle),
         ),
 
         // Subtle highlight overlay
@@ -337,24 +377,15 @@ class _HighlightPainter extends CustomPainter {
   final double progress;
   final Color color;
 
-  _HighlightPainter({
-    required this.progress,
-    required this.color,
-  });
+  _HighlightPainter({required this.progress, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(
-      size.width * progress,
-      size.height / 2,
-    );
+    final center = Offset(size.width * progress, size.height / 2);
 
     final paint = Paint()
       ..shader = RadialGradient(
-        colors: [
-          color,
-          color.withValues(alpha: 0),
-        ],
+        colors: [color, color.withValues(alpha: 0)],
       ).createShader(Rect.fromCircle(center: center, radius: size.height));
 
     canvas.drawCircle(center, size.height, paint);

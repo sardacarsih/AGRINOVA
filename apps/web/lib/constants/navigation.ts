@@ -61,13 +61,6 @@ export const HIERARCHICAL_NAVIGATION: NavigationCategory[] = [
             permissions: ['harvest:approve'],
             badge: 'pending'
           },
-          {
-            id: 'harvest-history',
-            title: 'navigation.harvestHistory',
-            icon: 'clock',
-            path: '/harvest/history',
-            permissions: ['history:read']
-          }
         ]
       },
       {
@@ -476,6 +469,12 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       permissions: ['system:config']
     },
     {
+      label: 'items.themeCampaigns',
+      path: '/theme-campaigns',
+      icon: 'palette',
+      permissions: ['system:config']
+    },
+    {
       label: 'items.managementToken',
       path: '/management-token',
       icon: 'key',
@@ -558,6 +557,18 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       permissions: ['dashboard:read']
     },
     {
+      label: 'items.harvestReports',
+      path: '/harvest',
+      icon: 'sprout',
+      permissions: ['harvest:read']
+    },
+    {
+      label: 'items.teamUsers',
+      path: '/tim',
+      icon: 'users',
+      permissions: ['users:read']
+    },
+    {
       label: 'items.gateCheck',
       path: '/gate-check',
       icon: 'shield',
@@ -588,6 +599,12 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       permissions: ['analytics:regional']
     },
     {
+      label: 'items.organizationStructure',
+      path: '/struktur-organisasi',
+      icon: 'users',
+      permissions: ['team:read']
+    },
+    {
       label: 'items.systemMonitoring',
       path: '/settings',
       icon: 'terminal',
@@ -615,7 +632,7 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
     },
     {
       label: 'items.teamUsers',
-      path: '/tim-estate',
+      path: '/tim',
       icon: 'users',
       permissions: ['users:read']
     },
@@ -644,15 +661,21 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       permissions: ['analytics:read']
     },
     {
-      label: 'items.harvestHistory',
-      path: '/harvest/history',
-      icon: 'clock',
-      permissions: ['harvest:read']
+      label: 'items.organizationStructure',
+      path: '/struktur-organisasi',
+      icon: 'users',
+      permissions: ['users:read']
     },
     {
       label: 'items.teamUsers',
       path: '/budget-divisi',
       icon: 'users',
+      permissions: ['users:read']
+    },
+    {
+      label: 'items.blocks',
+      path: '/budget-blok',
+      icon: 'square',
       permissions: ['users:read']
     },
     {
@@ -683,6 +706,12 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       badge: 'pending'
     },
     {
+      label: 'items.teamUsers',
+      path: '/tim',
+      icon: 'users',
+      permissions: ['users:read']
+    },
+    {
       label: 'items.monitoring',
       path: '/',
       icon: 'eye',
@@ -701,12 +730,6 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       permissions: ['reports:read']
     },
     {
-      label: 'items.harvestHistory',
-      path: '/harvest/history',
-      icon: 'clock',
-      permissions: ['harvest:read']
-    },
-    {
       label: 'items.notifications',
       path: '/notifications',
       icon: 'bell',
@@ -717,6 +740,18 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       path: '/users',
       icon: 'users',
       permissions: ['team:read']
+    },
+    {
+      label: 'items.organizationStructure',
+      path: '/struktur-organisasi',
+      icon: 'users',
+      permissions: ['team:read']
+    },
+    {
+      label: 'items.blocks',
+      path: '/budget-blok',
+      icon: 'square',
+      permissions: ['dashboard:read']
     },
     {
       label: 'items.profile',
@@ -739,10 +774,16 @@ export const ROLE_SPECIFIC_NAVIGATION: Record<UserRole, Array<{
       permissions: ['harvest:read']
     },
     {
-      label: 'items.harvestHistory',
-      path: '/harvest/history',
-      icon: 'Clock',
-      permissions: ['harvest:read']
+      label: 'Perawatan Lapangan',
+      path: '/perawatan',
+      icon: 'ClipboardList',
+      permissions: ['dashboard:read']
+    },
+    {
+      label: 'items.blocks',
+      path: '/budget-blok',
+      icon: 'square',
+      permissions: ['dashboard:read']
     },
     {
       label: 'items.profile',

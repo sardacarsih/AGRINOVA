@@ -72,8 +72,14 @@ interface ProfileFormData {
   };
 }
 
+interface UploadProfileAvatarResponse {
+  success?: boolean;
+  message?: string;
+  filePath?: string;
+}
+
 export default function ProfilePage() {
-  const { user, updateProfile, updateUserProfile, changePassword, logout, logoutAllDevices } = useAuth();
+  const { user, isLoading: authLoading, updateUserProfile, changePassword, logout, logoutAllDevices } = useAuth();
   const router = useRouter();
   const { toast, loading: toastLoading, dismiss: toastDismiss, success: toastSuccess } = useToast();
 
@@ -211,14 +217,7 @@ export default function ProfilePage() {
     }
   }, [user]);
 
-  // Redirect if no user
-  useEffect(() => {
-    if (!user) {
-      router.push('/login');
-    }
-  }, [user, router]);
-
-  if (!user) {
+  if (authLoading || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -465,26 +464,34 @@ export default function ProfilePage() {
     try {
       setIsUploadingAvatar(true);
 
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(new Error('failed to read image'));
-        reader.readAsDataURL(file);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/profile/avatar/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
       });
-      setAvatarPreview(dataUrl);
-      setAvatarDraft(dataUrl);
+
+      const uploadResult = (await response.json().catch(() => null)) as UploadProfileAvatarResponse | null;
+      if (!response.ok || !uploadResult?.success || !uploadResult.filePath) {
+        throw new Error(uploadResult?.message || 'Gagal mengupload avatar');
+      }
+
+      setAvatarPreview(uploadResult.filePath);
+      setAvatarDraft(uploadResult.filePath);
       setIsEditing(true);
 
       toast({
         title: 'Info',
-        description: 'Avatar diperbarui. Klik "Simpan Perubahan" untuk menyimpan.',
+        description: 'Avatar berhasil diunggah. Klik "Simpan Perubahan" untuk menyimpan profil.',
       });
 
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Avatar upload error:', error);
       toast({
         title: 'Error',
-        description: 'Gagal mengupload avatar',
+        description: error instanceof Error ? error.message : 'Gagal mengupload avatar',
         variant: 'destructive',
       });
       setAvatarPreview(null);
@@ -546,56 +553,11 @@ export default function ProfilePage() {
     return assignments.length > 1 ? assignments.join(' • ') + ' (Multi-Assignment)' : assignments.join(' • ');
   };
 
-  const getRoleSpecificInfo = () => {
-    if (!user) return null;
-
-    // Mock data for demonstration - in real implementation, this would come from API
-    const roleStats = {
-      super_admin: {
-        totalCompanies: 25,
-        totalUsers: 1250,
-        systemUptime: '99.9%',
-        activeAlerts: 3
-      },
-      company_admin: {
-        totalUsers: 85,
-        totalEstates: 12,
-        activeEmployees: 320,
-        pendingRequests: 5
-      },
-      area_manager: {
-        companiesManaged: user.assignedCompanies?.length || 3,
-        totalEstates: 28,
-        monthlyReports: 45,
-        teamEfficiency: '94%'
-      },
-      manager: {
-        estatesManaged: user.assignedEstates?.length || 4,
-        teamSize: 45,
-        monthlyHarvest: '2,340 Ton',
-        efficiency: '92%'
-      },
-      asisten: {
-        divisionsManaged: user.assignedDivisions?.length || 6,
-        pendingApprovals: 12,
-        monthlyApprovals: 245,
-        averageResponseTime: '2.3 jam'
-      },
-      mandor: {
-        teamSize: 18,
-        dailyHarvest: '8.5 Ton',
-        monthlyTarget: '85%',
-        qualityScore: '4.7/5'
-      },
-      satpam: {
-        dailyChecks: 28,
-        monthlyVehicles: 420,
-        securityIncidents: 0,
-        averageProcessTime: '3.2 menit'
-      }
-    };
-
-    return roleStats[user.role] || null;
+  const getAssignmentCount = (primary?: string[] | null, fallback?: unknown): number => {
+    if (Array.isArray(primary) && primary.length > 0) {
+      return primary.length;
+    }
+    return fallback ? 1 : 0;
   };
 
   const formatLastLogin = (lastLogin?: Date) => {
@@ -648,6 +610,35 @@ export default function ProfilePage() {
 
   const assignedCompanyScopeNames = getAssignedCompanyScopeNames();
   const isAreaManagerRole = (user?.role as string) === 'AREA_MANAGER' || (user?.role as string) === 'AREA_AMANAGER';
+  const statsCards = [
+    {
+      label: 'Perusahaan',
+      value: getAssignmentCount(user.assignedCompanies, user.company),
+      helper: 'Scope perusahaan',
+      className: 'bg-blue-50 border-blue-200 text-blue-700',
+    },
+    {
+      label: 'Estate',
+      value: getAssignmentCount(user.assignedEstates, user.estate),
+      helper: 'Assignment estate',
+      className: 'bg-green-50 border-green-200 text-green-700',
+    },
+    {
+      label: 'Divisi',
+      value: getAssignmentCount(user.assignedDivisions, user.divisi),
+      helper: 'Assignment divisi',
+      className: 'bg-purple-50 border-purple-200 text-purple-700',
+    },
+    {
+      label: 'Permission',
+      value: Array.isArray(user.permissions) ? user.permissions.length : 0,
+      helper: 'Hak akses aktif',
+      className: 'bg-orange-50 border-orange-200 text-orange-700',
+    },
+  ] as const;
+  const storedDeviceId =
+    typeof window !== 'undefined' ? sessionStorage.getItem('agrinova_device_id') : null;
+  const maskedDeviceId = storedDeviceId ? `${storedDeviceId.substring(0, 16)}...` : 'Tidak tersedia';
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
@@ -704,7 +695,12 @@ export default function ProfilePage() {
                 {/* Avatar Upload Overlay */}
                 <div className="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
                   <div className="flex space-x-1">
-                    <label htmlFor="avatar-upload-header" className="cursor-pointer">
+                    <label
+                      htmlFor="avatar-upload-header"
+                      className="cursor-pointer"
+                      aria-label="Upload avatar"
+                      title="Upload avatar"
+                    >
                       <div className="bg-white/20 backdrop-blur-sm rounded-full p-1.5 hover:bg-white/30 transition-colors">
                         {isUploadingAvatar ? (
                           <RefreshCw className="h-3 w-3 text-white animate-spin" />
@@ -714,9 +710,12 @@ export default function ProfilePage() {
                       </div>
                     </label>
                     {(avatarPreview || user.avatar) && (
-                      <button 
+                      <button
+                        type="button"
                         onClick={handleRemoveAvatar}
                         className="bg-red-500/70 backdrop-blur-sm rounded-full p-1.5 hover:bg-red-500/90 transition-colors"
+                        aria-label="Hapus avatar"
+                        title="Hapus avatar"
                       >
                         <Trash2 className="h-3 w-3 text-white" />
                       </button>
@@ -894,12 +893,12 @@ export default function ProfilePage() {
                       <Input
                         id="position"
                         value={formData.position}
-                        onChange={(e) => setFormData(prev => ({ ...prev, position: e.target.value }))}
-                        disabled={!isEditing}
-                        className="pl-10"
+                        disabled
+                        className="pl-10 bg-gray-50"
                         placeholder="Contoh: Kepala Mandor"
                       />
                     </div>
+                    <p className="text-xs text-gray-500">Jabatan mengikuti data akun dan tidak dapat diubah di halaman ini.</p>
                   </div>
                 </div>
               </CardContent>
@@ -1072,237 +1071,49 @@ export default function ProfilePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {(() => {
-                  const roleInfo = getRoleSpecificInfo();
-                  
-                  if (!roleInfo) {
-                    return (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <p>Tidak ada data statistik tersedia untuk role ini</p>
-                      </div>
-                    );
-                  }
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {statsCards.map((card) => (
+                    <div key={card.label} className={`p-4 rounded-lg border ${card.className}`}>
+                      <h4 className="font-medium mb-1">{card.label}</h4>
+                      <p className="text-2xl font-bold">{card.value}</p>
+                      <p className="text-xs">{card.helper}</p>
+                    </div>
+                  ))}
+                </div>
 
-                  // Use type assertion to avoid TypeScript union type issues
-                  const safeRoleInfo = roleInfo as any;
-
-                  switch (user?.role) {
-                    case 'SUPER_ADMIN':
-                      return (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                            <h4 className="font-medium text-blue-900 mb-1">Total Perusahaan</h4>
-                            <p className="text-2xl font-bold text-blue-700">{safeRoleInfo.totalCompanies}</p>
-                            <p className="text-xs text-blue-600">Perusahaan aktif</p>
-                          </div>
-                          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                            <h4 className="font-medium text-green-900 mb-1">Total Pengguna</h4>
-                            <p className="text-2xl font-bold text-green-700">{safeRoleInfo.totalUsers.toLocaleString()}</p>
-                            <p className="text-xs text-green-600">Pengguna terdaftar</p>
-                          </div>
-                          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                            <h4 className="font-medium text-purple-900 mb-1">System Uptime</h4>
-                            <p className="text-2xl font-bold text-purple-700">{safeRoleInfo.systemUptime}</p>
-                            <p className="text-xs text-purple-600">Dalam 30 hari terakhir</p>
-                          </div>
-                          <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-                            <h4 className="font-medium text-orange-900 mb-1">Alert Aktif</h4>
-                            <p className="text-2xl font-bold text-orange-700">{safeRoleInfo.activeAlerts}</p>
-                            <p className="text-xs text-orange-600">Membutuhkan perhatian</p>
-                          </div>
-                        </div>
-                      );
-                      
-                    case 'COMPANY_ADMIN':
-                      return (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                            <h4 className="font-medium text-blue-900 mb-1">Total Pengguna</h4>
-                            <p className="text-2xl font-bold text-blue-700">{safeRoleInfo.totalUsers}</p>
-                            <p className="text-xs text-blue-600">Dalam perusahaan</p>
-                          </div>
-                          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                            <h4 className="font-medium text-green-900 mb-1">Total Estate</h4>
-                            <p className="text-2xl font-bold text-green-700">{safeRoleInfo.totalEstates}</p>
-                            <p className="text-xs text-green-600">Estate dikelola</p>
-                          </div>
-                          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                            <h4 className="font-medium text-purple-900 mb-1">Karyawan Aktif</h4>
-                            <p className="text-2xl font-bold text-purple-700">{safeRoleInfo.activeEmployees}</p>
-                            <p className="text-xs text-purple-600">Karyawan lapangan</p>
-                          </div>
-                          <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-                            <h4 className="font-medium text-orange-900 mb-1">Request Pending</h4>
-                            <p className="text-2xl font-bold text-orange-700">{safeRoleInfo.pendingRequests}</p>
-                            <p className="text-xs text-orange-600">Membutuhkan approval</p>
-                          </div>
-                        </div>
-                      );
-                      
-                    case 'AREA_MANAGER':
-                      return (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                            <h4 className="font-medium text-blue-900 mb-1">Perusahaan Dikelola</h4>
-                            <p className="text-2xl font-bold text-blue-700">{safeRoleInfo.companiesManaged}</p>
-                            <p className="text-xs text-blue-600">Multi-company access</p>
-                          </div>
-                          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                            <h4 className="font-medium text-green-900 mb-1">Total Estate</h4>
-                            <p className="text-2xl font-bold text-green-700">{safeRoleInfo.totalEstates}</p>
-                            <p className="text-xs text-green-600">Lintas perusahaan</p>
-                          </div>
-                          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                            <h4 className="font-medium text-purple-900 mb-1">Laporan Bulanan</h4>
-                            <p className="text-2xl font-bold text-purple-700">{safeRoleInfo.monthlyReports}</p>
-                            <p className="text-xs text-purple-600">Report diproses</p>
-                          </div>
-                          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                            <h4 className="font-medium text-green-900 mb-1">Efisiensi Tim</h4>
-                            <p className="text-2xl font-bold text-green-700">{safeRoleInfo.teamEfficiency}</p>
-                            <p className="text-xs text-green-600">Overall performance</p>
-                          </div>
-                        </div>
-                      );
-                      
-                    case 'MANAGER':
-                      return (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                            <h4 className="font-medium text-blue-900 mb-1">Estate Dikelola</h4>
-                            <p className="text-2xl font-bold text-blue-700">{safeRoleInfo.estatesManaged}</p>
-                            <p className="text-xs text-blue-600">Estate assignment</p>
-                          </div>
-                          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                            <h4 className="font-medium text-green-900 mb-1">Ukuran Tim</h4>
-                            <p className="text-2xl font-bold text-green-700">{safeRoleInfo.teamSize}</p>
-                            <p className="text-xs text-green-600">Anggota tim</p>
-                          </div>
-                          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                            <h4 className="font-medium text-purple-900 mb-1">Panen Bulanan</h4>
-                            <p className="text-2xl font-bold text-purple-700">{safeRoleInfo.monthlyHarvest}</p>
-                            <p className="text-xs text-purple-600">Total produksi</p>
-                          </div>
-                          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                            <h4 className="font-medium text-green-900 mb-1">Efisiensi</h4>
-                            <p className="text-2xl font-bold text-green-700">{safeRoleInfo.efficiency}</p>
-                            <p className="text-xs text-green-600">Target achievement</p>
-                          </div>
-                        </div>
-                      );
-                      
-                    case 'ASISTEN':
-                      return (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                            <h4 className="font-medium text-blue-900 mb-1">Divisi Dikelola</h4>
-                            <p className="text-2xl font-bold text-blue-700">{safeRoleInfo.divisionsManaged}</p>
-                            <p className="text-xs text-blue-600">Multi-divisi access</p>
-                          </div>
-                          <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-                            <h4 className="font-medium text-orange-900 mb-1">Pending Approval</h4>
-                            <p className="text-2xl font-bold text-orange-700">{safeRoleInfo.pendingApprovals}</p>
-                            <p className="text-xs text-orange-600">Menunggu review</p>
-                          </div>
-                          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                            <h4 className="font-medium text-green-900 mb-1">Approval Bulanan</h4>
-                            <p className="text-2xl font-bold text-green-700">{safeRoleInfo.monthlyApprovals}</p>
-                            <p className="text-xs text-green-600">Diproses bulan ini</p>
-                          </div>
-                          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                            <h4 className="font-medium text-purple-900 mb-1">Avg Response Time</h4>
-                            <p className="text-2xl font-bold text-purple-700">{safeRoleInfo.averageResponseTime}</p>
-                            <p className="text-xs text-purple-600">Rata-rata response</p>
-                          </div>
-                        </div>
-                      );
-                      
-                    case 'MANDOR':
-                      return (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                            <h4 className="font-medium text-blue-900 mb-1">Ukuran Tim</h4>
-                            <p className="text-2xl font-bold text-blue-700">{safeRoleInfo.teamSize}</p>
-                            <p className="text-xs text-blue-600">Karyawan bawahan</p>
-                          </div>
-                          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                            <h4 className="font-medium text-green-900 mb-1">Panen Harian</h4>
-                            <p className="text-2xl font-bold text-green-700">{safeRoleInfo.dailyHarvest}</p>
-                            <p className="text-xs text-green-600">Rata-rata per hari</p>
-                          </div>
-                          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                            <h4 className="font-medium text-purple-900 mb-1">Target Bulanan</h4>
-                            <p className="text-2xl font-bold text-purple-700">{safeRoleInfo.monthlyTarget}</p>
-                            <p className="text-xs text-purple-600">Achievement rate</p>
-                          </div>
-                          <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                            <h4 className="font-medium text-yellow-900 mb-1">Quality Score</h4>
-                            <p className="text-2xl font-bold text-yellow-700">{safeRoleInfo.qualityScore}</p>
-                            <p className="text-xs text-yellow-600">Rating kualitas</p>
-                          </div>
-                        </div>
-                      );
-                      
-                    case 'SATPAM':
-                      return (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                            <h4 className="font-medium text-blue-900 mb-1">Gate Check Harian</h4>
-                            <p className="text-2xl font-bold text-blue-700">{safeRoleInfo.dailyChecks}</p>
-                            <p className="text-xs text-blue-600">Check hari ini</p>
-                          </div>
-                          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                            <h4 className="font-medium text-green-900 mb-1">Kendaraan Bulanan</h4>
-                            <p className="text-2xl font-bold text-green-700">{safeRoleInfo.monthlyVehicles}</p>
-                            <p className="text-xs text-green-600">Processed bulan ini</p>
-                          </div>
-                          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                            <h4 className="font-medium text-green-900 mb-1">Security Incidents</h4>
-                            <p className="text-2xl font-bold text-green-700">{safeRoleInfo.securityIncidents}</p>
-                            <p className="text-xs text-green-600">Bulan ini</p>
-                          </div>
-                          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                            <h4 className="font-medium text-purple-900 mb-1">Avg Process Time</h4>
-                            <p className="text-2xl font-bold text-purple-700">{safeRoleInfo.averageProcessTime}</p>
-                            <p className="text-xs text-purple-600">Per kendaraan</p>
-                          </div>
-                        </div>
-                      );
-                      
-                    default:
-                      return (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <p>Statistik tidak tersedia untuk role ini</p>
-                        </div>
-                      );
-                  }
-                })()}
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-gray-500">Role:</span>
+                      <p className="font-medium text-gray-900">
+                        {user.role ? USER_ROLE_LABELS[user.role] || user.role : 'Unknown Role'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Assignment:</span>
+                      <p className="font-medium text-gray-900">{getRoleAssignmentDisplay()}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Login terakhir:</span>
+                      <p className="font-medium text-gray-900">{formatLastLogin(user.lastLogin)}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">Sumber data:</span>
+                      <p className="font-medium text-gray-900">Data profil aktual</p>
+                    </div>
+                  </div>
+                </div>
 
                 <Separator />
 
                 {/* Recent Activity */}
                 <div>
                   <Label className="text-sm font-medium text-gray-700">Aktivitas Terbaru</Label>
-                  <div className="mt-3 space-y-3 max-h-48 overflow-y-auto">
-                    {[
-                      { action: 'Login berhasil', time: '5 menit yang lalu', status: 'success' },
-                      { action: 'Profile diperbarui', time: '2 hari yang lalu', status: 'info' },
-                      { action: 'Password diubah', time: '1 minggu yang lalu', status: 'warning' },
-                      { action: 'Login dari device baru', time: '2 minggu yang lalu', status: 'info' },
-                    ].map((activity, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-2 h-2 rounded-full ${
-                            activity.status === 'success' ? 'bg-green-500' :
-                            activity.status === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
-                          }`} />
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{activity.action}</p>
-                            <p className="text-xs text-gray-500">{activity.time}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                    <p className="text-sm font-medium text-gray-900">Data aktivitas belum tersedia</p>
+                    <p className="text-xs text-gray-600 mt-1">
+                      Riwayat aktivitas akan ditampilkan setelah endpoint audit profil tersedia.
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -1544,6 +1355,8 @@ export default function ProfilePage() {
                         onClick={() => setShowPasswords(prev => ({ ...prev, current: !prev.current }))}
                         className="absolute inset-y-0 right-0 pr-3 flex items-center"
                         disabled={!isEditing}
+                        aria-label={showPasswords.current ? 'Sembunyikan password saat ini' : 'Tampilkan password saat ini'}
+                        title={showPasswords.current ? 'Sembunyikan password saat ini' : 'Tampilkan password saat ini'}
                       >
                         {showPasswords.current ? (
                           <EyeOff className="h-4 w-4 text-gray-400" />
@@ -1570,6 +1383,8 @@ export default function ProfilePage() {
                         onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
                         className="absolute inset-y-0 right-0 pr-3 flex items-center"
                         disabled={!isEditing}
+                        aria-label={showPasswords.new ? 'Sembunyikan password baru' : 'Tampilkan password baru'}
+                        title={showPasswords.new ? 'Sembunyikan password baru' : 'Tampilkan password baru'}
                       >
                         {showPasswords.new ? (
                           <EyeOff className="h-4 w-4 text-gray-400" />
@@ -1597,6 +1412,8 @@ export default function ProfilePage() {
                         onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
                         className="absolute inset-y-0 right-0 pr-3 flex items-center"
                         disabled={!isEditing}
+                        aria-label={showPasswords.confirm ? 'Sembunyikan konfirmasi password' : 'Tampilkan konfirmasi password'}
+                        title={showPasswords.confirm ? 'Sembunyikan konfirmasi password' : 'Tampilkan konfirmasi password'}
                       >
                         {showPasswords.confirm ? (
                           <EyeOff className="h-4 w-4 text-gray-400" />
@@ -1607,8 +1424,6 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 </div>
-
-                <Separator />
 
                 <Separator />
 
@@ -1639,7 +1454,7 @@ export default function ProfilePage() {
                             </div>
                             <div>
                               <span className="text-green-600">IP Address:</span>
-                              <p className="font-medium text-green-800">192.168.1.10 (Estimasi)</p>
+                              <p className="font-medium text-green-800">Tidak tersedia dari API sesi</p>
                             </div>
                             <div>
                               <span className="text-green-600">Login:</span>
@@ -1659,14 +1474,14 @@ export default function ProfilePage() {
                     {/* Recent Login History */}
                     <div>
                       <h4 className="font-medium text-gray-900 mb-3">Riwayat Login Terbaru</h4>
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {[
-                          { device: 'Chrome - Windows', location: 'Palangkaraya, Kalimantan Tengah', time: '5 menit yang lalu', status: 'current', ip: '192.168.1.10' },
-                          { device: 'Chrome - Windows', location: 'Palangkaraya, Kalimantan Tengah', time: '1 hari yang lalu', status: 'success', ip: '192.168.1.10' },
-                          { device: 'Firefox - Windows', location: 'Palangkaraya, Kalimantan Tengah', time: '3 hari yang lalu', status: 'success', ip: '192.168.1.15' },
-                          { device: 'Chrome Mobile - Android', location: 'Palangkaraya, Kalimantan Tengah', time: '1 minggu yang lalu', status: 'success', ip: '192.168.1.25' },
-                          { device: 'Safari - macOS', location: 'Jakarta, DKI Jakarta', time: '2 minggu yang lalu', status: 'suspicious', ip: '203.128.45.12' },
-                        ].map((session, index) => (
+                      <div className="space-y-2 max-h-48 overflow-y-auto hidden">
+                        {([] as Array<{
+                          device: string;
+                          location: string;
+                          time: string;
+                          status: 'current' | 'success' | 'suspicious';
+                          ip: string;
+                        }>).map((session, index) => (
                           <div key={index} className={`p-3 rounded-lg border ${
                             session.status === 'current' ? 'bg-green-50 border-green-200' :
                             session.status === 'suspicious' ? 'bg-red-50 border-red-200' :
@@ -1719,6 +1534,12 @@ export default function ProfilePage() {
                           </div>
                         ))}
                       </div>
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                        <p className="text-sm font-medium text-gray-900">Riwayat login detail belum tersedia</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          Sistem saat ini hanya menampilkan ringkasan sesi aktif saat ini.
+                        </p>
+                      </div>
                     </div>
 
                     {/* Device Trust Status */}
@@ -1728,21 +1549,17 @@ export default function ProfilePage() {
                         <div className="flex items-center space-x-3">
                           <Shield className="h-5 w-5 text-blue-600" />
                           <div>
-                            <p className="font-medium text-blue-900">Perangkat Terpercaya</p>
+                            <p className="font-medium text-blue-900">Informasi perangkat saat ini</p>
                             <p className="text-sm text-blue-700">
-                              Perangkat ini telah diverifikasi dan terdaftar sebagai perangkat terpercaya.
-                              Login tidak memerlukan verifikasi tambahan.
+                              Status kepercayaan perangkat lintas sesi belum tersedia pada endpoint profil.
                             </p>
                             <div className="mt-2 flex items-center space-x-4 text-sm">
                               <span className="text-blue-600">
                                 <Badge variant="outline" className="text-blue-600 border-blue-300 bg-blue-50">
-                                  Device ID: {typeof window !== 'undefined' && sessionStorage.getItem('agrinova_device_id') ? 
-                                    sessionStorage.getItem('agrinova_device_id')?.substring(0, 16) + '...' : 
-                                    'web_' + Date.now().toString().substring(-6)
-                                  }
+                                  Device ID: {maskedDeviceId}
                                 </Badge>
                               </span>
-                              <span className="text-blue-600">Terdaftar: {formatLastLogin(user.createdAt)}</span>
+                              <span className="text-blue-600">Terdaftar: Tidak tersedia</span>
                             </div>
                           </div>
                         </div>
@@ -1804,11 +1621,11 @@ export default function ProfilePage() {
                     <div>
                       <h4 className="font-medium text-yellow-900">Tips Keamanan</h4>
                       <ul className="mt-2 text-sm text-yellow-700 space-y-1">
-                        <li>• Gunakan password yang kuat dengan kombinasi huruf, angka, dan simbol</li>
-                        <li>• Jangan bagikan password Anda kepada siapapun</li>
-                        <li>• Logout dari perangkat yang tidak dikenal</li>
-                        <li>• Ganti password secara berkala</li>
-                        <li>• Aktifkan "Logout dari perangkat lain" saat mengganti password</li>
+                        <li>- Gunakan password yang kuat dengan kombinasi huruf, angka, dan simbol</li>
+                        <li>- Jangan bagikan password Anda kepada siapapun</li>
+                        <li>- Logout dari perangkat yang tidak dikenal</li>
+                        <li>- Ganti password secara berkala</li>
+                        <li>- Aktifkan "Logout dari perangkat lain" saat mengganti password</li>
                       </ul>
                     </div>
                   </div>

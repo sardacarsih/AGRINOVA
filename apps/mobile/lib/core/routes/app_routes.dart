@@ -6,13 +6,17 @@ import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/auth_wrapper.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/dashboard/presentation/pages/mandor_page.dart';
+import '../../features/dashboard/presentation/pages/mandor_perawatan_page.dart';
+import '../../features/dashboard/presentation/pages/mandor_perawatan_create_page.dart';
 import '../../features/dashboard/presentation/pages/asisten_page.dart';
 import '../../features/dashboard/presentation/pages/manager_page.dart';
 import '../../features/dashboard/presentation/pages/area_manager_page.dart';
 import '../../features/dashboard/presentation/pages/satpam_page.dart';
 import '../../features/dashboard/presentation/pages/company_admin_page.dart';
 import '../../features/dashboard/presentation/pages/super_admin_page.dart';
+import '../../features/dashboard/presentation/pages/mandor_pending_page.dart';
 import '../../features/settings/pages/settings_page.dart';
+import '../../features/settings/pages/admin_settings_page.dart';
 import '../../features/harvest/presentation/pages/harvest_input_screen.dart';
 import '../../features/harvest/presentation/blocs/harvest_bloc.dart';
 import '../../features/auth/presentation/pages/web_qr_login_page.dart';
@@ -24,13 +28,17 @@ class AppRoutes {
   static const String authWrapper = '/';
   static const String dashboard = '/dashboard';
   static const String mandor = '/mandor';
+  static const String mandorPerawatan = '/mandor/perawatan';
+  static const String mandorPerawatanCreate = '/mandor/perawatan/create';
   static const String asisten = '/asisten';
   static const String manager = '/manager';
   static const String areaManager = '/area_manager';
   static const String satpam = '/satpam';
   static const String companyAdmin = '/company_admin';
   static const String superAdmin = '/super_admin';
+  static const String pending = '/pending';
   static const String settingsPage = '/settings';
+  static const String adminSettingsPage = '/settings/admin';
   static const String harvestInput = '/harvest/input';
   static const String webQRLogin = '/web_qr_login';
 
@@ -44,6 +52,15 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const DashboardPage());
       case mandor:
         return MaterialPageRoute(builder: (_) => const MandorPage());
+      case mandorPerawatan:
+        return MaterialPageRoute(builder: (_) => const MandorPerawatanPage());
+      case mandorPerawatanCreate:
+        final args = settings.arguments is MandorPerawatanCreateArgs
+            ? settings.arguments as MandorPerawatanCreateArgs
+            : null;
+        return MaterialPageRoute(
+          builder: (_) => MandorPerawatanCreatePage(args: args),
+        );
       case asisten:
         return MaterialPageRoute(builder: (_) => const AsistenPage());
       case manager:
@@ -56,8 +73,17 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const CompanyAdminPage());
       case superAdmin:
         return MaterialPageRoute(builder: (_) => const SuperAdminPage());
+      case pending:
+        return MaterialPageRoute(
+          builder: (_) => BlocProvider(
+            create: (context) => ServiceLocator.get<HarvestBloc>(),
+            child: const MandorPendingPage(),
+          ),
+        );
       case settingsPage:
         return MaterialPageRoute(builder: (_) => const SettingsPage());
+      case adminSettingsPage:
+        return MaterialPageRoute(builder: (_) => const AdminSettingsPage());
       case harvestInput:
         return MaterialPageRoute(
           builder: (_) => BlocProvider(
@@ -76,9 +102,12 @@ class AppRoutes {
     }
   }
 
-  static String getDashboardRoute(String role) {
-    switch (role) {
+  static String getDashboardRoute(String role, {String? mandorType}) {
+    switch (role.toUpperCase()) {
       case 'MANDOR':
+        if ((mandorType ?? '').toUpperCase() == 'PERAWATAN') {
+          return mandorPerawatan;
+        }
         return mandor;
       case 'ASISTEN':
         return asisten;
@@ -100,6 +129,8 @@ class AppRoutes {
   static List<String> get allRoutes {
     return [
       mandor,
+      mandorPerawatan,
+      mandorPerawatanCreate,
       asisten,
       manager,
       areaManager,

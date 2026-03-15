@@ -11,22 +11,27 @@ class SatpamDashboardHelpers {
     Duration duration = const Duration(seconds: 3),
   }) {
     if (!context.mounted) return;
-    
+
     final messenger = ScaffoldMessenger.of(context);
-    
+    final theme = Theme.of(context);
+    final backgroundColor = isError
+        ? theme.colorScheme.error
+        : SatpamDashboardConstants.successColor;
+    final actionTextColor = theme.colorScheme.onPrimary;
+
     // Clear any existing snackbars
     messenger.clearSnackBars();
-    
+
     // Show new snackbar
     messenger.showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
+        backgroundColor: backgroundColor,
         duration: duration,
         behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
           label: 'OK',
-          textColor: Colors.white,
+          textColor: actionTextColor,
           onPressed: () => messenger.hideCurrentSnackBar(),
         ),
       ),
@@ -39,7 +44,7 @@ class SatpamDashboardHelpers {
     String message = 'Loading...',
   }) {
     if (!context.mounted) return;
-    
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -74,7 +79,7 @@ class SatpamDashboardHelpers {
     String cancelText = 'No',
   }) async {
     if (!context.mounted) return false;
-    
+
     final result = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -94,7 +99,7 @@ class SatpamDashboardHelpers {
         );
       },
     );
-    
+
     return result ?? false;
   }
 
@@ -106,7 +111,7 @@ class SatpamDashboardHelpers {
     String buttonText = 'OK',
   }) {
     if (!context.mounted) return;
-    
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -158,7 +163,7 @@ class SatpamDashboardHelpers {
   /// Validate vehicle plate number
   static bool isValidVehiclePlate(String plate) {
     if (plate.isEmpty) return false;
-    
+
     // Basic Indonesian vehicle plate validation
     // Format: AB 1234 CD or AB 1234 CDE
     final regex = RegExp(r'^[A-Z]{1,2}\s*\d{1,4}\s*[A-Z]{1,3}$');
@@ -168,7 +173,7 @@ class SatpamDashboardHelpers {
   /// Validate phone number
   static bool isValidPhoneNumber(String phone) {
     if (phone.isEmpty) return false;
-    
+
     // Basic Indonesian phone number validation
     final regex = RegExp(r'^(\+62|62|0)8[1-9][0-9]{6,9}$');
     return regex.hasMatch(phone.replaceAll(RegExp(r'[\s-()]'), ''));
@@ -177,7 +182,7 @@ class SatpamDashboardHelpers {
   /// Clean phone number for storage
   static String cleanPhoneNumber(String phone) {
     String cleaned = phone.replaceAll(RegExp(r'[\s-()]'), '');
-    
+
     // Convert to standard format starting with +62
     if (cleaned.startsWith('08')) {
       cleaned = '+628${cleaned.substring(2)}';
@@ -186,7 +191,7 @@ class SatpamDashboardHelpers {
     } else if (cleaned.startsWith('62') && !cleaned.startsWith('+62')) {
       cleaned = '+$cleaned';
     }
-    
+
     return cleaned;
   }
 
@@ -206,16 +211,14 @@ class SatpamDashboardHelpers {
       ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(SatpamDashboardConstants.borderRadius),
+        borderRadius: BorderRadius.circular(
+          SatpamDashboardConstants.borderRadius,
+        ),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: SatpamDashboardConstants.iconSize,
-          ),
+          Icon(icon, color: color, size: SatpamDashboardConstants.iconSize),
           const SizedBox(width: SatpamDashboardConstants.smallPadding),
           Expanded(
             child: Text(
@@ -234,76 +237,84 @@ class SatpamDashboardHelpers {
 
   /// Build loading indicator widget
   static Widget buildLoadingIndicator(String message) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(SatpamDashboardConstants.largePadding),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: SatpamDashboardConstants.mediumPadding),
-            Text(
-              message,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-              textAlign: TextAlign.center,
+    return Builder(
+      builder: (context) {
+        final color = Theme.of(context).colorScheme.onSurfaceVariant;
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(
+              SatpamDashboardConstants.largePadding,
             ),
-          ],
-        ),
-      ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: SatpamDashboardConstants.mediumPadding),
+                Text(
+                  message,
+                  style: TextStyle(fontSize: 16, color: color),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
   /// Build error widget with retry functionality
   static Widget buildError(String errorMessage, VoidCallback onRetry) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(SatpamDashboardConstants.largePadding),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red[400],
+    return Builder(
+      builder: (context) {
+        final theme = Theme.of(context);
+        final error = theme.colorScheme.error;
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.all(
+              SatpamDashboardConstants.largePadding,
             ),
-            const SizedBox(height: SatpamDashboardConstants.mediumPadding),
-            Text(
-              'Terjadi Kesalahan',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Colors.red[700],
-              ),
-            ),
-            const SizedBox(height: SatpamDashboardConstants.smallPadding),
-            Text(
-              errorMessage,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.grey,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: SatpamDashboardConstants.largePadding),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Coba Lagi'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.indigo,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: SatpamDashboardConstants.largePadding,
-                  vertical: SatpamDashboardConstants.mediumPadding,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 64, color: error),
+                const SizedBox(height: SatpamDashboardConstants.mediumPadding),
+                Text(
+                  'Terjadi Kesalahan',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: error,
+                  ),
                 ),
-              ),
+                const SizedBox(height: SatpamDashboardConstants.smallPadding),
+                Text(
+                  errorMessage,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: SatpamDashboardConstants.largePadding),
+                ElevatedButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Coba Lagi'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: SatpamDashboardConstants.largePadding,
+                      vertical: SatpamDashboardConstants.mediumPadding,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

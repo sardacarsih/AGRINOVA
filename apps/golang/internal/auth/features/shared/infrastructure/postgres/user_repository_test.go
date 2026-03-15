@@ -142,6 +142,45 @@ func TestUserRepository_FindByIdentifier(t *testing.T) {
 	assert.Equal(t, found1.ID, found2.ID)
 }
 
+func TestUserRepository_FindAuthByIdentifier(t *testing.T) {
+	// Arrange
+	db := setupTestDB(t)
+	repo := NewUserRepository(db)
+
+	user := &domain.User{
+		Username: "auth-user",
+		Email:    stringPtr("auth@example.com"),
+		Name:     "Auth User",
+		Password: "hashed-password",
+		Role:     domain.RoleManager,
+		IsActive: true,
+		Assignments: []domain.Assignment{
+			{
+				ID:        "assign-auth-1",
+				CompanyID: "company-auth-1",
+				IsActive:  true,
+			},
+		},
+	}
+
+	err := repo.Create(context.Background(), user)
+	require.NoError(t, err)
+
+	// Act
+	foundByUsername, err := repo.FindAuthByIdentifier(context.Background(), "auth-user")
+	require.NoError(t, err)
+	foundByEmail, err := repo.FindAuthByIdentifier(context.Background(), "auth@example.com")
+	require.NoError(t, err)
+
+	// Assert
+	require.NotNil(t, foundByUsername)
+	require.NotNil(t, foundByEmail)
+	assert.Equal(t, foundByUsername.ID, foundByEmail.ID)
+	assert.Equal(t, "hashed-password", foundByUsername.Password)
+	assert.Empty(t, foundByUsername.Assignments)
+	assert.Equal(t, "auth-user", foundByUsername.Username)
+}
+
 func TestUserRepository_Update(t *testing.T) {
 	// Arrange
 	db := setupTestDB(t)

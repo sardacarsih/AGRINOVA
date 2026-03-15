@@ -19,6 +19,8 @@ interface AreaManagerDashboardLayoutProps {
   actions?: React.ReactNode;
   showBreadcrumb?: boolean;
   breadcrumbItems?: Array<{ label: string; href?: string }>;
+  contentMaxWidthClass?: string;
+  contentPaddingClass?: string;
 }
 
 export function AreaManagerDashboardLayout({
@@ -28,6 +30,8 @@ export function AreaManagerDashboardLayout({
   actions,
   showBreadcrumb = true,
   breadcrumbItems = [],
+  contentMaxWidthClass,
+  contentPaddingClass,
 }: AreaManagerDashboardLayoutProps) {
   const { user } = useAuth();
   const {
@@ -102,6 +106,8 @@ export function AreaManagerDashboardLayout({
           orbPrimaryClass="bg-violet-500/12"
           orbSecondaryClass="bg-blue-500/10"
           dotClass="bg-status-info"
+          maxWidthClass={contentMaxWidthClass}
+          contentPaddingClass={contentPaddingClass}
         >
           {children}
         </RoleLayoutContent>

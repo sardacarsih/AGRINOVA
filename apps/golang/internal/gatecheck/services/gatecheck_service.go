@@ -23,6 +23,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // GateCheckService handles all gate check operations
@@ -1137,11 +1138,21 @@ func (s *GateCheckService) SyncSatpamRecords(ctx context.Context, input satpam.S
 	var syncedCount, failedCount, conflictCount int32
 	var results []*satpam.SatpamSyncItemResult
 	transactionID := uuid.New().String()
+	requestStartedAt := time.Now()
+	profileEnabled := satpamSyncProfileEnabled()
+	var lookupDuration time.Duration
+	var writeDuration time.Duration
 
 	fmt.Printf("SyncSatpamRecords: DeviceID=%s, GuestLogs=%d\n", input.DeviceID, len(input.GuestLogs))
 
-	// Process guest logs
-	for _, record := range input.GuestLogs {
+	results = make([]*satpam.SatpamSyncItemResult, len(input.GuestLogs))
+	validIndexes := make([]int, 0, len(input.GuestLogs))
+	candidateRows := make([]*GuestLog, len(input.GuestLogs))
+	lookupLocalIDs := make([]string, 0, len(input.GuestLogs))
+	lookupLocalIDSet := make(map[string]struct{}, len(input.GuestLogs))
+
+	// Build all rows first so the database path can be reduced to one lookup + one batch write.
+	for index, record := range input.GuestLogs {
 		result := &satpam.SatpamSyncItemResult{
 			LocalID:     record.LocalID,
 			RecordType:  "GUEST_LOG",
@@ -1149,19 +1160,19 @@ func (s *GateCheckService) SyncSatpamRecords(ctx context.Context, input satpam.S
 			Status:      common.SyncItemStatusRejected,
 			HasConflict: false,
 		}
+		results[index] = result
 
 		// Skip if no data
 		if record.Data == nil {
 			errMsg := "no data provided"
 			result.Error = &errMsg
 			failedCount++
-			results = append(results, result)
 			continue
 		}
 
 		data := record.Data
 		resolvedDestination := resolveDestination(data.Destination, "")
-		guestLog := &GuestLog{
+		candidateRows[index] = &GuestLog{
 			ID:                  uuid.New().String(),
 			LocalID:             &record.LocalID,
 			DriverName:          data.DriverName,
@@ -1193,37 +1204,150 @@ func (s *GateCheckService) SyncSatpamRecords(ctx context.Context, input satpam.S
 			ExitGate:            deriveExitGate(data.ExitGate, data.GatePosition, data.GenerationIntent),
 			RegistrationSource:  data.RegistrationSource,
 		}
+		validIndexes = append(validIndexes, index)
 
-		// Check if record already exists by localID
-		var existingLog GuestLog
-		if err := s.db.Where("local_id = ? AND company_id = ?", record.LocalID, user.CompanyID).First(&existingLog).Error; err == nil {
-			// Update existing record
-			guestLog.ID = existingLog.ID
+		localIDKey := normalizeSatpamSyncLocalID(record.LocalID)
+		if localIDKey == "" {
+			continue
+		}
+		if _, exists := lookupLocalIDSet[localIDKey]; exists {
+			continue
+		}
+		lookupLocalIDSet[localIDKey] = struct{}{}
+		lookupLocalIDs = append(lookupLocalIDs, localIDKey)
+	}
 
-			if err := s.db.Save(guestLog).Error; err != nil {
-				errMsg := err.Error()
-				result.Error = &errMsg
+	existingIDsByLocalID := make(map[string]string, len(lookupLocalIDs))
+	if len(lookupLocalIDs) > 0 {
+		var existingLogs []GuestLog
+		lookupStartedAt := time.Now()
+		lookupErr := s.db.
+			Select("id", "local_id").
+			Where("company_id = ? AND local_id IN ?", user.CompanyID, lookupLocalIDs).
+			Find(&existingLogs).Error
+		lookupDuration += time.Since(lookupStartedAt)
+		if lookupErr != nil {
+			errMsg := lookupErr.Error()
+			for _, index := range validIndexes {
+				results[index].Error = &errMsg
 				failedCount++
-				results = append(results, result)
+			}
+
+			if profileEnabled {
+				totalDuration := time.Since(requestStartedAt)
+				fmt.Printf(
+					"[satpam-sync-profile] transactionID=%s recordCount=%d totalMs=%.2f lookupMs=%.2f writeMs=%.2f otherMs=%.2f\n",
+					transactionID,
+					len(input.GuestLogs),
+					float64(totalDuration)/float64(time.Millisecond),
+					float64(lookupDuration)/float64(time.Millisecond),
+					float64(writeDuration)/float64(time.Millisecond),
+					float64(totalDuration-lookupDuration-writeDuration)/float64(time.Millisecond),
+				)
+			}
+
+			return &satpam.SatpamSyncResult{
+				Success:           false,
+				TransactionID:     transactionID,
+				RecordsProcessed:  syncedCount + failedCount,
+				RecordsSuccessful: syncedCount,
+				RecordsFailed:     failedCount,
+				ConflictsDetected: conflictCount,
+				Results:           results,
+				ServerTimestamp:   time.Now(),
+				Message:           fmt.Sprintf("Synced %d records, %d failed", syncedCount, failedCount),
+			}, nil
+		}
+
+		for _, existingLog := range existingLogs {
+			if existingLog.LocalID == nil {
 				continue
 			}
-		} else {
-			if err := s.db.Create(guestLog).Error; err != nil {
-				errMsg := err.Error()
-				result.Error = &errMsg
-				failedCount++
-				results = append(results, result)
+			localIDKey := normalizeSatpamSyncLocalID(*existingLog.LocalID)
+			if localIDKey == "" {
 				continue
 			}
+			if _, exists := existingIDsByLocalID[localIDKey]; exists {
+				continue
+			}
+			existingIDsByLocalID[localIDKey] = existingLog.ID
+		}
+	}
+
+	resolvedIDsByLocalID := make(map[string]string, len(existingIDsByLocalID)+len(validIndexes))
+	for localIDKey, id := range existingIDsByLocalID {
+		resolvedIDsByLocalID[localIDKey] = id
+	}
+
+	rowOrder := make([]string, 0, len(validIndexes))
+	uniqueRowsByID := make(map[string]*GuestLog, len(validIndexes))
+	rowIDByResultIndex := make(map[int]string, len(validIndexes))
+	for _, index := range validIndexes {
+		record := input.GuestLogs[index]
+		row := candidateRows[index]
+		localIDKey := normalizeSatpamSyncLocalID(record.LocalID)
+		if localIDKey != "" {
+			if resolvedID, exists := resolvedIDsByLocalID[localIDKey]; exists {
+				row.ID = resolvedID
+			} else {
+				resolvedIDsByLocalID[localIDKey] = row.ID
+			}
+		}
+
+		rowIDByResultIndex[index] = row.ID
+		if _, exists := uniqueRowsByID[row.ID]; !exists {
+			rowOrder = append(rowOrder, row.ID)
+		}
+		uniqueRowsByID[row.ID] = row
+	}
+
+	uniqueRows := make([]*GuestLog, 0, len(rowOrder))
+	for _, rowID := range rowOrder {
+		uniqueRows = append(uniqueRows, uniqueRowsByID[rowID])
+	}
+
+	writeErrorsByRowID := make(map[string]string)
+	if len(uniqueRows) > 0 {
+		writeStartedAt := time.Now()
+		if err := s.upsertSatpamGuestLogs(uniqueRows); err != nil {
+			log.Printf("SyncSatpamRecords batch upsert failed, falling back to per-row writes: %v", err)
+			for _, row := range uniqueRows {
+				if rowErr := s.upsertSatpamGuestLog(row); rowErr != nil {
+					writeErrorsByRowID[row.ID] = rowErr.Error()
+				}
+			}
+		}
+		writeDuration += time.Since(writeStartedAt)
+	}
+
+	for _, index := range validIndexes {
+		result := results[index]
+		rowID := rowIDByResultIndex[index]
+		if errMsg, exists := writeErrorsByRowID[rowID]; exists {
+			result.Error = &errMsg
+			failedCount++
+			continue
 		}
 
 		result.Success = true
 		result.Status = common.SyncItemStatusAccepted
-		result.ServerID = &guestLog.ID
+		result.ServerID = &rowID
 		serverVersion := int32(1)
 		result.ServerVersion = &serverVersion
 		syncedCount++
-		results = append(results, result)
+	}
+
+	if profileEnabled {
+		totalDuration := time.Since(requestStartedAt)
+		fmt.Printf(
+			"[satpam-sync-profile] transactionID=%s recordCount=%d totalMs=%.2f lookupMs=%.2f writeMs=%.2f otherMs=%.2f\n",
+			transactionID,
+			len(input.GuestLogs),
+			float64(totalDuration)/float64(time.Millisecond),
+			float64(lookupDuration)/float64(time.Millisecond),
+			float64(writeDuration)/float64(time.Millisecond),
+			float64(totalDuration-lookupDuration-writeDuration)/float64(time.Millisecond),
+		)
 	}
 
 	return &satpam.SatpamSyncResult{
@@ -1237,6 +1361,68 @@ func (s *GateCheckService) SyncSatpamRecords(ctx context.Context, input satpam.S
 		ServerTimestamp:   time.Now(),
 		Message:           fmt.Sprintf("Synced %d records, %d failed", syncedCount, failedCount),
 	}, nil
+}
+
+func satpamSyncProfileEnabled() bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv("AGRINOVA_SATPAM_SYNC_PROFILE")))
+	return value == "1" || value == "true" || value == "yes" || value == "on"
+}
+
+func normalizeSatpamSyncLocalID(value string) string {
+	return strings.TrimSpace(value)
+}
+
+func (s *GateCheckService) upsertSatpamGuestLog(row *GuestLog) error {
+	if row == nil {
+		return nil
+	}
+
+	return s.upsertSatpamGuestLogs([]*GuestLog{row})
+}
+
+func (s *GateCheckService) upsertSatpamGuestLogs(rows []*GuestLog) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	return s.db.
+		Omit("Photos").
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "id"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"local_id",
+				"id_card_number",
+				"driver_name",
+				"vehicle_plate",
+				"vehicle_type",
+				"destination",
+				"gate_position",
+				"entry_time",
+				"exit_time",
+				"entry_gate",
+				"exit_gate",
+				"generation_intent",
+				"notes",
+				"qr_code_data",
+				"load_type",
+				"cargo_volume",
+				"cargo_owner",
+				"estimated_weight",
+				"delivery_order_number",
+				"second_cargo",
+				"authorized_user_id",
+				"company_id",
+				"created_by",
+				"created_user_id",
+				"device_id",
+				"latitude",
+				"longitude",
+				"registration_source",
+				"sync_status",
+				"updated_at",
+			}),
+		}).
+		Create(rows).Error
 }
 
 // Helper methods
@@ -2071,16 +2257,18 @@ func (s *GateCheckService) SyncEmployeeLog(ctx context.Context, input generated.
 		log.CreatedAt = existing.CreatedAt
 		if err := s.db.Save(log).Error; err != nil {
 			return &generated.EmployeeLogSyncResult{
-				Success: false,
-				Message: fmt.Sprintf("Failed to update: %v", err),
+				Success:         false,
+				Message:         fmt.Sprintf("Failed to update: %v", err),
+				ServerTimestamp: time.Now(),
 			}, nil
 		}
 	} else {
 		// Create new
 		if err := s.db.Create(log).Error; err != nil {
 			return &generated.EmployeeLogSyncResult{
-				Success: false,
-				Message: fmt.Sprintf("Failed to create: %v", err),
+				Success:         false,
+				Message:         fmt.Sprintf("Failed to create: %v", err),
+				ServerTimestamp: time.Now(),
 			}, nil
 		}
 	}

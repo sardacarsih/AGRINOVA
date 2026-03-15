@@ -1,0 +1,18 @@
+{
+  "baseUrl": "http://localhost:8080",
+  "graphqlPath": "/graphql",
+  "web": {
+    "user": "adminmsl",
+    "pass": "demo123",
+    "verifySession": true,
+    "sleepSeconds": 1
+  },
+  "mobile": {
+    "user": "adminmsl",
+    "pass": "demo123",
+    "platform": "ANDROID",
+    "verifyToken": true,
+    "deviceIdPrefix": "k6-device",
+    "sleepSeconds": 1
+  }
+}

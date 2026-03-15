@@ -133,16 +133,16 @@ class GenZActionButton extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _buildIconWithBadge(),
+            _buildIconWithBadge(context),
             const SizedBox(height: 10),
-            _buildLabel(),
+            _buildLabel(context),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildIconWithBadge() {
+  Widget _buildIconWithBadge(BuildContext context) {
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -160,7 +160,10 @@ class GenZActionButton extends StatelessWidget {
               decoration: BoxDecoration(
                 color: MandorTheme.coralRed,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: MandorTheme.gray900, width: 2),
+                border: Border.all(
+                  color: MandorTheme.of(context).cardBackground,
+                  width: 2,
+                ),
               ),
               child: Text(
                 badgeCount! > 99 ? '99+' : badgeCount.toString(),
@@ -176,10 +179,10 @@ class GenZActionButton extends StatelessWidget {
     );
   }
 
-  Widget _buildLabel() {
+  Widget _buildLabel(BuildContext context) {
     return Text(
       label,
-      style: MandorTheme.bodySmall.copyWith(
+      style: MandorTheme.bodySmallFor(context).copyWith(
         color: color,
         fontWeight: FontWeight.w600,
       ),

@@ -33,11 +33,7 @@ func NewRateLimiter(rate int, interval time.Duration, blockDuration time.Duratio
 	}
 }
 
-// Allow checks if a request is allowed for the given key (e.g., IP address)
-func (r *RateLimiter) Allow(key string) (allowed bool, waitDuration time.Duration) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
+func (r *RateLimiter) ensureLimiter(key string) *limiter {
 	l, exists := r.limits[key]
 	if !exists {
 		l = &limiter{
@@ -47,18 +43,45 @@ func (r *RateLimiter) Allow(key string) (allowed bool, waitDuration time.Duratio
 		r.limits[key] = l
 	}
 
-	now := time.Now()
+	return l
+}
 
-	// Check if currently blocked
-	if now.Before(l.blockedUntil) {
-		return false, l.blockedUntil.Sub(now)
-	}
-
-	// Refill tokens based on time passed
+func (r *RateLimiter) refillTokens(l *limiter, now time.Time) {
 	elapsed := now.Sub(l.lastRefill)
 	if elapsed >= r.interval {
 		l.tokens = r.rate
 		l.lastRefill = now
+	}
+}
+
+// Blocked checks if a key is currently blocked without consuming a token.
+func (r *RateLimiter) Blocked(key string) (blocked bool, waitDuration time.Duration) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	l := r.ensureLimiter(key)
+	now := time.Now()
+	r.refillTokens(l, now)
+
+	if now.Before(l.blockedUntil) {
+		return true, l.blockedUntil.Sub(now)
+	}
+
+	return false, 0
+}
+
+// Allow records a failed attempt and blocks the key after the configured limit.
+func (r *RateLimiter) Allow(key string) (allowed bool, waitDuration time.Duration) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	l := r.ensureLimiter(key)
+	now := time.Now()
+	r.refillTokens(l, now)
+
+	// Check if currently blocked
+	if now.Before(l.blockedUntil) {
+		return false, l.blockedUntil.Sub(now)
 	}
 
 	if l.tokens > 0 {
@@ -69,6 +92,14 @@ func (r *RateLimiter) Allow(key string) (allowed bool, waitDuration time.Duratio
 	// Limit exceeded, block
 	l.blockedUntil = now.Add(r.blockDuration)
 	return false, r.blockDuration
+}
+
+// Reset clears tracked failures for a key after a successful authentication.
+func (r *RateLimiter) Reset(key string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	delete(r.limits, key)
 }
 
 // Cleanup removes stale entries to prevent memory leaks

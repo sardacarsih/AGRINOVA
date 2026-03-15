@@ -15,6 +15,7 @@ import 'package:agrinova_mobile/core/services/pos_settings_service.dart';
 // import logger
 
 import '../../../data/models/gate_check_models.dart';
+import 'genz_theme.dart';
 
 /// Collection of dialog widgets for Satpam Dashboard
 class SatpamDashboardDialogs {
@@ -34,171 +35,182 @@ class SatpamDashboardDialogs {
     return showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(
-              generationIntent == 'ENTRY' ? Icons.login : Icons.logout,
-              color: generationIntent == 'ENTRY' ? Colors.green : Colors.orange,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'QR Code ${generationIntent == 'ENTRY' ? 'Masuk' : 'Keluar'}',
-                style: const TextStyle(fontSize: 18),
+      builder: (context) {
+        final themeColors = GenZTheme.of(context);
+        return AlertDialog(
+          backgroundColor: themeColors.dialogSurface,
+          title: Row(
+            children: [
+              Icon(
+                generationIntent == 'ENTRY' ? Icons.login : Icons.logout,
+                color: generationIntent == 'ENTRY'
+                    ? Colors.green
+                    : Colors.orange,
               ),
-            ),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Guest Information
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[50],
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey[300]!),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildInfoRow('Nama Tamu', guestName),
-                      _buildInfoRow('No. Kendaraan', vehiclePlate),
-                      _buildInfoRow('Tujuan', purpose),
-                      _buildInfoRow('Jenis Muatan', cargoType),
-                      _buildInfoRow('Intent', generationIntent),
-                      if (metadata?['expires_at'] != null)
-                        _buildInfoRow(
-                          'Berlaku Hingga',
-                          DateTime.parse(
-                            metadata!['expires_at'],
-                          ).toString().substring(0, 16),
-                        ),
-                    ],
-                  ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'QR Code ${generationIntent == 'ENTRY' ? 'Masuk' : 'Keluar'}',
+                  style: const TextStyle(fontSize: 18),
                 ),
-
-                const SizedBox(height: 16),
-
-                // QR Code
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey[300]!, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withValues(alpha: 0.1),
-                        spreadRadius: 1,
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: RepaintBoundary(
-                    key: qrKey,
-                    child: QrImageView(
-                      data: qrData,
-                      version: QrVersions.auto,
-                      size: 250.0,
-                      errorCorrectionLevel: QrErrorCorrectLevel.M,
-                      backgroundColor: Colors.white,
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Guest Information
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: themeColors.dialogSurface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: themeColors.dividerSubtle),
+                    ),
+                    child: Column(
+                      children: [
+                        _buildInfoRow('Nama Tamu', guestName),
+                        _buildInfoRow('No. Kendaraan', vehiclePlate),
+                        _buildInfoRow('Tujuan', purpose),
+                        _buildInfoRow('Jenis Muatan', cargoType),
+                        _buildInfoRow('Intent', generationIntent),
+                        if (metadata?['expires_at'] != null)
+                          _buildInfoRow(
+                            'Berlaku Hingga',
+                            DateTime.parse(
+                              metadata!['expires_at'],
+                            ).toString().substring(0, 16),
+                          ),
+                      ],
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 8),
-                Text(
-                  'Scan QR Code untuk verifikasi ${generationIntent == 'ENTRY' ? 'keluar' : 'masuk'}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                    fontStyle: FontStyle.italic,
+                  const SizedBox(height: 16),
+
+                  // QR Code
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: themeColors.borderColor,
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: themeColors.shadowColor.withValues(
+                            alpha: 0.25,
+                          ),
+                          spreadRadius: 1,
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: RepaintBoundary(
+                      key: qrKey,
+                      child: QrImageView(
+                        data: qrData,
+                        version: QrVersions.auto,
+                        size: 250.0,
+                        errorCorrectionLevel: QrErrorCorrectLevel.M,
+                        backgroundColor: Colors.white,
+                      ),
+                    ),
                   ),
-                  textAlign: TextAlign.center,
-                ),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Scan QR Code untuk verifikasi ${generationIntent == 'ENTRY' ? 'keluar' : 'masuk'}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: themeColors.bodySecondary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
 
-                // Action buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Share button
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        try {
-                          await _shareQRCodeImage(
+                  const SizedBox(height: 16),
+
+                  // Action buttons
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      // Share button
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          try {
+                            await _shareQRCodeImage(
+                              context,
+                              qrKey,
+                              guestName,
+                              vehiclePlate,
+                            );
+                          } catch (e) {
+                            if (context.mounted) {
+                              SatpamDashboardHelpers.showSnackBar(
+                                context,
+                                'Error sharing QR: $e',
+                                isError: true,
+                              );
+                            }
+                          }
+                        },
+                        icon: const Icon(Icons.share, size: 16),
+                        label: const Text('Bagikan'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                        ),
+                      ),
+
+                      // Print data button
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          await _printQRCodeFromDetails(
                             context,
-                            qrKey,
+                            qrData,
                             guestName,
                             vehiclePlate,
+                            purpose,
+                            generationIntent,
+                            metadata,
                           );
-                        } catch (e) {
-                          if (context.mounted) {
-                            SatpamDashboardHelpers.showSnackBar(
-                              context,
-                              'Error sharing QR: $e',
-                              isError: true,
-                            );
-                          }
-                        }
-                      },
-                      icon: const Icon(Icons.share, size: 16),
-                      label: const Text('Bagikan'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
+                        },
+                        icon: const Icon(Icons.print, size: 16),
+                        label: const Text('Cetak'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.indigo,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                         ),
                       ),
-                    ),
-
-                    // Print data button
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        await _printQRCodeFromDetails(
-                          context,
-                          qrData,
-                          guestName,
-                          vehiclePlate,
-                          purpose,
-                          generationIntent,
-                          metadata,
-                        );
-                      },
-                      icon: const Icon(Icons.print, size: 16),
-                      label: const Text('Cetak'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.indigo,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tutup'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -263,14 +275,12 @@ class SatpamDashboardDialogs {
     final totalEmployee = (repositoryStats['total_employee_logs'] as int?) ?? 0;
     final totalRecords = totalGuest + totalEmployee;
     final pendingSync = (repositoryStats['pending_sync'] as int?) ?? 0;
-    final syncedRecords = totalRecords - pendingSync;
+    final syncedRecords = (totalRecords - pendingSync).clamp(0, totalRecords);
     final isOnline = repositoryStats['is_online'] == true;
     final isSyncing = repositoryStats['is_syncing'] == true;
     final lastSync = repositoryStats['last_sync'] as DateTime?;
 
-    // Colors
-    const darkBg = Color(0xFF1F2937);
-    const cardBg = Color(0xFF374151);
+    // Neon accent colors (unchanged)
     const neonPurple = Color(0xFF8B5CF6);
     const neonGreen = Color(0xFF10B981);
     const neonOrange = Color(0xFFF59E0B);
@@ -278,300 +288,306 @@ class SatpamDashboardDialogs {
 
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          width: 340,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: darkBg,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-            boxShadow: [
-              BoxShadow(
-                color: neonPurple.withValues(alpha: 0.2),
-                blurRadius: 30,
-                spreadRadius: -5,
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: neonPurple.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: const Icon(
-                      Icons.sync_rounded,
-                      color: neonPurple,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  const Expanded(
-                    child: Text(
-                      'Status Sync',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  // Connection status indicator
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: (isOnline ? neonGreen : Colors.red).withValues(
-                        alpha: 0.15,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: (isOnline ? neonGreen : Colors.red).withValues(
-                          alpha: 0.3,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isOnline
-                              ? Icons.wifi_rounded
-                              : Icons.wifi_off_rounded,
-                          color: isOnline ? neonGreen : Colors.red,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          isOnline ? 'Online' : 'Offline',
-                          style: TextStyle(
-                            color: isOnline ? neonGreen : Colors.red,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 28),
-
-              // Stats Grid - 3 cards in a row
-              Row(
-                children: [
-                  _buildMiniStatCard(
-                    label: 'Total',
-                    value: totalRecords.toString(),
-                    icon: Icons.storage_rounded,
-                    color: neonBlue,
-                  ),
-                  const SizedBox(width: 12),
-                  _buildMiniStatCard(
-                    label: 'Synced',
-                    value: syncedRecords.toString(),
-                    icon: Icons.cloud_done_rounded,
-                    color: neonGreen,
-                  ),
-                  const SizedBox(width: 12),
-                  _buildMiniStatCard(
-                    label: 'Pending',
-                    value: pendingSync.toString(),
-                    icon: Icons.cloud_upload_rounded,
-                    color: pendingSync > 0 ? neonOrange : neonGreen,
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // Last sync info
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: cardBg.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.05),
-                  ),
+      builder: (context) {
+        final themeColors = GenZTheme.of(context);
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: 340,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: themeColors.cardBackground,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: themeColors.surfaceOverlay),
+              boxShadow: [
+                BoxShadow(
+                  color: neonPurple.withValues(alpha: 0.2),
+                  blurRadius: 30,
+                  spreadRadius: -5,
                 ),
-                child: Row(
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Row(
                   children: [
-                    Icon(
-                      Icons.history_rounded,
-                      color: Colors.white.withValues(alpha: 0.6),
-                      size: 20,
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: neonPurple.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.sync_rounded,
+                        color: neonPurple,
+                        size: 24,
+                      ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Sync Terakhir',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.6),
-                              fontSize: 12,
-                            ),
+                      child: Text(
+                        'Status Sync',
+                        style: TextStyle(
+                          color: themeColors.headingColor,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    // Connection status indicator
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: (isOnline ? neonGreen : Colors.red).withValues(
+                          alpha: 0.15,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: (isOnline ? neonGreen : Colors.red).withValues(
+                            alpha: 0.3,
                           ),
-                          const SizedBox(height: 4),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            isOnline
+                                ? Icons.wifi_rounded
+                                : Icons.wifi_off_rounded,
+                            color: isOnline ? neonGreen : Colors.red,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
                           Text(
-                            _formatLastSyncTime(lastSync),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
+                            isOnline ? 'Online' : 'Offline',
+                            style: TextStyle(
+                              color: isOnline ? neonGreen : Colors.red,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    // Database size
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Database',
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 12,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${repositoryStats['database_storage']?['size_mb'] ?? '0.00'} MB',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                  ],
+                ),
+
+                const SizedBox(height: 28),
+
+                // Stats Grid - 3 cards in a row
+                Row(
+                  children: [
+                    _buildMiniStatCard(
+                      context: context,
+                      label: 'Total',
+                      value: totalRecords.toString(),
+                      icon: Icons.storage_rounded,
+                      color: neonBlue,
+                    ),
+                    const SizedBox(width: 12),
+                    _buildMiniStatCard(
+                      context: context,
+                      label: 'Synced',
+                      value: syncedRecords.toString(),
+                      icon: Icons.cloud_done_rounded,
+                      color: neonGreen,
+                    ),
+                    const SizedBox(width: 12),
+                    _buildMiniStatCard(
+                      context: context,
+                      label: 'Pending',
+                      value: pendingSync.toString(),
+                      icon: Icons.cloud_upload_rounded,
+                      color: pendingSync > 0 ? neonOrange : neonGreen,
                     ),
                   ],
                 ),
-              ),
 
-              // Error message if any
-              if (repositoryStats['error_message'] != null) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
+
+                // Last sync info
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.red.withValues(alpha: 0.3),
-                    ),
+                    color: themeColors.borderColor.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: themeColors.surfaceOverlay),
                   ),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.error_outline_rounded,
-                        color: Colors.red,
-                        size: 18,
+                      Icon(
+                        Icons.history_rounded,
+                        color: themeColors.bodySecondary,
+                        size: 20,
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       Expanded(
-                        child: Text(
-                          repositoryStats['error_message'].toString(),
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontSize: 12,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Sync Terakhir',
+                              style: TextStyle(
+                                color: themeColors.bodySecondary,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatLastSyncTime(lastSync),
+                              style: TextStyle(
+                                color: themeColors.headingColor,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
+                      ),
+                      // Database size
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Database',
+                            style: TextStyle(
+                              color: themeColors.bodySecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${repositoryStats['database_storage']?['size_mb'] ?? '0.00'} MB',
+                            style: TextStyle(
+                              color: themeColors.headingColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-              ],
 
-              const SizedBox(height: 24),
-
-              // Action buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.white.withValues(alpha: 0.7),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                // Error message if any
+                if (repositoryStats['error_message'] != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.red.withValues(alpha: 0.3),
                       ),
-                      child: const Text('Tutup'),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    flex: 2,
-                    child: ElevatedButton(
-                      onPressed: isSyncing
-                          ? null
-                          : () async {
-                              Navigator.pop(context);
-                              await onManualSync();
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: neonPurple,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          color: Colors.red,
+                          size: 18,
                         ),
-                        elevation: 0,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          if (isSyncing)
-                            const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation(
-                                  Colors.white,
-                                ),
-                              ),
-                            )
-                          else
-                            const Icon(Icons.sync_rounded, size: 18),
-                          const SizedBox(width: 8),
-                          Text(isSyncing ? 'Syncing...' : 'Sync Now'),
-                        ],
-                      ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            repositoryStats['error_message'].toString(),
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
-            ],
+
+                const SizedBox(height: 24),
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          foregroundColor: themeColors.bodySecondary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text('Tutup'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed: isSyncing
+                            ? null
+                            : () async {
+                                Navigator.pop(context);
+                                await onManualSync();
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: neonPurple,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (isSyncing)
+                              const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            else
+                              const Icon(Icons.sync_rounded, size: 18),
+                            const SizedBox(width: 8),
+                            Text(isSyncing ? 'Syncing...' : 'Sync Now'),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   /// Build mini stat card for sync dialog
   static Widget _buildMiniStatCard({
+    required BuildContext context,
     required String label,
     required String value,
     required IconData icon,
     required Color color,
   }) {
+    final themeColors = GenZTheme.of(context);
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
@@ -596,7 +612,7 @@ class SatpamDashboardDialogs {
             Text(
               label,
               style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
+                color: themeColors.bodySecondary,
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
               ),
@@ -623,32 +639,39 @@ class SatpamDashboardDialogs {
     if (!context.mounted) return;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.location_on, color: Colors.blue),
-            SizedBox(width: 8),
-            Text('Informasi Gerbang'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Gate ID: ${settings.posNumber}'),
-            const SizedBox(height: 8),
-            Text('Nama: ${settings.posName}'),
-            const SizedBox(height: 8),
-            const Text('Status: Aktif'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tutup'),
+      builder: (context) {
+        final themeColors = GenZTheme.of(context);
+        return AlertDialog(
+          backgroundColor: themeColors.dialogSurface,
+          title: Row(
+            children: [
+              const Icon(Icons.location_on, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(
+                'Informasi Gerbang',
+                style: TextStyle(color: themeColors.headingColor),
+              ),
+            ],
           ),
-        ],
-      ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Gate ID: ${settings.posNumber}'),
+              const SizedBox(height: 8),
+              Text('Nama: ${settings.posName}'),
+              const SizedBox(height: 8),
+              const Text('Status: Aktif'),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -664,192 +687,202 @@ class SatpamDashboardDialogs {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.qr_code, color: Colors.blue),
-            SizedBox(width: 8),
-            Text('QR Code Tamu'),
-          ],
-        ),
-        content: SizedBox(
-          width: 320,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Actual QR Code
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey[300]!),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withValues(alpha: 0.1),
-                        spreadRadius: 1,
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: RepaintBoundary(
-                    key: qrKey,
-                    child: QrImageView(
-                      data: qrData,
-                      version: QrVersions.auto,
-                      size: 200.0,
-                      backgroundColor: Colors.white,
-                      errorCorrectionLevel: QrErrorCorrectLevel.M,
-                      embeddedImage: null, // Could add logo here
-                      embeddedImageStyle: const QrEmbeddedImageStyle(
-                        size: Size(40, 40),
+      builder: (context) {
+        final themeColors = GenZTheme.of(context);
+        return AlertDialog(
+          backgroundColor: themeColors.dialogSurface,
+          title: Row(
+            children: [
+              const Icon(Icons.qr_code, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(
+                'QR Code Tamu',
+                style: TextStyle(color: themeColors.headingColor),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: 320,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Actual QR Code
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: themeColors.borderColor),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: themeColors.shadowColor.withValues(
+                            alpha: 0.25,
+                          ),
+                          spreadRadius: 1,
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: RepaintBoundary(
+                      key: qrKey,
+                      child: QrImageView(
+                        data: qrData,
+                        version: QrVersions.auto,
+                        size: 200.0,
+                        backgroundColor: Colors.white,
+                        errorCorrectionLevel: QrErrorCorrectLevel.M,
+                        embeddedImage: null, // Could add logo here
+                        embeddedImageStyle: const QrEmbeddedImageStyle(
+                          size: Size(40, 40),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // QR Code Info
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue[50],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: Colors.blue[700],
-                            size: 16,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              generationIntent == 'ENTRY'
-                                  ? 'QR Code untuk akses tamu - valid untuk KELUAR saja'
-                                  : 'QR Code untuk akses tamu - valid untuk MASUK saja',
-                              style: TextStyle(
-                                color: Colors.blue[700],
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                  // QR Code Info
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: themeColors.inputFill,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: themeColors.dividerSubtle),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              color: Colors.blue[700],
+                              size: 16,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                generationIntent == 'ENTRY'
+                                    ? 'QR Code untuk akses tamu - valid untuk KELUAR saja'
+                                    : 'QR Code untuk akses tamu - valid untuk MASUK saja',
+                                style: TextStyle(
+                                  color: Colors.blue[700],
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.schedule,
-                            color: Colors.blue[600],
-                            size: 14,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Berlaku hari ini',
-                            style: TextStyle(
-                              color: Colors.blue[600],
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Guest info card
-                Card(
-                  elevation: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Informasi Tamu',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.grey[800],
-                            fontSize: 14,
-                          ),
+                          ],
                         ),
                         const SizedBox(height: 8),
-                        _buildInfoRow(
-                          'Nama',
-                          formData.guestName ??
-                              (formData.driverName.isNotEmpty
-                                  ? formData.driverName
-                                  : 'N/A'),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.schedule,
+                              color: Colors.blue[600],
+                              size: 14,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Berlaku hari ini',
+                              style: TextStyle(
+                                color: Colors.blue[600],
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
                         ),
-                        _buildInfoRow(
-                          'Perusahaan',
-                          formData.guestCompany ?? 'N/A',
-                        ),
-                        _buildInfoRow(
-                          'No. Plat',
-                          formData.vehiclePlate.isNotEmpty
-                              ? formData.vehiclePlate
-                              : 'N/A',
-                        ),
-                        _buildInfoRow(
-                          'Tujuan',
-                          formData.purposeOfVisit ??
-                              (formData.destination.isNotEmpty
-                                  ? formData.destination
-                                  : 'N/A'),
-                        ),
-                        _buildInfoRow(
-                          'Jenis Kendaraan',
-                          formData.vehicleType.isNotEmpty
-                              ? formData.vehicleType
-                              : 'N/A',
-                        ),
-                        if (formData.loadType.isNotEmpty)
-                          _buildInfoRow('Jenis Muatan', formData.loadType),
-                        if (formData.loadVolume.isNotEmpty)
-                          _buildInfoRow('Volume Muatan', formData.loadVolume),
                       ],
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+
+                  // Guest info card
+                  Card(
+                    elevation: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Informasi Tamu',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: themeColors.headingColor,
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          _buildInfoRow(
+                            'Nama',
+                            formData.guestName ??
+                                (formData.driverName.isNotEmpty
+                                    ? formData.driverName
+                                    : 'N/A'),
+                          ),
+                          _buildInfoRow(
+                            'Perusahaan',
+                            formData.guestCompany ?? 'N/A',
+                          ),
+                          _buildInfoRow(
+                            'No. Plat',
+                            formData.vehiclePlate.isNotEmpty
+                                ? formData.vehiclePlate
+                                : 'N/A',
+                          ),
+                          _buildInfoRow(
+                            'Tujuan',
+                            formData.purposeOfVisit ??
+                                (formData.destination.isNotEmpty
+                                    ? formData.destination
+                                    : 'N/A'),
+                          ),
+                          _buildInfoRow(
+                            'Jenis Kendaraan',
+                            formData.vehicleType.isNotEmpty
+                                ? formData.vehicleType
+                                : 'N/A',
+                          ),
+                          if (formData.loadType.isNotEmpty)
+                            _buildInfoRow('Jenis Muatan', formData.loadType),
+                          if (formData.loadVolume.isNotEmpty)
+                            _buildInfoRow('Volume Muatan', formData.loadVolume),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tutup'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => _shareQRCode(context, qrKey, formData),
-            icon: const Icon(Icons.share),
-            label: const Text('Share'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup'),
             ),
-          ),
-          ElevatedButton.icon(
-            onPressed: () =>
-                _printQRCode(context, qrData, formData, generationIntent),
-            icon: const Icon(Icons.print),
-            label: const Text('Cetak'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
+            ElevatedButton.icon(
+              onPressed: () => _shareQRCode(context, qrKey, formData),
+              icon: const Icon(Icons.share),
+              label: const Text('Share'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              ),
             ),
-          ),
-        ],
-      ),
+            ElevatedButton.icon(
+              onPressed: () =>
+                  _printQRCode(context, qrData, formData, generationIntent),
+              icon: const Icon(Icons.print),
+              label: const Text('Cetak'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1048,9 +1081,9 @@ class SatpamDashboardDialogs {
       case 'error':
         return Colors.red;
       case 'unavailable':
-        return Colors.grey;
+        return GenZTheme.gray500;
       default:
-        return Colors.grey;
+        return GenZTheme.gray500;
     }
   }
 
@@ -1231,72 +1264,79 @@ class SatpamDashboardDialogs {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.print, color: Colors.blue),
-            SizedBox(width: 8),
-            Text('Opsi Cetak QR Code'),
-          ],
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // QR Code widget for sharing
-                RepaintBoundary(
-                  key: qrKey,
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    color: Colors.white,
-                    child: QrImageView(
-                      data: qrData,
-                      version: QrVersions.auto,
-                      size: 200.0,
-                      backgroundColor: Colors.white,
+      builder: (context) {
+        final themeColors = GenZTheme.of(context);
+        return AlertDialog(
+          backgroundColor: themeColors.dialogSurface,
+          title: Row(
+            children: [
+              const Icon(Icons.print, color: Colors.blue),
+              const SizedBox(width: 8),
+              Text(
+                'Opsi Cetak QR Code',
+                style: TextStyle(color: themeColors.headingColor),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // QR Code widget for sharing
+                  RepaintBoundary(
+                    key: qrKey,
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      color: Colors.white,
+                      child: QrImageView(
+                        data: qrData,
+                        version: QrVersions.auto,
+                        size: 200.0,
+                        backgroundColor: Colors.white,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Fitur cetak PDF sementara tidak tersedia. Silakan gunakan alternatif berikut:',
-                  style: TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 16),
-                ListTile(
-                  leading: const Icon(Icons.share, color: Colors.green),
-                  title: const Text('Bagikan QR Code'),
-                  subtitle: const Text('Simpan atau kirim gambar QR code'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _shareQRCode(context, qrKey, formData);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.screenshot, color: Colors.orange),
-                  title: const Text('Screenshot QR Code'),
-                  subtitle: const Text('Ambil screenshot dari layar QR code'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    SatpamDashboardHelpers.showSnackBar(
-                      context,
-                      'Silakan screenshot layar QR Code untuk mencetak',
-                    );
-                  },
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Fitur cetak PDF sementara tidak tersedia. Silakan gunakan alternatif berikut:',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                    leading: const Icon(Icons.share, color: Colors.green),
+                    title: const Text('Bagikan QR Code'),
+                    subtitle: const Text('Simpan atau kirim gambar QR code'),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      _shareQRCode(context, qrKey, formData);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.screenshot, color: Colors.orange),
+                    title: const Text('Screenshot QR Code'),
+                    subtitle: const Text('Ambil screenshot dari layar QR code'),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      SatpamDashboardHelpers.showSnackBar(
+                        context,
+                        'Silakan screenshot layar QR Code untuk mencetak',
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Tutup'),
-          ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Tutup'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1473,7 +1513,10 @@ class SatpamDashboardDialogs {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, null), // Cancel
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            child: Text(
+              'Batal',
+              style: TextStyle(color: GenZTheme.of(context).bodySecondary),
+            ),
           ),
         ],
       ),

@@ -9,13 +9,31 @@ const LOGOUT_RECENT_TS_KEY = 'agrinova_logged_out_at';
 const LOGOUT_MARKER_TTL_MS = 15_000;
 const unsupportedSubscriptionLogCache = new Set<string>();
 
+function isExpectedManagerBudgetApprovalValidationError(message: string | undefined, path: readonly (string | number)[] | string | undefined): boolean {
+  const normalizedMessage = String(message || '').toLowerCase();
+  const normalizedPath = Array.isArray(path)
+    ? String(path[0] || '').toLowerCase()
+    : String(path || '').toLowerCase();
+
+  return (
+    normalizedPath === 'updatemanagerblockproductionbudget' &&
+    normalizedMessage.includes('pagu divisi untuk periode') &&
+    normalizedMessage.includes('belum diset')
+  );
+}
+
 const isAuthGraphQLError = (error: { message?: string; extensions?: Record<string, unknown> }) => {
   const message = (error.message || '').toLowerCase();
   const code = String(error.extensions?.code || '').toUpperCase();
   return (
     code === 'UNAUTHENTICATED' ||
+    message.includes('invalid or expired session') ||
+    message.includes('invalid session') ||
+    message.includes('expired session') ||
+    message.includes('session expired') ||
     message.includes('unauthorized') ||
     message.includes('authentication') ||
+    message.includes('authentication required') ||
     message.includes('no token') ||
     message.includes('session not found')
   );
@@ -73,6 +91,39 @@ const isExpectedDeleteDependencyError = (error: {
     message.includes('constraint');
 
   return isDeletePath && (hasDependencyCode || hasDependencyMessage);
+};
+
+const isExpectedAreaManagerCompanyDetailNotFoundError = (
+  operationName: string | undefined,
+  error: {
+    message?: string;
+    path?: ReadonlyArray<string | number> | string;
+    extensions?: Record<string, unknown>;
+  }
+) => {
+  const normalizedOperation = (operationName || '').toLowerCase();
+  if (normalizedOperation !== 'areamanagercompanymonitordetail') {
+    return false;
+  }
+
+  const message = (error.message || '').toLowerCase();
+  const pathHead = getPathHead(error.path).toLowerCase();
+
+  return message.includes('company not found') && pathHead === 'areamanagercompanydetail';
+};
+
+const isSessionProbeOperation = (
+  operationName: string | undefined,
+  path?: ReadonlyArray<string | number> | string
+): boolean => {
+  const normalizedOperation = (operationName || '').toLowerCase();
+  const pathHead = getPathHead(path).toLowerCase();
+  return (
+    normalizedOperation === 'currentuser' ||
+    normalizedOperation === 'me' ||
+    pathHead === 'currentuser' ||
+    pathHead === 'me'
+  );
 };
 
 const isSubscriptionOperation = (operation: { query?: { definitions?: ReadonlyArray<{ kind?: string; operation?: string }> } }) => {
@@ -188,8 +239,24 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
 
         if (isExpectedDeleteDependencyError({ message, path, extensions })) {
           console.warn('[Apollo GraphQL Warning] Expected delete validation error:', errorDetails);
+        } else if (isExpectedAreaManagerCompanyDetailNotFoundError(operationName, { message, path, extensions })) {
+          console.info('[Apollo GraphQL Info] Detail perusahaan belum tersedia (company/estate belum siap):', errorDetails);
         } else if (isExpectedLoginFailureError(operationName, { message, extensions })) {
           console.info('[Apollo Auth Info] Expected login failure:', errorDetails);
+        } else if (isAuthGraphQLError({ message, extensions })) {
+          if (isSessionProbeOperation(operationName, path)) {
+            console.info('[Apollo Auth Info] Session not active during auth probe:', {
+              operation: operationName,
+              path,
+              message,
+            });
+          } else {
+            console.warn('[Apollo Auth Warning] Authentication error:', {
+              operation: operationName,
+              path,
+              message,
+            });
+          }
         } else if (isSubscriptionNotImplementedGraphQLError({ message, extensions }, operation)) {
           const normalizedPath = Array.isArray(path) ? path.join('.') : String(path || '');
           const dedupeKey = `${operationName || 'unknown'}|${normalizedPath}|${message}`;
@@ -202,6 +269,12 @@ const errorLink = onError(({ graphQLErrors, networkError, operation, forward }) 
               message,
             });
           }
+        } else if (isExpectedManagerBudgetApprovalValidationError(message, path)) {
+          console.info('[Apollo GraphQL Info] Manager block approval blocked because division budget is not set yet:', {
+            operation: operationName,
+            path,
+            message,
+          });
         } else {
           console.error(
             `[Apollo GraphQL Error] Message: ${message}, Location: ${locations}, Path: ${path}, Extensions:`,

@@ -36,7 +36,6 @@ func AutoMigrate(db *gorm.DB) error {
 		&auth.User{},
 		&master.Estate{},
 		&master.Division{},
-		&master.TarifBlok{},
 		&master.Block{},
 		&master.Vehicle{},
 		&master.VehicleTax{},
@@ -193,10 +192,32 @@ func AutoMigrate(db *gorm.DB) error {
 	}
 
 	if err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS land_types (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			code VARCHAR(50) NOT NULL UNIQUE,
+			name VARCHAR(100) NOT NULL,
+			description TEXT,
+			is_active BOOLEAN DEFAULT true,
+			created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+			updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+		)
+	`).Error; err != nil {
+		return fmt.Errorf("failed to create land_types table: %w", err)
+	}
+
+	if err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS tarif_blok (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			company_id UUID NOT NULL,
 			perlakuan VARCHAR(100) NOT NULL,
+			keterangan TEXT,
+			land_type_id UUID,
+			tarif_code VARCHAR(20),
+			scheme_type VARCHAR(30),
+			bjr_min_kg NUMERIC(10,2),
+			bjr_max_kg NUMERIC(10,2),
+			target_lebih_kg NUMERIC(14,2),
+			sort_order INTEGER,
 			basis NUMERIC(14,2),
 			tarif_upah NUMERIC(14,2),
 			premi NUMERIC(14,2),
@@ -223,6 +244,7 @@ func AutoMigrate(db *gorm.DB) error {
 			status VARCHAR(10) DEFAULT 'INTI',
 			istm CHAR(1) DEFAULT 'N',
 			perlakuan VARCHAR(100),
+			land_type_id UUID,
 			tarif_blok_id UUID,
 			created_at TIMESTAMP WITH TIME ZONE,
 			updated_at TIMESTAMP WITH TIME ZONE,
@@ -677,103 +699,64 @@ func AutoMigrate(db *gorm.DB) error {
 		log.Printf("Note: Creating indexes may have issues: %v", err)
 	}
 
-	// Add foreign key constraints after all tables are created
-	// Company foreign keys
-	if err := db.Exec("ALTER TABLE estates ADD CONSTRAINT fk_companies_estates FOREIGN KEY (company_id) REFERENCES companies(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for estates may already exist: %v", err)
+	// Add foreign key constraints after all tables are created.
+	type foreignKeyDef struct {
+		table      string
+		name       string
+		sql        string
+		label      string
+		requireRow bool
 	}
 
-	if err := db.Exec("ALTER TABLE tarif_blok ADD CONSTRAINT fk_tarif_blok_company FOREIGN KEY (company_id) REFERENCES companies(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for tarif_blok company may already exist: %v", err)
+	foreignKeys := []foreignKeyDef{
+		{table: "estates", name: "fk_companies_estates", sql: "ALTER TABLE estates ADD CONSTRAINT fk_companies_estates FOREIGN KEY (company_id) REFERENCES companies(id)", label: "estates", requireRow: true},
+		{table: "tarif_blok", name: "fk_tarif_blok_company", sql: "ALTER TABLE tarif_blok ADD CONSTRAINT fk_tarif_blok_company FOREIGN KEY (company_id) REFERENCES companies(id)", label: "tarif_blok company", requireRow: true},
+		{table: "tarif_blok", name: "fk_tarif_blok_land_type", sql: "ALTER TABLE tarif_blok ADD CONSTRAINT fk_tarif_blok_land_type FOREIGN KEY (land_type_id) REFERENCES land_types(id)", label: "tarif_blok land_type", requireRow: true},
+		{table: "divisions", name: "fk_estates_divisions", sql: "ALTER TABLE divisions ADD CONSTRAINT fk_estates_divisions FOREIGN KEY (estate_id) REFERENCES estates(id)", label: "divisions", requireRow: true},
+		{table: "user_estate_assignments", name: "fk_user_estate_assignments_user", sql: "ALTER TABLE user_estate_assignments ADD CONSTRAINT fk_user_estate_assignments_user FOREIGN KEY (user_id) REFERENCES users(id)", label: "user_estate_assignments user", requireRow: true},
+		{table: "user_estate_assignments", name: "fk_user_estate_assignments_estate", sql: "ALTER TABLE user_estate_assignments ADD CONSTRAINT fk_user_estate_assignments_estate FOREIGN KEY (estate_id) REFERENCES estates(id)", label: "user_estate_assignments estate", requireRow: true},
+		{table: "blocks", name: "fk_divisions_blocks", sql: "ALTER TABLE blocks ADD CONSTRAINT fk_divisions_blocks FOREIGN KEY (division_id) REFERENCES divisions(id)", label: "blocks", requireRow: true},
+		{table: "blocks", name: "fk_blocks_land_type", sql: "ALTER TABLE blocks ADD CONSTRAINT fk_blocks_land_type FOREIGN KEY (land_type_id) REFERENCES land_types(id)", label: "blocks land_type", requireRow: true},
+		{table: "user_division_assignments", name: "fk_user_division_assignments_user", sql: "ALTER TABLE user_division_assignments ADD CONSTRAINT fk_user_division_assignments_user FOREIGN KEY (user_id) REFERENCES users(id)", label: "user_division_assignments user", requireRow: true},
+		{table: "user_division_assignments", name: "fk_user_division_assignments_division", sql: "ALTER TABLE user_division_assignments ADD CONSTRAINT fk_user_division_assignments_division FOREIGN KEY (division_id) REFERENCES divisions(id)", label: "user_division_assignments division", requireRow: true},
+		{table: "harvest_records", name: "fk_harvest_records_block", sql: "ALTER TABLE harvest_records ADD CONSTRAINT fk_harvest_records_block FOREIGN KEY (block_id) REFERENCES blocks(id)", label: "harvest_records block", requireRow: true},
+		{table: "harvest_records", name: "fk_harvest_records_mandor", sql: "ALTER TABLE harvest_records ADD CONSTRAINT fk_harvest_records_mandor FOREIGN KEY (mandor_id) REFERENCES users(id)", label: "harvest_records mandor", requireRow: true},
+		{table: "gate_check_records", name: "fk_gate_check_records_satpam", sql: "ALTER TABLE gate_check_records ADD CONSTRAINT fk_gate_check_records_satpam FOREIGN KEY (satpam_id) REFERENCES users(id)", label: "gate_check_records satpam", requireRow: true},
+		{table: "user_company_assignments", name: "fk_user_company_assignments_user", sql: "ALTER TABLE user_company_assignments ADD CONSTRAINT fk_user_company_assignments_user FOREIGN KEY (user_id) REFERENCES users(id)", label: "user_company_assignments user", requireRow: true},
+		{table: "user_company_assignments", name: "fk_user_company_assignments_company", sql: "ALTER TABLE user_company_assignments ADD CONSTRAINT fk_user_company_assignments_company FOREIGN KEY (company_id) REFERENCES companies(id)", label: "user_company_assignments company", requireRow: true},
+		{table: "user_sessions", name: "fk_user_sessions_user", sql: "ALTER TABLE user_sessions ADD CONSTRAINT fk_user_sessions_user FOREIGN KEY (user_id) REFERENCES users(id)", label: "user_sessions", requireRow: true},
+		{table: "device_bindings", name: "fk_device_bindings_user", sql: "ALTER TABLE device_bindings ADD CONSTRAINT fk_device_bindings_user FOREIGN KEY (user_id) REFERENCES users(id)", label: "device_bindings", requireRow: true},
+		{table: "jwt_tokens", name: "fk_jwt_tokens_user", sql: "ALTER TABLE jwt_tokens ADD CONSTRAINT fk_jwt_tokens_user FOREIGN KEY (user_id) REFERENCES users(id)", label: "jwt_tokens", requireRow: true},
+		{table: "security_events", name: "fk_security_events_user", sql: "ALTER TABLE security_events ADD CONSTRAINT fk_security_events_user FOREIGN KEY (user_id) REFERENCES users(id)", label: "security_events", requireRow: true},
 	}
 
-	// Estate foreign keys
-	if err := db.Exec("ALTER TABLE divisions ADD CONSTRAINT fk_estates_divisions FOREIGN KEY (estate_id) REFERENCES estates(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for divisions may already exist: %v", err)
-	}
-
-	if err := db.Exec("ALTER TABLE user_estate_assignments ADD CONSTRAINT fk_user_estate_assignments_user FOREIGN KEY (user_id) REFERENCES users(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for user_estate_assignments user may already exist: %v", err)
-	}
-
-	if err := db.Exec("ALTER TABLE user_estate_assignments ADD CONSTRAINT fk_user_estate_assignments_estate FOREIGN KEY (estate_id) REFERENCES estates(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for user_estate_assignments estate may already exist: %v", err)
-	}
-
-	// Division foreign keys
-	if err := db.Exec("ALTER TABLE blocks ADD CONSTRAINT fk_divisions_blocks FOREIGN KEY (division_id) REFERENCES divisions(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for blocks may already exist: %v", err)
-	}
-
-	if err := db.Exec("ALTER TABLE user_division_assignments ADD CONSTRAINT fk_user_division_assignments_user FOREIGN KEY (user_id) REFERENCES users(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for user_division_assignments user may already exist: %v", err)
-	}
-
-	if err := db.Exec("ALTER TABLE user_division_assignments ADD CONSTRAINT fk_user_division_assignments_division FOREIGN KEY (division_id) REFERENCES divisions(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for user_division_assignments division may already exist: %v", err)
-	}
-
-	// Block foreign keys
-	if err := db.Exec("ALTER TABLE harvest_records ADD CONSTRAINT fk_harvest_records_block FOREIGN KEY (block_id) REFERENCES blocks(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for harvest_records block may already exist: %v", err)
-	}
-
-	// User foreign keys
-	if err := db.Exec("ALTER TABLE harvest_records ADD CONSTRAINT fk_harvest_records_mandor FOREIGN KEY (mandor_id) REFERENCES users(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for harvest_records mandor may already exist: %v", err)
-	}
-
-	if err := db.Exec("ALTER TABLE gate_check_records ADD CONSTRAINT fk_gate_check_records_satpam FOREIGN KEY (satpam_id) REFERENCES users(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for gate_check_records satpam may already exist: %v", err)
-	}
-
-	if err := db.Exec("ALTER TABLE user_company_assignments ADD CONSTRAINT fk_user_company_assignments_user FOREIGN KEY (user_id) REFERENCES users(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for user_company_assignments user may already exist: %v", err)
-	}
-
-	if err := db.Exec("ALTER TABLE user_company_assignments ADD CONSTRAINT fk_user_company_assignments_company FOREIGN KEY (company_id) REFERENCES companies(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for user_company_assignments company may already exist: %v", err)
-	}
-
-	if err := db.Exec("ALTER TABLE user_sessions ADD CONSTRAINT fk_user_sessions_user FOREIGN KEY (user_id) REFERENCES users(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for user_sessions may already exist: %v", err)
-	}
-
-	if err := db.Exec("ALTER TABLE device_bindings ADD CONSTRAINT fk_device_bindings_user FOREIGN KEY (user_id) REFERENCES users(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for device_bindings may already exist: %v", err)
-	}
-
-	if err := db.Exec("ALTER TABLE jwt_tokens ADD CONSTRAINT fk_jwt_tokens_user FOREIGN KEY (user_id) REFERENCES users(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for jwt_tokens may already exist: %v", err)
-	}
-
-	if err := db.Exec("ALTER TABLE security_events ADD CONSTRAINT fk_security_events_user FOREIGN KEY (user_id) REFERENCES users(id)").Error; err != nil {
-		log.Printf("Note: Foreign key constraint for security_events may already exist: %v", err)
+	for _, fk := range foreignKeys {
+		ensureForeignKeyConstraint(db, fk.table, fk.name, fk.sql, fk.label)
 	}
 
 	// Create indexes
 	log.Println("Creating database indexes...")
 
 	// Company indexes
-	db.Exec("CREATE INDEX IF NOT EXISTS idx_companies_deleted_at ON companies(deleted_at)")
+	ensureIndexIfColumnExists(db, "companies", "deleted_at", "CREATE INDEX IF NOT EXISTS idx_companies_deleted_at ON companies(deleted_at)")
 
 	// User indexes
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active)")
-	db.Exec("CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users(deleted_at)")
+	ensureIndexIfColumnExists(db, "users", "deleted_at", "CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users(deleted_at)")
 
 	// Estate indexes
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_estates_company_id ON estates(company_id)")
-	db.Exec("CREATE INDEX IF NOT EXISTS idx_estates_deleted_at ON estates(deleted_at)")
+	ensureIndexIfColumnExists(db, "estates", "deleted_at", "CREATE INDEX IF NOT EXISTS idx_estates_deleted_at ON estates(deleted_at)")
 
 	// Division indexes
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_divisions_estate_id ON divisions(estate_id)")
-	db.Exec("CREATE INDEX IF NOT EXISTS idx_divisions_deleted_at ON divisions(deleted_at)")
+	ensureIndexIfColumnExists(db, "divisions", "deleted_at", "CREATE INDEX IF NOT EXISTS idx_divisions_deleted_at ON divisions(deleted_at)")
 
 	// Block indexes
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_blocks_division_id ON blocks(division_id)")
-	db.Exec("CREATE INDEX IF NOT EXISTS idx_blocks_deleted_at ON blocks(deleted_at)")
+	ensureIndexIfColumnExists(db, "blocks", "deleted_at", "CREATE INDEX IF NOT EXISTS idx_blocks_deleted_at ON blocks(deleted_at)")
 
 	// Harvest record indexes
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_harvest_records_mandor_id ON harvest_records(mandor_id)")
@@ -1008,6 +991,146 @@ func AutoMigrate(db *gorm.DB) error {
 		return fmt.Errorf("failed migration 000046 create bkm company bridge: %w", err)
 	}
 
+	// Add tarif_blok.keterangan and seed supplier BJR tarif templates.
+	if err := migrations.Migration000047SeedTarifBlokBJRTemplate(db); err != nil {
+		return fmt.Errorf("failed migration 000047 seed tarif blok BJR template: %w", err)
+	}
+
+	// Add land_types master and enforce land_type_id FK on blocks/tarif_blok.
+	if err := migrations.Migration000048AddLandTypesAndTarifBlockAlignment(db); err != nil {
+		return fmt.Errorf("failed migration 000048 add land types and tarif alignment: %w", err)
+	}
+
+	// Collapse land_types into two grouped types as business taxonomy.
+	if err := migrations.Migration000049CollapseLandTypesToTwoGroups(db); err != nil {
+		return fmt.Errorf("failed migration 000049 collapse land types to two groups: %w", err)
+	}
+
+	// Create normalized tariff schema tables (header/detail/override) and backfill from tarif_blok.
+	if err := migrations.Migration000050CreateTariffSchemeTables(db); err != nil {
+		return fmt.Errorf("failed migration 000050 create tariff scheme tables: %w", err)
+	}
+
+	// Remove physical tarif_blok table and keep compatibility through view + triggers.
+	if err := migrations.Migration000051DropTarifBlokTableCreateView(db); err != nil {
+		return fmt.Errorf("failed migration 000051 drop tarif_blok table and create compatibility view: %w", err)
+	}
+
+	// Track tariff changes per block with audit logs and reporting views.
+	if err := migrations.Migration000052CreateBlockTariffChangeLogs(db); err != nil {
+		return fmt.Errorf("failed migration 000052 create block tariff change logs: %w", err)
+	}
+
+	// Create manager block production budget table with unique block+period constraint.
+	if err := migrations.Migration000053CreateManagerBlockProductionBudgets(db); err != nil {
+		return fmt.Errorf("failed migration 000053 create manager block production budgets: %w", err)
+	}
+
+	// Add workflow status and override controls for division budget control tower.
+	if err := migrations.Migration000054AddManagerDivisionBudgetWorkflow(db); err != nil {
+		return fmt.Errorf("failed migration 000054 add manager division budget workflow: %w", err)
+	}
+
+	// Add workflow status controls for manager block budget proposals and approvals.
+	if err := migrations.Migration000055AddManagerBlockBudgetWorkflow(db); err != nil {
+		return fmt.Errorf("failed migration 000055 add manager block budget workflow: %w", err)
+	}
+
+	// Add targeted covering partial index for mandor approval status pull sync.
+	if err := migrations.Migration000056OptimizeMandorServerUpdatesIndex(db); err != nil {
+		return fmt.Errorf("failed migration 000056 optimize mandor server updates index: %w", err)
+	}
+
+	// Create employee access sync table for satpam syncEmployeeLog.
+	if err := migrations.Migration000057CreateGateEmployeeLogs(db); err != nil {
+		return fmt.Errorf("failed migration 000057 create gate employee logs: %w", err)
+	}
+
+	// Add composite lookup index for satpam guest log sync by company + local_id.
+	if err := migrations.Migration000058OptimizeSatpamGuestLogSyncIndex(db); err != nil {
+		return fmt.Errorf("failed migration 000058 optimize satpam guest log sync index: %w", err)
+	}
+
+	// Create durable outbox storage for satpam sync summary notifications.
+	if err := migrations.Migration000059CreateSatpamNotificationOutbox(db); err != nil {
+		return fmt.Errorf("failed migration 000059 create satpam notification outbox: %w", err)
+	}
+
+	// Add a partial composite index for area manager harvest rollups by estate + date.
+	if err := migrations.Migration000060OptimizeAreaManagerHarvestRollups(db); err != nil {
+		return fmt.Errorf("failed migration 000060 optimize area manager harvest rollups: %w", err)
+	}
+
+	// Seed dummy production budget records so Manager Dashboard target widget shows data.
+	if err := migrations.Migration000061SeedDummyBudgetData(db); err != nil {
+		return fmt.Errorf("failed migration 000061 seed dummy budget data: %w", err)
+	}
+
+	// Add explicit mandor subtype for dashboard and transaction branching.
+	if err := migrations.Migration000062AddMandorTypeToUserCompanyAssignments(db); err != nil {
+		return fmt.Errorf("failed migration 000062 add mandor type to user company assignments: %w", err)
+	}
+
+	// Create maintenance transaction storage for MANDOR_PERAWATAN.
+	if err := migrations.Migration000063CreatePerawatanRecords(db); err != nil {
+		return fmt.Errorf("failed migration 000063 create perawatan records: %w", err)
+	}
+
+	// Create fertilizer and herbicide usage tables for maintenance records.
+	if err := migrations.Migration000064CreatePerawatanUsageTables(db); err != nil {
+		return fmt.Errorf("failed migration 000064 create perawatan usage tables: %w", err)
+	}
+
+	// Create block treatment semester workflow + tariff management decision audit tables.
+	if err := migrations.Migration000065CreateBlockTreatmentRequestWorkflow(db); err != nil {
+		return fmt.Errorf("failed migration 000065 create block treatment request workflow: %w", err)
+	}
+
+	// Create runtime theme campaign tables and seed baseline theme campaign data.
+	if err := migrations.Migration000066CreateThemeCampaignTables(db); err != nil {
+		return fmt.Errorf("failed migration 000066 create theme campaign tables: %w", err)
+	}
+
+	// Refactor theme campaign architecture: shared campaign rules + platform-specific visual assets.
+	if err := migrations.Migration000067RefactorThemeCampaignSharedRules(db); err != nil {
+		return fmt.Errorf("failed migration 000067 refactor theme campaign shared rules: %w", err)
+	}
+
+	// Remove audience targeting columns so theme campaigns are global-only at runtime.
+	if err := migrations.Migration000068RemoveThemeCampaignTargeting(db); err != nil {
+		return fmt.Errorf("failed migration 000068 remove theme campaign targeting: %w", err)
+	}
+
+	// Backfill seeded Ramadan Core campaign visual assets with local dummy URLs for web/mobile.
+	if err := migrations.Migration000069BackfillRamadanCoreCampaignAssets(db); err != nil {
+		return fmt.Errorf("failed migration 000069 backfill ramadan core campaign assets: %w", err)
+	}
+
+	// Backfill seeded Harvest Week campaign visual assets with local dummy URLs for web/mobile.
+	if err := migrations.Migration000070BackfillHarvestWeekCampaignAssets(db); err != nil {
+		return fmt.Errorf("failed migration 000070 backfill harvest week campaign assets: %w", err)
+	}
+
+	// Ensure Harvest Week campaign keeps complete visual assets without overriding valid values.
+	if err := migrations.Migration000071EnsureHarvestWeekCampaignVisualAssetsComplete(db); err != nil {
+		return fmt.Errorf("failed migration 000071 ensure harvest week campaign visual assets complete: %w", err)
+	}
+
+	// Optimize runtime theme campaign lookup for active endpoint traffic.
+	if err := migrations.Migration000072OptimizeThemeRuntimeCampaignLookup(db); err != nil {
+		return fmt.Errorf("failed migration 000072 optimize theme runtime campaign lookup: %w", err)
+	}
+
+	// Rename theme asset keys to canonical names (backgroundImage + illustration).
+	if err := migrations.Migration000073RenameThemeAssetKeys(db); err != nil {
+		return fmt.Errorf("failed migration 000073 rename theme asset keys: %w", err)
+	}
+
+	// Remove legacy theme asset URL prefixes and standardize to /uploads/theme-assets/*.
+	if err := migrations.Migration000074RemoveThemeDummyAssetPaths(db); err != nil {
+		return fmt.Errorf("failed migration 000074 remove legacy theme asset paths: %w", err)
+	}
+
 	legacyMasterColumns, err := hasLegacyMasterColumns(db)
 	if err != nil {
 		return fmt.Errorf("failed checking legacy master columns: %w", err)
@@ -1213,4 +1336,87 @@ func CreateIndexes(db *gorm.DB) error {
 
 	log.Println("Database indexes created successfully")
 	return nil
+}
+
+func databaseRelationKind(db *gorm.DB, tableName string) (string, error) {
+	var relationKind string
+	if err := db.Raw(`
+		SELECT c.relkind
+		FROM pg_class c
+		JOIN pg_namespace n ON n.oid = c.relnamespace
+		WHERE n.nspname = current_schema()
+		  AND c.relname = ?
+		LIMIT 1
+	`, tableName).Scan(&relationKind).Error; err != nil {
+		return "", err
+	}
+
+	return relationKind, nil
+}
+
+func databaseRelationIsBaseTable(db *gorm.DB, tableName string) (bool, error) {
+	relationKind, err := databaseRelationKind(db, tableName)
+	if err != nil {
+		return false, err
+	}
+
+	return relationKind == "r" || relationKind == "p", nil
+}
+
+func databaseColumnExists(db *gorm.DB, tableName, columnName string) (bool, error) {
+	var exists bool
+	if err := db.Raw(`
+		SELECT EXISTS (
+			SELECT 1
+			FROM information_schema.columns
+			WHERE table_schema = current_schema()
+			  AND table_name = ?
+			  AND column_name = ?
+		)
+	`, tableName, columnName).Scan(&exists).Error; err != nil {
+		return false, err
+	}
+
+	return exists, nil
+}
+
+func ensureForeignKeyConstraint(db *gorm.DB, tableName, constraintName, sql, label string) {
+	isBaseTable, err := databaseRelationIsBaseTable(db, tableName)
+	if err != nil {
+		log.Printf("Warning: Failed to inspect relation kind for %s: %v", tableName, err)
+		return
+	}
+	if !isBaseTable {
+		log.Printf("Note: Skipping foreign key constraint for %s: %s is not a base table", label, tableName)
+		return
+	}
+
+	exists, err := databaseConstraintExists(db, tableName, constraintName)
+	if err != nil {
+		log.Printf("Warning: Failed to inspect constraint %s on %s: %v", constraintName, tableName, err)
+		return
+	}
+	if exists {
+		return
+	}
+
+	if err := db.Exec(sql).Error; err != nil {
+		log.Printf("Warning: Failed to create foreign key constraint for %s: %v", label, err)
+	}
+}
+
+func ensureIndexIfColumnExists(db *gorm.DB, tableName, columnName, sql string) {
+	exists, err := databaseColumnExists(db, tableName, columnName)
+	if err != nil {
+		log.Printf("Warning: Failed to inspect column %s.%s: %v", tableName, columnName, err)
+		return
+	}
+	if !exists {
+		log.Printf("Note: Skipping index creation on %s.%s: column is missing", tableName, columnName)
+		return
+	}
+
+	if err := db.Exec(sql).Error; err != nil {
+		log.Printf("Warning: Failed to create index on %s.%s: %v", tableName, columnName, err)
+	}
 }

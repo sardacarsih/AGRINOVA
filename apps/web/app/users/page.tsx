@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -15,6 +15,13 @@ export default function UsersPage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const locale = useLocale();
   const router = useRouter();
+  const isUnauthorized = !isAuthenticated || !user;
+
+  useEffect(() => {
+    if (!isLoading && isUnauthorized) {
+      router.replace('/login');
+    }
+  }, [isLoading, isUnauthorized, router]);
 
   // Show loading state while auth is loading
   if (isLoading) {
@@ -22,8 +29,7 @@ export default function UsersPage() {
   }
 
   // Redirect to login if not authenticated
-  if (!isAuthenticated || !user) {
-    router.push('/login');
+  if (isUnauthorized) {
     return <PageLoading />;
   }
 

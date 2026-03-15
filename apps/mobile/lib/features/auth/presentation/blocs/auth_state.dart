@@ -69,7 +69,10 @@ class AuthAuthenticated extends AuthState {
   // Helper getters
   bool get canUseBiometric => biometricAvailable && biometricEnabled;
   bool get needsPasswordChange => isFirstLogin;
-  bool get canWorkOffline => user.role == 'mandor' || user.role == 'satpam';
+  bool get canWorkOffline {
+    final normalizedRole = user.role.toUpperCase();
+    return normalizedRole == 'MANDOR' || normalizedRole == 'SATPAM';
+  }
 
   @override
   List<Object?> get props => [

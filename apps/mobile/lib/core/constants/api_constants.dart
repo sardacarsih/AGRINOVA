@@ -28,20 +28,16 @@ class ApiConstants {
 
   // Computed URLs
   static String get graphqlUrl => '$_baseUrl$graphqlPath';
-  static String get websocketUrl => '${_baseUrl.replaceFirst('http', 'ws')}$graphqlWsPath';
+  static String get websocketUrl =>
+      '${_baseUrl.replaceFirst('http', 'ws')}$graphqlWsPath';
 
   // GraphQL Endpoints
   static const String graphqlPath = '/graphql';
   static const String graphqlWsPath = '/ws'; // WebSocket for subscriptions
-  
-  // Authentication Endpoints (Go API paths)
-  static const String authPath = '/api/v1/auth';
-  static const String unifiedLoginPath = '$authPath/login'; // Go unified endpoint
-  static const String jwtMobileRefreshPath = '$authPath/refresh';
-  static const String jwtMobileDeviceRegisterPath = '$authPath/device/register';
-  static const String jwtMobileOfflineValidatePath = '$authPath/offline/validate';
-  static const String jwtMobileDeviceRevokePath = '$authPath/device';
-  static const String jwtMobileDeviceTrustPath = '$authPath/device';
+
+  // Public runtime endpoints
+  static const String loginThemeCampaignPath =
+      '/api/public/theme-runtime';
 
   // Headers
   static const String authorizationHeader = 'Authorization';
@@ -132,7 +128,8 @@ class SecurityConstants {
   static const String iosKeychainGroupId = 'group.com.agrinova.app';
 
   // Biometric Configuration
-  static const String biometricPrompt = 'Autentikasi untuk mengakses aplikasi Agrinova';
+  static const String biometricPrompt =
+      'Autentikasi untuk mengakses aplikasi Agrinova';
   static const String biometricCancelButton = 'Batal';
   static const String biometricFallbackButton = 'Gunakan PIN';
 

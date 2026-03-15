@@ -101,6 +101,11 @@ const nextConfig = {
         source: '/api/vehicle-tax-documents/:path*',
         destination: `${backendBaseUrl}/vehicle-tax-documents/:path*`,
       },
+      // Profile avatar upload proxy
+      {
+        source: '/api/profile/avatar/:path*',
+        destination: `${backendBaseUrl}/profile/avatar/:path*`,
+      },
       // Uploads proxy
       {
         source: '/uploads/:path*',

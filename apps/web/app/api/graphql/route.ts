@@ -40,6 +40,44 @@ const getBackendUrl = () => {
 
 const GRAPHQL_URL = getBackendUrl();
 
+const getRequestHostname = (request: NextRequest): string => {
+    const hostHeader = request.headers.get('host') || '';
+    return hostHeader.split(':')[0]?.trim().toLowerCase() || '';
+};
+
+const rewriteSetCookieHeader = (cookie: string, request: NextRequest): string => {
+    const requestHostname = getRequestHostname(request);
+    if (!cookie) return cookie;
+
+    const backendHostname = (() => {
+        try {
+            return new URL(GRAPHQL_URL).hostname.toLowerCase();
+        } catch {
+            return '';
+        }
+    })();
+
+    const isLocalHostname =
+        requestHostname === 'localhost' ||
+        requestHostname === '127.0.0.1' ||
+        requestHostname.endsWith('.localhost');
+
+    let rewrittenCookie = cookie
+        .replace(/domain=localhost:8080;/gi, 'Domain=localhost;')
+        .replace(/domain=127\.0\.0\.1:8080;/gi, 'Domain=127.0.0.1;');
+
+    if (isLocalHostname) {
+        // Host-only cookies work across localhost and 127.0.0.1 dev flows.
+        return rewrittenCookie.replace(/;\s*domain=[^;]+/gi, '');
+    }
+
+    if (requestHostname && backendHostname && requestHostname !== backendHostname) {
+        rewrittenCookie = rewrittenCookie.replace(/domain=[^;]+/gi, `Domain=${requestHostname}`);
+    }
+
+    return rewrittenCookie;
+};
+
 type GraphQLBody = {
     operationName?: string;
     query?: string;
@@ -207,8 +245,9 @@ export async function POST(request: NextRequest) {
             if (cookies && cookies.length > 0) {
                 console.log(`📤 [GraphQL Proxy] Forwarding ${cookies.length} Set-Cookie header(s) from backend`);
                 cookies.forEach((cookie: string, index: number) => {
-                    console.log(`   🍪 Cookie ${index + 1}:`, cookie.substring(0, 100) + (cookie.length > 100 ? '...' : ''));
-                    nextResponse.headers.append('set-cookie', cookie);
+                    const rewrittenCookie = rewriteSetCookieHeader(cookie, request);
+                    console.log(`   🍪 Cookie ${index + 1}:`, rewrittenCookie.substring(0, 100) + (rewrittenCookie.length > 100 ? '...' : ''));
+                    nextResponse.headers.append('set-cookie', rewrittenCookie);
                 });
             } else {
                 console.log('⚠️  [GraphQL Proxy] No Set-Cookie headers received from backend');
@@ -217,8 +256,9 @@ export async function POST(request: NextRequest) {
             // Fallback for older environments
             const setCookieHeader = response.headers.get('set-cookie');
             if (setCookieHeader) {
-                console.log('📤 [GraphQL Proxy] Forwarding Set-Cookie header (fallback method):', setCookieHeader.substring(0, 100));
-                nextResponse.headers.set('set-cookie', setCookieHeader);
+                const rewrittenCookie = rewriteSetCookieHeader(setCookieHeader, request);
+                console.log('📤 [GraphQL Proxy] Forwarding Set-Cookie header (fallback method):', rewrittenCookie.substring(0, 100));
+                nextResponse.headers.set('set-cookie', rewrittenCookie);
             } else {
                 console.log('⚠️  [GraphQL Proxy] No Set-Cookie headers received from backend (fallback method)');
             }
@@ -289,7 +329,7 @@ export async function GET(request: NextRequest) {
 
         const setCookieHeader = response.headers.get('set-cookie');
         if (setCookieHeader) {
-            nextResponse.headers.set('set-cookie', setCookieHeader);
+            nextResponse.headers.set('set-cookie', rewriteSetCookieHeader(setCookieHeader, request));
         }
 
         return nextResponse;

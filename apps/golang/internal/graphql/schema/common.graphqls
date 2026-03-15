@@ -46,6 +46,16 @@ enum UserRole {
 }
 
 """
+Mandor Type distinguishes operational specialization for mandor users.
+"""
+enum MandorType {
+  "Mandor responsible for harvest workflows"
+  PANEN
+  "Mandor responsible for maintenance workflows"
+  PERAWATAN
+}
+
+"""
 Platform Type represents the client platform accessing the API.
 """
 enum PlatformType {

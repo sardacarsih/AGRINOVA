@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../../../../approval/domain/entities/approval_item.dart';
 import '../../../../../monitoring/data/repositories/monitoring_repository.dart';
 import '../../../../../monitoring/presentation/blocs/monitoring_bloc.dart';
@@ -59,12 +60,12 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
 
   void _requestMonitoring({bool showLoader = true}) {
     context.read<MonitoringBloc>().add(
-          MonitoringDataRequested(
-            period: _selectedPeriodCode,
-            date: _requestDate,
-            showLoader: showLoader,
-          ),
-        );
+      MonitoringDataRequested(
+        period: _selectedPeriodCode,
+        date: _requestDate,
+        showLoader: showLoader,
+      ),
+    );
   }
 
   void _consumeBlocState(MonitoringState state) {
@@ -126,8 +127,11 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
     }
 
     final monthStart = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
-    final monthEndExclusive =
-        DateTime(_selectedMonth.year, _selectedMonth.month + 1, 1);
+    final monthEndExclusive = DateTime(
+      _selectedMonth.year,
+      _selectedMonth.month + 1,
+      1,
+    );
 
     return _DateRange(
       type: _PeriodType.month,
@@ -195,8 +199,9 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
       }
     }
 
-    final averageTon =
-        totalSubmissions > 0 ? totalVolumeTon / totalSubmissions : 0.0;
+    final averageTon = totalSubmissions > 0
+        ? totalVolumeTon / totalSubmissions
+        : 0.0;
     final approvalRate = totalSubmissions > 0
         ? (approvedItems.length / totalSubmissions) * 100
         : 0.0;
@@ -214,7 +219,9 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
   }
 
   List<_ChartPoint> _buildChartPoints(
-      _DateRange range, List<ApprovalItem> items) {
+    _DateRange range,
+    List<ApprovalItem> items,
+  ) {
     if (range.type == _PeriodType.today) {
       return List.generate(8, (index) {
         final bucketStart = range.start.add(Duration(hours: index * 3));
@@ -243,13 +250,16 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
 
     while (bucketStart.isBefore(range.endExclusive)) {
       final rawEnd = bucketStart.add(const Duration(days: 7));
-      final bucketEnd =
-          rawEnd.isBefore(range.endExclusive) ? rawEnd : range.endExclusive;
+      final bucketEnd = rawEnd.isBefore(range.endExclusive)
+          ? rawEnd
+          : range.endExclusive;
 
-      points.add(_ChartPoint(
-        label: 'M$weekIndex',
-        valueTon: _sumWeightInRange(items, bucketStart, bucketEnd),
-      ));
+      points.add(
+        _ChartPoint(
+          label: 'M$weekIndex',
+          valueTon: _sumWeightInRange(items, bucketStart, bucketEnd),
+        ),
+      );
 
       weekIndex += 1;
       bucketStart = bucketEnd;
@@ -282,10 +292,7 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
     }
     final rows = grouped.entries.map((entry) {
       final percent = maxVolume <= 0 ? 0.0 : (entry.value / maxVolume) * 100;
-      return _BlockPerformanceItem(
-        blockName: entry.key,
-        percentage: percent,
-      );
+      return _BlockPerformanceItem(blockName: entry.key, percentage: percent);
     }).toList();
 
     rows.sort((a, b) => b.percentage.compareTo(a.percentage));
@@ -397,10 +404,7 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
     }
 
     if (_errorMessage != null && _viewData.totalSubmissions == 0) {
-      return SizedBox(
-        height: 320,
-        child: _buildErrorState(),
-      );
+      return SizedBox(height: 320, child: _buildErrorState());
     }
 
     return Column(
@@ -422,23 +426,39 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
   }
 
   Widget _buildSliverAppBar() {
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: AsistenTheme.primaryBlue,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: Colors.white,
+    );
     return SliverAppBar(
       expandedHeight: 120,
       pinned: true,
       automaticallyImplyLeading: false,
-      backgroundColor: AsistenTheme.primaryBlue,
+      backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+          ? Colors.transparent
+          : navbarBg,
+      foregroundColor: navbarFg,
       flexibleSpace: FlexibleSpaceBar(
-        title: const Text(
+        title: Text(
           'Monitoring Divisi',
           style: TextStyle(
-            color: Colors.white,
+            color: navbarFg,
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
         ),
         background: Container(
-          decoration: const BoxDecoration(
-            gradient: AsistenTheme.headerGradient,
+          decoration: BoxDecoration(
+            color: RuntimeThemeSlotResolver.hasNavbarBackground
+                ? navbarBg
+                : null,
+            gradient: RuntimeThemeSlotResolver.hasNavbarBackground
+                ? null
+                : AsistenTheme.headerGradient,
           ),
           child: SafeArea(
             child: Padding(
@@ -467,7 +487,7 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
       'September',
       'Oktober',
       'November',
-      'Desember'
+      'Desember',
     ];
     final monthName = months[_selectedMonth.month - 1];
 
@@ -508,21 +528,45 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
   }
 
   void _showMonthPicker() {
+    final modalBg = RuntimeThemeSlotResolver.modalBackground(
+      context,
+      fallback:
+          Theme.of(context).bottomSheetTheme.backgroundColor ??
+          Theme.of(context).colorScheme.surface,
+    );
+    final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+      context,
+      fallback: AsistenTheme.primaryBlue,
+    );
+    final sidebarBg = RuntimeThemeSlotResolver.sidebarBackground(
+      context,
+      fallback: Colors.grey[100]!,
+    );
+    final sidebarText = RuntimeThemeSlotResolver.sidebarForeground(
+      context,
+      fallback: Theme.of(context).colorScheme.onSurface,
+    );
     showModalBottomSheet(
       context: context,
+      backgroundColor: modalBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
         return Container(
+          color: modalBg,
           padding: const EdgeInsets.all(20),
           height: 300,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Pilih Bulan',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: sidebarText,
+                ),
               ),
               const SizedBox(height: 16),
               Expanded(
@@ -547,7 +591,7 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
                       'Sep',
                       'Okt',
                       'Nov',
-                      'Des'
+                      'Des',
                     ];
 
                     final isSelected = index + 1 == _selectedMonth.month;
@@ -555,8 +599,10 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
                     return InkWell(
                       onTap: () {
                         setState(() {
-                          _selectedMonth =
-                              DateTime(_selectedMonth.year, index + 1);
+                          _selectedMonth = DateTime(
+                            _selectedMonth.year,
+                            index + 1,
+                          );
                         });
                         Navigator.pop(context);
                         if (_selectedPeriodIndex == 2) {
@@ -566,16 +612,16 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
                         decoration: BoxDecoration(
-                          color: isSelected
-                              ? AsistenTheme.primaryBlue
-                              : Colors.grey[100],
+                          color: isSelected ? modalAccent : sidebarBg,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         alignment: Alignment.center,
                         child: Text(
                           shortMonths[index],
                           style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.grey[800],
+                            color: isSelected
+                                ? Colors.white
+                                : sidebarText.withValues(alpha: 0.9),
                             fontWeight: isSelected
                                 ? FontWeight.bold
                                 : FontWeight.normal,
@@ -598,9 +644,7 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: const BoxDecoration(
-        gradient: AsistenTheme.headerGradient,
-      ),
+      decoration: const BoxDecoration(gradient: AsistenTheme.headerGradient),
       child: Row(
         children: periods.asMap().entries.map((entry) {
           final isSelected = entry.key == _selectedPeriodIndex;
@@ -621,17 +665,15 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
                   decoration: BoxDecoration(
                     color: isSelected ? Colors.white : Colors.transparent,
                     borderRadius: BorderRadius.circular(25),
-                    border: Border.all(
-                      color: Colors.white,
-                      width: 1.5,
-                    ),
+                    border: Border.all(color: Colors.white, width: 1.5),
                   ),
                   child: Text(
                     entry.value,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color:
-                          isSelected ? AsistenTheme.primaryBlue : Colors.white,
+                      color: isSelected
+                          ? AsistenTheme.primaryBlue
+                          : Colors.white,
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
@@ -708,7 +750,9 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
                           axisNameWidget: Text(
                             'Volume (ton)',
                             style: TextStyle(
-                                fontSize: 10, color: Colors.grey[600]),
+                              fontSize: 10,
+                              color: Colors.grey[600],
+                            ),
                           ),
                           sideTitles: SideTitles(
                             showTitles: true,
@@ -718,7 +762,9 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
                               return Text(
                                 value.toStringAsFixed(1),
                                 style: TextStyle(
-                                    fontSize: 10, color: Colors.grey[600]),
+                                  fontSize: 10,
+                                  color: Colors.grey[600],
+                                ),
                               );
                             },
                           ),
@@ -754,9 +800,11 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
                           ),
                         ),
                         rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false)),
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
                         topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false)),
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
                       ),
                       borderData: FlBorderData(show: false),
                       minX: 0,
@@ -770,8 +818,12 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
                           spots: points
                               .asMap()
                               .entries
-                              .map((entry) => FlSpot(
-                                  entry.key.toDouble(), entry.value.valueTon))
+                              .map(
+                                (entry) => FlSpot(
+                                  entry.key.toDouble(),
+                                  entry.value.valueTon,
+                                ),
+                              )
                               .toList(),
                           isCurved: true,
                           color: AsistenTheme.primaryBlue,
@@ -793,8 +845,9 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
                             gradient: LinearGradient(
                               colors: [
                                 AsistenTheme.primaryBlue.withValues(alpha: 0.3),
-                                AsistenTheme.primaryBlue
-                                    .withValues(alpha: 0.05),
+                                AsistenTheme.primaryBlue.withValues(
+                                  alpha: 0.05,
+                                ),
                               ],
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
@@ -809,7 +862,9 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
                     top: 30,
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
                         color: AsistenTheme.primaryBlue,
                         borderRadius: BorderRadius.circular(16),
@@ -930,10 +985,7 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
             const SizedBox(height: 4),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 10, color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
           ],
@@ -943,11 +995,7 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
   }
 
   Widget _buildDivider() {
-    return Container(
-      width: 1,
-      height: 40,
-      color: Colors.grey[200],
-    );
+    return Container(width: 1, height: 40, color: Colors.grey[200]);
   }
 
   Widget _buildBlockPerformanceWidget() {
@@ -1072,9 +1120,7 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
           Container(
             padding: const EdgeInsets.symmetric(vertical: 8),
             decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: Colors.grey[200]!),
-              ),
+              border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
             ),
             child: Row(
               children: [
@@ -1136,11 +1182,9 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
             )
           else
             ...mandors.asMap().entries.map(
-                  (entry) => _buildMandorRow(
-                    rank: entry.key + 1,
-                    item: entry.value,
-                  ),
-                ),
+              (entry) =>
+                  _buildMandorRow(rank: entry.key + 1, item: entry.value),
+            ),
         ],
       ),
     );
@@ -1150,9 +1194,7 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[100]!),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey[100]!)),
       ),
       child: Row(
         children: [
@@ -1160,20 +1202,14 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
             width: 40,
             child: Text(
               rank.toString(),
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
             ),
           ),
           Expanded(
             flex: 2,
             child: Text(
               item.name,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
             ),
           ),
           Expanded(
@@ -1220,12 +1256,7 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
             color: AsistenTheme.pendingOrange,
           ),
           const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: AsistenTheme.bodySmall,
-            ),
-          ),
+          Expanded(child: Text(message, style: AsistenTheme.bodySmall)),
         ],
       ),
     );
@@ -1238,8 +1269,11 @@ class _AsistenMonitoringTabState extends State<AsistenMonitoringTab> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.cloud_off_rounded,
-                size: 56, color: AsistenTheme.textMuted),
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 56,
+              color: AsistenTheme.textMuted,
+            ),
             const SizedBox(height: 10),
             Text(
               'Monitoring gagal dimuat',
@@ -1322,10 +1356,7 @@ class _ChartPoint {
   final String label;
   final double valueTon;
 
-  const _ChartPoint({
-    required this.label,
-    required this.valueTon,
-  });
+  const _ChartPoint({required this.label, required this.valueTon});
 }
 
 class _BlockPerformanceItem {
@@ -1356,7 +1387,5 @@ class _MandorAggregate {
   int approved = 0;
   double totalTon = 0;
 
-  _MandorAggregate({
-    required this.name,
-  });
+  _MandorAggregate({required this.name});
 }

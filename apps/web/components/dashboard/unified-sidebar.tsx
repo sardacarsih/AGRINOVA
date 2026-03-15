@@ -35,7 +35,8 @@ import {
   UserCog,
   Menu,
   LayoutGrid,
-  Link2
+  Link2,
+  Palette
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -55,7 +56,7 @@ const roleBasedNavigation = {
     ],
     harvest: [
       { name: "Record Sync Mobile", href: "/harvest", icon: ClipboardList, current: false },
-      { name: "Histori Panen", href: "/harvest/history", icon: Clock, current: false },
+      { name: "Budget Blok", href: "/budget-blok", icon: LayoutGrid, current: false },
     ]
   },
   ASISTEN: {
@@ -64,12 +65,15 @@ const roleBasedNavigation = {
     ],
     harvest: [
       { name: "Approval Panen", href: "/approvals", icon: ClipboardList, current: false },
+      { name: "Tim", href: "/tim", icon: Users, current: false },
       { name: "Timbangan", href: "/timbangan", icon: Scale, current: false },
       { name: "Grading", href: "/grading", icon: Star, current: false },
     ],
     management: [
+      { name: "Struktur Organisasi", href: "/struktur-organisasi", icon: Users, current: false },
       { name: "Karyawan", href: "/users", icon: Users, current: false },
       { name: "Laporan Panen", href: "/harvest", icon: FileText, current: false },
+      { name: "Budget Blok", href: "/budget-blok", icon: LayoutGrid, current: false },
     ]
   },
   MANAGER: {
@@ -78,13 +82,15 @@ const roleBasedNavigation = {
     ],
     operations: [
       { name: "Manajemen Panen", href: "/harvest", icon: ClipboardList, current: false },
-      { name: "Tim Estate", href: "/tim-estate", icon: Users, current: false },
+      { name: "Tim", href: "/tim", icon: Users, current: false },
       { name: "Timbangan", href: "/timbangan", icon: Scale, current: false },
       { name: "Grading", href: "/grading", icon: Star, current: false },
       { name: "Gate Check", href: "/gate-check", icon: Shield, current: false },
     ],
     management: [
+      { name: "Struktur Organisasi", href: "/struktur-organisasi", icon: Users, current: false },
       { name: "Budget Divisi", href: "/budget-divisi", icon: Users, current: false },
+      { name: "Budget Blok", href: "/budget-blok", icon: LayoutGrid, current: false },
       { name: "Laporan", href: "/reports", icon: BarChart3, current: false },
       { name: "Analytics", href: "/analytics", icon: BarChart3, current: false },
     ]
@@ -95,11 +101,13 @@ const roleBasedNavigation = {
     ],
     oversight: [
       { name: "Monitoring Panen", href: "/harvest", icon: ClipboardList, current: false },
+      { name: "Tim", href: "/tim", icon: Users, current: false },
       { name: "Timbangan", href: "/timbangan", icon: Scale, current: false },
       { name: "Grading", href: "/grading", icon: Star, current: false },
       { name: "Gate Check", href: "/gate-check", icon: Shield, current: false },
     ],
     reporting: [
+      { name: "Struktur Organisasi", href: "/struktur-organisasi", icon: Users, current: false },
       { name: "Laporan Regional", href: "/reports", icon: FileText, current: false },
       { name: "Analitik Regional", href: "/analytics", icon: BarChart3, current: false },
     ]
@@ -165,6 +173,7 @@ const roleBasedNavigation = {
       { name: "API Management", href: "/api-management", icon: Lock, current: false },
       { name: "Roles & Permissions", href: "/rbac-management", icon: ShieldCheck, current: false },
       { name: "Management Sessions", href: "/management-sessions", icon: Clock, current: false },
+      { name: "Theme Campaigns", href: "/theme-campaigns", icon: Palette, current: false },
       { name: "Management Token", href: "/management-token", icon: Lock, current: false },
     ]
   }
@@ -228,13 +237,32 @@ const sectionConfig = {
 
 interface SidebarProps {
   userRole: string
+  mandorType?: string
   userName: string
   companyName?: string
   isCollapsed?: boolean
   onToggleCollapse?: () => void
 }
 
-export function UnifiedSidebar({ userRole, userName: _userName, companyName, isCollapsed = false, onToggleCollapse }: SidebarProps) {
+const getMandorNavigation = (mandorType?: string) => {
+  const normalizedMandorType = (mandorType || '').trim().toUpperCase().replace(/[\s-]+/g, '_')
+  const primaryOperation =
+    normalizedMandorType === 'PERAWATAN'
+      ? { name: 'Perawatan Lapangan', href: '/perawatan', icon: ClipboardList, current: false }
+      : { name: 'Record Sync Mobile', href: '/harvest', icon: ClipboardList, current: false }
+
+  return {
+    main: [
+      { name: 'Dashboard', href: '/', icon: Home, current: false },
+    ],
+    operations: [
+      primaryOperation,
+      { name: 'Budget Blok', href: '/budget-blok', icon: LayoutGrid, current: false },
+    ],
+  }
+}
+
+export function UnifiedSidebar({ userRole, mandorType, userName: _userName, companyName, isCollapsed = false, onToggleCollapse }: SidebarProps) {
   const pathname = usePathname()
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({})
   const normalizedPathname = useMemo(() => {
@@ -247,7 +275,10 @@ export function UnifiedSidebar({ userRole, userName: _userName, companyName, isC
 
   const normalizedRole = userRole.trim().toUpperCase().replace(/[\s-]+/g, "_")
   const isCompanyAdmin = normalizedRole === "COMPANY_ADMIN"
-  const roleConfig = roleBasedNavigation[normalizedRole as keyof typeof roleBasedNavigation]
+  const roleConfig =
+    normalizedRole === "MANDOR"
+      ? getMandorNavigation(mandorType)
+      : roleBasedNavigation[normalizedRole as keyof typeof roleBasedNavigation]
 
   if (!roleConfig) {
     console.warn(`No navigation configuration found for role: ${userRole} (normalized: ${normalizedRole})`)
@@ -277,8 +308,7 @@ export function UnifiedSidebar({ userRole, userName: _userName, companyName, isC
       return false
     }
 
-    // Prefer the most specific matching path to avoid multiple active items,
-    // e.g. "/harvest" and "/harvest/history" being active at the same time.
+    // Prefer the most specific matching path to avoid multiple active items.
     const hasMoreSpecificMatch = sectionItems.some((item) => {
       const itemHref = normalizeHref(item.href)
       if (itemHref === normalizedHref) return false

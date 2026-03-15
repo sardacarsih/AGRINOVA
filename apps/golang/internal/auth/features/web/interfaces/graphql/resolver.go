@@ -51,7 +51,7 @@ func (r *Resolver) WebLogin(ctx context.Context, input auth.WebLoginInput) (*aut
 	return &auth.WebLoginPayload{
 		Success:     true,
 		SessionID:   &result.SessionID,
-		User:        mapUserToGraphQL(result.User),
+		User:        mapUserToGraphQL(result.User, result.Assignments),
 		Assignments: mapAssignmentsToUserAssignments(result.Assignments),
 		Message:     "Login berhasil",
 	}, nil
@@ -171,7 +171,7 @@ func (r *Resolver) ConsumeWebQRLogin(ctx context.Context, input auth.WebQRConsum
 	return &auth.WebLoginPayload{
 		Success:     true,
 		SessionID:   &result.SessionID,
-		User:        mapUserToGraphQL(result.User),
+		User:        mapUserToGraphQL(result.User, result.Assignments),
 		Assignments: mapAssignmentsToUserAssignments(result.Assignments),
 		Message:     "Login QR berhasil",
 	}, nil
@@ -194,27 +194,27 @@ func (r *Resolver) WebLogout(ctx context.Context) (bool, error) {
 
 // Me returns current authenticated user
 func (r *Resolver) Me(ctx context.Context) (*auth.User, error) {
-	sessionID := extractSessionIDFromContext(ctx)
-	if sessionID == "" {
+	sessionToken := extractSessionTokenFromContext(ctx)
+	if sessionToken == "" {
 		return nil, ErrMissingSessionID
 	}
 
-	result, err := r.webAuthService.GetMe(ctx, sessionID)
+	result, err := r.webAuthService.GetMe(ctx, sessionToken)
 	if err != nil {
 		return nil, mapWebAuthError(err)
 	}
 
-	return mapUserToGraphQL(result.User), nil
+	return mapUserToGraphQL(result.User, result.Assignments), nil
 }
 
 // CurrentUser returns current user with full company context
 func (r *Resolver) CurrentUser(ctx context.Context) (*auth.WebLoginPayload, error) {
-	sessionID := extractSessionIDFromContext(ctx)
-	if sessionID == "" {
+	sessionToken := extractSessionTokenFromContext(ctx)
+	if sessionToken == "" {
 		return nil, ErrMissingSessionID
 	}
 
-	result, err := r.webAuthService.GetMe(ctx, sessionID)
+	result, err := r.webAuthService.GetMe(ctx, sessionToken)
 	if err != nil {
 		return nil, mapWebAuthError(err)
 	}
@@ -222,7 +222,7 @@ func (r *Resolver) CurrentUser(ctx context.Context) (*auth.WebLoginPayload, erro
 	return &auth.WebLoginPayload{
 		Success:     true,
 		SessionID:   &result.SessionID,
-		User:        mapUserToGraphQL(result.User),
+		User:        mapUserToGraphQL(result.User, result.Assignments),
 		Assignments: mapAssignmentsToUserAssignments(result.Assignments),
 		Message:     "OK",
 	}, nil
@@ -298,7 +298,7 @@ func mapQRSessionStatus(status webDomain.QRLoginStatus) auth.WebQRSessionStatus 
 // Type Mapping Functions
 // =============================================================================
 
-func mapUserToGraphQL(user sharedDomain.UserDTO) *auth.User {
+func mapUserToGraphQL(user sharedDomain.UserDTO, assignments []sharedDomain.AssignmentDTO) *auth.User {
 	return &auth.User{
 		ID:          user.ID,
 		Username:    user.Username,
@@ -308,7 +308,71 @@ func mapUserToGraphQL(user sharedDomain.UserDTO) *auth.User {
 		Avatar:      user.Avatar,
 		Role:        auth.UserRole(user.Role),
 		IsActive:    user.IsActive,
+		Assignments: mapAssignmentsToGraphQLUserAssignments(user, assignments),
+		ManagerID:   user.ManagerID,
 	}
+}
+
+func mapCompanyDTOToGraphQL(company *sharedDomain.CompanyDTO) *master.Company {
+	if company == nil {
+		return nil
+	}
+
+	return &master.Company{
+		ID:      company.ID,
+		Name:    company.Name,
+		LogoURL: company.LogoURL,
+		Status:  master.CompanyStatus(company.Status),
+		Address: company.Address,
+	}
+}
+
+func mapAssignmentsToGraphQLUserAssignments(user sharedDomain.UserDTO, assignments []sharedDomain.AssignmentDTO) []auth.UserCompanyAssignment {
+	companyAssignments := make([]auth.UserCompanyAssignment, 0)
+	seenCompanyIDs := make(map[string]int)
+
+	for _, assignment := range assignments {
+		if assignment.CompanyID == "" {
+			continue
+		}
+
+		if index, exists := seenCompanyIDs[assignment.CompanyID]; exists {
+			if assignment.IsActive && !companyAssignments[index].IsActive {
+				companyAssignments[index].IsActive = true
+			}
+			if companyAssignments[index].Company == nil && assignment.Company != nil {
+				companyAssignments[index].Company = mapCompanyDTOToGraphQL(assignment.Company)
+			}
+			continue
+		}
+
+		companyAssignment := auth.UserCompanyAssignment{
+			ID:        assignment.ID,
+			UserID:    user.ID,
+			CompanyID: assignment.CompanyID,
+			IsActive:  assignment.IsActive,
+		}
+		if assignment.Company != nil {
+			companyAssignment.Company = mapCompanyDTOToGraphQL(assignment.Company)
+		}
+
+		seenCompanyIDs[assignment.CompanyID] = len(companyAssignments)
+		companyAssignments = append(companyAssignments, companyAssignment)
+	}
+
+	if len(companyAssignments) == 0 && user.CompanyID != "" {
+		companyAssignment := auth.UserCompanyAssignment{
+			UserID:    user.ID,
+			CompanyID: user.CompanyID,
+			IsActive:  true,
+		}
+		if user.Company != nil {
+			companyAssignment.Company = mapCompanyDTOToGraphQL(user.Company)
+		}
+		companyAssignments = append(companyAssignments, companyAssignment)
+	}
+
+	return companyAssignments
 }
 
 func mapAssignmentsToUserAssignments(assignments []sharedDomain.AssignmentDTO) *auth.UserAssignments {
@@ -328,9 +392,10 @@ func mapAssignmentsToUserAssignments(assignments []sharedDomain.AssignmentDTO) *
 	for _, assignment := range assignments {
 		if assignment.Company != nil && !companyMap[assignment.Company.ID] {
 			companies = append(companies, &master.Company{
-				ID:     assignment.Company.ID,
-				Name:   assignment.Company.Name,
-				Status: master.CompanyStatus(assignment.Company.Status),
+				ID:      assignment.Company.ID,
+				Name:    assignment.Company.Name,
+				LogoURL: assignment.Company.LogoURL,
+				Status:  master.CompanyStatus(assignment.Company.Status),
 			})
 			companyMap[assignment.Company.ID] = true
 		}
@@ -413,6 +478,10 @@ func getClientUserAgent(ctx context.Context) string {
 }
 
 func extractSessionIDFromContext(ctx context.Context) string {
+	if sessionID, ok := ctx.Value("session_id").(string); ok && sessionID != "" {
+		return sessionID
+	}
+
 	httpCtx := ctx.Value("http")
 	if httpCtx == nil {
 		return ""
@@ -428,15 +497,22 @@ func extractSessionIDFromContext(ctx context.Context) string {
 		return ""
 	}
 
-	cookie, err := request.Cookie("session_id")
-	if err != nil {
-		return ""
+	cookieNames := []string{"session_id", "auth-session"}
+	for _, cookieName := range cookieNames {
+		cookie, err := request.Cookie(cookieName)
+		if err == nil && cookie.Value != "" {
+			return cookie.Value
+		}
 	}
 
-	return cookie.Value
+	return ""
 }
 
 func extractSessionTokenFromContext(ctx context.Context) string {
+	if sessionToken, ok := ctx.Value("session_token").(string); ok && sessionToken != "" {
+		return sessionToken
+	}
+
 	httpCtx := ctx.Value("http")
 	if httpCtx == nil {
 		return ""
@@ -452,12 +528,15 @@ func extractSessionTokenFromContext(ctx context.Context) string {
 		return ""
 	}
 
-	cookie, err := request.Cookie("session_token")
-	if err != nil {
-		return ""
+	cookieNames := []string{"session_id", "auth-session", "session_token"}
+	for _, cookieName := range cookieNames {
+		cookie, err := request.Cookie(cookieName)
+		if err == nil && cookie.Value != "" {
+			return cookie.Value
+		}
 	}
 
-	return cookie.Value
+	return ""
 }
 
 // =============================================================================

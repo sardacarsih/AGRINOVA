@@ -7,6 +7,7 @@ import '../../../../../../core/di/dependency_injection.dart';
 import '../../../../../../core/services/connectivity_service.dart';
 import '../../../../../../core/services/mandor_master_sync_service.dart';
 import '../../../../../../core/services/harvest_sync_service.dart';
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../../../../../core/utils/sync_error_message_helper.dart';
 import '../mandor_components.dart';
 
@@ -78,13 +79,13 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
       final connectivityService = sl<ConnectivityService>();
       _isOnline = connectivityService.isOnline;
 
-      _networkStatusSubscription =
-          connectivityService.networkStatusStream.listen((status) {
-        if (!mounted) return;
-        setState(() {
-          _isOnline = status == NetworkStatus.online;
-        });
-      });
+      _networkStatusSubscription = connectivityService.networkStatusStream
+          .listen((status) {
+            if (!mounted) return;
+            setState(() {
+              _isOnline = status == NetworkStatus.online;
+            });
+          });
     } catch (e) {
       _logger.w('Failed to subscribe connectivity status: $e');
     }
@@ -115,9 +116,19 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = MandorTheme.of(context);
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: themeColors.cardBackground,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: themeColors.headingColor,
+    );
+
     final content = Container(
       decoration: BoxDecoration(
-        gradient: MandorTheme.darkGradient,
+        gradient: MandorTheme.backgroundGradientFor(context),
       ),
       child: RefreshIndicator(
         onRefresh: _syncAll,
@@ -129,19 +140,20 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Sync All Card
-              _buildSyncAllCard(),
+              _buildSyncAllCard(context),
 
               const SizedBox(height: 24),
 
               // Individual Sync Options
               Text(
                 'Sinkronisasi Manual',
-                style: MandorTheme.headingSmall,
+                style: MandorTheme.headingSmallFor(context),
               ),
               const SizedBox(height: 12),
 
               // Master Data Sync Card
               _buildSyncCard(
+                context: context,
                 title: 'Data Master',
                 subtitle: 'Divisi, Karyawan & Blok dari server',
                 icon: Icons.people_outline_rounded,
@@ -155,6 +167,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
 
               // Harvest Upload Sync Card
               _buildSyncCard(
+                context: context,
                 title: 'Upload Panen',
                 subtitle: 'Kirim data panen ke server',
                 icon: Icons.cloud_upload_outlined,
@@ -168,6 +181,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
 
               // Pull Approved Harvests Card
               _buildSyncCard(
+                context: context,
                 title: 'Update Status Approval',
                 subtitle: 'Ambil status approval dari server',
                 icon: Icons.cloud_download_outlined,
@@ -180,12 +194,12 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
               const SizedBox(height: 24),
 
               // Last Sync Info
-              if (_lastSyncTime != null) _buildLastSyncInfo(),
+              if (_lastSyncTime != null) _buildLastSyncInfo(context),
 
               const SizedBox(height: 24),
 
               // Sync Info Card
-              _buildInfoCard(),
+              _buildInfoCard(context),
             ],
           ),
         ),
@@ -197,23 +211,29 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
     }
 
     return Scaffold(
-      backgroundColor: MandorTheme.gray900,
+      backgroundColor: themeColors.scaffoldBackground,
       appBar: AppBar(
         title: const Text(
           'Sinkronisasi Data',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
-        backgroundColor: MandorTheme.darkGreen,
-        foregroundColor: Colors.white,
+        flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Container(decoration: BoxDecoration(color: navbarBg))
+            : null,
+        backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Colors.transparent
+            : navbarBg,
+        foregroundColor: navbarFg,
         elevation: 0,
       ),
       body: content,
     );
   }
 
-  Widget _buildSyncAllCard() {
+  Widget _buildSyncAllCard(BuildContext context) {
+    final themeColors = MandorTheme.of(context);
     final connectionColor = _isStatusLoading
-        ? MandorTheme.gray500
+        ? themeColors.bodyTertiary
         : (_isOnline ? MandorTheme.forestGreen : MandorTheme.coralRed);
     final connectionLabel = _isStatusLoading
         ? 'Mengecek koneksi...'
@@ -265,8 +285,9 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
                               padding: EdgeInsets.all(16),
                               child: CircularProgressIndicator(
                                 strokeWidth: 2.5,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
                               ),
                             )
                           : const Icon(
@@ -366,6 +387,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
   }
 
   Widget _buildSyncCard({
+    required BuildContext context,
     required String title,
     required String subtitle,
     required IconData icon,
@@ -374,12 +396,16 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
     required String? result,
     required VoidCallback onSync,
   }) {
+    final themeColors = MandorTheme.of(context);
+
     return Container(
       decoration: BoxDecoration(
-        color: MandorTheme.gray800,
+        color: themeColors.cardBackground,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: result != null ? color.withValues(alpha: 0.3) : Colors.transparent,
+          color: result != null
+              ? color.withValues(alpha: 0.3)
+              : themeColors.borderColor,
           width: 1,
         ),
       ),
@@ -407,8 +433,9 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
                               padding: const EdgeInsets.all(10),
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(color),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  color,
+                                ),
                               ),
                             )
                           : Icon(icon, color: color, size: 22),
@@ -420,14 +447,15 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
                         children: [
                           Text(
                             title,
-                            style: MandorTheme.bodyLarge.copyWith(
+                            style: MandorTheme.bodyLargeFor(context).copyWith(
                               fontWeight: FontWeight.w600,
+                              color: themeColors.headingColor,
                             ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             subtitle,
-                            style: MandorTheme.bodySmall,
+                            style: MandorTheme.bodySmallFor(context),
                           ),
                         ],
                       ),
@@ -457,8 +485,12 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: MandorTheme.gray700,
+                      color: themeColors.surfaceOverlay,
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: themeColors.borderColor,
+                        width: 1,
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -467,7 +499,8 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
                                   result.contains('success')
                               ? Icons.check_circle_outline_rounded
                               : Icons.info_outline_rounded,
-                          color: result.contains('berhasil') ||
+                          color:
+                              result.contains('berhasil') ||
                                   result.contains('success')
                               ? MandorTheme.forestGreen
                               : MandorTheme.amberOrange,
@@ -477,8 +510,9 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
                         Expanded(
                           child: Text(
                             result,
-                            style:
-                                MandorTheme.bodySmall.copyWith(fontSize: 12),
+                            style: MandorTheme.bodySmallFor(
+                              context,
+                            ).copyWith(fontSize: 12),
                           ),
                         ),
                       ],
@@ -493,43 +527,43 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
     );
   }
 
-  Widget _buildLastSyncInfo() {
+  Widget _buildLastSyncInfo(BuildContext context) {
+    final themeColors = MandorTheme.of(context);
     final timeAgo = _getTimeAgo(_lastSyncTime!);
 
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: MandorTheme.gray800.withValues(alpha: 0.5),
+        color: themeColors.surfaceOverlay,
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: themeColors.borderColor, width: 1),
       ),
       child: Row(
         children: [
           Icon(
             Icons.history_rounded,
-            color: MandorTheme.gray500,
+            color: themeColors.bodyTertiary,
             size: 18,
           ),
           const SizedBox(width: 10),
           Text(
             'Terakhir sync: $timeAgo',
-            style: MandorTheme.bodySmall.copyWith(
-              color: MandorTheme.gray400,
-            ),
+            style: MandorTheme.bodySmallFor(
+              context,
+            ).copyWith(color: themeColors.bodySecondary),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoCard() {
+  Widget _buildInfoCard(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: MandorTheme.skyBlue.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: MandorTheme.skyBlue.withValues(alpha: 0.3),
-        ),
+        border: Border.all(color: MandorTheme.skyBlue.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -544,7 +578,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
               const SizedBox(width: 8),
               Text(
                 'Informasi Sinkronisasi',
-                style: MandorTheme.bodyMedium.copyWith(
+                style: MandorTheme.bodyMediumFor(context).copyWith(
                   fontWeight: FontWeight.w600,
                   color: MandorTheme.skyBlue,
                 ),
@@ -552,17 +586,35 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
             ],
           ),
           const SizedBox(height: 12),
-          _buildInfoItem('Data Master', 'Diambil dari server ketika online'),
+          _buildInfoItem(
+            context,
+            'Data Master',
+            'Diambil dari server ketika online',
+          ),
           const SizedBox(height: 6),
-          _buildInfoItem('Upload Panen', 'Mengirim data panen lokal ke server'),
+          _buildInfoItem(
+            context,
+            'Upload Panen',
+            'Mengirim data panen lokal ke server',
+          ),
           const SizedBox(height: 6),
-          _buildInfoItem('Update Status', 'Mengambil status approval terbaru'),
+          _buildInfoItem(
+            context,
+            'Update Status',
+            'Mengambil status approval terbaru',
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildInfoItem(String title, String description) {
+  Widget _buildInfoItem(
+    BuildContext context,
+    String title,
+    String description,
+  ) {
+    final themeColors = MandorTheme.of(context);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -571,14 +623,14 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
           height: 6,
           margin: const EdgeInsets.only(top: 6, right: 8),
           decoration: BoxDecoration(
-            color: MandorTheme.gray500,
+            color: themeColors.bodyTertiary,
             shape: BoxShape.circle,
           ),
         ),
         Expanded(
           child: RichText(
             text: TextSpan(
-              style: MandorTheme.bodySmall,
+              style: MandorTheme.bodySmallFor(context),
               children: [
                 TextSpan(
                   text: '$title: ',
@@ -620,11 +672,34 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
       // 1. Sync master data
       await _syncMasterData();
 
-      // 2. Upload pending harvests
-      await _syncHarvestUpload();
+      // 2. Sync harvest transactions with service-layer orchestration
+      setState(() {
+        _isSyncingHarvest = true;
+        _isPullingUpdates = true;
+        _lastHarvestSyncResult = null;
+        _lastPullResult = null;
+      });
 
-      // 3. Pull approval updates
-      await _pullApprovalUpdates();
+      try {
+        final harvestSync = sl<HarvestSyncService>();
+        final syncResult = await harvestSync.syncNowWithResult();
+
+        setState(() {
+          _lastHarvestSyncResult = _buildHarvestPushSummary(
+            syncResult.pushResult,
+          );
+          _lastPullResult = syncResult.skippedImmediatePull
+              ? _buildSkippedPullSummary(syncResult.pushResult)
+              : _buildPullSummary(syncResult.pullResult!);
+        });
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isSyncingHarvest = false;
+            _isPullingUpdates = false;
+          });
+        }
+      }
 
       final failures = [
         _lastMasterSyncResult,
@@ -637,10 +712,7 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
         _notifySyncCompleted();
         _showSnackBar('Sinkronisasi selesai', isSuccess: true);
       } else {
-        _showSnackBar(
-          failures.first,
-          isSuccess: false,
-        );
+        _showSnackBar(failures.first, isSuccess: false);
       }
     } catch (e) {
       _logger.e('Full sync error: $e');
@@ -693,8 +765,8 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
     }
   }
 
-  Future<void> _syncHarvestUpload() async {
-    if (_isSyncingHarvest) return;
+  Future<bool> _syncHarvestUpload() async {
+    if (_isSyncingHarvest) return false;
 
     setState(() {
       _isSyncingHarvest = true;
@@ -705,25 +777,14 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
 
     try {
       final harvestSync = sl<HarvestSyncService>();
-      final pendingBefore = await harvestSync.getPendingSyncCount();
-      await harvestSync.syncNow();
-      final pendingAfter = await harvestSync.getPendingSyncCount();
-      final syncedCount =
-          (pendingBefore - pendingAfter).clamp(0, pendingBefore);
+      final pushResult = await harvestSync.pushLocalChangesWithResult();
 
       setState(() {
-        if (pendingBefore == 0) {
-          _lastHarvestSyncResult = 'Tidak ada data panen yang perlu dikirim';
-        } else if (syncedCount > 0) {
-          _lastHarvestSyncResult =
-              'Berhasil: $syncedCount data panen berhasil dikirim ke server';
-        } else {
-          _lastHarvestSyncResult =
-              'Sinkronisasi selesai, belum ada data yang berhasil dikirim';
-        }
+        _lastHarvestSyncResult = _buildHarvestPushSummary(pushResult);
         _lastSyncTime = DateTime.now();
       });
       _notifySyncCompleted();
+      return pushResult.didPushFreshHarvestData;
     } catch (e) {
       _logger.e('Harvest upload error: $e');
       setState(() {
@@ -732,10 +793,51 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
           action: 'upload data panen',
         );
       });
+      return false;
     } finally {
       setState(() => _isSyncingHarvest = false);
       await _refreshSyncIndicators();
     }
+  }
+
+  String _buildHarvestPushSummary(HarvestPushResult result) {
+    if (result.pendingBefore == 0) {
+      return 'Tidak ada data panen yang perlu dikirim';
+    }
+    if (result.syncedCount > 0 && result.pendingAfter == 0) {
+      return 'Berhasil: ${result.syncedCount} data panen berhasil dikirim ke server';
+    }
+    if (result.syncedCount > 0) {
+      return 'Sebagian berhasil: ${result.syncedCount} data terkirim, '
+          '${result.pendingAfter} data masih menunggu upload'
+          '${result.failedAfter > 0 ? ' (${result.failedAfter} gagal).' : '.'}';
+    }
+    if (result.recentErrors.isNotEmpty) {
+      final compactReason = _compactSyncError(result.recentErrors.first);
+      return 'Upload belum berhasil. Penyebab: $compactReason';
+    }
+    return 'Sinkronisasi selesai, belum ada data yang berhasil dikirim. '
+        'Periksa data panen dan coba lagi.';
+  }
+
+  String _buildSkippedPullSummary(HarvestPushResult pushResult) {
+    final uploadedCount = pushResult.syncedCount;
+    return 'Dilewati: update status belum perlu ditarik segera setelah upload'
+        '${uploadedCount > 0 ? ' ($uploadedCount data baru terkirim).' : '.'} '
+        'Lakukan sinkron ulang setelah approval tersedia.';
+  }
+
+  String _compactSyncError(String rawError) {
+    var value = rawError.trim();
+    if (value.isEmpty) {
+      return 'alasan tidak tersedia';
+    }
+
+    value = value.replaceFirst(
+      RegExp(r'^Invalid sync payload:\s*', caseSensitive: false),
+      '',
+    );
+    return value.length <= 140 ? value : '${value.substring(0, 137)}...';
   }
 
   Future<void> _pullApprovalUpdates() async {
@@ -749,18 +851,18 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
     _logger.i('Pulling approval updates...');
 
     try {
-      final syncService = sl<MandorMasterSyncService>();
-      final result = await syncService.pullHarvestUpdates();
+      final syncService = sl<HarvestSyncService>();
+      final result = await syncService.pullServerUpdatesWithResult();
+      final bool hasUnsafe = result.hasUnsafeRecords;
+      final String summaryMessage = _buildPullSummary(result);
 
       setState(() {
-        _lastPullResult = result.success
-            ? 'Berhasil: ${result.count} update status diambil'
-            : (result.error ?? 'Gagal mengambil update status panen');
-        if (result.success) {
+        _lastPullResult = summaryMessage;
+        if (result.appliedCount > 0 || result.cursorAdvanced) {
           _lastSyncTime = DateTime.now();
         }
       });
-      if (result.success) {
+      if (!hasUnsafe) {
         _notifySyncCompleted();
       }
     } catch (e) {
@@ -777,6 +879,17 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
     }
   }
 
+  String _buildPullSummary(PullServerUpdatesResult result) {
+    if (result.totalReceived == 0) {
+      return 'Tidak ada update status panen baru';
+    }
+    if (!result.hasUnsafeRecords) {
+      return 'Berhasil: ${result.appliedCount} update status diterapkan';
+    }
+    return 'Sebagian update diterapkan: ${result.appliedCount} sukses, '
+        '${result.skippedCount} tertunda. Silakan sinkron ulang.';
+  }
+
   bool _isFailureMessage(String message) {
     final value = message.toLowerCase();
     return value.contains('gagal') ||
@@ -788,6 +901,14 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
   }
 
   void _showSnackBar(String message, {required bool isSuccess}) {
+    final bannerBg = RuntimeThemeSlotResolver.notificationBannerBackground(
+      context,
+      fallback: isSuccess ? MandorTheme.forestGreen : MandorTheme.coralRed,
+    );
+    final bannerText = RuntimeThemeSlotResolver.notificationBannerText(
+      context,
+      fallback: Colors.white,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -796,15 +917,16 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
               isSuccess
                   ? Icons.check_circle_rounded
                   : Icons.error_outline_rounded,
-              color: Colors.white,
+              color: bannerText,
               size: 20,
             ),
             const SizedBox(width: 10),
-            Expanded(child: Text(message)),
+            Expanded(
+              child: Text(message, style: TextStyle(color: bannerText)),
+            ),
           ],
         ),
-        backgroundColor:
-            isSuccess ? MandorTheme.forestGreen : MandorTheme.coralRed,
+        backgroundColor: bannerBg,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -812,4 +934,3 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
     );
   }
 }
-

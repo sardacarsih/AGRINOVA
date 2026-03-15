@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"agrinovagraphql/server/internal/auth/features/shared/domain"
@@ -12,19 +14,40 @@ import (
 // SecurityLogger handles security event logging
 type SecurityLogger struct {
 	logEvents bool
+	async     bool
+	logQueue  chan string
 }
 
 // NewSecurityLogger creates new security logger
 func NewSecurityLogger(logEvents bool) *SecurityLogger {
-	return &SecurityLogger{
-		logEvents: logEvents,
+	if configured, ok := envBool("AGRINOVA_SECURITY_LOG_EVENTS"); ok {
+		logEvents = configured
 	}
+
+	async := true
+	if configured, ok := envBool("AGRINOVA_SECURITY_LOG_ASYNC"); ok {
+		async = configured
+	}
+
+	logger := &SecurityLogger{
+		logEvents: logEvents,
+		async:     async,
+	}
+	if logger.logEvents && logger.async {
+		logger.logQueue = make(chan string, 1024)
+		go logger.run()
+	}
+
+	return logger
 }
 
 // LogSecurityEvent logs a security event
 func (s *SecurityLogger) LogSecurityEvent(ctx context.Context, event *domain.SecurityEvent) error {
 	if !s.logEvents {
 		return nil
+	}
+	if event.CreatedAt.IsZero() {
+		event.CreatedAt = time.Now()
 	}
 
 	// Format the log message
@@ -39,6 +62,15 @@ func (s *SecurityLogger) LogSecurityEvent(ctx context.Context, event *domain.Sec
 	// Log with timestamp
 	logMsg := fmt.Sprintf("%s %s", event.CreatedAt.Format(time.RFC3339), message)
 
+	if s.async && s.logQueue != nil {
+		select {
+		case s.logQueue <- logMsg:
+			return nil
+		default:
+			// Fall back to direct logging when the queue is saturated.
+		}
+	}
+
 	// Log to standard output (in production, you might want to use a proper logging service)
 	log.Println(logMsg)
 
@@ -51,6 +83,12 @@ func (s *SecurityLogger) LogSecurityEvent(ctx context.Context, event *domain.Sec
 	return nil
 }
 
+func (s *SecurityLogger) run() {
+	for message := range s.logQueue {
+		log.Println(message)
+	}
+}
+
 // Helper functions
 
 func (s *SecurityLogger) formatUserID(userID *string) string {
@@ -58,6 +96,22 @@ func (s *SecurityLogger) formatUserID(userID *string) string {
 		return "anonymous"
 	}
 	return *userID
+}
+
+func envBool(key string) (bool, bool) {
+	value, ok := os.LookupEnv(key)
+	if !ok {
+		return false, false
+	}
+
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case "1", "true", "yes", "on":
+		return true, true
+	case "0", "false", "no", "off":
+		return false, true
+	default:
+		return false, false
+	}
 }
 
 // DatabaseSecurityLogger implements database-based security logging

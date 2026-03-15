@@ -320,12 +320,14 @@ export function Topbar({
                 size="sm"
                 onClick={onToggleFullscreen}
                 className="hidden shrink-0 lg:flex"
+                aria-label={isFullscreen ? 'Keluar mode layar penuh' : 'Masuk mode layar penuh'}
+                aria-pressed={isFullscreen}
                 title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
               >
                 {isFullscreen ? (
-                  <Minimize2 className="h-4 w-4" />
+                  <Minimize2 className="h-4 w-4" aria-hidden="true" />
                 ) : (
-                  <Maximize2 className="h-4 w-4" />
+                  <Maximize2 className="h-4 w-4" aria-hidden="true" />
                 )}
               </Button>
             )}
@@ -337,12 +339,13 @@ export function Topbar({
               onClick={handleRefresh}
               disabled={isRefreshing}
               className="shrink-0"
+              aria-label={t('buttons.refresh')}
               title={t('buttons.refresh')}
             >
               <RefreshCw className={cn(
                 "h-4 w-4 transition-transform duration-200",
                 isRefreshing && "animate-spin"
-              )} />
+              )} aria-hidden="true" />
             </Button>
 
             {/* Notifications */}
@@ -354,9 +357,11 @@ export function Topbar({
                 "relative shrink-0",
                 showNotifications && "bg-accent text-accent-foreground"
               )}
+              aria-label={showNotifications ? 'Tutup notifikasi' : 'Buka notifikasi'}
+              aria-pressed={showNotifications}
               title="Notifications"
             >
-              <Bell className="h-5 w-5" />
+              <Bell className="h-5 w-5" aria-hidden="true" />
               {unreadCount > 0 && (
                 <motion.div
                   className="absolute -top-1 -right-1"

@@ -157,10 +157,12 @@ class SatpamDashboardServices {
         _getGuestLogCount(db),
         _getTodayGuestLogCount(db),
         _getEmployeeLogCount(db),
-        _getPendingSyncCount(db),
+        serviceState.syncService != null
+            ? serviceState.syncService!.getPendingSyncCount()
+            : _getPendingSyncCount(db),
         serviceState.syncService != null
             ? serviceState.syncService!.getLastSyncTime()
-            : Future.value(null),
+            : _getLastSyncTimeFromLogs(db),
       ]);
 
       // Basic counts
@@ -201,7 +203,7 @@ class SatpamDashboardServices {
       // Photo storage info
       stats['photo_storage'] = await _getPhotoStats(db);
 
-      stats['is_syncing'] = false; // Would be updated during sync operations
+      stats['is_syncing'] = serviceState.syncService?.isSyncing ?? false;
     } catch (e) {
       _logger.e('Error loading repository stats', error: e);
       stats['error_message'] = 'Error loading stats: ${e.toString()}';
@@ -236,16 +238,17 @@ class SatpamDashboardServices {
           : 0;
 
       final pendingResult = await db.rawQuery(
-        "SELECT COUNT(*) as count FROM gate_check_photos WHERE sync_status = 'PENDING'",
+        "SELECT COUNT(*) as count FROM gate_check_photos WHERE sync_status IN ('PENDING', 'FAILED')",
       );
       final pending = pendingResult.isNotEmpty
           ? pendingResult.first['count'] as int? ?? 0
           : 0;
+      final synced = total - pending;
 
       return {
         'total_files': total,
         'pending_files': pending,
-        'synced_files': total - pending,
+        'synced_files': synced > 0 ? synced : 0,
         // Estimate 0.5MB per photo if we can't check file size easily
         'total_size_mb': (total * 0.5).toStringAsFixed(2),
       };
@@ -308,13 +311,67 @@ class SatpamDashboardServices {
   /// Get pending sync count
   static Future<int?> _getPendingSyncCount(EnhancedDatabaseService db) async {
     try {
-      final result = await db.rawQuery(
-        'SELECT COUNT(*) as count FROM sync_queue WHERE status = ?',
-        ['PENDING'],
+      final guestPending = await _getPendingSyncCountForTable(
+        db,
+        'gate_guest_logs',
       );
-      return result.isNotEmpty ? result.first['count'] as int? : 0;
+      final employeePending = await _getPendingSyncCountForTable(
+        db,
+        'gate_employee_logs',
+      );
+      final photoPending = await _getPendingSyncCountForTable(
+        db,
+        'gate_check_photos',
+      );
+
+      return guestPending + employeePending + photoPending;
     } catch (e) {
       _logger.w('Error getting pending sync count', error: e);
+      return null;
+    }
+  }
+
+  static Future<int> _getPendingSyncCountForTable(
+    EnhancedDatabaseService db,
+    String tableName,
+  ) async {
+    try {
+      final result = await db.rawQuery(
+        "SELECT COUNT(*) as count FROM $tableName WHERE sync_status IN ('PENDING', 'FAILED')",
+      );
+
+      if (result.isEmpty) return 0;
+      final rawValue = result.first['count'];
+      if (rawValue is int) return rawValue;
+      return int.tryParse(rawValue?.toString() ?? '') ?? 0;
+    } catch (e) {
+      _logger.d('Skipping pending sync count for table $tableName: $e');
+      return 0;
+    }
+  }
+
+  static Future<DateTime?> _getLastSyncTimeFromLogs(
+    EnhancedDatabaseService db,
+  ) async {
+    try {
+      final result = await db.rawQuery('''
+        SELECT sync_completed_at
+        FROM sync_logs
+        WHERE status = 'COMPLETED'
+          AND sync_completed_at IS NOT NULL
+        ORDER BY sync_completed_at DESC
+        LIMIT 1
+      ''');
+
+      if (result.isEmpty) return null;
+      final rawValue = result.first['sync_completed_at'];
+      final timestamp = rawValue is int
+          ? rawValue
+          : int.tryParse(rawValue?.toString() ?? '');
+      if (timestamp == null || timestamp <= 0) return null;
+      return DateTime.fromMillisecondsSinceEpoch(timestamp);
+    } catch (e) {
+      _logger.w('Error getting last sync time from sync logs', error: e);
       return null;
     }
   }

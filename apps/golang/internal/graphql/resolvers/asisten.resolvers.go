@@ -124,6 +124,8 @@ func (r *mutationResolver) BatchApproval(ctx context.Context, input asisten.Batc
 	var results []*asisten.BatchItemResult
 	successCount := 0
 	failedCount := 0
+	var approvedRecords []*mandor.HarvestRecord
+	var rejectedRecords []*mandor.HarvestRecord
 
 	for _, id := range input.Ids {
 		var err error
@@ -135,7 +137,7 @@ func (r *mutationResolver) BatchApproval(ctx context.Context, input asisten.Batc
 			var approvedRecord *mandor.HarvestRecord
 			approvedRecord, err = r.PanenResolver.ApproveHarvestRecord(ctx, approveInput)
 			if err == nil {
-				r.notifyMandorHarvestApproved(ctx, approvedRecord, userID)
+				approvedRecords = append(approvedRecords, approvedRecord)
 				publishHarvestRecordApproved(approvedRecord)
 			}
 		} else {
@@ -150,7 +152,7 @@ func (r *mutationResolver) BatchApproval(ctx context.Context, input asisten.Batc
 			var rejectedRecord *mandor.HarvestRecord
 			rejectedRecord, err = r.PanenResolver.RejectHarvestRecord(ctx, rejectInput)
 			if err == nil {
-				r.notifyMandorHarvestRejected(ctx, rejectedRecord, reason, userID)
+				rejectedRecords = append(rejectedRecords, rejectedRecord)
 				publishHarvestRecordRejected(rejectedRecord)
 			}
 		}
@@ -167,6 +169,16 @@ func (r *mutationResolver) BatchApproval(ctx context.Context, input asisten.Batc
 			successCount++
 		}
 		results = append(results, itemResult)
+	}
+
+	if input.Action == asisten.BatchApprovalActionApprove {
+		r.notifyMandorHarvestApprovedBatch(ctx, approvedRecords, userID)
+	} else {
+		reason := "Batch rejection"
+		if input.RejectionReason != nil {
+			reason = *input.RejectionReason
+		}
+		r.notifyMandorHarvestRejectedBatch(ctx, rejectedRecords, reason, userID)
 	}
 
 	return &asisten.BatchApprovalResult{
@@ -468,15 +480,15 @@ func (r *queryResolver) AsistenTodaySummary(ctx context.Context) (*asisten.Asist
 
 // PendingApprovals is the resolver for the pendingApprovals field.
 func (r *queryResolver) PendingApprovals(ctx context.Context, filter *asisten.ApprovalFilterInput) (*asisten.ApprovalListResponse, error) {
-	userID, err := r.requireAsistenUserID(ctx)
+	userID, userRole, err := r.requireApprovalUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Base query must only include records from mandor subordinates of this asisten.
-	query := r.applyAsistenScopeToHarvestQuery(
+	query := r.applyApprovalScopeToHarvestQuery(
 		r.db.WithContext(ctx).Table("harvest_records"),
 		userID,
+		userRole,
 	)
 
 	// Default to pending status if not specified
@@ -489,8 +501,7 @@ func (r *queryResolver) PendingApprovals(ctx context.Context, filter *asisten.Ap
 	// Apply filters
 	if filter != nil {
 		if filter.DivisionID != nil {
-			query = query.Joins("JOIN blocks ON blocks.id = harvest_records.block_id").
-				Where("blocks.division_id = ?", *filter.DivisionID)
+			query = query.Where("d.id = ?", *filter.DivisionID)
 		}
 		if filter.BlockID != nil {
 			query = query.Where("harvest_records.block_id = ?", *filter.BlockID)
@@ -504,9 +515,11 @@ func (r *queryResolver) PendingApprovals(ctx context.Context, filter *asisten.Ap
 		if filter.DateTo != nil {
 			query = query.Where("harvest_records.tanggal <= ?", *filter.DateTo)
 		}
+		if filter.Priority != nil {
+			query = r.applyApprovalPriorityFilter(query, *filter.Priority)
+		}
 		if filter.Search != nil && *filter.Search != "" {
-			searchTerm := "%" + *filter.Search + "%"
-			query = query.Where("COALESCE(harvest_records.nik, '') ILIKE ?", searchTerm)
+			query = r.applyApprovalSearchFilter(query, *filter.Search)
 		}
 	}
 
@@ -528,26 +541,7 @@ func (r *queryResolver) PendingApprovals(ctx context.Context, filter *asisten.Ap
 	offset := (page - 1) * pageSize
 	query = query.Offset(int(offset)).Limit(int(pageSize))
 
-	// Apply sorting
-	orderBy := "harvest_records.created_at DESC"
-	if filter != nil && filter.SortBy != nil {
-		switch *filter.SortBy {
-		case asisten.ApprovalSortFieldSubmittedAt:
-			orderBy = "harvest_records.created_at"
-		case asisten.ApprovalSortFieldHarvestDate:
-			orderBy = "harvest_records.tanggal"
-		case asisten.ApprovalSortFieldWeight:
-			orderBy = "harvest_records.berat_tbs"
-		case asisten.ApprovalSortFieldTbsCount:
-			orderBy = "harvest_records.jumlah_janjang"
-		}
-		if filter.SortDirection != nil && *filter.SortDirection == common.SortDirectionAsc {
-			orderBy += " ASC"
-		} else {
-			orderBy += " DESC"
-		}
-	}
-	query = query.Order(orderBy)
+	query = r.applyApprovalSorting(query, filter)
 
 	// Execute query
 	query = query.Select(r.asistenApprovalHarvestSelectColumns())
@@ -579,15 +573,16 @@ func (r *queryResolver) PendingApprovals(ctx context.Context, filter *asisten.Ap
 
 // ApprovalItem is the resolver for the approvalItem field.
 func (r *queryResolver) ApprovalItem(ctx context.Context, id string) (*asisten.ApprovalItem, error) {
-	userID, err := r.requireAsistenUserID(ctx)
+	userID, userRole, err := r.requireApprovalUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	var record mandor.HarvestRecord
-	err = r.applyAsistenScopeToHarvestQuery(
+	err = r.applyApprovalScopeToHarvestQuery(
 		r.db.WithContext(ctx).Table("harvest_records"),
 		userID,
+		userRole,
 	).Select(r.asistenApprovalHarvestSelectColumns()).
 		Where("harvest_records.id = ?", id).
 		First(&record).Error
@@ -601,15 +596,16 @@ func (r *queryResolver) ApprovalItem(ctx context.Context, id string) (*asisten.A
 
 // ApprovalHistory is the resolver for the approvalHistory field.
 func (r *queryResolver) ApprovalHistory(ctx context.Context, filter *asisten.ApprovalFilterInput) (*asisten.ApprovalListResponse, error) {
-	userID, err := r.requireAsistenUserID(ctx)
+	userID, userRole, err := r.requireApprovalUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// Similar to PendingApprovals but for completed (approved/rejected) records
-	query := r.applyAsistenScopeToHarvestQuery(
+	query := r.applyApprovalScopeToHarvestQuery(
 		r.db.WithContext(ctx).Table("harvest_records"),
 		userID,
+		userRole,
 	).
 		Where("harvest_records.status IN ?", []mandor.HarvestStatus{
 			mandor.HarvestStatusApproved,
@@ -622,14 +618,22 @@ func (r *queryResolver) ApprovalHistory(ctx context.Context, filter *asisten.App
 			query = query.Where("harvest_records.status = ?", *filter.Status)
 		}
 		if filter.DivisionID != nil {
-			query = query.Joins("JOIN blocks ON blocks.id = harvest_records.block_id").
-				Where("blocks.division_id = ?", *filter.DivisionID)
+			query = query.Where("d.id = ?", *filter.DivisionID)
+		}
+		if filter.MandorID != nil {
+			query = query.Where("harvest_records.mandor_id = ?", *filter.MandorID)
 		}
 		if filter.DateFrom != nil {
 			query = query.Where("harvest_records.tanggal >= ?", *filter.DateFrom)
 		}
 		if filter.DateTo != nil {
 			query = query.Where("harvest_records.tanggal <= ?", *filter.DateTo)
+		}
+		if filter.Priority != nil {
+			query = r.applyApprovalPriorityFilter(query, *filter.Priority)
+		}
+		if filter.Search != nil && *filter.Search != "" {
+			query = r.applyApprovalSearchFilter(query, *filter.Search)
 		}
 	}
 
@@ -647,7 +651,8 @@ func (r *queryResolver) ApprovalHistory(ctx context.Context, filter *asisten.App
 		}
 	}
 
-	query = query.Offset(int((page - 1) * pageSize)).Limit(int(pageSize)).Order("harvest_records.updated_at DESC")
+	query = query.Offset(int((page - 1) * pageSize)).Limit(int(pageSize))
+	query = r.applyApprovalSorting(query, filter)
 
 	query = query.Select(r.asistenApprovalHarvestSelectColumns())
 	var records []*mandor.HarvestRecord
@@ -676,15 +681,16 @@ func (r *queryResolver) ApprovalHistory(ctx context.Context, filter *asisten.App
 
 // ApprovalStats is the resolver for the approvalStats field.
 func (r *queryResolver) ApprovalStats(ctx context.Context, dateFrom *time.Time, dateTo *time.Time) (*asisten.ApprovalStatsData, error) {
-	userID, err := r.requireAsistenUserID(ctx)
+	userID, userRole, err := r.requireApprovalUserContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	scopedHarvestQuery := func() *gorm.DB {
-		return r.applyAsistenScopeToHarvestQuery(
+		return r.applyApprovalScopeToHarvestQuery(
 			r.db.WithContext(ctx).Table("harvest_records"),
 			userID,
+			userRole,
 		)
 	}
 	query := scopedHarvestQuery()
@@ -821,22 +827,28 @@ func (r *queryResolver) convertHarvestToApprovalItemWithLoading(ctx context.Cont
 	photoUrls := normalizeHarvestPhotoURLs(record.PhotoURL)
 
 	item := &asisten.ApprovalItem{
-		ID:               record.ID,
-		HarvestDate:      record.Tanggal,
-		EmployeeCount:    1, // Would need to parse karyawan field
-		Employees:        r.resolveHarvestEmployeeLabel(record),
-		TbsCount:         record.JumlahJanjang,
-		Weight:           record.BeratTbs,
-		SubmittedAt:      record.CreatedAt,
-		ElapsedTime:      calculateElapsedTime(record.CreatedAt),
-		Status:           record.Status,
-		HasPhoto:         len(photoUrls) > 0,
-		PhotoUrls:        photoUrls,
-		Coordinates:      nil,
-		Notes:            record.RejectedReason,
-		Priority:         calculatePriority(record.CreatedAt),
-		ValidationStatus: asisten.ValidationStatusValid,
-		ValidationIssues: nil,
+		ID:                record.ID,
+		HarvestDate:       record.Tanggal,
+		EmployeeCount:     1, // Would need to parse karyawan field
+		Employees:         r.resolveHarvestEmployeeLabel(record),
+		TbsCount:          record.JumlahJanjang,
+		Weight:            record.BeratTbs,
+		SubmittedAt:       record.CreatedAt,
+		ElapsedTime:       calculateElapsedTime(record.CreatedAt),
+		Status:            record.Status,
+		JjgMatang:         record.JjgMatang,
+		JjgMentah:         record.JjgMentah,
+		JjgLewatMatang:    record.JjgLewatMatang,
+		JjgBusukAbnormal:  record.JjgBusukAbnormal,
+		JjgTangkaiPanjang: record.JjgTangkaiPanjang,
+		TotalBrondolan:    record.TotalBrondolan,
+		HasPhoto:          len(photoUrls) > 0,
+		PhotoUrls:         photoUrls,
+		Coordinates:       nil,
+		Notes:             record.RejectedReason,
+		Priority:          calculatePriority(record.CreatedAt),
+		ValidationStatus:  asisten.ValidationStatusValid,
+		ValidationIssues:  nil,
 	}
 
 	// Manually load Mandor (User)
@@ -910,6 +922,12 @@ func (r *Resolver) asistenApprovalHarvestSelectColumns() []string {
 		"harvest_records.karyawan_id",
 		"harvest_records.berat_tbs",
 		"harvest_records.jumlah_janjang",
+		"harvest_records.jjg_matang",
+		"harvest_records.jjg_mentah",
+		"harvest_records.jjg_lewat_matang",
+		"harvest_records.jjg_busuk_abnormal",
+		"harvest_records.jjg_tangkai_panjang",
+		"harvest_records.total_brondolan",
 		"harvest_records.status",
 		"harvest_records.rejected_reason",
 		"harvest_records.photo_url",
@@ -1039,12 +1057,110 @@ func ptrInt32(i int32) *int32 {
 	return &i
 }
 
+func (r *Resolver) requireApprovalUserContext(ctx context.Context) (string, auth.UserRole, error) {
+	userID := middleware.GetUserFromContext(ctx)
+	if userID == "" {
+		return "", "", fmt.Errorf("unauthorized: user not found in context")
+	}
+
+	return userID, middleware.GetUserRoleFromContext(ctx), nil
+}
+
 func (r *Resolver) requireAsistenUserID(ctx context.Context) (string, error) {
 	userID := middleware.GetUserFromContext(ctx)
 	if userID == "" {
 		return "", fmt.Errorf("unauthorized: user not found in context")
 	}
 	return userID, nil
+}
+
+func (r *Resolver) applyApprovalScopeToHarvestQuery(query *gorm.DB, userID string, role auth.UserRole) *gorm.DB {
+	scopedQuery := query.
+		Joins("JOIN blocks b ON b.id = harvest_records.block_id").
+		Joins("JOIN divisions d ON d.id = b.division_id").
+		Joins("JOIN estates e ON e.id = d.estate_id")
+
+	switch role {
+	case auth.UserRoleManager, auth.UserRoleAreaManager:
+		return r.applyManagerDivisionScope(scopedQuery, userID, role)
+	case auth.UserRoleSuperAdmin:
+		return scopedQuery
+	default:
+		return r.applyAsistenScopeToHarvestQuery(scopedQuery, userID)
+	}
+}
+
+func (r *Resolver) applyApprovalSearchFilter(query *gorm.DB, rawSearch string) *gorm.DB {
+	search := strings.TrimSpace(rawSearch)
+	if search == "" {
+		return query
+	}
+
+	searchTerm := "%" + search + "%"
+	return query.
+		Joins("LEFT JOIN users AS search_mandor ON search_mandor.id = harvest_records.mandor_id").
+		Where(`
+			COALESCE(harvest_records.nik, '') ILIKE ?
+			OR COALESCE(b.block_code, '') ILIKE ?
+			OR COALESCE(b.name, '') ILIKE ?
+			OR COALESCE(search_mandor.name, '') ILIKE ?
+			OR COALESCE(search_mandor.username, '') ILIKE ?
+		`, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm)
+}
+
+func (r *Resolver) applyApprovalPriorityFilter(query *gorm.DB, priority asisten.ApprovalPriority) *gorm.DB {
+	now := time.Now()
+
+	switch priority {
+	case asisten.ApprovalPriorityUrgent:
+		return query.Where("harvest_records.created_at <= ?", now.Add(-4*time.Hour))
+	case asisten.ApprovalPriorityHigh:
+		return query.
+			Where("harvest_records.created_at > ?", now.Add(-4*time.Hour)).
+			Where("harvest_records.created_at <= ?", now.Add(-2*time.Hour))
+	default:
+		return query.Where("harvest_records.created_at > ?", now.Add(-2*time.Hour))
+	}
+}
+
+func (r *Resolver) applyApprovalSorting(query *gorm.DB, filter *asisten.ApprovalFilterInput) *gorm.DB {
+	sortField := asisten.ApprovalSortFieldSubmittedAt
+	sortDirection := common.SortDirectionDesc
+
+	if filter != nil && filter.SortBy != nil {
+		sortField = *filter.SortBy
+	}
+	if filter != nil && filter.SortDirection != nil {
+		sortDirection = *filter.SortDirection
+	}
+
+	orderDirection := "DESC"
+	if sortDirection == common.SortDirectionAsc {
+		orderDirection = "ASC"
+	}
+
+	orderBy := "harvest_records.created_at"
+	switch sortField {
+	case asisten.ApprovalSortFieldHarvestDate:
+		orderBy = "harvest_records.tanggal"
+	case asisten.ApprovalSortFieldWeight:
+		orderBy = "harvest_records.berat_tbs"
+	case asisten.ApprovalSortFieldTbsCount:
+		orderBy = "harvest_records.jumlah_janjang"
+	case asisten.ApprovalSortFieldPriority:
+		now := time.Now()
+		orderBy = fmt.Sprintf(`CASE
+			WHEN harvest_records.created_at <= '%s' THEN 3
+			WHEN harvest_records.created_at <= '%s' THEN 2
+			ELSE 1
+		END`, now.Add(-4*time.Hour).Format(time.RFC3339Nano), now.Add(-2*time.Hour).Format(time.RFC3339Nano))
+	default:
+		orderBy = "harvest_records.created_at"
+	}
+
+	return query.
+		Order(fmt.Sprintf("%s %s", orderBy, orderDirection)).
+		Order("harvest_records.created_at DESC")
 }
 
 func (r *Resolver) applyAsistenScopeToHarvestQuery(query *gorm.DB, asistenUserID string) *gorm.DB {

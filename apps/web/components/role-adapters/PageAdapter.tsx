@@ -710,6 +710,7 @@ export const COMPANIES_PAGE_COMPONENTS: Partial<Record<UserRole, React.LazyExoti
 const CompanyAdminEstatesPage = lazy(() => import('@/features/master-data/components/CompanyAdminEstatesPage'));
 const CompanyAdminDivisionsPage = lazy(() => import('@/features/master-data/components/CompanyAdminDivisionsPage'));
 const CompanyAdminBlocksTabsPage = lazy(() => import('@/features/master-data/components/CompanyAdminBlocksTabsPage'));
+const BlockTreatmentWorkflowPage = lazy(() => import('@/features/master-data/components/BlockTreatmentWorkflowPage'));
 const CompanyAdminTarifBlokPage = lazy(() => import('@/features/master-data/components/CompanyAdminTarifBlokPage'));
 const VehicleManagementPage = lazy(() => import('@/features/vehicles/components/VehicleManagementPage'));
 
@@ -750,8 +751,8 @@ export const DIVISIONS_PAGE_COMPONENTS: Partial<Record<UserRole, React.LazyExoti
 
 export const BLOCKS_PAGE_COMPONENTS: Partial<Record<UserRole, React.LazyExoticComponent<ComponentType<PageComponentProps>>>> = {
   'COMPANY_ADMIN': CompanyAdminBlocksTabsPage,
-  'AREA_MANAGER': lazy(() => Promise.resolve({ default: () => <div className="p-6"><h1 className="text-2xl font-bold mb-4">Regional Blocks</h1><p>Area Manager blocks page - Coming soon</p></div> })),
-  'MANAGER': lazy(() => Promise.resolve({ default: () => <div className="p-6"><h1 className="text-2xl font-bold mb-4">Estate Blocks</h1><p>Manager blocks page - Coming soon</p></div> })),
+  'AREA_MANAGER': BlockTreatmentWorkflowPage,
+  'MANAGER': BlockTreatmentWorkflowPage,
   'ASISTEN': lazy(() => Promise.resolve({ default: () => <div className="p-6"><h1 className="text-2xl font-bold mb-4">Division Blocks</h1><p>Asisten blocks page - Coming soon</p></div> })),
 };
 

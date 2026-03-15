@@ -96,6 +96,7 @@ func (r *CompanyRepository) toDomainCompany(company *CompanyModel) *domain.Compa
 	return &domain.Company{
 		ID:      company.ID,
 		Name:    company.Name,
+		LogoURL: company.LogoURL,
 		Status:  company.Status,
 		Address: company.Address,
 		Phone:   company.Phone,

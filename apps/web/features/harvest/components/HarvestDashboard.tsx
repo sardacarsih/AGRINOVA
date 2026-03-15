@@ -1,70 +1,152 @@
 'use client';
 
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from 'react';
+import { useRouter } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useSubscription } from '@apollo/client/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
-  List,
   BarChart3,
   Bell,
-  Leaf,
+  Building2,
   Calendar,
-  RefreshCw
+  Leaf,
+  RefreshCw,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { useToast } from '@/hooks/use-toast';
+import { ALL_COMPANIES_SCOPE, useCompanyScope } from '@/contexts/company-scope-context';
 import { MandorDashboardLayout } from '@/components/layouts/role-layouts/MandorDashboardLayout';
+import { AsistenDashboardLayout } from '@/components/layouts/role-layouts/AsistenDashboardLayout';
+import { ManagerDashboardLayout } from '@/components/layouts/role-layouts/ManagerDashboardLayout';
+import { AreaManagerDashboardLayout } from '@/components/layouts/role-layouts/AreaManagerDashboardLayout';
 import { HarvestList } from './HarvestList';
 import { HarvestStats } from './HarvestStats';
-import { useSubscription } from '@apollo/client/react';
 import {
   OnHarvestRecordApprovedDocument,
   OnHarvestRecordRejectedDocument,
   type OnHarvestRecordApprovedSubscription,
-  type OnHarvestRecordRejectedSubscription
+  type OnHarvestRecordRejectedSubscription,
 } from '@/gql/graphql';
 
-// Utility function to sanitize block display text for MANDOR role
+type ViewMode = 'overview' | 'stats';
+type DashboardRole = 'MANDOR' | 'ASISTEN' | 'MANAGER' | 'AREA_MANAGER';
+type HarvestStatusFilter = 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
+
+interface HarvestLayoutProps {
+  children: React.ReactNode;
+  title: string;
+  description: string;
+  breadcrumbItems: Array<{ label: string; href?: string }>;
+  actions?: React.ReactNode;
+}
+
+interface RoleViewConfig {
+  label: string;
+  heroDescription: string;
+  defaultView: ViewMode;
+  overviewTitle: string;
+  overviewStatus: HarvestStatusFilter;
+}
+
+interface ViewOption {
+  value: ViewMode;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  subtitle: string;
+}
+
+const VIEW_OPTIONS_DEFAULT: ViewOption[] = [
+  { value: 'overview', label: 'Ringkasan', icon: Leaf, subtitle: 'Prioritas panen hari ini' },
+  { value: 'stats', label: 'Statistik', icon: BarChart3, subtitle: 'Analisis approved 30 hari terakhir' },
+];
+
+const VIEW_OPTIONS_MANDOR: ViewOption[] = [
+  { value: 'overview', label: 'Hari Ini', icon: Calendar, subtitle: 'Record sinkron tanggal berjalan' },
+];
+
+const ROLE_VIEW_CONFIG: Record<DashboardRole, RoleViewConfig> = {
+  MANDOR: {
+    label: 'Mandor',
+    heroDescription: 'Validasi hasil sinkronisasi panen harian dan pantau status review data Anda.',
+    defaultView: 'overview',
+    overviewTitle: 'Record Sync Mobile Hari Ini',
+    overviewStatus: 'ALL',
+  },
+  ASISTEN: {
+    label: 'Asisten',
+    heroDescription: 'Review data panen tim, prioritaskan antrian pending, dan jaga kualitas approval.',
+    defaultView: 'overview',
+    overviewTitle: 'Antrian Panen Pending Review',
+    overviewStatus: 'PENDING',
+  },
+  MANAGER: {
+    label: 'Manager',
+    heroDescription: 'Pantau performa panen lintas divisi dan jaga konsistensi kualitas data estate.',
+    defaultView: 'overview',
+    overviewTitle: 'Data Panen Terverifikasi',
+    overviewStatus: 'APPROVED',
+  },
+  AREA_MANAGER: {
+    label: 'Area Manager',
+    heroDescription: 'Pantau konsistensi panen antar estate dan pastikan kinerja regional tetap stabil.',
+    defaultView: 'overview',
+    overviewTitle: 'Data Panen Regional Terverifikasi',
+    overviewStatus: 'APPROVED',
+  },
+};
+
+const normalizeRole = (role?: string): DashboardRole => {
+  const normalized = (role || '').toUpperCase().replace(/[\s-]+/g, '_');
+  if (normalized === 'MANDOR' || normalized === 'ASISTEN' || normalized === 'MANAGER' || normalized === 'AREA_MANAGER') {
+    return normalized;
+  }
+  return 'MANDOR';
+};
+
 const sanitizeBlockDisplay = (text: string | null | undefined, userRole: string | undefined): string => {
   if (!text) return '';
 
   const normalizedUserRole = (userRole || '').toUpperCase();
+  if (normalizedUserRole !== 'MANDOR') return text;
 
-  // For MANDOR role, remove any potential TPH references
-  if (normalizedUserRole === 'MANDOR') {
-    return text
-      .replace(/TPH[^\s]*/gi, '') // Remove any TPH followed by characters
-      .replace(/\btph\b/gi, '')   // Remove standalone 'tph' words
-      .replace(/tempat penumpukan hasil/gi, '') // Remove full TPH expansion
-      .replace(/\s+/g, ' ')       // Clean up multiple spaces
-      .trim();
-  }
-
-  return text;
+  return text
+    .replace(/TPH[^\s]*/gi, '')
+    .replace(/\btph\b/gi, '')
+    .replace(/tempat penumpukan hasil/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 };
 
-type ViewMode = 'overview' | 'list' | 'stats';
-
-interface HarvestDashboardProps {
-  historyMode?: boolean;
-}
-
-export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps) {
-  // HOOKS VIOLATION FIX: All hooks must be called at the top level unconditionally
+export function HarvestDashboard() {
+  const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
-  const userRole = (user?.role || '').toUpperCase();
-  const isMandorReadOnly = userRole === 'MANDOR';
-  const [viewMode, setViewMode] = useState<ViewMode>('overview');
-  const [notifications, setNotifications] = useState<Array<{
+  const { selectedCompanyId, selectedCompanyLabel } = useCompanyScope();
+  const harvestContentMaxWidthClass = 'max-w-none';
+  const harvestContentPaddingClass = 'px-2 sm:px-3 lg:px-4 py-4 sm:py-5 lg:py-6';
+
+  const normalizedRole = normalizeRole(user?.role);
+  const isMandorReadOnly = normalizedRole === 'MANDOR';
+  const roleConfig = ROLE_VIEW_CONFIG[normalizedRole];
+  const viewOptions = isMandorReadOnly ? VIEW_OPTIONS_MANDOR : VIEW_OPTIONS_DEFAULT;
+
+  const [viewMode, setViewMode] = React.useState<ViewMode>(roleConfig.defaultView);
+  const [notifications, setNotifications] = React.useState<Array<{
     id: string;
     message: string;
-    type: 'success' | 'info' | 'warning';
+    type: 'success' | 'warning';
     timestamp: Date;
   }>>([]);
+
+  React.useEffect(() => {
+    setViewMode(roleConfig.defaultView);
+  }, [roleConfig.defaultView]);
+
   const todayDate = React.useMemo(() => {
     const now = new Date();
     const yyyy = now.getFullYear();
@@ -72,6 +154,7 @@ export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps)
     const dd = String(now.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   }, []);
+
   const historyDateFrom = React.useMemo(() => {
     const from = new Date();
     from.setDate(from.getDate() - 30);
@@ -80,87 +163,150 @@ export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps)
     const dd = String(from.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   }, []);
+  const [statsDateFrom, setStatsDateFrom] = React.useState(historyDateFrom);
+  const [statsDateTo, setStatsDateTo] = React.useState(todayDate);
 
-  // Fetch harvest statistics with role-based access control
-  // const { data: statsData, error: statsError, loading: statsLoading } = useQuery(GetHarvestStatisticsDocument, {
-  //   fetchPolicy: 'cache-and-network',
-  //   pollInterval: 30000, // Poll every 30 seconds
-  // });
-  const statsError = null;
-  // Subscriptions for real-time updates
+  const scopeLabel = React.useMemo(() => {
+    if (normalizedRole === 'AREA_MANAGER') {
+      if (selectedCompanyId === ALL_COMPANIES_SCOPE) return 'Semua perusahaan dalam assignment';
+      return selectedCompanyLabel || 'Perusahaan terpilih';
+    }
+    if (normalizedRole === 'MANAGER' || normalizedRole === 'ASISTEN') {
+      return selectedCompanyLabel || 'Perusahaan user';
+    }
+    return 'Area kerja mandor';
+  }, [normalizedRole, selectedCompanyId, selectedCompanyLabel]);
+
   useSubscription<OnHarvestRecordApprovedSubscription>(OnHarvestRecordApprovedDocument, {
-    skip: isMandorReadOnly || !user?.id,
+    skip: !isMandorReadOnly || !user?.id,
     onData: ({ data }) => {
       const approvedRecord = data.data?.harvestRecordApproved;
       if (approvedRecord && approvedRecord.mandor?.id === user?.id) {
-        const blockCode = sanitizeBlockDisplay(approvedRecord.block?.blockCode, userRole) || 'Blok tidak diketahui';
+        const blockCode = sanitizeBlockDisplay(approvedRecord.block?.blockCode, normalizedRole) || 'Blok tidak diketahui';
         const notification = {
-          id: Date.now().toString(),
-          message: `Data panen Anda untuk blok ${blockCode} telah disetujui`,
+          id: `${Date.now()}-approved`,
+          message: `Data panen untuk blok ${blockCode} telah disetujui`,
           type: 'success' as const,
           timestamp: new Date(),
         };
-        setNotifications(prev => [notification, ...prev.slice(0, 4)]);
+        setNotifications((prev) => [notification, ...prev.slice(0, 4)]);
 
         toast({
-          title: "Data Panen Disetujui",
+          title: 'Data Panen Disetujui',
           description: `Blok ${blockCode} - ${approvedRecord.beratTbs.toFixed(2)} kg`,
-        });
-      }
-    }
-  });
-
-  useSubscription<OnHarvestRecordRejectedSubscription>(OnHarvestRecordRejectedDocument, {
-    skip: isMandorReadOnly || !user?.id,
-    onData: ({ data }) => {
-      const rejectedRecord = data.data?.harvestRecordRejected;
-      if (rejectedRecord && rejectedRecord.mandor?.id === user?.id) {
-        const blockCode = sanitizeBlockDisplay(rejectedRecord.block?.blockCode, userRole) || 'Blok tidak diketahui';
-        const notification = {
-          id: Date.now().toString(),
-          message: `Data panen Anda untuk blok ${blockCode} ditolak: ${rejectedRecord.rejectedReason}`,
-          type: 'warning' as const,
-          timestamp: new Date(),
-        };
-        setNotifications(prev => [notification, ...prev.slice(0, 4)]);
-
-        toast({
-          title: "Data Panen Ditolak",
-          description: rejectedRecord.rejectedReason || 'Alasan tidak diketahui',
-          variant: "destructive",
         });
       }
     },
   });
 
-  const handleViewRecord = (record: any) => {
-    // Could open a modal or navigate to detail page
-    console.log('View record:', record);
+  useSubscription<OnHarvestRecordRejectedSubscription>(OnHarvestRecordRejectedDocument, {
+    skip: !isMandorReadOnly || !user?.id,
+    onData: ({ data }) => {
+      const rejectedRecord = data.data?.harvestRecordRejected;
+      if (rejectedRecord && rejectedRecord.mandor?.id === user?.id) {
+        const blockCode = sanitizeBlockDisplay(rejectedRecord.block?.blockCode, normalizedRole) || 'Blok tidak diketahui';
+        const notification = {
+          id: `${Date.now()}-rejected`,
+          message: `Data panen untuk blok ${blockCode} ditolak: ${rejectedRecord.rejectedReason || 'Tanpa alasan'}`,
+          type: 'warning' as const,
+          timestamp: new Date(),
+        };
+        setNotifications((prev) => [notification, ...prev.slice(0, 4)]);
+
+        toast({
+          title: 'Data Panen Ditolak',
+          description: rejectedRecord.rejectedReason || 'Alasan tidak diketahui',
+          variant: 'destructive',
+        });
+      }
+    },
+  });
+
+  const handleViewRecord = React.useCallback(() => {}, []);
+  const handleStatsDateRangeChange = React.useCallback((nextDateFrom: string, nextDateTo: string) => {
+    setStatsDateFrom((prev) => (prev === nextDateFrom ? prev : nextDateFrom));
+    setStatsDateTo((prev) => (prev === nextDateTo ? prev : nextDateTo));
+  }, []);
+
+  const renderRoleLayout = ({ children, title, description, breadcrumbItems, actions }: HarvestLayoutProps) => {
+    if (normalizedRole === 'AREA_MANAGER') {
+      return (
+        <AreaManagerDashboardLayout
+          title={title}
+          description={description}
+          breadcrumbItems={breadcrumbItems}
+          contentMaxWidthClass={harvestContentMaxWidthClass}
+          contentPaddingClass={harvestContentPaddingClass}
+          actions={actions}
+        >
+          {children}
+        </AreaManagerDashboardLayout>
+      );
+    }
+
+    if (normalizedRole === 'MANAGER') {
+      return (
+        <ManagerDashboardLayout
+          title={title}
+          description={description}
+          breadcrumbItems={breadcrumbItems}
+          contentMaxWidthClass={harvestContentMaxWidthClass}
+          contentPaddingClass={harvestContentPaddingClass}
+          actions={actions}
+        >
+          {children}
+        </ManagerDashboardLayout>
+      );
+    }
+
+    if (normalizedRole === 'ASISTEN') {
+      return (
+        <AsistenDashboardLayout
+          title={title}
+          description={description}
+          breadcrumbItems={breadcrumbItems}
+          contentMaxWidthClass={harvestContentMaxWidthClass}
+          contentPaddingClass={harvestContentPaddingClass}
+          actions={actions}
+        >
+          {children}
+        </AsistenDashboardLayout>
+      );
+    }
+
+    return (
+      <MandorDashboardLayout
+        title={title}
+        description={description}
+        maxWidthClass={harvestContentMaxWidthClass}
+        contentPaddingClass={harvestContentPaddingClass}
+        breadcrumbItems={breadcrumbItems}
+        actions={actions}
+      >
+        {children}
+      </MandorDashboardLayout>
+    );
   };
 
-  // Show loading while authentication is being checked
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-pulse text-center">
-          <div className="h-8 bg-gray-200 rounded w-64 mx-auto mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-48 mx-auto"></div>
+          <div className="mx-auto mb-4 h-8 w-64 rounded bg-gray-200" />
+          <div className="mx-auto h-4 w-48 rounded bg-gray-200" />
         </div>
       </div>
     );
   }
 
-  // Show authentication prompt if user is not authenticated
   if (!user) {
     return (
       <Card>
-        <CardContent className="text-center py-12">
-          <Leaf className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-          <h3 className="text-lg font-semibold mb-2">Authentication Required</h3>
-          <p className="text-gray-600 mb-4">
-            Anda harus login untuk mengakses dashboard panen.
-          </p>
-          <Button onClick={() => window.location.href = '/login'}>
+        <CardContent className="py-12 text-center">
+          <Leaf className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+          <h3 className="mb-2 text-lg font-semibold">Authentication Required</h3>
+          <p className="mb-4 text-gray-600">Anda harus login untuk mengakses dashboard panen.</p>
+          <Button onClick={() => router.push('/login')}>
             Login Sekarang
           </Button>
         </CardContent>
@@ -168,308 +314,227 @@ export function HarvestDashboard({ historyMode = false }: HarvestDashboardProps)
     );
   }
 
-  // Show error if harvest statistics query fails
-  if (statsError) {
-    return (
-      <Card className="border-red-200 bg-red-50">
-        <CardContent className="text-center py-12">
-          <div className="text-red-600 mb-4">
-            <h3 className="text-lg font-semibold mb-2">Gagal Memuat Statistik Panen</h3>
-            <p>Error: {statsError.message}</p>
-          </div>
-          <Button
-            onClick={() => window.location.reload()}
-            variant="outline"
-            className="border-red-300 text-red-700 hover:bg-red-100"
-          >
-            Refresh Halaman
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (historyMode) {
-    return (
-      <MandorDashboardLayout
-        title="Histori Panen"
-        description="Lihat histori panen berdasarkan range tanggal"
-        maxWidthClass="max-w-[96rem]"
-        contentPaddingClass="px-2 sm:px-3 lg:px-4 py-4 sm:py-5 lg:py-6"
-        breadcrumbItems={[
-          { label: 'Panen', href: '/harvest' },
-          { label: 'Histori Panen' },
-        ]}
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
-        >
-          <HarvestList
-            onView={handleViewRecord}
-            showActions={false}
-            enableDateRangeFilter
-            defaultDateFrom={historyDateFrom}
-            defaultDateTo={todayDate}
-            listTitle="Histori Panen (Range Tanggal)"
-          />
-        </motion.div>
-      </MandorDashboardLayout>
-    );
-  }
-
-  if (isMandorReadOnly) {
-    return (
-      <MandorDashboardLayout
-        title="Record Hasil Sync Mobile"
-        description="Pantau data panen hasil sinkronisasi mobile untuk hari ini"
-        maxWidthClass="max-w-[96rem]"
-        contentPaddingClass="px-2 sm:px-3 lg:px-4 py-4 sm:py-5 lg:py-6"
-        breadcrumbItems={[
-          { label: 'Panen', href: '/harvest' },
-          { label: 'Record Sync Mobile' },
-        ]}
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
-        >
-          <HarvestList
-            onView={handleViewRecord}
-            showActions={false}
-            defaultDateFrom={todayDate}
-            defaultDateTo={todayDate}
-            listTitle="Record Hasil Sync Mobile Hari Ini"
-          />
-        </motion.div>
-      </MandorDashboardLayout>
-    );
-  }
-
-  const renderContent = () => {
-    switch (viewMode) {
-      case 'list':
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
-            <HarvestList
-              onView={handleViewRecord}
-              showActions={userRole === 'MANDOR'}
-            />
-          </motion.div>
-        );
-
-      case 'stats':
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-6"
-          >
-            <HarvestStats />
-            <HarvestList
-              onView={handleViewRecord}
-              showActions={false}
-              defaultStatus="APPROVED"
-            />
-          </motion.div>
-        );
-
-      default:
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="space-y-6"
-          >
-            {/* Quick Stats */}
-            <HarvestStats />
-
-            {/* Quick Actions Card (hidden for MANAGER role) */}
-            {userRole !== 'MANAGER' && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Leaf className="h-5 w-5 text-green-600" />
-                    Aksi Cepat Panen
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Button
-                      onClick={() => setViewMode('list')}
-                      variant="outline"
-                      className="h-20"
-                      size="lg"
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <List className="h-6 w-6" />
-                        <span className="text-center">Lihat Data<br />Panen</span>
-                      </div>
-                    </Button>
-
-                    <Button
-                      onClick={() => setViewMode('stats')}
-                      variant="outline"
-                      className="h-20"
-                      size="lg"
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <BarChart3 className="h-6 w-6" />
-                        <span className="text-center">Laporan &<br />Statistik</span>
-                      </div>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Recent Notifications */}
-            {notifications.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bell className="h-5 w-5 text-blue-600" />
-                    Notifikasi Terbaru
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {notifications.slice(0, 3).map((notification) => (
-                      <Alert key={notification.id}>
-                        <Bell className="h-4 w-4" />
-                        <AlertDescription>
-                          <div className="flex items-start justify-between">
-                            <span className="text-sm">{notification.message}</span>
-                            <Badge variant="outline" className="text-xs ml-2">
-                              {notification.timestamp.toLocaleTimeString('id-ID', {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </Badge>
-                          </div>
-                        </AlertDescription>
-                      </Alert>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-
-            {/* Recent Harvest Records Preview */}
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5 text-green-600" />
-                    Data Panen Terbaru
-                  </CardTitle>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setViewMode('list')}
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Lihat Semua
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <HarvestList
-                  onView={handleViewRecord}
-                  showActions={userRole === 'MANDOR'}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Quick Tips Card - Shows when no data */}
-            <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-amber-800">
-                  <Bell className="h-5 w-5" />
-                  Tips Monitoring Panen
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-amber-800">Persiapan Monitoring Panen</h4>
-                    <ul className="text-sm space-y-1 text-amber-700">
-                      <li>- Pastikan data panen mobile sudah tersinkron</li>
-                      <li>- Pastikan blok panen sudah dipetakan</li>
-                      <li>- Verifikasi berat TBS per blok sesuai laporan</li>
-                      <li>- Tinjau data anomali sebelum approval</li>
-                    </ul>
-                  </div>
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-amber-800">Workflow Approval</h4>
-                    <ul className="text-sm space-y-1 text-amber-700">
-                      <li>- Mandor sinkronisasi data lapangan</li>
-                      <li>- Asisten review dan approve</li>
-                      <li>- Manager monitoring performa</li>
-                      <li>- Export laporan bulanan</li>
-                    </ul>
-                  </div>
-                </div>
-                <div className="mt-4 rounded border border-amber-200 bg-white p-3">
-                  <span className="text-sm text-amber-700">
-                    <strong>Pro tip:</strong> Pantau status approval setiap hari agar data tetap konsisten.
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        );
+  const renderOverviewContent = () => {
+    if (isMandorReadOnly) {
+      return (
+        <HarvestList
+          key={`${normalizedRole}-overview`}
+          onView={handleViewRecord}
+          showActions={false}
+          defaultDateFrom={todayDate}
+          defaultDateTo={todayDate}
+          listTitle={roleConfig.overviewTitle}
+          pageSize={10}
+          allowStatusFilter={false}
+        />
+      );
     }
+
+    return (
+      <HarvestList
+        key={`${normalizedRole}-overview`}
+        onView={handleViewRecord}
+        showActions={false}
+        defaultStatus={roleConfig.overviewStatus}
+        defaultDateFrom={todayDate}
+        defaultDateTo={todayDate}
+        listTitle={`${roleConfig.overviewTitle} (Hari Ini)`}
+        pageSize={10}
+        allowStatusFilter={false}
+      />
+    );
   };
+
+  const renderStatsContent = () => (
+    <div className="space-y-6">
+      <HarvestStats dateFrom={statsDateFrom || undefined} dateTo={statsDateTo || undefined} />
+      <HarvestList
+        key={`${normalizedRole}-stats`}
+        onView={handleViewRecord}
+        onDateRangeChange={handleStatsDateRangeChange}
+        showActions={false}
+        defaultStatus="APPROVED"
+        enableDateRangeFilter
+        defaultDateFrom={statsDateFrom}
+        defaultDateTo={statsDateTo}
+        listTitle="Data Approved untuk Analisis"
+        allowStatusFilter={false}
+      />
+    </div>
+  );
+
+  const renderMainContent = () => {
+    if (viewMode === 'stats' && !isMandorReadOnly) return renderStatsContent();
+    return renderOverviewContent();
+  };
+
+  const activeView = viewOptions.find((item) => item.value === viewMode) || viewOptions[0];
+  const ActiveViewIcon = activeView.icon;
+
+  const layoutActions = (
+    <div className="flex items-center gap-2">
+      {normalizedRole === 'ASISTEN' && (
+        <Button type="button" size="sm" onClick={() => router.push('/approvals')}>
+          <ShieldCheck className="mr-2 h-4 w-4" />
+          Approval
+        </Button>
+      )}
+    </div>
+  );
 
   const breadcrumbItems = [
     { label: 'Panen', href: '/harvest' },
-
-    ...(viewMode === 'list' ? [{ label: 'Daftar Data' }] : []),
     ...(viewMode === 'stats' ? [{ label: 'Statistik' }] : []),
   ];
 
   const getPageTitle = () => {
-    switch (viewMode) {
-
-      case 'list': return 'Daftar Data Panen';
-      case 'stats': return 'Statistik & Laporan Panen';
-      default: return 'Dashboard Panen';
-    }
+    if (viewMode === 'stats' && !isMandorReadOnly) return 'Statistik Panen';
+    return 'Dashboard Panen';
   };
 
   const getPageDescription = () => {
-    switch (viewMode) {
-
-      case 'list': return 'Kelola dan pantau data panen';
-      case 'stats': return 'Analisis performa dan tren panen';
-      default: return 'Pantau data panen harian dari hasil sinkronisasi';
-    }
+    if (viewMode === 'stats' && !isMandorReadOnly) return 'Analisis metrik dan data approved berdasarkan rentang tanggal aktif.';
+    return 'Ringkasan prioritas operasional panen hari ini.';
   };
 
-  return (
-    <MandorDashboardLayout
-      title={getPageTitle()}
-      description={getPageDescription()}
-      maxWidthClass="max-w-[96rem]"
-      contentPaddingClass="px-2 sm:px-3 lg:px-4 py-4 sm:py-5 lg:py-6"
-      breadcrumbItems={breadcrumbItems}
-    >
-      <AnimatePresence mode="wait">
-        {renderContent()}
-      </AnimatePresence>
-      {/* Hooks debugging panel (development only) - temporarily disabled */}
-      {/* <HooksDebugPanel /> */}
-    </MandorDashboardLayout>
-  );
-}
+  const getActiveModeHint = () => {
+    if (viewMode === 'stats') return 'Fokus pada performa approved dan tren kualitas sesuai rentang tanggal aktif.';
+    return 'Fokus pada item prioritas hari ini untuk eksekusi cepat.';
+  };
 
+  const getActiveModePeriodLabel = () => {
+    if (viewMode === 'stats') {
+      if (statsDateFrom && statsDateTo) return `Approved: ${statsDateFrom} s.d. ${statsDateTo}`;
+      if (statsDateFrom) return `Approved: mulai ${statsDateFrom}`;
+      if (statsDateTo) return `Approved: sampai ${statsDateTo}`;
+      return 'Approved: semua tanggal';
+    }
+    return `Hari ini (${todayDate})`;
+  };
+
+  return renderRoleLayout({
+    title: getPageTitle(),
+    description: getPageDescription(),
+    breadcrumbItems,
+    actions: layoutActions,
+    children: (
+      <div className="space-y-6">
+        <Card className="overflow-hidden border-slate-200 bg-gradient-to-br from-slate-900 via-emerald-900 to-slate-900 text-white">
+          <CardContent className="p-5 sm:p-6">
+            <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="border-white/25 bg-white/10 text-white">
+                    <Leaf className="mr-1.5 h-3.5 w-3.5" />
+                    {roleConfig.label} View
+                  </Badge>
+                  <Badge className="border-white/25 bg-white/10 text-white">
+                    <Building2 className="mr-1.5 h-3.5 w-3.5" />
+                    Scope: {scopeLabel}
+                  </Badge>
+                  <Badge className="border-white/25 bg-white/10 text-white">
+                    <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                    Auto refresh 30 detik
+                  </Badge>
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-semibold sm:text-2xl">Pusat Monitoring Panen</h2>
+                  <p className="mt-1 text-sm text-emerald-100 sm:text-base">{roleConfig.heroDescription}</p>
+                </div>
+
+                <div className="rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-sm text-emerald-50">
+                  Fokus mode aktif: {activeView.subtitle}
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-xl border border-white/20 bg-white/10 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-100">Mode Aktif</p>
+                <div className="flex items-center gap-2 text-lg font-semibold">
+                  <ActiveViewIcon className="h-5 w-5 text-emerald-200" />
+                  {activeView.label}
+                </div>
+                <p className="text-sm text-emerald-100">
+                  {activeView.subtitle}
+                </p>
+
+                <div className="rounded-xl border border-white/20 bg-slate-900/20 p-1.5">
+                  <div className={`grid gap-1.5 ${viewOptions.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                    {viewOptions.map((option) => {
+                      const Icon = option.icon;
+                      const isActive = viewMode === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-sm font-medium transition ${
+                            isActive
+                              ? 'bg-white text-slate-900 shadow-sm'
+                              : 'text-white/90 hover:bg-white/10 hover:text-white'
+                          }`}
+                          onClick={() => setViewMode(option.value)}
+                        >
+                          <Icon className="h-4 w-4" />
+                          <span>{option.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-white/15 bg-white/10 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-100">Tujuan Mode</p>
+                  <p className="mt-1 text-sm text-emerald-50">{getActiveModeHint()}</p>
+                </div>
+
+                <div className="rounded-lg border border-white/15 bg-white/10 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-emerald-100">Periode Data</p>
+                  <p className="mt-1 text-sm text-emerald-50">{getActiveModePeriodLabel()}</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {isMandorReadOnly && notifications.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-blue-600" />
+                Notifikasi Status Record
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {notifications.slice(0, 3).map((notification) => (
+                <Alert key={notification.id}>
+                  <Bell className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <span className="text-sm">{notification.message}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {notification.timestamp.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                      </Badge>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`${normalizedRole}-${viewMode}`}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-6"
+          >
+            {renderMainContent()}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    ),
+  });
+}

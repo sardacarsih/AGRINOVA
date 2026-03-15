@@ -91,6 +91,7 @@
     "reports": "Reports",
     "notifications": "Notifications",
     "team": "Team",
+    "organizationStructure": "Organization Structure",
     "myHarvest": "My Harvest",
     "harvestInput": "Harvest Input",
     "myBlocks": "My Blocks",
@@ -113,6 +114,7 @@
     "gradingReports": "Grading Reports",
     "assignments": "Assignments",
     "vehicles": "Vehicles",
+    "themeCampaigns": "Theme Campaigns",
     "history": "History",
     "quickActions": {
       "newHarvest": "New Harvest",

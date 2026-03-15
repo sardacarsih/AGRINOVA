@@ -2,6 +2,7 @@
 // Animated filter/toggle chip
 
 import 'package:flutter/material.dart';
+import '../genz_theme.dart';
 
 /// An animated chip for filters and toggles
 class GenZChip extends StatelessWidget {
@@ -24,6 +25,7 @@ class GenZChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -45,7 +47,7 @@ class GenZChip extends StatelessWidget {
               Icon(
                 icon,
                 size: 16,
-                color: isSelected ? selectedColor : const Color(0xFF6B7280),
+                color: isSelected ? selectedColor : themeColors.bodyTertiary,
               ),
               const SizedBox(width: 6),
             ],
@@ -54,7 +56,7 @@ class GenZChip extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: isSelected ? selectedColor : const Color(0xFF6B7280),
+                color: isSelected ? selectedColor : themeColors.bodyTertiary,
               ),
             ),
           ],
@@ -81,6 +83,7 @@ class GenZPillChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -90,7 +93,7 @@ class GenZPillChip extends StatelessWidget {
           color: isSelected ? _purple.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? _purple.withValues(alpha: 0.5) : const Color(0xFF374151),
+            color: isSelected ? _purple.withValues(alpha: 0.5) : themeColors.borderColor,
           ),
         ),
         child: Text(
@@ -98,11 +101,10 @@ class GenZPillChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-            color: isSelected ? _purple : const Color(0xFF9CA3AF),
+            color: isSelected ? _purple : themeColors.bodySecondary,
           ),
         ),
       ),
     );
   }
 }
-

@@ -37,6 +37,13 @@ function SplashCursor({
   TRANSPARENT = true
 }) {
   const canvasRef = useRef(null);
+  const isAutomation =
+    typeof navigator !== 'undefined' &&
+    (navigator.webdriver || /HeadlessChrome/i.test(navigator.userAgent || ''));
+
+  if (isAutomation) {
+    return null;
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -75,7 +82,10 @@ function SplashCursor({
 
     let pointers = [new pointerPrototype()];
 
-    const { gl, ext } = getWebGLContext(canvas);
+    const context = getWebGLContext(canvas);
+    if (!context) return;
+
+    const { gl, ext } = context;
     if (!ext.supportLinearFiltering) {
       config.DYE_RESOLUTION = 256;
       config.SHADING = false;
@@ -95,6 +105,11 @@ function SplashCursor({
         gl =
           canvas.getContext('webgl', params) ||
           canvas.getContext('experimental-webgl', params);
+
+      if (!gl) {
+        console.warn('[SplashCursor] WebGL is not available, skipping cursor effect');
+        return null;
+      }
 
       let halfFloat;
       let supportLinearFiltering;

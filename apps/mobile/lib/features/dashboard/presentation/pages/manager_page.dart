@@ -9,6 +9,7 @@ import '../../../../shared/widgets/auth_listener_wrapper.dart';
 import '../../../../core/di/dependency_injection.dart';
 import '../../../../core/services/notification_storage_service.dart';
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../blocs/manager_dashboard_bloc.dart';
 
 // Import modular components
@@ -97,7 +98,10 @@ class _ManagerPageState extends State<ManagerPage> {
 
   Widget _buildDashboard(BuildContext context, AuthAuthenticated state) {
     return Scaffold(
-      backgroundColor: ManagerTheme.scaffoldBackground,
+      backgroundColor: RuntimeThemeSlotResolver.dashboardBackground(
+        context,
+        fallback: ManagerTheme.scaffoldBackground,
+      ),
       appBar: _buildAppBar(context, state),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(ManagerTheme.paddingMedium),
@@ -181,38 +185,69 @@ class _ManagerPageState extends State<ManagerPage> {
 
   PreferredSizeWidget _buildAppBar(
       BuildContext context, AuthAuthenticated state) {
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: ManagerTheme.primaryPurple,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: Colors.white,
+    );
+    final navbarIcon = RuntimeThemeSlotResolver.navbarIcon(
+      context,
+      fallback: Colors.white,
+    );
+    final sidebarBg = RuntimeThemeSlotResolver.sidebarBackground(
+      context,
+      fallback: ManagerTheme.cardBackground,
+    );
+    final sidebarText = RuntimeThemeSlotResolver.sidebarForeground(
+      context,
+      fallback: ManagerTheme.textSecondary,
+    );
+    final sidebarIcon = RuntimeThemeSlotResolver.sidebarIcon(
+      context,
+      fallback: ManagerTheme.textSecondary,
+    );
+
     return AppBar(
-      title: const Text(
+      title: Text(
         'Manager Dashboard',
         style: TextStyle(
-          color: Colors.white,
+          color: navbarFg,
           fontWeight: FontWeight.w600,
         ),
       ),
-      flexibleSpace: Container(
-        decoration: const BoxDecoration(
-          gradient: ManagerTheme.headerGradient,
-        ),
-      ),
-      backgroundColor: Colors.transparent,
+      flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+          ? Container(color: navbarBg)
+          : Container(
+              decoration: const BoxDecoration(
+                gradient: ManagerTheme.headerGradient,
+              ),
+            ),
+      backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+          ? navbarBg
+          : Colors.transparent,
       elevation: 0,
-      iconTheme: const IconThemeData(color: Colors.white),
+      iconTheme: IconThemeData(color: navbarIcon),
       actions: [
         IconButton(
           icon: ManagerIconBadge(
             icon: Icons.notifications_outlined,
             badgeCount: _unreadNotificationCount,
+            iconColor: navbarIcon,
           ),
           onPressed: () => _showNotifications(context),
           tooltip: 'Notifications',
         ),
         IconButton(
-          icon: const Icon(Icons.bar_chart, color: Colors.white),
+          icon: Icon(Icons.bar_chart, color: navbarIcon),
           onPressed: () => _navigateToAnalytics(context),
           tooltip: 'Analytics',
         ),
         PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, color: Colors.white),
+          icon: Icon(Icons.more_vert, color: navbarIcon),
+          color: sidebarBg,
           onSelected: (value) {
             if (value == 'profile') {
               Navigator.push(
@@ -236,9 +271,9 @@ class _ManagerPageState extends State<ManagerPage> {
               value: 'profile',
               child: Row(
                 children: [
-                  Icon(Icons.person_outline, color: ManagerTheme.textSecondary),
+                  Icon(Icons.person_outline, color: sidebarIcon),
                   const SizedBox(width: 12),
-                  const Text('Profile'),
+                  Text('Profile', style: TextStyle(color: sidebarText)),
                 ],
               ),
             ),
@@ -246,10 +281,9 @@ class _ManagerPageState extends State<ManagerPage> {
               value: 'web_qr_login',
               child: Row(
                 children: [
-                  Icon(Icons.qr_code_scanner_outlined,
-                      color: ManagerTheme.textSecondary),
+                  Icon(Icons.qr_code_scanner_outlined, color: sidebarIcon),
                   const SizedBox(width: 12),
-                  const Text('QR Login Web'),
+                  Text('QR Login Web', style: TextStyle(color: sidebarText)),
                 ],
               ),
             ),
@@ -257,10 +291,9 @@ class _ManagerPageState extends State<ManagerPage> {
               value: 'settings',
               child: Row(
                 children: [
-                  Icon(Icons.settings_outlined,
-                      color: ManagerTheme.textSecondary),
+                  Icon(Icons.settings_outlined, color: sidebarIcon),
                   const SizedBox(width: 12),
-                  const Text('Settings'),
+                  Text('Settings', style: TextStyle(color: sidebarText)),
                 ],
               ),
             ),
@@ -283,9 +316,29 @@ class _ManagerPageState extends State<ManagerPage> {
   }
 
   Widget _buildBottomNavigation(BuildContext context) {
+    final footerBg = RuntimeThemeSlotResolver.footerBackground(
+      context,
+      fallback: ManagerTheme.cardBackground,
+    );
+    final footerSelected = RuntimeThemeSlotResolver.footerSelected(
+      context,
+      fallback: ManagerTheme.primaryPurple,
+    );
+    final footerUnselected = RuntimeThemeSlotResolver.footerUnselected(
+      context,
+      fallback: ManagerTheme.textMuted,
+    );
+    final footerBorder = RuntimeThemeSlotResolver.footerBorder(
+      context,
+      fallback: Colors.transparent,
+    );
+
     return Container(
       decoration: BoxDecoration(
-        color: ManagerTheme.cardBackground,
+        color: footerBg,
+        border: RuntimeThemeSlotResolver.hasFooterBorder
+            ? Border(top: BorderSide(color: footerBorder))
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
@@ -296,10 +349,10 @@ class _ManagerPageState extends State<ManagerPage> {
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: ManagerTheme.cardBackground,
+        backgroundColor: footerBg,
         currentIndex: 0,
-        selectedItemColor: ManagerTheme.primaryPurple,
-        unselectedItemColor: ManagerTheme.textMuted,
+        selectedItemColor: footerSelected,
+        unselectedItemColor: footerUnselected,
         selectedLabelStyle:
             const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
         unselectedLabelStyle: const TextStyle(fontSize: 12),
@@ -327,16 +380,31 @@ class _ManagerPageState extends State<ManagerPage> {
   }
 
   Widget _buildLoadingScreen() {
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: ManagerTheme.primaryPurple,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: Colors.white,
+    );
     return Scaffold(
-      backgroundColor: ManagerTheme.scaffoldBackground,
+      backgroundColor: RuntimeThemeSlotResolver.dashboardBackground(
+        context,
+        fallback: ManagerTheme.scaffoldBackground,
+      ),
       appBar: AppBar(
-        title: const Text('Manager Dashboard'),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: ManagerTheme.headerGradient,
-          ),
-        ),
-        backgroundColor: Colors.transparent,
+        title: Text('Manager Dashboard', style: TextStyle(color: navbarFg)),
+        flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Container(color: navbarBg)
+            : Container(
+                decoration: const BoxDecoration(
+                  gradient: ManagerTheme.headerGradient,
+                ),
+              ),
+        backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? navbarBg
+            : Colors.transparent,
       ),
       body: Center(
         child: Column(
@@ -424,7 +492,16 @@ class _ManagerPageState extends State<ManagerPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$feature dalam pengembangan'),
-        backgroundColor: ManagerTheme.pendingOrange,
+        backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+          context,
+          fallback: ManagerTheme.pendingOrange,
+        ),
+        contentTextStyle: TextStyle(
+          color: RuntimeThemeSlotResolver.notificationBannerText(
+            context,
+            fallback: Colors.white,
+          ),
+        ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

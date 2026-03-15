@@ -55,19 +55,37 @@ func NewService(
 // Login handles web authentication with cookies
 func (s *Service) Login(ctx context.Context, input webDomain.WebLoginInput) (*webDomain.WebLoginResult, error) {
 	// 0. Check Rate Limiter
-	if allowed, wait := s.rateLimiter.Allow(input.IPAddress); !allowed {
+	clientKey := stripPort(input.IPAddress)
+	if clientKey == "" {
+		clientKey = input.IPAddress
+	}
+	logRateLimitExceeded := func(userID *string, wait time.Duration) error {
 		s.securityLogger.LogSecurityEvent(ctx, &sharedDomain.SecurityEvent{
+			UserID:    userID,
 			Event:     sharedDomain.EventLoginFailure,
 			IPAddress: input.IPAddress,
 			UserAgent: input.UserAgent,
 			Details:   map[string]interface{}{"error": "rate_limit_exceeded", "wait_duration": wait.String()},
 		})
-		return nil, errors.New("too many login attempts, please try again later")
+		return errors.New("too many login attempts, please try again later")
+	}
+	consumeFailureBudget := func(userID *string) error {
+		if allowed, wait := s.rateLimiter.Allow(clientKey); !allowed {
+			return logRateLimitExceeded(userID, wait)
+		}
+		return nil
+	}
+
+	if blocked, wait := s.rateLimiter.Blocked(clientKey); blocked {
+		return nil, logRateLimitExceeded(nil, wait)
 	}
 
 	// 1. Find user by identifier (username or email)
-	user, err := s.userRepo.FindByIdentifier(ctx, input.Identifier)
+	user, err := s.userRepo.FindAuthByIdentifier(ctx, input.Identifier)
 	if err != nil {
+		if err := consumeFailureBudget(nil); err != nil {
+			return nil, err
+		}
 		s.securityLogger.LogSecurityEvent(ctx, &sharedDomain.SecurityEvent{
 			Event:     sharedDomain.EventLoginFailure,
 			IPAddress: input.IPAddress,
@@ -85,6 +103,9 @@ func (s *Service) Login(ctx context.Context, input webDomain.WebLoginInput) (*we
 			errorCode = "user_inactive"
 		}
 
+		if err := consumeFailureBudget(userID); err != nil {
+			return nil, err
+		}
 		s.securityLogger.LogSecurityEvent(ctx, &sharedDomain.SecurityEvent{
 			UserID:    userID,
 			Event:     sharedDomain.EventLoginFailure,
@@ -100,6 +121,9 @@ func (s *Service) Login(ctx context.Context, input webDomain.WebLoginInput) (*we
 
 	// 2. Verify password
 	if err := s.passwordSvc.VerifyPassword(user.Password, input.Password); err != nil {
+		if err := consumeFailureBudget(&user.ID); err != nil {
+			return nil, err
+		}
 		s.securityLogger.LogSecurityEvent(ctx, &sharedDomain.SecurityEvent{
 			UserID:    &user.ID,
 			Event:     sharedDomain.EventLoginFailure,
@@ -110,60 +134,19 @@ func (s *Service) Login(ctx context.Context, input webDomain.WebLoginInput) (*we
 		return nil, ErrInvalidCredentials
 	}
 
-	// 3. Get user assignments with details
-	assignments, err := s.assignmentRepo.FindWithDetails(ctx, user.ID)
-	if err != nil {
-		return nil, err
-	}
+	userDTO := sharedDomain.ToUserDTO(user)
 
-	// 4. Extract unique companies
-	companies := s.extractUniqueCompanies(assignments)
-	assignmentsDTO := s.convertAssignments(assignments)
-	userDTO := s.enrichUserWithPrimaryCompany(sharedDomain.ToUserDTO(user), assignmentsDTO, companies)
-
-	// 5. Create session
+	// 3. Create session
 	sessionDuration := s.config.SessionDuration
 	if input.RememberMe {
 		sessionDuration = s.config.RememberMeDuration
 	}
-
-	session := &sharedDomain.UserSession{
-		ID:           generateID(),
-		UserID:       user.ID,
-		SessionToken: generateSecureToken(),
-		Platform:     sharedDomain.PlatformWeb,
-		IPAddress:    stripPort(input.IPAddress),
-		UserAgent:    input.UserAgent,
-		ExpiresAt:    time.Now().Add(sessionDuration),
-		IsActive:     true,
-		LoginMethod:  "PASSWORD",
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-	}
-
-	if err := s.sessionRepo.CreateSession(ctx, session); err != nil {
-		return nil, err
-	}
-
-	// 5.5. Enforce single active WEB session per user.
-	// Keep the newest session and deactivate older WEB sessions.
-	activeSessions, err := s.sessionRepo.FindActiveSessionsByUser(ctx, user.ID)
+	session, err := s.issueWebSession(ctx, user.ID, input.IPAddress, input.UserAgent, sessionDuration, "PASSWORD")
 	if err != nil {
 		return nil, err
 	}
-	for _, activeSession := range activeSessions {
-		if activeSession == nil {
-			continue
-		}
-		if activeSession.Platform != sharedDomain.PlatformWeb || activeSession.ID == session.ID {
-			continue
-		}
-		if err := s.sessionRepo.RevokeSession(ctx, activeSession.ID); err != nil {
-			return nil, err
-		}
-	}
 
-	// 6. Set auth cookies
+	// 4. Set auth cookies
 	csrfToken, err := s.cookieService.GenerateCSRFToken()
 	if err != nil {
 		return nil, err
@@ -173,7 +156,9 @@ func (s *Service) Login(ctx context.Context, input webDomain.WebLoginInput) (*we
 		return nil, err
 	}
 
-	// 7. Log successful login
+	s.rateLimiter.Reset(clientKey)
+
+	// 5. Log successful login
 	s.securityLogger.LogSecurityEvent(ctx, &sharedDomain.SecurityEvent{
 		UserID:    &user.ID,
 		Event:     sharedDomain.EventLoginSuccess,
@@ -182,14 +167,57 @@ func (s *Service) Login(ctx context.Context, input webDomain.WebLoginInput) (*we
 		Details:   map[string]interface{}{"platform": "web"},
 	})
 
-	// 8. Return result
+	// 6. Return result
 	return &webDomain.WebLoginResult{
-		SessionID:   session.ID,
-		User:        userDTO,
-		Companies:   companies,
-		Assignments: assignmentsDTO,
-		ExpiresAt:   session.ExpiresAt,
+		SessionID: session.ID,
+		User:      userDTO,
+		ExpiresAt: session.ExpiresAt,
 	}, nil
+}
+
+func (s *Service) issueWebSession(
+	ctx context.Context,
+	userID string,
+	ipAddress string,
+	userAgent string,
+	sessionDuration time.Duration,
+	loginMethod string,
+) (*sharedDomain.UserSession, error) {
+	now := time.Now()
+
+	session := &sharedDomain.UserSession{
+		UserID:       userID,
+		SessionToken: generateSecureToken(),
+		Platform:     sharedDomain.PlatformWeb,
+		IPAddress:    stripPort(ipAddress),
+		UserAgent:    userAgent,
+		ExpiresAt:    now.Add(sessionDuration),
+		IsActive:     true,
+		LoginMethod:  loginMethod,
+		LastActivity: now,
+		UpdatedAt:    now,
+	}
+
+	reused, err := s.sessionRepo.TryRotateSingleActiveSession(ctx, session)
+	if err != nil {
+		return nil, err
+	}
+	if reused {
+		return session, nil
+	}
+
+	session.ID = generateID()
+	session.CreatedAt = now
+
+	if err := s.sessionRepo.CreateSession(ctx, session); err != nil {
+		return nil, err
+	}
+
+	if err := s.sessionRepo.RevokeOtherSessionsByUser(ctx, userID, session.ID, sharedDomain.PlatformWeb); err != nil {
+		return nil, err
+	}
+
+	return session, nil
 }
 
 // Logout handles web logout by clearing cookies

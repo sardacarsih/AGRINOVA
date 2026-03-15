@@ -38,15 +38,15 @@ class JWTLoginRequest extends Equatable {
 
   @override
   List<Object?> get props => [
-        username,
-        password,
-        deviceId,
-        deviceFingerprint,
-        fingerprint,
-        platform,
-        biometricHash,
-        rememberDevice,
-      ];
+    username,
+    password,
+    deviceId,
+    deviceFingerprint,
+    fingerprint,
+    platform,
+    biometricHash,
+    rememberDevice,
+  ];
 }
 
 // Supporting Models for Enhanced User Response
@@ -99,6 +99,7 @@ class User extends Equatable {
   final String username;
   final String email;
   final String role;
+  final String? effectiveMandorType;
   final String fullName;
   final bool isActive;
   final bool mustChangePassword;
@@ -131,6 +132,7 @@ class User extends Equatable {
     required this.username,
     required this.email,
     required this.role,
+    this.effectiveMandorType,
     required this.fullName,
     this.isActive = true,
     this.mustChangePassword = false,
@@ -156,6 +158,7 @@ class User extends Equatable {
     String? username,
     String? email,
     String? role,
+    String? effectiveMandorType,
     String? fullName,
     bool? isActive,
     bool? mustChangePassword,
@@ -180,6 +183,7 @@ class User extends Equatable {
       username: username ?? this.username,
       email: email ?? this.email,
       role: role ?? this.role,
+      effectiveMandorType: effectiveMandorType ?? this.effectiveMandorType,
       fullName: fullName ?? this.fullName,
       isActive: isActive ?? this.isActive,
       mustChangePassword: mustChangePassword ?? this.mustChangePassword,
@@ -212,7 +216,8 @@ class User extends Equatable {
     }
 
     // Parse fullName with fallback - also check 'nama' from GraphQL response
-    String fullName = json['fullName'] as String? ??
+    String fullName =
+        json['fullName'] as String? ??
         json['full_name'] as String? ??
         json['name'] as String? ??
         json['nama'] as String? ??
@@ -236,7 +241,8 @@ class User extends Equatable {
     if (managerName == null && json['manager'] != null) {
       final manager = json['manager'];
       if (manager is Map<String, dynamic>) {
-        managerName = manager['name'] as String? ??
+        managerName =
+            manager['name'] as String? ??
             manager['nama'] as String? ??
             manager['fullName'] as String? ??
             manager['full_name'] as String? ??
@@ -250,7 +256,8 @@ class User extends Equatable {
     if (json['assignmentScope'] != null) {
       try {
         assignmentScope = AssignmentScope.fromJson(
-            json['assignmentScope'] as Map<String, dynamic>);
+          json['assignmentScope'] as Map<String, dynamic>,
+        );
       } catch (e) {
         _debugLog('⚠️ Failed to parse assignmentScope: $e');
       }
@@ -273,6 +280,7 @@ class User extends Equatable {
       username: json['username'] as String,
       email: email,
       role: json['role'] as String,
+      effectiveMandorType: json['effectiveMandorType'] as String?,
       fullName: fullName,
       isActive: json['isActive'] as bool? ?? true,
       mustChangePassword: json['mustChangePassword'] as bool? ?? false,
@@ -298,34 +306,41 @@ class User extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        username,
-        email,
-        role,
-        fullName,
-        isActive,
-        mustChangePassword,
-        companyId,
-        companyName,
-        managerId,
-        managerName,
-        avatar,
-        estate,
-        division,
-        permissions,
-        availableActions,
-        companyAccess,
-        assignedEstates,
-        assignedDivisions,
-        assignedCompanies,
-        assignmentScope,
-        roleInfo,
-      ];
+    id,
+    username,
+    email,
+    role,
+    effectiveMandorType,
+    fullName,
+    isActive,
+    mustChangePassword,
+    companyId,
+    companyName,
+    managerId,
+    managerName,
+    avatar,
+    estate,
+    division,
+    permissions,
+    availableActions,
+    companyAccess,
+    assignedEstates,
+    assignedDivisions,
+    assignedCompanies,
+    assignmentScope,
+    roleInfo,
+  ];
 
   // Utility methods for role-based access
   bool get hasAssignedEstates => assignedEstates.isNotEmpty;
   bool get hasAssignedDivisions => assignedDivisions.isNotEmpty;
   bool get hasAssignedCompanies => assignedCompanies.isNotEmpty;
+  bool get isMandorPanen =>
+      role.toUpperCase() == 'MANDOR' &&
+      effectiveMandorType?.toUpperCase() == 'PANEN';
+  bool get isMandorPerawatan =>
+      role.toUpperCase() == 'MANDOR' &&
+      effectiveMandorType?.toUpperCase() == 'PERAWATAN';
 
   bool hasPermission(String permission) => permissions.contains(permission);
   bool canPerformAction(String action) => availableActions.contains(action);
@@ -424,24 +439,24 @@ class AuthCompany extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        name,
-        kodePabrik,
-        alamat,
-        latitude,
-        longitude,
-        contactPerson,
-        telepon,
-        email,
-        status,
-        tanggalBerdiri,
-        luasLahan,
-        jumlahBlok,
-        varietasUtama,
-        kapasitasPabrik,
-        createdAt,
-        updatedAt
-      ];
+    id,
+    name,
+    kodePabrik,
+    alamat,
+    latitude,
+    longitude,
+    contactPerson,
+    telepon,
+    email,
+    status,
+    tanggalBerdiri,
+    luasLahan,
+    jumlahBlok,
+    varietasUtama,
+    kapasitasPabrik,
+    createdAt,
+    updatedAt,
+  ];
 }
 
 @JsonSerializable()
@@ -490,24 +505,24 @@ class AuthEstate extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        name,
-        kode,
-        companyId,
-        areaManager,
-        manager,
-        alamat,
-        latitude,
-        longitude,
-        luasTotal,
-        luasPlantingArea,
-        jumlahBlok,
-        varietasUtama,
-        tahunTanam,
-        statusOperasional,
-        createdAt,
-        updatedAt
-      ];
+    id,
+    name,
+    kode,
+    companyId,
+    areaManager,
+    manager,
+    alamat,
+    latitude,
+    longitude,
+    luasTotal,
+    luasPlantingArea,
+    jumlahBlok,
+    varietasUtama,
+    tahunTanam,
+    statusOperasional,
+    createdAt,
+    updatedAt,
+  ];
 }
 
 @JsonSerializable()
@@ -550,21 +565,21 @@ class AuthDivision extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        name,
-        kode,
-        estateId,
-        asisten,
-        mandor,
-        luasDivisi,
-        jumlahBlok,
-        varietasDominan,
-        umurTanamanRataRata,
-        targetProduksi,
-        statusOperasional,
-        createdAt,
-        updatedAt
-      ];
+    id,
+    name,
+    kode,
+    estateId,
+    asisten,
+    mandor,
+    luasDivisi,
+    jumlahBlok,
+    varietasDominan,
+    umurTanamanRataRata,
+    targetProduksi,
+    statusOperasional,
+    createdAt,
+    updatedAt,
+  ];
 }
 
 @JsonSerializable()
@@ -594,6 +609,7 @@ class AuthUser extends Equatable {
   final String? name;
   final String? email;
   final String role;
+  final String? effectiveMandorType;
   final String? companyId;
   final String? companyName;
   final String? managerId;
@@ -609,6 +625,7 @@ class AuthUser extends Equatable {
     this.name,
     this.email,
     required this.role,
+    this.effectiveMandorType,
     this.companyId,
     this.companyName,
     this.managerId,
@@ -623,8 +640,17 @@ class AuthUser extends Equatable {
     List<String>? permissions;
     if (json['permissions'] != null) {
       if (json['permissions'] is List) {
-        permissions =
-            (json['permissions'] as List).map((e) => e.toString()).toList();
+        permissions = (json['permissions'] as List)
+            .map((e) => e.toString())
+            .toList();
+      }
+    }
+
+    String? companyName = json['companyName'] as String?;
+    if (companyName == null && json['company'] != null) {
+      final company = json['company'];
+      if (company is Map<String, dynamic>) {
+        companyName = company['name'] as String? ?? company['nama'] as String?;
       }
     }
 
@@ -647,8 +673,9 @@ class AuthUser extends Equatable {
       name: json['name'] as String?,
       email: json['email'] as String?,
       role: json['role'] as String,
+      effectiveMandorType: json['effectiveMandorType'] as String?,
       companyId: json['companyId'] as String?,
-      companyName: json['companyName'] as String?,
+      companyName: companyName,
       managerId: managerId,
       managerName: managerName,
       permissions: permissions,
@@ -662,20 +689,21 @@ class AuthUser extends Equatable {
 
   @override
   List<Object?> get props => [
-        id,
-        username,
-        name,
-        email,
-        role,
-        companyId,
-        companyName,
-        managerId,
-        managerName,
-        permissions,
-        profile,
-        createdAt,
-        updatedAt
-      ];
+    id,
+    username,
+    name,
+    email,
+    role,
+    effectiveMandorType,
+    companyId,
+    companyName,
+    managerId,
+    managerName,
+    permissions,
+    profile,
+    createdAt,
+    updatedAt,
+  ];
 }
 
 @JsonSerializable()
@@ -710,17 +738,17 @@ class AuthPayload extends Equatable {
 
   @override
   List<Object?> get props => [
-        accessToken,
-        refreshToken,
-        offlineToken,
-        tokenType,
-        expiresIn,
-        expiresAt,
-        refreshExpiresAt,
-        offlineExpiresAt,
-        user,
-        assignments
-      ];
+    accessToken,
+    refreshToken,
+    offlineToken,
+    tokenType,
+    expiresIn,
+    expiresAt,
+    refreshExpiresAt,
+    offlineExpiresAt,
+    user,
+    assignments,
+  ];
 }
 
 @JsonSerializable()
@@ -759,6 +787,7 @@ class JWTLoginResponse extends Equatable {
   final DateTime expiresAt;
   final DateTime? offlineExpiresAt;
   final User user;
+  final UserAssignments? assignments;
   final Session? session;
   final bool deviceTrusted;
   final bool? isFirstLogin;
@@ -773,6 +802,7 @@ class JWTLoginResponse extends Equatable {
     required this.expiresAt,
     this.offlineExpiresAt,
     required this.user,
+    this.assignments,
     this.session,
     required this.deviceTrusted,
     this.isFirstLogin,
@@ -801,7 +831,8 @@ class JWTLoginResponse extends Equatable {
       expiresAt = json['expiresAt'] is String
           ? DateTime.parse(json['expiresAt'] as String)
           : DateTime.fromMillisecondsSinceEpoch(
-              (json['expiresAt'] as int) * 1000);
+              (json['expiresAt'] as int) * 1000,
+            );
     } else {
       // Default: 1 hour from now
       expiresAt = DateTime.now().add(const Duration(hours: 1));
@@ -813,62 +844,178 @@ class JWTLoginResponse extends Equatable {
       offlineExpiresAt = json['offlineExpiresAt'] is String
           ? DateTime.parse(json['offlineExpiresAt'] as String)
           : DateTime.fromMillisecondsSinceEpoch(
-              (json['offlineExpiresAt'] as int) * 1000);
+              (json['offlineExpiresAt'] as int) * 1000,
+            );
     }
 
-    // Extract estate and division names from assignments to merge into user
-    String? estateName;
-    String? divisionName;
-    String? assignedCompanyId;
-    String? assignedCompanyName;
-    final assignments = json['assignments'];
-    if (assignments != null && assignments is Map<String, dynamic>) {
-      // Get first company (for non-Area Manager roles, there's only 1)
-      final companies = assignments['companies'];
-      if (companies != null && companies is List && companies.isNotEmpty) {
-        final firstCompany = companies.first;
-        if (firstCompany is Map<String, dynamic>) {
-          assignedCompanyId = firstCompany['id'] as String?;
-          assignedCompanyName = firstCompany['name'] as String? ??
-              firstCompany['nama'] as String?;
+    // Normalize user payload so legacy callers do not depend on root-level
+    // assignments just to derive company/estate/division labels.
+    final mergedUserData = Map<String, dynamic>.from(
+      userData as Map<String, dynamic>,
+    );
+    List<String> extractIds(dynamic raw) {
+      if (raw is! List) return const <String>[];
+      final ids = <String>[];
+      for (final item in raw) {
+        if (item is Map<String, dynamic>) {
+          final id = item['id']?.toString().trim();
+          if (id != null && id.isNotEmpty) {
+            ids.add(id);
+          }
+        } else if (item is Map) {
+          final id = item['id']?.toString().trim();
+          if (id != null && id.isNotEmpty) {
+            ids.add(id);
+          }
+        } else {
+          final id = item?.toString().trim();
+          if (id != null && id.isNotEmpty) {
+            ids.add(id);
+          }
         }
       }
+      return ids;
+    }
 
-      // Get first estate name
-      final estates = assignments['estates'];
-      if (estates != null && estates is List && estates.isNotEmpty) {
-        final firstEstate = estates.first;
-        if (firstEstate is Map<String, dynamic>) {
-          estateName =
-              firstEstate['name'] as String? ?? firstEstate['nama'] as String?;
+    List<String> extractNames(dynamic raw) {
+      if (raw is! List) return const <String>[];
+      final names = <String>[];
+      for (final item in raw) {
+        if (item is Map<String, dynamic>) {
+          final name =
+              item['name']?.toString().trim() ??
+              item['nama']?.toString().trim();
+          if (name != null && name.isNotEmpty) {
+            names.add(name);
+          }
+        } else if (item is Map) {
+          final name =
+              item['name']?.toString().trim() ??
+              item['nama']?.toString().trim();
+          if (name != null && name.isNotEmpty) {
+            names.add(name);
+          }
+        } else {
+          final name = item?.toString().trim();
+          if (name != null && name.isNotEmpty) {
+            names.add(name);
+          }
         }
       }
+      return names;
+    }
 
-      // Get first division name
-      final divisions = assignments['divisions'];
-      if (divisions != null && divisions is List && divisions.isNotEmpty) {
-        final firstDivision = divisions.first;
-        if (firstDivision is Map<String, dynamic>) {
-          divisionName = firstDivision['name'] as String? ??
-              firstDivision['nama'] as String?;
+    final company = mergedUserData['company'];
+    if (company is Map<String, dynamic>) {
+      final companyId = company['id'] as String?;
+      final companyName =
+          company['name'] as String? ?? company['nama'] as String?;
+      if (companyId != null && mergedUserData['companyId'] == null) {
+        mergedUserData['companyId'] = companyId;
+      }
+      if (companyName != null && mergedUserData['companyName'] == null) {
+        mergedUserData['companyName'] = companyName;
+      }
+    }
+
+    final estates = mergedUserData['estates'];
+    if (estates is List && estates.isNotEmpty) {
+      final firstEstate = estates.first;
+      if (firstEstate is Map<String, dynamic>) {
+        final estateName =
+            firstEstate['name'] as String? ?? firstEstate['nama'] as String?;
+        if (estateName != null && mergedUserData['estate'] == null) {
+          mergedUserData['estate'] = estateName;
         }
       }
     }
 
-    // Merge estate/division/company into userData before parsing
-    final mergedUserData =
-        Map<String, dynamic>.from(userData as Map<String, dynamic>);
-    if (assignedCompanyId != null && mergedUserData['companyId'] == null) {
-      mergedUserData['companyId'] = assignedCompanyId;
+    final divisions = mergedUserData['divisions'];
+    if (divisions is List && divisions.isNotEmpty) {
+      final firstDivision = divisions.first;
+      if (firstDivision is Map<String, dynamic>) {
+        final divisionName =
+            firstDivision['name'] as String? ??
+            firstDivision['nama'] as String?;
+        if (divisionName != null && mergedUserData['division'] == null) {
+          mergedUserData['division'] = divisionName;
+        }
+      }
     }
-    if (assignedCompanyName != null && mergedUserData['companyName'] == null) {
-      mergedUserData['companyName'] = assignedCompanyName;
+
+    UserAssignments? assignments;
+    final assignmentPayload = json['assignments'];
+    if (assignmentPayload is Map<String, dynamic>) {
+      try {
+        assignments = UserAssignments.fromJson(assignmentPayload);
+      } catch (e) {
+        _debugLog('⚠️ Failed to parse login assignments: $e');
+      }
     }
-    if (estateName != null && mergedUserData['estate'] == null) {
-      mergedUserData['estate'] = estateName;
+
+    final assignedCompanyIds = assignmentPayload is Map<String, dynamic>
+        ? extractIds(assignmentPayload['companies'])
+        : const <String>[];
+    final assignedEstateIds = assignmentPayload is Map<String, dynamic>
+        ? extractIds(assignmentPayload['estates'])
+        : const <String>[];
+    final assignedDivisionIds = assignmentPayload is Map<String, dynamic>
+        ? extractIds(assignmentPayload['divisions'])
+        : const <String>[];
+
+    final fallbackCompanyIds = assignedCompanyIds.isNotEmpty
+        ? assignedCompanyIds
+        : (() {
+            final companyId = mergedUserData['companyId']?.toString().trim();
+            if (companyId == null || companyId.isEmpty) {
+              return const <String>[];
+            }
+            return <String>[companyId];
+          })();
+    final fallbackEstateIds = assignedEstateIds.isNotEmpty
+        ? assignedEstateIds
+        : extractIds(mergedUserData['estates']);
+    final fallbackDivisionIds = assignedDivisionIds.isNotEmpty
+        ? assignedDivisionIds
+        : extractIds(mergedUserData['divisions']);
+    final assignedCompanyNames = assignmentPayload is Map<String, dynamic>
+        ? extractNames(assignmentPayload['companies'])
+        : const <String>[];
+    final assignedEstateNames = assignmentPayload is Map<String, dynamic>
+        ? extractNames(assignmentPayload['estates'])
+        : const <String>[];
+    final assignedDivisionNames = assignmentPayload is Map<String, dynamic>
+        ? extractNames(assignmentPayload['divisions'])
+        : const <String>[];
+
+    if (fallbackCompanyIds.isNotEmpty) {
+      mergedUserData['assignedCompanies'] = fallbackCompanyIds;
     }
-    if (divisionName != null && mergedUserData['division'] == null) {
-      mergedUserData['division'] = divisionName;
+    if (fallbackEstateIds.isNotEmpty) {
+      mergedUserData['assignedEstates'] = fallbackEstateIds;
+    }
+    if (fallbackDivisionIds.isNotEmpty) {
+      mergedUserData['assignedDivisions'] = fallbackDivisionIds;
+    }
+    if (fallbackCompanyIds.isNotEmpty ||
+        fallbackEstateIds.isNotEmpty ||
+        fallbackDivisionIds.isNotEmpty) {
+      mergedUserData['assignmentScope'] = <String, dynamic>{
+        'companies': fallbackCompanyIds,
+        'estates': fallbackEstateIds,
+        'divisions': fallbackDivisionIds,
+      };
+    }
+    if (assignedCompanyNames.isNotEmpty &&
+        mergedUserData['companyName'] == null) {
+      mergedUserData['companyName'] = assignedCompanyNames.first;
+    }
+    if (assignedEstateNames.isNotEmpty && mergedUserData['estate'] == null) {
+      mergedUserData['estate'] = assignedEstateNames.first;
+    }
+    if (assignedDivisionNames.isNotEmpty &&
+        mergedUserData['division'] == null) {
+      mergedUserData['division'] = assignedDivisionNames.first;
     }
 
     return JWTLoginResponse(
@@ -881,6 +1028,7 @@ class JWTLoginResponse extends Equatable {
       expiresAt: expiresAt,
       offlineExpiresAt: offlineExpiresAt,
       user: User.fromJson(mergedUserData),
+      assignments: assignments,
       session: session,
       deviceTrusted: json['deviceTrusted'] as bool? ?? false,
       isFirstLogin: json['isFirstLogin'] as bool?,
@@ -891,19 +1039,20 @@ class JWTLoginResponse extends Equatable {
 
   @override
   List<Object?> get props => [
-        accessToken,
-        refreshToken,
-        offlineToken,
-        deviceBinding,
-        tokenType,
-        expiresIn,
-        expiresAt,
-        offlineExpiresAt,
-        user,
-        session,
-        deviceTrusted,
-        isFirstLogin,
-      ];
+    accessToken,
+    refreshToken,
+    offlineToken,
+    deviceBinding,
+    tokenType,
+    expiresIn,
+    expiresAt,
+    offlineExpiresAt,
+    user,
+    assignments,
+    session,
+    deviceTrusted,
+    isFirstLogin,
+  ];
 }
 
 // JWT Refresh Request Model
@@ -911,7 +1060,7 @@ class JWTLoginResponse extends Equatable {
 class JWTRefreshRequest extends Equatable {
   final String refreshToken;
   final String?
-      deviceId; // Nullable if not always required by refresh endpoint (standard OAuth)
+  deviceId; // Nullable if not always required by refresh endpoint (standard OAuth)
   final String? fingerprint; // Nullable for standard OAuth flow
 
   const JWTRefreshRequest({
@@ -939,7 +1088,7 @@ class JWTRefreshResponse extends Equatable {
   final String tokenType;
   final int expiresIn;
   final DateTime?
-      expiresAt; // Changed to DateTime? for consistency or keep formatted string if simpler
+  expiresAt; // Changed to DateTime? for consistency or keep formatted string if simpler
   final DateTime? offlineExpiresAt;
   final Session? session;
   final bool? deviceTrusted;
@@ -964,7 +1113,8 @@ class JWTRefreshResponse extends Equatable {
       expiresAt = json['expiresAt'] is String
           ? DateTime.parse(json['expiresAt'] as String)
           : DateTime.fromMillisecondsSinceEpoch(
-              (json['expiresAt'] as int) * 1000);
+              (json['expiresAt'] as int) * 1000,
+            );
     }
 
     // Parse offlineExpiresAt with null safety
@@ -973,7 +1123,8 @@ class JWTRefreshResponse extends Equatable {
       offlineExpiresAt = json['offlineExpiresAt'] is String
           ? DateTime.parse(json['offlineExpiresAt'] as String)
           : DateTime.fromMillisecondsSinceEpoch(
-              (json['offlineExpiresAt'] as int) * 1000);
+              (json['offlineExpiresAt'] as int) * 1000,
+            );
     }
 
     // Parse session with null safety
@@ -1004,17 +1155,17 @@ class JWTRefreshResponse extends Equatable {
 
   @override
   List<Object?> get props => [
-        accessToken,
-        refreshToken,
-        offlineToken,
-        deviceBinding,
-        tokenType,
-        expiresIn,
-        expiresAt,
-        offlineExpiresAt,
-        session,
-        deviceTrusted,
-      ];
+    accessToken,
+    refreshToken,
+    offlineToken,
+    deviceBinding,
+    tokenType,
+    expiresIn,
+    expiresAt,
+    offlineExpiresAt,
+    session,
+    deviceTrusted,
+  ];
 }
 
 // JWT Payload Model (for parsing JWT tokens)
@@ -1058,9 +1209,9 @@ class JWTPayload extends Equatable {
   bool get isExpired =>
       DateTime.fromMillisecondsSinceEpoch(exp * 1000).isBefore(DateTime.now());
 
-  bool get shouldRefresh => DateTime.fromMillisecondsSinceEpoch(exp * 1000)
-      .subtract(Duration(minutes: 2))
-      .isBefore(DateTime.now());
+  bool get shouldRefresh => DateTime.fromMillisecondsSinceEpoch(
+    exp * 1000,
+  ).subtract(Duration(minutes: 2)).isBefore(DateTime.now());
 
   DateTime get expirationDate =>
       DateTime.fromMillisecondsSinceEpoch(exp * 1000);
@@ -1069,18 +1220,18 @@ class JWTPayload extends Equatable {
 
   @override
   List<Object?> get props => [
-        sub,
-        username,
-        role,
-        companyId,
-        deviceId,
-        deviceFingerprint,
-        sessionId,
-        permissions,
-        iat,
-        exp,
-        jti,
-      ];
+    sub,
+    username,
+    role,
+    companyId,
+    deviceId,
+    deviceFingerprint,
+    sessionId,
+    permissions,
+    iat,
+    exp,
+    jti,
+  ];
 }
 
 // Device Registration Request Model
@@ -1115,16 +1266,16 @@ class DeviceRegistrationRequest extends Equatable {
 
   @override
   List<Object?> get props => [
-        deviceId,
-        fingerprint,
-        platform,
-        osVersion,
-        appVersion,
-        buildNumber,
-        model,
-        brand,
-        deviceName,
-      ];
+    deviceId,
+    fingerprint,
+    platform,
+    osVersion,
+    appVersion,
+    buildNumber,
+    model,
+    brand,
+    deviceName,
+  ];
 }
 
 // JWT Offline Token Validation Request Model
@@ -1203,16 +1354,14 @@ class DeviceInfo extends Equatable {
 
   @override
   List<Object?> get props => [
-        deviceId,
-        fingerprint,
-        platform,
-        osVersion,
-        appVersion,
-        buildNumber,
-        model,
-        brand,
-        deviceName,
-      ];
+    deviceId,
+    fingerprint,
+    platform,
+    osVersion,
+    appVersion,
+    buildNumber,
+    model,
+    brand,
+    deviceName,
+  ];
 }
-
-

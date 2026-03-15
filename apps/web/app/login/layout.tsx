@@ -1,23 +1,11 @@
 import type { Metadata } from 'next';
-import { Playfair_Display, DM_Sans } from 'next/font/google';
+import type { CSSProperties } from 'react';
 import './login.mobile.css';
 
-// Serif display font for brand/headings
-const playfair = Playfair_Display({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800', '900'],
-  style: ['normal', 'italic'],
-  variable: '--font-playfair',
-  display: 'swap',
-});
-
-// Sans-serif body font
-const dmSans = DM_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-dm-sans',
-  display: 'swap',
-});
+const loginFontStyle: CSSProperties = {
+  ['--font-playfair' as string]: '"Georgia", "Times New Roman", serif',
+  ['--font-dm-sans' as string]: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+};
 
 export const metadata: Metadata = {
   title: 'Login | Agrinova',
@@ -34,7 +22,7 @@ interface LoginLayoutProps {
 
 export default function LoginLayout({ children }: LoginLayoutProps) {
   return (
-    <div className={`min-h-screen ${playfair.variable} ${dmSans.variable}`}>
+    <div className="min-h-screen" style={loginFontStyle}>
       {children}
     </div>
   );

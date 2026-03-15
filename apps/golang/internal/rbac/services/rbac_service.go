@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +14,13 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+)
+
+const optimizeCurrentUserLookupEnv = "AGRINOVA_OPTIMIZE_CURRENT_USER_LOOKUP"
+
+var (
+	optimizeCurrentUserLookupOnce    sync.Once
+	optimizeCurrentUserLookupEnabled bool
 )
 
 // PermissionCacheEntry represents a cached permission result
@@ -350,12 +358,52 @@ func (s *RBACService) GetRoleHierarchy(ctx context.Context) ([]map[string]interf
 // Private helper methods
 
 func (s *RBACService) getUserRole(ctx context.Context, userID string) (string, error) {
+	if role, ok := getContextUserRole(ctx, userID); ok {
+		return role, nil
+	}
+
 	var role string
 	err := s.db.WithContext(ctx).Raw("SELECT role FROM users WHERE id = ?", userID).Scan(&role).Error
 	if err != nil {
 		return "", err
 	}
 	return role, nil
+}
+
+func getContextUserRole(ctx context.Context, userID string) (string, bool) {
+	if !isCurrentUserLookupOptimizationEnabled() || ctx == nil {
+		return "", false
+	}
+
+	ctxUserID, _ := ctx.Value("user_id").(string)
+	if strings.TrimSpace(ctxUserID) == "" || !strings.EqualFold(strings.TrimSpace(ctxUserID), strings.TrimSpace(userID)) {
+		return "", false
+	}
+
+	roleValue := ctx.Value("user_role")
+	switch role := roleValue.(type) {
+	case string:
+		trimmed := strings.TrimSpace(role)
+		return trimmed, trimmed != ""
+	case fmt.Stringer:
+		trimmed := strings.TrimSpace(role.String())
+		return trimmed, trimmed != ""
+	default:
+		if roleValue == nil {
+			return "", false
+		}
+		trimmed := strings.TrimSpace(fmt.Sprint(roleValue))
+		return trimmed, trimmed != "" && trimmed != "<nil>"
+	}
+}
+
+func isCurrentUserLookupOptimizationEnabled() bool {
+	optimizeCurrentUserLookupOnce.Do(func() {
+		value := strings.TrimSpace(strings.ToLower(os.Getenv(optimizeCurrentUserLookupEnv)))
+		optimizeCurrentUserLookupEnabled = value == "1" || value == "true" || value == "yes" || value == "on"
+	})
+
+	return optimizeCurrentUserLookupEnabled
 }
 
 func (s *RBACService) getRoleLevel(ctx context.Context, roleName string) (int, error) {
@@ -1028,6 +1076,31 @@ func (s *RBACService) GetAllRoles(ctx context.Context, activeOnly bool) ([]map[s
 	roles, err := s.repository.GetAllRoles(activeOnly)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get all roles: %w", err)
+	}
+
+	result := make([]map[string]interface{}, len(roles))
+	for i, role := range roles {
+		result[i] = map[string]interface{}{
+			"id":           role.ID.String(),
+			"name":         role.Name,
+			"display_name": role.DisplayName,
+			"level":        role.Level,
+			"description":  role.Description,
+			"is_active":    role.IsActive,
+			"is_system":    role.IsSystem,
+			"created_at":   role.CreatedAt,
+			"updated_at":   role.UpdatedAt,
+		}
+	}
+
+	return result, nil
+}
+
+// GetRolesPage retrieves a paginated slice of roles using the repository.
+func (s *RBACService) GetRolesPage(ctx context.Context, activeOnly bool, limit int, offset int) ([]map[string]interface{}, error) {
+	roles, err := s.repository.GetRolesPage(activeOnly, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get role page: %w", err)
 	}
 
 	result := make([]map[string]interface{}, len(roles))

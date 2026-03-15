@@ -386,6 +386,20 @@ export function OrganizationalHierarchy({
     }
   };
 
+  const getUserRoleLabel = (user: User) => {
+    if (user.role === 'MANDOR') {
+      if (user.effectiveMandorType === 'PANEN') {
+        return 'MANDOR/PANEN';
+      }
+      if (user.effectiveMandorType === 'PERAWATAN') {
+        return 'MANDOR/PERAWATAN';
+      }
+      return 'MANDOR/UNKNOWN';
+    }
+
+    return USER_ROLE_LABELS[user.role];
+  };
+
   const renderNode = (node: HierarchyNode, depth: number = 0) => {
     const isExpanded = expandedNodes.has(node.id);
     const hasChildren = node.children.length > 0;
@@ -500,12 +514,12 @@ export function OrganizationalHierarchy({
                       }`} />
                     </div>
                     <div className="text-xs text-gray-500 truncate">
-                      {user.employeeId} • {USER_ROLE_LABELS[user.role]}
+                      {user.employeeId} • {getUserRoleLabel(user)}
                     </div>
                   </div>
                   
                   <Badge variant="secondary" className="text-xs">
-                    {USER_ROLE_LABELS[user.role]}
+                    {getUserRoleLabel(user)}
                   </Badge>
                 </motion.div>
               );
@@ -540,7 +554,7 @@ export function OrganizationalHierarchy({
                       </Badge>
                     </div>
                     <div className="text-xs text-gray-500 truncate">
-                      {user.employeeId} • {USER_ROLE_LABELS[user.role]}
+                      {user.employeeId} • {getUserRoleLabel(user)}
                     </div>
                     
                     {/* Multi-assignment details */}
@@ -562,7 +576,7 @@ export function OrganizationalHierarchy({
                   </div>
                   
                   <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs">
-                    {USER_ROLE_LABELS[user.role]}
+                    {getUserRoleLabel(user)}
                   </Badge>
                 </motion.div>
               );

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -44,7 +46,7 @@ func Connect(config *DatabaseConfig) (*DatabaseService, error) {
 
 	var err error
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(gormLogLevel()),
 		// Enable foreign key constraints
 		DisableForeignKeyConstraintWhenMigrating: false,
 		// Improve query performance - DISABLED to prevent "cached plan must not change result type" errors
@@ -73,6 +75,19 @@ func Connect(config *DatabaseConfig) (*DatabaseService, error) {
 
 	log.Println("Database connected successfully with relationship management")
 	return service, nil
+}
+
+func gormLogLevel() logger.LogLevel {
+	if envEnabled("AGRINOVA_DB_DEBUG_SQL") {
+		return logger.Info
+	}
+
+	return logger.Warn
+}
+
+func envEnabled(key string) bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
+	return value == "1" || value == "true" || value == "yes" || value == "on"
 }
 
 // Close closes the database connection

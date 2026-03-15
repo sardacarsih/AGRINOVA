@@ -197,6 +197,18 @@ type AreaManagerAnalyticsData struct {
 	RegionalTrends *RegionalTrends `json:"regionalTrends"`
 }
 
+// AreaManagerBudgetWorkflowSummary for cross-company budget workflow monitoring.
+type AreaManagerBudgetWorkflowSummary struct {
+	// Draft budget count
+	Draft int32 `json:"draft"`
+	// Review budget count
+	Review int32 `json:"review"`
+	// Approved budget count
+	Approved int32 `json:"approved"`
+	// Total budget records in period
+	Total int32 `json:"total"`
+}
+
 // AreaManagerDashboardData represents dashboard for Area Manager.
 type AreaManagerDashboardData struct {
 	// User information
@@ -207,6 +219,8 @@ type AreaManagerDashboardData struct {
 	Stats *AreaManagerStats `json:"stats"`
 	// Company performance overview
 	CompanyPerformance []*CompanyPerformanceData `json:"companyPerformance"`
+	// Budget workflow summary for current period
+	BudgetWorkflowSummary *AreaManagerBudgetWorkflowSummary `json:"budgetWorkflowSummary"`
 	// Regional alerts
 	Alerts []*RegionalAlert `json:"alerts"`
 	// Action items
@@ -324,6 +338,92 @@ type BlockPaginationResponse struct {
 	Data []*master.Block `json:"data"`
 	// Pagination metadata
 	Pagination *master.Pagination `json:"pagination"`
+}
+
+// BlockTariffChangeLog represents audit trail for tariff changes impacting blocks.
+type BlockTariffChangeLog struct {
+	ID             string     `json:"id"`
+	ChangedAt      time.Time  `json:"changedAt"`
+	EventType      string     `json:"eventType"`
+	ChangedBy      *string    `json:"changedBy,omitempty"`
+	ChangedByName  *string    `json:"changedByName,omitempty"`
+	CompanyID      *string    `json:"companyId,omitempty"`
+	CompanyName    *string    `json:"companyName,omitempty"`
+	BlockID        *string    `json:"blockId,omitempty"`
+	BlockCode      *string    `json:"blockCode,omitempty"`
+	BlockName      *string    `json:"blockName,omitempty"`
+	DivisionID     *string    `json:"divisionId,omitempty"`
+	DivisionName   *string    `json:"divisionName,omitempty"`
+	EstateID       *string    `json:"estateId,omitempty"`
+	EstateName     *string    `json:"estateName,omitempty"`
+	RuleID         *string    `json:"ruleId,omitempty"`
+	TarifCode      *string    `json:"tarifCode,omitempty"`
+	RulePerlakuan  *string    `json:"rulePerlakuan,omitempty"`
+	OverrideID     *string    `json:"overrideId,omitempty"`
+	OverrideType   *string    `json:"overrideType,omitempty"`
+	EffectiveFrom  *time.Time `json:"effectiveFrom,omitempty"`
+	EffectiveTo    *time.Time `json:"effectiveTo,omitempty"`
+	OldTarifBlokID *string    `json:"oldTarifBlokId,omitempty"`
+	NewTarifBlokID *string    `json:"newTarifBlokId,omitempty"`
+	OldValues      *string    `json:"oldValues,omitempty"`
+	NewValues      *string    `json:"newValues,omitempty"`
+}
+
+// BlockTariffChangeLogPaginationResponse represents paginated block tariff change logs.
+type BlockTariffChangeLogPaginationResponse struct {
+	Data       []*BlockTariffChangeLog `json:"data"`
+	Pagination *master.Pagination      `json:"pagination"`
+}
+
+// BlockTreatmentSemesterRequest represents manager submission for semester block treatment changes.
+type BlockTreatmentSemesterRequest struct {
+	ID             string                               `json:"id"`
+	CompanyID      string                               `json:"companyId"`
+	CompanyName    *string                              `json:"companyName,omitempty"`
+	Semester       string                               `json:"semester"`
+	Status         BlockTreatmentRequestStatus          `json:"status"`
+	Notes          *string                              `json:"notes,omitempty"`
+	RevisionNo     int32                                `json:"revisionNo"`
+	SubmittedAt    *time.Time                           `json:"submittedAt,omitempty"`
+	ReviewedBy     *string                              `json:"reviewedBy,omitempty"`
+	ReviewedByName *string                              `json:"reviewedByName,omitempty"`
+	ReviewedAt     *time.Time                           `json:"reviewedAt,omitempty"`
+	ApprovedBy     *string                              `json:"approvedBy,omitempty"`
+	ApprovedByName *string                              `json:"approvedByName,omitempty"`
+	ApprovedAt     *time.Time                           `json:"approvedAt,omitempty"`
+	RejectedReason *string                              `json:"rejectedReason,omitempty"`
+	AppliedBy      *string                              `json:"appliedBy,omitempty"`
+	AppliedByName  *string                              `json:"appliedByName,omitempty"`
+	AppliedAt      *time.Time                           `json:"appliedAt,omitempty"`
+	CreatedBy      string                               `json:"createdBy"`
+	CreatedByName  *string                              `json:"createdByName,omitempty"`
+	CreatedAt      time.Time                            `json:"createdAt"`
+	UpdatedAt      time.Time                            `json:"updatedAt"`
+	Items          []*BlockTreatmentSemesterRequestItem `json:"items"`
+}
+
+// BlockTreatmentSemesterRequestItem stores a block-level proposed treatment change.
+type BlockTreatmentSemesterRequestItem struct {
+	ID                  string    `json:"id"`
+	RequestID           string    `json:"requestId"`
+	BlockID             string    `json:"blockId"`
+	BlockCode           string    `json:"blockCode"`
+	BlockName           string    `json:"blockName"`
+	DivisionName        *string   `json:"divisionName,omitempty"`
+	EstateName          *string   `json:"estateName,omitempty"`
+	CurrentTarifBlokID  *string   `json:"currentTarifBlokId,omitempty"`
+	CurrentPerlakuan    *string   `json:"currentPerlakuan,omitempty"`
+	ProposedTarifBlokID string    `json:"proposedTarifBlokId"`
+	ProposedPerlakuan   *string   `json:"proposedPerlakuan,omitempty"`
+	ImpactSummary       *string   `json:"impactSummary,omitempty"`
+	CreatedAt           time.Time `json:"createdAt"`
+	UpdatedAt           time.Time `json:"updatedAt"`
+}
+
+type BlockTreatmentSemesterRequestItemInput struct {
+	BlockID             string  `json:"blockId"`
+	ProposedTarifBlokID string  `json:"proposedTarifBlokId"`
+	ImpactSummary       *string `json:"impactSummary,omitempty"`
 }
 
 // CompanyAdminDashboardData represents dashboard for Company Admin.
@@ -450,6 +550,24 @@ type CompanyEfficiencyData struct {
 	Rank int32 `json:"rank"`
 }
 
+// CompanyEstatePerformance represents estate-level production breakdown for a company.
+type CompanyEstatePerformance struct {
+	// Estate ID
+	EstateID string `json:"estateId"`
+	// Estate Name
+	EstateName string `json:"estateName"`
+	// Today's production (tons)
+	TodayProduction float64 `json:"todayProduction"`
+	// Monthly production (tons)
+	MonthlyProduction float64 `json:"monthlyProduction"`
+	// Monthly target (tons)
+	MonthlyTarget float64 `json:"monthlyTarget"`
+	// Target achievement percentage
+	TargetAchievement float64 `json:"targetAchievement"`
+	// Quality score
+	QualityScore float64 `json:"qualityScore"`
+}
+
 // CompanyListResponse for company listing.
 type CompanyListResponse struct {
 	// Companies
@@ -506,6 +624,8 @@ type CompanyPerformanceData struct {
 	Status CompanyHealthStatus `json:"status"`
 	// Pending issues
 	PendingIssues int32 `json:"pendingIssues"`
+	// Estate performance breakdown
+	EstatesPerformance []*CompanyEstatePerformance `json:"estatesPerformance"`
 }
 
 // CompanyProductionComparison for production comparison.
@@ -706,6 +826,13 @@ type CreateBkmCompanyBridgeInput struct {
 	Notes        *string `json:"notes,omitempty"`
 }
 
+type CreateBlockTreatmentSemesterRequestInput struct {
+	CompanyID string                                    `json:"companyId"`
+	Semester  string                                    `json:"semester"`
+	Notes     *string                                   `json:"notes,omitempty"`
+	Items     []*BlockTreatmentSemesterRequestItemInput `json:"items"`
+}
+
 // CreateCompanyAdminInput for creating company.
 type CreateCompanyAdminInput struct {
 	// Company name
@@ -775,20 +902,25 @@ type CreateGradingRecordInput struct {
 	GradingDate          time.Time `json:"gradingDate"`
 }
 
-type CreateHerbisidaUsageInput struct {
-	PerawatanRecordID string  `json:"perawatanRecordId"`
-	JenisHerbisida    string  `json:"jenisHerbisida"`
-	JumlahLiter       float64 `json:"jumlahLiter"`
-	HargaPerLiter     float64 `json:"hargaPerLiter"`
+type CreateManagerBlockProductionBudgetInput struct {
+	BlockID        string                       `json:"blockId"`
+	Period         string                       `json:"period"`
+	TargetTon      float64                      `json:"targetTon"`
+	PlannedCost    float64                      `json:"plannedCost"`
+	ActualCost     *float64                     `json:"actualCost,omitempty"`
+	WorkflowStatus *ManagerBudgetWorkflowStatus `json:"workflowStatus,omitempty"`
+	Notes          *string                      `json:"notes,omitempty"`
 }
 
 type CreateManagerDivisionProductionBudgetInput struct {
-	DivisionID  string   `json:"divisionId"`
-	Period      string   `json:"period"`
-	TargetTon   float64  `json:"targetTon"`
-	PlannedCost float64  `json:"plannedCost"`
-	ActualCost  *float64 `json:"actualCost,omitempty"`
-	Notes       *string  `json:"notes,omitempty"`
+	DivisionID       string                       `json:"divisionId"`
+	Period           string                       `json:"period"`
+	TargetTon        float64                      `json:"targetTon"`
+	PlannedCost      float64                      `json:"plannedCost"`
+	ActualCost       *float64                     `json:"actualCost,omitempty"`
+	WorkflowStatus   *ManagerBudgetWorkflowStatus `json:"workflowStatus,omitempty"`
+	OverrideApproved *bool                        `json:"overrideApproved,omitempty"`
+	Notes            *string                      `json:"notes,omitempty"`
 }
 
 // CreateNotificationInput for creating new notifications
@@ -852,6 +984,15 @@ type CreatePKSRecordInput struct {
 	NomorDo         string      `json:"nomorDo"`
 }
 
+type CreatePerawatanMaterialUsageInput struct {
+	PerawatanRecordID string                    `json:"perawatanRecordId"`
+	MaterialCategory  PerawatanMaterialCategory `json:"materialCategory"`
+	MaterialName      string                    `json:"materialName"`
+	Quantity          float64                   `json:"quantity"`
+	Unit              PerawatanMaterialUnit     `json:"unit"`
+	UnitPrice         float64                   `json:"unitPrice"`
+}
+
 type CreatePerawatanRecordInput struct {
 	BlockID            string         `json:"blockId"`
 	JenisPerawatan     JenisPerawatan `json:"jenisPerawatan"`
@@ -863,11 +1004,17 @@ type CreatePerawatanRecordInput struct {
 	Catatan            *string        `json:"catatan,omitempty"`
 }
 
-type CreatePupukUsageInput struct {
-	PerawatanRecordID string  `json:"perawatanRecordId"`
-	JenisPupuk        string  `json:"jenisPupuk"`
-	JumlahKg          float64 `json:"jumlahKg"`
-	HargaPerKg        float64 `json:"hargaPerKg"`
+type CreateTariffRuleOverrideInput struct {
+	RuleID        string             `json:"ruleId"`
+	OverrideType  TariffOverrideType `json:"overrideType"`
+	EffectiveFrom *time.Time         `json:"effectiveFrom,omitempty"`
+	EffectiveTo   *time.Time         `json:"effectiveTo,omitempty"`
+	TarifUpah     *float64           `json:"tarifUpah,omitempty"`
+	Premi         *float64           `json:"premi,omitempty"`
+	TarifPremi1   *float64           `json:"tarifPremi1,omitempty"`
+	TarifPremi2   *float64           `json:"tarifPremi2,omitempty"`
+	Notes         *string            `json:"notes,omitempty"`
+	IsActive      *bool              `json:"isActive,omitempty"`
 }
 
 type CreateVehicleTaxDocumentInput struct {
@@ -1107,17 +1254,14 @@ type GradingApprovalInput struct {
 	RejectionReason *string `json:"rejectionReason,omitempty"`
 }
 
-// Herbisida (Herbicide) usage record.
-type HerbisidaUsage struct {
-	ID                string           `json:"id"`
-	PerawatanRecordID string           `json:"perawatanRecordId"`
-	PerawatanRecord   *PerawatanRecord `json:"perawatanRecord"`
-	JenisHerbisida    string           `json:"jenisHerbisida"`
-	JumlahLiter       float64          `json:"jumlahLiter"`
-	HargaPerLiter     float64          `json:"hargaPerLiter"`
-	TotalBiaya        float64          `json:"totalBiaya"`
-	CreatedAt         time.Time        `json:"createdAt"`
-	UpdatedAt         time.Time        `json:"updatedAt"`
+// Paginated response for harvest records.
+type HarvestRecordsPaginatedResponse struct {
+	// Harvest records for current page
+	Data []*mandor.HarvestRecord `json:"data"`
+	// Total number of records matching filters
+	TotalCount int32 `json:"totalCount"`
+	// Whether there are more records after this page
+	HasMore bool `json:"hasMore"`
 }
 
 // JWTTokenFilterInput allows filtering JWT token records.
@@ -1164,6 +1308,17 @@ type JWTTokenRecord struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// LandType represents master classification used by block and tariff.
+type LandType struct {
+	ID          string    `json:"id"`
+	Code        string    `json:"code"`
+	Name        string    `json:"name"`
+	Description *string   `json:"description,omitempty"`
+	IsActive    bool      `json:"isActive"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+}
+
 // LogoutAllDevicesResponse represents the result of a multi-device logout operation.
 type LogoutAllDevicesResponse struct {
 	// Whether the operation was successful
@@ -1178,6 +1333,39 @@ type LogoutAllDevicesResponse struct {
 	AuditLogID *string `json:"auditLogId,omitempty"`
 }
 
+// ManagerBlockOption represents manager-scoped block option for form inputs.
+type ManagerBlockOption struct {
+	ID           string `json:"id"`
+	BlockCode    string `json:"blockCode"`
+	Name         string `json:"name"`
+	DivisionID   string `json:"divisionId"`
+	DivisionName string `json:"divisionName"`
+	EstateID     string `json:"estateId"`
+	EstateName   string `json:"estateName"`
+}
+
+// ManagerBlockProductionBudget represents monthly production budget per block.
+type ManagerBlockProductionBudget struct {
+	ID             string                      `json:"id"`
+	BlockID        string                      `json:"blockId"`
+	BlockCode      string                      `json:"blockCode"`
+	BlockName      string                      `json:"blockName"`
+	DivisionID     string                      `json:"divisionId"`
+	DivisionName   string                      `json:"divisionName"`
+	EstateID       string                      `json:"estateId"`
+	EstateName     string                      `json:"estateName"`
+	Period         string                      `json:"period"`
+	TargetTon      float64                     `json:"targetTon"`
+	PlannedCost    float64                     `json:"plannedCost"`
+	ActualCost     float64                     `json:"actualCost"`
+	WorkflowStatus ManagerBudgetWorkflowStatus `json:"workflowStatus"`
+	Notes          *string                     `json:"notes,omitempty"`
+	CreatedByID    string                      `json:"createdById"`
+	CreatedBy      string                      `json:"createdBy"`
+	CreatedAt      time.Time                   `json:"createdAt"`
+	UpdatedAt      time.Time                   `json:"updatedAt"`
+}
+
 // ManagerDivisionOption represents manager-scoped division option for form inputs.
 type ManagerDivisionOption struct {
 	ID         string `json:"id"`
@@ -1186,21 +1374,22 @@ type ManagerDivisionOption struct {
 	EstateName string `json:"estateName"`
 }
 
-// ManagerDivisionProductionBudget represents monthly production budget per division.
 type ManagerDivisionProductionBudget struct {
-	ID           string    `json:"id"`
-	DivisionID   string    `json:"divisionId"`
-	DivisionName string    `json:"divisionName"`
-	EstateID     string    `json:"estateId"`
-	EstateName   string    `json:"estateName"`
-	Period       string    `json:"period"`
-	TargetTon    float64   `json:"targetTon"`
-	PlannedCost  float64   `json:"plannedCost"`
-	ActualCost   float64   `json:"actualCost"`
-	Notes        *string   `json:"notes,omitempty"`
-	CreatedBy    string    `json:"createdBy"`
-	CreatedAt    time.Time `json:"createdAt"`
-	UpdatedAt    time.Time `json:"updatedAt"`
+	ID               string                      `json:"id"`
+	DivisionID       string                      `json:"divisionId"`
+	DivisionName     string                      `json:"divisionName"`
+	EstateID         string                      `json:"estateId"`
+	EstateName       string                      `json:"estateName"`
+	Period           string                      `json:"period"`
+	TargetTon        float64                     `json:"targetTon"`
+	PlannedCost      float64                     `json:"plannedCost"`
+	ActualCost       float64                     `json:"actualCost"`
+	WorkflowStatus   ManagerBudgetWorkflowStatus `json:"workflowStatus"`
+	OverrideApproved bool                        `json:"overrideApproved"`
+	Notes            *string                     `json:"notes,omitempty"`
+	CreatedBy        string                      `json:"createdBy"`
+	CreatedAt        time.Time                   `json:"createdAt"`
+	UpdatedAt        time.Time                   `json:"updatedAt"`
 }
 
 // MandorPendingSyncData represents sync data returned from server.
@@ -1344,6 +1533,21 @@ type PKSRecord struct {
 	UpdatedAt       time.Time             `json:"updatedAt"`
 }
 
+// Generic material usage record attached to a maintenance transaction.
+type PerawatanMaterialUsage struct {
+	ID                string                    `json:"id"`
+	PerawatanRecordID string                    `json:"perawatanRecordId"`
+	PerawatanRecord   *PerawatanRecord          `json:"perawatanRecord"`
+	MaterialCategory  PerawatanMaterialCategory `json:"materialCategory"`
+	MaterialName      string                    `json:"materialName"`
+	Quantity          float64                   `json:"quantity"`
+	Unit              PerawatanMaterialUnit     `json:"unit"`
+	UnitPrice         float64                   `json:"unitPrice"`
+	TotalCost         float64                   `json:"totalCost"`
+	CreatedAt         time.Time                 `json:"createdAt"`
+	UpdatedAt         time.Time                 `json:"updatedAt"`
+}
+
 // PerawatanRecord represents maintenance activities on plantation blocks.
 type PerawatanRecord struct {
 	ID                 string          `json:"id"`
@@ -1382,19 +1586,6 @@ type PlatformStats struct {
 	StorageUsedGb float64 `json:"storageUsedGb"`
 	// Storage limit (GB)
 	StorageLimitGb float64 `json:"storageLimitGb"`
-}
-
-// Pupuk (Fertilizer) usage record.
-type PupukUsage struct {
-	ID                string           `json:"id"`
-	PerawatanRecordID string           `json:"perawatanRecordId"`
-	PerawatanRecord   *PerawatanRecord `json:"perawatanRecord"`
-	JenisPupuk        string           `json:"jenisPupuk"`
-	JumlahKg          float64          `json:"jumlahKg"`
-	HargaPerKg        float64          `json:"hargaPerKg"`
-	TotalBiaya        float64          `json:"totalBiaya"`
-	CreatedAt         time.Time        `json:"createdAt"`
-	UpdatedAt         time.Time        `json:"updatedAt"`
 }
 
 type Query struct {
@@ -2024,6 +2215,38 @@ type SystemStats struct {
 	SystemHealth *SystemHealth `json:"systemHealth,omitempty"`
 }
 
+// TariffManagementDecision stores management-level decisions for direct tariff changes.
+type TariffManagementDecision struct {
+	ID             string    `json:"id"`
+	EntityType     string    `json:"entityType"`
+	EntityID       string    `json:"entityId"`
+	ActionType     string    `json:"actionType"`
+	CompanyID      string    `json:"companyId"`
+	DecisionNo     string    `json:"decisionNo"`
+	DecisionReason string    `json:"decisionReason"`
+	EffectiveNote  string    `json:"effectiveNote"`
+	DecidedBy      string    `json:"decidedBy"`
+	DecidedAt      time.Time `json:"decidedAt"`
+	Metadata       *string   `json:"metadata,omitempty"`
+}
+
+// TariffRuleOverride stores contextual tariff override with optional period.
+type TariffRuleOverride struct {
+	ID            string             `json:"id"`
+	RuleID        string             `json:"ruleId"`
+	OverrideType  TariffOverrideType `json:"overrideType"`
+	EffectiveFrom *time.Time         `json:"effectiveFrom,omitempty"`
+	EffectiveTo   *time.Time         `json:"effectiveTo,omitempty"`
+	TarifUpah     *float64           `json:"tarifUpah,omitempty"`
+	Premi         *float64           `json:"premi,omitempty"`
+	TarifPremi1   *float64           `json:"tarifPremi1,omitempty"`
+	TarifPremi2   *float64           `json:"tarifPremi2,omitempty"`
+	Notes         *string            `json:"notes,omitempty"`
+	IsActive      bool               `json:"isActive"`
+	CreatedAt     time.Time          `json:"createdAt"`
+	UpdatedAt     time.Time          `json:"updatedAt"`
+}
+
 // TenantOverview for multi-tenant stats.
 type TenantOverview struct {
 	// Total companies
@@ -2186,14 +2409,27 @@ type UpdateGradingRecordInput struct {
 	GradingNotes         *string  `json:"gradingNotes,omitempty"`
 }
 
+type UpdateManagerBlockProductionBudgetInput struct {
+	ID             string                       `json:"id"`
+	BlockID        *string                      `json:"blockId,omitempty"`
+	Period         *string                      `json:"period,omitempty"`
+	TargetTon      *float64                     `json:"targetTon,omitempty"`
+	PlannedCost    *float64                     `json:"plannedCost,omitempty"`
+	ActualCost     *float64                     `json:"actualCost,omitempty"`
+	WorkflowStatus *ManagerBudgetWorkflowStatus `json:"workflowStatus,omitempty"`
+	Notes          *string                      `json:"notes,omitempty"`
+}
+
 type UpdateManagerDivisionProductionBudgetInput struct {
-	ID          string   `json:"id"`
-	DivisionID  *string  `json:"divisionId,omitempty"`
-	Period      *string  `json:"period,omitempty"`
-	TargetTon   *float64 `json:"targetTon,omitempty"`
-	PlannedCost *float64 `json:"plannedCost,omitempty"`
-	ActualCost  *float64 `json:"actualCost,omitempty"`
-	Notes       *string  `json:"notes,omitempty"`
+	ID               string                       `json:"id"`
+	DivisionID       *string                      `json:"divisionId,omitempty"`
+	Period           *string                      `json:"period,omitempty"`
+	TargetTon        *float64                     `json:"targetTon,omitempty"`
+	PlannedCost      *float64                     `json:"plannedCost,omitempty"`
+	ActualCost       *float64                     `json:"actualCost,omitempty"`
+	WorkflowStatus   *ManagerBudgetWorkflowStatus `json:"workflowStatus,omitempty"`
+	OverrideApproved *bool                        `json:"overrideApproved,omitempty"`
+	Notes            *string                      `json:"notes,omitempty"`
 }
 
 // UpdateNotificationInput for updating notification status
@@ -2240,6 +2476,15 @@ type UpdatePKSRecordInput struct {
 	NomorDo       *string      `json:"nomorDo,omitempty"`
 }
 
+type UpdatePerawatanMaterialUsageInput struct {
+	ID               string                     `json:"id"`
+	MaterialCategory *PerawatanMaterialCategory `json:"materialCategory,omitempty"`
+	MaterialName     *string                    `json:"materialName,omitempty"`
+	Quantity         *float64                   `json:"quantity,omitempty"`
+	Unit             *PerawatanMaterialUnit     `json:"unit,omitempty"`
+	UnitPrice        *float64                   `json:"unitPrice,omitempty"`
+}
+
 type UpdatePerawatanRecordInput struct {
 	ID                 string           `json:"id"`
 	JenisPerawatan     *JenisPerawatan  `json:"jenisPerawatan,omitempty"`
@@ -2263,6 +2508,19 @@ type UpdateSystemSettingsInput struct {
 	Storage *StorageSettingsInput `json:"storage,omitempty"`
 }
 
+type UpdateTariffRuleOverrideInput struct {
+	ID            string              `json:"id"`
+	OverrideType  *TariffOverrideType `json:"overrideType,omitempty"`
+	EffectiveFrom *time.Time          `json:"effectiveFrom,omitempty"`
+	EffectiveTo   *time.Time          `json:"effectiveTo,omitempty"`
+	TarifUpah     *float64            `json:"tarifUpah,omitempty"`
+	Premi         *float64            `json:"premi,omitempty"`
+	TarifPremi1   *float64            `json:"tarifPremi1,omitempty"`
+	TarifPremi2   *float64            `json:"tarifPremi2,omitempty"`
+	Notes         *string             `json:"notes,omitempty"`
+	IsActive      *bool               `json:"isActive,omitempty"`
+}
+
 type UpdateVehicleTaxInput struct {
 	ID               string     `json:"id"`
 	TaxYear          *int32     `json:"taxYear,omitempty"`
@@ -2284,6 +2542,7 @@ type UserCompanyAssignment struct {
 	ID                string                  `json:"id"`
 	UserID            string                  `json:"userId"`
 	CompanyID         string                  `json:"companyId"`
+	MandorType        *auth.MandorType        `json:"mandorType,omitempty"`
 	Company           *master.Company         `json:"company"`
 	EstateAssignments []*UserEstateAssignment `json:"estateAssignments,omitempty"`
 	IsActive          bool                    `json:"isActive"`
@@ -2838,6 +3097,72 @@ func (e AreaManagerActionType) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// BlockTreatmentRequestStatus represents lifecycle status for semester treatment requests.
+type BlockTreatmentRequestStatus string
+
+const (
+	BlockTreatmentRequestStatusDraft       BlockTreatmentRequestStatus = "DRAFT"
+	BlockTreatmentRequestStatusSubmitted   BlockTreatmentRequestStatus = "SUBMITTED"
+	BlockTreatmentRequestStatusUnderReview BlockTreatmentRequestStatus = "UNDER_REVIEW"
+	BlockTreatmentRequestStatusApproved    BlockTreatmentRequestStatus = "APPROVED"
+	BlockTreatmentRequestStatusRejected    BlockTreatmentRequestStatus = "REJECTED"
+	BlockTreatmentRequestStatusApplied     BlockTreatmentRequestStatus = "APPLIED"
+	BlockTreatmentRequestStatusCancelled   BlockTreatmentRequestStatus = "CANCELLED"
+)
+
+var AllBlockTreatmentRequestStatus = []BlockTreatmentRequestStatus{
+	BlockTreatmentRequestStatusDraft,
+	BlockTreatmentRequestStatusSubmitted,
+	BlockTreatmentRequestStatusUnderReview,
+	BlockTreatmentRequestStatusApproved,
+	BlockTreatmentRequestStatusRejected,
+	BlockTreatmentRequestStatusApplied,
+	BlockTreatmentRequestStatusCancelled,
+}
+
+func (e BlockTreatmentRequestStatus) IsValid() bool {
+	switch e {
+	case BlockTreatmentRequestStatusDraft, BlockTreatmentRequestStatusSubmitted, BlockTreatmentRequestStatusUnderReview, BlockTreatmentRequestStatusApproved, BlockTreatmentRequestStatusRejected, BlockTreatmentRequestStatusApplied, BlockTreatmentRequestStatusCancelled:
+		return true
+	}
+	return false
+}
+
+func (e BlockTreatmentRequestStatus) String() string {
+	return string(e)
+}
+
+func (e *BlockTreatmentRequestStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = BlockTreatmentRequestStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid BlockTreatmentRequestStatus", str)
+	}
+	return nil
+}
+
+func (e BlockTreatmentRequestStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *BlockTreatmentRequestStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e BlockTreatmentRequestStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 // CompanyHealthStatus enum.
 type CompanyHealthStatus string
 
@@ -3097,6 +3422,64 @@ func (e LogoutType) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// ManagerDivisionProductionBudget represents monthly production budget per division.
+type ManagerBudgetWorkflowStatus string
+
+const (
+	ManagerBudgetWorkflowStatusDraft    ManagerBudgetWorkflowStatus = "DRAFT"
+	ManagerBudgetWorkflowStatusReview   ManagerBudgetWorkflowStatus = "REVIEW"
+	ManagerBudgetWorkflowStatusApproved ManagerBudgetWorkflowStatus = "APPROVED"
+)
+
+var AllManagerBudgetWorkflowStatus = []ManagerBudgetWorkflowStatus{
+	ManagerBudgetWorkflowStatusDraft,
+	ManagerBudgetWorkflowStatusReview,
+	ManagerBudgetWorkflowStatusApproved,
+}
+
+func (e ManagerBudgetWorkflowStatus) IsValid() bool {
+	switch e {
+	case ManagerBudgetWorkflowStatusDraft, ManagerBudgetWorkflowStatusReview, ManagerBudgetWorkflowStatusApproved:
+		return true
+	}
+	return false
+}
+
+func (e ManagerBudgetWorkflowStatus) String() string {
+	return string(e)
+}
+
+func (e *ManagerBudgetWorkflowStatus) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ManagerBudgetWorkflowStatus(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ManagerBudgetWorkflowStatus", str)
+	}
+	return nil
+}
+
+func (e ManagerBudgetWorkflowStatus) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ManagerBudgetWorkflowStatus) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ManagerBudgetWorkflowStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 // PKS quality classification.
 type PKSKualitas string
 
@@ -3152,6 +3535,118 @@ func (e *PKSKualitas) UnmarshalJSON(b []byte) error {
 }
 
 func (e PKSKualitas) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Material category used in maintenance work.
+type PerawatanMaterialCategory string
+
+const (
+	PerawatanMaterialCategoryPupuk     PerawatanMaterialCategory = "PUPUK"
+	PerawatanMaterialCategoryHerbisida PerawatanMaterialCategory = "HERBISIDA"
+)
+
+var AllPerawatanMaterialCategory = []PerawatanMaterialCategory{
+	PerawatanMaterialCategoryPupuk,
+	PerawatanMaterialCategoryHerbisida,
+}
+
+func (e PerawatanMaterialCategory) IsValid() bool {
+	switch e {
+	case PerawatanMaterialCategoryPupuk, PerawatanMaterialCategoryHerbisida:
+		return true
+	}
+	return false
+}
+
+func (e PerawatanMaterialCategory) String() string {
+	return string(e)
+}
+
+func (e *PerawatanMaterialCategory) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PerawatanMaterialCategory(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PerawatanMaterialCategory", str)
+	}
+	return nil
+}
+
+func (e PerawatanMaterialCategory) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *PerawatanMaterialCategory) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e PerawatanMaterialCategory) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// Measurement unit for maintenance material usage.
+type PerawatanMaterialUnit string
+
+const (
+	PerawatanMaterialUnitKg    PerawatanMaterialUnit = "KG"
+	PerawatanMaterialUnitLiter PerawatanMaterialUnit = "LITER"
+)
+
+var AllPerawatanMaterialUnit = []PerawatanMaterialUnit{
+	PerawatanMaterialUnitKg,
+	PerawatanMaterialUnitLiter,
+}
+
+func (e PerawatanMaterialUnit) IsValid() bool {
+	switch e {
+	case PerawatanMaterialUnitKg, PerawatanMaterialUnitLiter:
+		return true
+	}
+	return false
+}
+
+func (e PerawatanMaterialUnit) String() string {
+	return string(e)
+}
+
+func (e *PerawatanMaterialUnit) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PerawatanMaterialUnit(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PerawatanMaterialUnit", str)
+	}
+	return nil
+}
+
+func (e PerawatanMaterialUnit) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *PerawatanMaterialUnit) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e PerawatanMaterialUnit) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil
@@ -3683,6 +4178,64 @@ func (e *SystemStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e SystemStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+// TariffOverrideType defines override context for tariff rule.
+type TariffOverrideType string
+
+const (
+	TariffOverrideTypeNormal  TariffOverrideType = "NORMAL"
+	TariffOverrideTypeHoliday TariffOverrideType = "HOLIDAY"
+	TariffOverrideTypeLebaran TariffOverrideType = "LEBARAN"
+)
+
+var AllTariffOverrideType = []TariffOverrideType{
+	TariffOverrideTypeNormal,
+	TariffOverrideTypeHoliday,
+	TariffOverrideTypeLebaran,
+}
+
+func (e TariffOverrideType) IsValid() bool {
+	switch e {
+	case TariffOverrideTypeNormal, TariffOverrideTypeHoliday, TariffOverrideTypeLebaran:
+		return true
+	}
+	return false
+}
+
+func (e TariffOverrideType) String() string {
+	return string(e)
+}
+
+func (e *TariffOverrideType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TariffOverrideType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TariffOverrideType", str)
+	}
+	return nil
+}
+
+func (e TariffOverrideType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *TariffOverrideType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e TariffOverrideType) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

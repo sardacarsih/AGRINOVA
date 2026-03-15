@@ -4,6 +4,7 @@ fragment UserFields on User {
   email
   name
   role
+  effectiveMandorType
   isActive
   createdAt
   updatedAt
@@ -19,27 +20,6 @@ mutation WebLogin($input: WebLoginInput!) {
       manager {
         id
         name
-      }
-    }
-    assignments {
-      companies {
-        id
-        name
-        status
-        address
-      }
-      estates {
-        id
-        name
-        companyId
-        location
-        luasHa
-      }
-      divisions {
-        id
-        name
-        code
-        estateId
       }
     }
     sessionId

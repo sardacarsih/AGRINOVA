@@ -11,6 +11,15 @@ import (
 func Migration000028EnforceTarifBlokPerCompanyUnique(db *gorm.DB) error {
 	log.Println("Running migration: 000028_enforce_tarif_blok_per_company_unique")
 
+	isBaseTable, err := isTarifBlokBaseTable(db)
+	if err != nil {
+		return err
+	}
+	if !isBaseTable {
+		log.Println("Migration 000028 skipped: tarif_blok is not a base table")
+		return nil
+	}
+
 	if err := db.Exec(`
 		-- Normalize whitespace to reduce false duplicates.
 		UPDATE tarif_blok

@@ -17,6 +17,7 @@ export const WEB_LOGIN_MUTATION = gql`
         phoneNumber
         avatar
         role
+        effectiveMandorType
         isActive
         companyId
         company {
@@ -31,21 +32,6 @@ export const WEB_LOGIN_MUTATION = gql`
         manager {
           id
           name
-        }
-      }
-      assignments {
-        companies {
-          id
-          name
-          status
-          address
-        }
-        estates {
-          id
-          name
-          companyId
-          location
-          luasHa
         }
       }
       sessionId
@@ -84,6 +70,7 @@ export const WEB_QR_LOGIN_STATUS_QUERY = gql`
         phoneNumber
         avatar
         role
+        effectiveMandorType
         isActive
         companyId
       }
@@ -115,6 +102,7 @@ export const CONSUME_WEB_QR_LOGIN_MUTATION = gql`
         phoneNumber
         avatar
         role
+        effectiveMandorType
         isActive
         companyId
         company {
@@ -129,21 +117,6 @@ export const CONSUME_WEB_QR_LOGIN_MUTATION = gql`
         manager {
           id
           name
-        }
-      }
-      assignments {
-        companies {
-          id
-          name
-          status
-          address
-        }
-        estates {
-          id
-          name
-          companyId
-          location
-          luasHa
         }
       }
       sessionId
@@ -181,6 +154,7 @@ export const ME_QUERY = gql`
       phoneNumber
       avatar
       role
+      effectiveMandorType
       isActive
       companyId
       company {
@@ -208,6 +182,7 @@ export const CURRENT_USER_QUERY = gql`
         phoneNumber
         avatar
         role
+        effectiveMandorType
         isActive
         companyId
       }
@@ -280,6 +255,7 @@ export const MINIMAL_PROFILE_QUERY = gql`
       username
       name
       role
+      effectiveMandorType
     }
   }
 `;
@@ -302,6 +278,7 @@ export const UPDATE_PROFILE_MUTATION = gql`
         phoneNumber
         avatar
         role
+        effectiveMandorType
         isActive
         createdAt
         updatedAt
@@ -330,6 +307,7 @@ export interface User {
   phoneNumber?: string;
   avatar?: string;
   role: string;
+  effectiveMandorType?: 'PANEN' | 'PERAWATAN';
   isActive?: boolean;
   companyId?: string;
   companyAdminFor?: string[];
@@ -392,9 +370,9 @@ export interface WebLoginInput {
 // WebLogin response payload
 export interface WebLoginPayload {
   success: boolean;
-  user: User;
-  assignments: UserAssignments;
-  sessionId: string;
+  user?: User;
+  assignments?: UserAssignments;
+  sessionId?: string;
   message: string;
 }
 

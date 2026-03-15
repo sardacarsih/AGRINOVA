@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+
+echo "[pre-push] Lewati sinkronisasi whatsnew lokal (release notes dibuat dinamis di CI)."

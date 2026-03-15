@@ -156,7 +156,7 @@ extend type Query {
   roleHierarchy: [Role!]!
 
   "Get all roles"
-  roles(activeOnly: Boolean = true): [Role!]!
+  roles(activeOnly: Boolean = true, first: Int, after: String): [Role!]!
 
   "Get role by name"
   role(name: String!): Role

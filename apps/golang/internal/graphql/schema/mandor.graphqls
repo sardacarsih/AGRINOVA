@@ -629,9 +629,18 @@ extend type Query {
   # Mandor Blocks/Employees Queries (for input form)
   "Get blocks available for mandor"
   mandorBlocks(divisionId: ID): [Block!]! @requireAuth @hasRole(roles: [MANDOR])
-  
+
+  "Get changed assignment masters for mandor since last sync"
+  mandorDivisionMastersSync(updatedSince: Time!): UserAssignments! @requireAuth @hasRole(roles: [MANDOR])
+
+  "Get changed blocks available for mandor since last sync"
+  mandorBlocksSync(divisionId: ID, updatedSince: Time!): [Block!]! @requireAuth @hasRole(roles: [MANDOR])
+
   "Get employees available for mandor"
   mandorEmployees(divisionId: ID, search: String): [Employee!]! @requireAuth @hasRole(roles: [MANDOR])
+
+  "Get changed employees available for mandor since last sync"
+  mandorEmployeesSync(divisionId: ID, updatedSince: Time!): [Employee!]! @requireAuth @hasRole(roles: [MANDOR])
   
   # Mandor History Queries
   "Get mandor harvest history"
@@ -773,10 +782,34 @@ input RejectHarvestInput {
 }
 
 # Harvest queries
+
+"""
+Paginated response for harvest records.
+"""
+type HarvestRecordsPaginatedResponse {
+  "Harvest records for current page"
+  data: [HarvestRecord!]!
+  "Total number of records matching filters"
+  totalCount: Int!
+  "Whether there are more records after this page"
+  hasMore: Boolean!
+}
+
 extend type Query {
   # Harvest Data Queries
   "Retrieve all harvest records"
   harvestRecords(dateFrom: Time, dateTo: Time): [HarvestRecord!]! @requireAuth @hasRole(roles: [MANDOR, ASISTEN, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
+  "Retrieve harvest records with server-side pagination"
+  harvestRecordsPaginated(
+    page: Int = 1
+    limit: Int = 10
+    status: HarvestStatus
+    search: String
+    sortBy: String
+    sortDir: String
+    dateFrom: Time
+    dateTo: Time
+  ): HarvestRecordsPaginatedResponse! @requireAuth @hasRole(roles: [MANDOR, ASISTEN, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
   "Get a specific harvest record by ID"
   harvestRecord(id: ID!): HarvestRecord @requireAuth @hasRole(roles: [MANDOR, ASISTEN, MANAGER, AREA_MANAGER, COMPANY_ADMIN, SUPER_ADMIN])
   "Filter harvest records by approval status"

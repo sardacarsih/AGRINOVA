@@ -345,6 +345,16 @@ export type ApprovalItem = {
   hasPhoto: Scalars['Boolean']['output'];
   /** Harvest record ID */
   id: Scalars['ID']['output'];
+  /** Jumlah buah busuk/abnormal */
+  jjgBusukAbnormal: Scalars['Int']['output'];
+  /** Jumlah buah lewat matang */
+  jjgLewatMatang: Scalars['Int']['output'];
+  /** Jumlah buah matang */
+  jjgMatang: Scalars['Int']['output'];
+  /** Jumlah buah mentah */
+  jjgMentah: Scalars['Int']['output'];
+  /** Jumlah tangkai panjang */
+  jjgTangkaiPanjang: Scalars['Int']['output'];
   /** Mandor who submitted */
   mandor: User;
   /** Notes from mandor */
@@ -359,6 +369,8 @@ export type ApprovalItem = {
   submittedAt: Scalars['Time']['output'];
   /** Total TBS count */
   tbsCount: Scalars['Int']['output'];
+  /** Total brondolan */
+  totalBrondolan: Scalars['Float']['output'];
   /** Validation issues */
   validationIssues?: Maybe<Array<Scalars['String']['output']>>;
   /** Validation status */
@@ -501,6 +513,19 @@ export type AreaManagerAnalyticsData = {
   regionalTrends: RegionalTrends;
 };
 
+/** AreaManagerBudgetWorkflowSummary for cross-company budget workflow monitoring. */
+export type AreaManagerBudgetWorkflowSummary = {
+  __typename?: 'AreaManagerBudgetWorkflowSummary';
+  /** Approved budget count */
+  approved: Scalars['Int']['output'];
+  /** Draft budget count */
+  draft: Scalars['Int']['output'];
+  /** Review budget count */
+  review: Scalars['Int']['output'];
+  /** Total budget records in period */
+  total: Scalars['Int']['output'];
+};
+
 /** AreaManagerDashboardData represents dashboard for Area Manager. */
 export type AreaManagerDashboardData = {
   __typename?: 'AreaManagerDashboardData';
@@ -508,6 +533,8 @@ export type AreaManagerDashboardData = {
   actionItems: Array<AreaManagerActionItem>;
   /** Regional alerts */
   alerts: Array<RegionalAlert>;
+  /** Budget workflow summary for current period */
+  budgetWorkflowSummary: AreaManagerBudgetWorkflowSummary;
   /** Companies assigned */
   companies: Array<Company>;
   /** Company performance overview */
@@ -917,6 +944,222 @@ export type BatchPermissionCheckResult = {
   userId: Scalars['String']['output'];
 };
 
+/** Filter untuk listing BKM bridge. */
+export type BkmCompanyBridgeFilterInput = {
+  companyId?: InputMaybe<Scalars['ID']['input']>;
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
+  sourceSystem?: InputMaybe<Scalars['String']['input']>;
+};
+
+/** Response list BKM bridge. */
+export type BkmCompanyBridgeListResponse = {
+  __typename?: 'BkmCompanyBridgeListResponse';
+  data: Array<BkmCompanyBridgeRule>;
+  hasMore: Scalars['Boolean']['output'];
+  totalCount: Scalars['Int']['output'];
+};
+
+/** BkmCompanyBridgeRule merepresentasikan satu rule mapping. */
+export type BkmCompanyBridgeRule = {
+  __typename?: 'BkmCompanyBridgeRule';
+  companyCode?: Maybe<Scalars['String']['output']>;
+  companyId: Scalars['ID']['output'];
+  companyName?: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['Time']['output'];
+  divisiKey?: Maybe<Scalars['String']['output']>;
+  estateKey?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  iddataPrefix: Scalars['String']['output'];
+  isActive: Scalars['Boolean']['output'];
+  notes?: Maybe<Scalars['String']['output']>;
+  priority: Scalars['Int']['output'];
+  sourceSystem: Scalars['String']['output'];
+  updatedAt: Scalars['Time']['output'];
+};
+
+export type BkmDetailUpsertInput = {
+  ackode?: InputMaybe<Scalars['String']['input']>;
+  baris?: InputMaybe<Scalars['Int']['input']>;
+  blok?: InputMaybe<Scalars['String']['input']>;
+  blokstatus?: InputMaybe<Scalars['String']['input']>;
+  denda?: InputMaybe<Scalars['Float']['input']>;
+  detailid: Scalars['ID']['input'];
+  divisiKaryawan?: InputMaybe<Scalars['String']['input']>;
+  jumlah?: InputMaybe<Scalars['Float']['input']>;
+  keterangan?: InputMaybe<Scalars['String']['input']>;
+  masterid: Scalars['ID']['input'];
+  nama?: InputMaybe<Scalars['String']['input']>;
+  nik?: InputMaybe<Scalars['String']['input']>;
+  pekerjaan?: InputMaybe<Scalars['Int']['input']>;
+  premi?: InputMaybe<Scalars['Float']['input']>;
+  qty?: InputMaybe<Scalars['Float']['input']>;
+  qtyp1?: InputMaybe<Scalars['Float']['input']>;
+  qtyp2?: InputMaybe<Scalars['Float']['input']>;
+  satp1?: InputMaybe<Scalars['String']['input']>;
+  satp2?: InputMaybe<Scalars['String']['input']>;
+  satuan?: InputMaybe<Scalars['String']['input']>;
+  tarif?: InputMaybe<Scalars['Float']['input']>;
+  tm?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type BkmMasterUpsertInput = {
+  createAtTs?: InputMaybe<Scalars['Time']['input']>;
+  createatRaw?: InputMaybe<Scalars['String']['input']>;
+  divisi?: InputMaybe<Scalars['String']['input']>;
+  estate?: InputMaybe<Scalars['String']['input']>;
+  iddata: Scalars['String']['input'];
+  isborongan?: InputMaybe<Scalars['Boolean']['input']>;
+  jenisbkm?: InputMaybe<Scalars['Int']['input']>;
+  mandor?: InputMaybe<Scalars['String']['input']>;
+  masterid: Scalars['ID']['input'];
+  nomor?: InputMaybe<Scalars['Int']['input']>;
+  periode: Scalars['Int']['input'];
+  remise?: InputMaybe<Scalars['Int']['input']>;
+  sign?: InputMaybe<Scalars['Int']['input']>;
+  signAtTs?: InputMaybe<Scalars['Time']['input']>;
+  signatRaw?: InputMaybe<Scalars['String']['input']>;
+  tanggal?: InputMaybe<Scalars['String']['input']>;
+  updateAtTs?: InputMaybe<Scalars['Time']['input']>;
+  updateatRaw?: InputMaybe<Scalars['String']['input']>;
+  updateby?: InputMaybe<Scalars['String']['input']>;
+  userid?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type BkmPotongBuahAnalytics = {
+  __typename?: 'BkmPotongBuahAnalytics';
+  blocks: Array<BkmPotongBuahOutputPoint>;
+  companies: Array<BkmPotongBuahOutputPoint>;
+  daily: Array<BkmPotongBuahDailyPoint>;
+  divisions: Array<BkmPotongBuahOutputPoint>;
+  estates: Array<BkmPotongBuahOutputPoint>;
+  harvesters: Array<BkmPotongBuahHarvesterPoint>;
+  summary: BkmPotongBuahKpi;
+  totalRecords: Scalars['Int']['output'];
+};
+
+/** Block-level aggregation of Potong Buah data. */
+export type BkmPotongBuahBlock = {
+  __typename?: 'BkmPotongBuahBlock';
+  blok: Scalars['String']['output'];
+  details: Array<BkmPotongBuahDetail>;
+  totalJumlah: Scalars['Float']['output'];
+  totalQty: Scalars['Float']['output'];
+  totalRecords: Scalars['Int']['output'];
+};
+
+export type BkmPotongBuahDailyPoint = {
+  __typename?: 'BkmPotongBuahDailyPoint';
+  date: Scalars['String']['output'];
+  outputQty: Scalars['Float']['output'];
+  totalJumlah: Scalars['Float']['output'];
+  workerCount: Scalars['Int']['output'];
+};
+
+/** Detail row for a single BKM Potong Buah record. */
+export type BkmPotongBuahDetail = {
+  __typename?: 'BkmPotongBuahDetail';
+  jumlah?: Maybe<Scalars['Float']['output']>;
+  mandor?: Maybe<Scalars['String']['output']>;
+  nama?: Maybe<Scalars['String']['output']>;
+  nik?: Maybe<Scalars['String']['output']>;
+  qty?: Maybe<Scalars['Float']['output']>;
+  satuan?: Maybe<Scalars['String']['output']>;
+  tanggal?: Maybe<Scalars['String']['output']>;
+};
+
+/** Division-level aggregation of Potong Buah data. */
+export type BkmPotongBuahDivision = {
+  __typename?: 'BkmPotongBuahDivision';
+  blocks: Array<BkmPotongBuahBlock>;
+  divisi: Scalars['String']['output'];
+  totalJumlah: Scalars['Float']['output'];
+  totalQty: Scalars['Float']['output'];
+  totalRecords: Scalars['Int']['output'];
+};
+
+/** Estate-level aggregation of Potong Buah data. */
+export type BkmPotongBuahEstate = {
+  __typename?: 'BkmPotongBuahEstate';
+  divisions: Array<BkmPotongBuahDivision>;
+  estate: Scalars['String']['output'];
+  periode: Scalars['Int']['output'];
+  totalJumlah: Scalars['Float']['output'];
+  totalQty: Scalars['Float']['output'];
+  totalRecords: Scalars['Int']['output'];
+};
+
+/** Filter input for BKM Potong Buah report query. */
+export type BkmPotongBuahFilter = {
+  /** Optional block code filter */
+  blok?: InputMaybe<Scalars['String']['input']>;
+  /** Optional company ID scope filter */
+  companyId?: InputMaybe<Scalars['ID']['input']>;
+  /** Optional division code filter */
+  divisi?: InputMaybe<Scalars['String']['input']>;
+  /** Optional estate code filter */
+  estate?: InputMaybe<Scalars['String']['input']>;
+  /** Periode in YYYYMM format (e.g. 202601) */
+  periode: Scalars['Int']['input'];
+};
+
+export type BkmPotongBuahFlatItem = {
+  __typename?: 'BkmPotongBuahFlatItem';
+  blok?: Maybe<Scalars['String']['output']>;
+  companyCode?: Maybe<Scalars['String']['output']>;
+  companyName?: Maybe<Scalars['String']['output']>;
+  divisi?: Maybe<Scalars['String']['output']>;
+  estate?: Maybe<Scalars['String']['output']>;
+  jumlah?: Maybe<Scalars['Float']['output']>;
+  nama?: Maybe<Scalars['String']['output']>;
+  nik?: Maybe<Scalars['String']['output']>;
+  qty?: Maybe<Scalars['Float']['output']>;
+  qtyp1?: Maybe<Scalars['Float']['output']>;
+  qtyp2?: Maybe<Scalars['Float']['output']>;
+  satp1?: Maybe<Scalars['String']['output']>;
+  satp2?: Maybe<Scalars['String']['output']>;
+  satuan?: Maybe<Scalars['String']['output']>;
+  tanggal?: Maybe<Scalars['String']['output']>;
+};
+
+export type BkmPotongBuahFlatResponse = {
+  __typename?: 'BkmPotongBuahFlatResponse';
+  data: Array<BkmPotongBuahFlatItem>;
+  summary: BkmPotongBuahKpi;
+  total: Scalars['Int']['output'];
+};
+
+export type BkmPotongBuahHarvesterPoint = {
+  __typename?: 'BkmPotongBuahHarvesterPoint';
+  name: Scalars['String']['output'];
+  nik: Scalars['String']['output'];
+  outputQty: Scalars['Float']['output'];
+};
+
+export type BkmPotongBuahKpi = {
+  __typename?: 'BkmPotongBuahKPI';
+  bgm: Scalars['Float']['output'];
+  outputPerHk: Scalars['Float']['output'];
+  totalHk: Scalars['Int']['output'];
+  totalJumlah: Scalars['Float']['output'];
+  totalQty: Scalars['Float']['output'];
+};
+
+export type BkmPotongBuahOutputPoint = {
+  __typename?: 'BkmPotongBuahOutputPoint';
+  name: Scalars['String']['output'];
+  outputQty: Scalars['Float']['output'];
+};
+
+/** Top-level summary result for BKM Potong Buah report. */
+export type BkmPotongBuahSummary = {
+  __typename?: 'BkmPotongBuahSummary';
+  estates: Array<BkmPotongBuahEstate>;
+  totalJumlah: Scalars['Float']['output'];
+  totalQty: Scalars['Float']['output'];
+  totalRecords: Scalars['Int']['output'];
+};
+
 /** Block represents a plantation block within a division. */
 export type Block = {
   __typename?: 'Block';
@@ -929,6 +1172,8 @@ export type Block = {
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
   istm: Scalars['String']['output'];
+  landType?: Maybe<LandType>;
+  landTypeId?: Maybe<Scalars['ID']['output']>;
   luasHa?: Maybe<Scalars['Float']['output']>;
   name: Scalars['String']['output'];
   perlakuan?: Maybe<Scalars['String']['output']>;
@@ -984,6 +1229,43 @@ export type BlockPaginationResponse = {
   /** List of blocks */
   data: Array<Block>;
   /** Pagination metadata */
+  pagination: Pagination;
+};
+
+/** BlockTariffChangeLog represents audit trail for tariff changes impacting blocks. */
+export type BlockTariffChangeLog = {
+  __typename?: 'BlockTariffChangeLog';
+  blockCode?: Maybe<Scalars['String']['output']>;
+  blockId?: Maybe<Scalars['ID']['output']>;
+  blockName?: Maybe<Scalars['String']['output']>;
+  changedAt: Scalars['Time']['output'];
+  changedBy?: Maybe<Scalars['ID']['output']>;
+  changedByName?: Maybe<Scalars['String']['output']>;
+  companyId?: Maybe<Scalars['ID']['output']>;
+  companyName?: Maybe<Scalars['String']['output']>;
+  divisionId?: Maybe<Scalars['ID']['output']>;
+  divisionName?: Maybe<Scalars['String']['output']>;
+  effectiveFrom?: Maybe<Scalars['Time']['output']>;
+  effectiveTo?: Maybe<Scalars['Time']['output']>;
+  estateId?: Maybe<Scalars['ID']['output']>;
+  estateName?: Maybe<Scalars['String']['output']>;
+  eventType: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  newTarifBlokId?: Maybe<Scalars['ID']['output']>;
+  newValues?: Maybe<Scalars['JSON']['output']>;
+  oldTarifBlokId?: Maybe<Scalars['ID']['output']>;
+  oldValues?: Maybe<Scalars['JSON']['output']>;
+  overrideId?: Maybe<Scalars['ID']['output']>;
+  overrideType?: Maybe<Scalars['String']['output']>;
+  ruleId?: Maybe<Scalars['ID']['output']>;
+  rulePerlakuan?: Maybe<Scalars['String']['output']>;
+  tarifCode?: Maybe<Scalars['String']['output']>;
+};
+
+/** BlockTariffChangeLogPaginationResponse represents paginated block tariff change logs. */
+export type BlockTariffChangeLogPaginationResponse = {
+  __typename?: 'BlockTariffChangeLogPaginationResponse';
+  data: Array<BlockTariffChangeLog>;
   pagination: Pagination;
 };
 
@@ -1146,6 +1428,25 @@ export type CompanyEfficiencyData = {
   resourceEfficiency: Scalars['Float']['output'];
 };
 
+/** CompanyEstatePerformance represents estate-level production breakdown for a company. */
+export type CompanyEstatePerformance = {
+  __typename?: 'CompanyEstatePerformance';
+  /** Estate ID */
+  estateId: Scalars['ID']['output'];
+  /** Estate Name */
+  estateName: Scalars['String']['output'];
+  /** Monthly production (tons) */
+  monthlyProduction: Scalars['Float']['output'];
+  /** Monthly target (tons) */
+  monthlyTarget: Scalars['Float']['output'];
+  /** Quality score */
+  qualityScore: Scalars['Float']['output'];
+  /** Target achievement percentage */
+  targetAchievement: Scalars['Float']['output'];
+  /** Today's production (tons) */
+  todayProduction: Scalars['Float']['output'];
+};
+
 /** CompanyHealthStatus enum. */
 export enum CompanyHealthStatus {
   Critical = 'CRITICAL',
@@ -1209,6 +1510,8 @@ export type CompanyPerformanceData = {
   efficiencyScore: Scalars['Float']['output'];
   /** Estates count */
   estatesCount: Scalars['Int']['output'];
+  /** Estate performance breakdown */
+  estatesPerformance: Array<CompanyEstatePerformance>;
   /** Monthly production */
   monthlyProduction: Scalars['Float']['output'];
   /** Pending issues */
@@ -1469,11 +1772,24 @@ export type CreateApiKeyInput = {
   scopes: Array<Scalars['String']['input']>;
 };
 
+/** Input create BKM bridge. */
+export type CreateBkmCompanyBridgeInput = {
+  companyId: Scalars['ID']['input'];
+  divisiKey?: InputMaybe<Scalars['String']['input']>;
+  estateKey?: InputMaybe<Scalars['String']['input']>;
+  iddataPrefix: Scalars['String']['input'];
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  priority?: InputMaybe<Scalars['Int']['input']>;
+  sourceSystem?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type CreateBlockInput = {
   blockCode: Scalars['String']['input'];
   cropType?: InputMaybe<Scalars['String']['input']>;
   divisionId: Scalars['String']['input'];
   istm?: InputMaybe<Scalars['String']['input']>;
+  landTypeId?: InputMaybe<Scalars['ID']['input']>;
   luasHa?: InputMaybe<Scalars['Float']['input']>;
   name: Scalars['String']['input'];
   plantingYear?: InputMaybe<Scalars['Int']['input']>;
@@ -1654,11 +1970,32 @@ export type CreateHarvestRecordInput = {
   tanggal: Scalars['Time']['input'];
 };
 
-export type CreateHerbisidaUsageInput = {
-  hargaPerLiter: Scalars['Float']['input'];
-  jenisHerbisida: Scalars['String']['input'];
-  jumlahLiter: Scalars['Float']['input'];
-  perawatanRecordId: Scalars['String']['input'];
+export type CreateLandTypeInput = {
+  code: Scalars['String']['input'];
+  description?: InputMaybe<Scalars['String']['input']>;
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  name: Scalars['String']['input'];
+};
+
+export type CreateManagerBlockProductionBudgetInput = {
+  actualCost?: InputMaybe<Scalars['Float']['input']>;
+  blockId: Scalars['ID']['input'];
+  notes?: InputMaybe<Scalars['String']['input']>;
+  period: Scalars['String']['input'];
+  plannedCost: Scalars['Float']['input'];
+  targetTon: Scalars['Float']['input'];
+  workflowStatus?: InputMaybe<ManagerBudgetWorkflowStatus>;
+};
+
+export type CreateManagerDivisionProductionBudgetInput = {
+  actualCost?: InputMaybe<Scalars['Float']['input']>;
+  divisionId: Scalars['ID']['input'];
+  notes?: InputMaybe<Scalars['String']['input']>;
+  overrideApproved?: InputMaybe<Scalars['Boolean']['input']>;
+  period: Scalars['String']['input'];
+  plannedCost: Scalars['Float']['input'];
+  targetTon: Scalars['Float']['input'];
+  workflowStatus?: InputMaybe<ManagerBudgetWorkflowStatus>;
 };
 
 /** CreateMandorHarvestInput represents input for creating harvest record. */
@@ -1704,6 +2041,15 @@ export type CreatePksRecordInput = {
   tanggalTimbang: Scalars['Time']['input'];
 };
 
+export type CreatePerawatanMaterialUsageInput = {
+  materialCategory: PerawatanMaterialCategory;
+  materialName: Scalars['String']['input'];
+  perawatanRecordId: Scalars['String']['input'];
+  quantity: Scalars['Float']['input'];
+  unit: PerawatanMaterialUnit;
+  unitPrice: Scalars['Float']['input'];
+};
+
 export type CreatePerawatanRecordInput = {
   blockId: Scalars['String']['input'];
   catatan?: InputMaybe<Scalars['String']['input']>;
@@ -1715,21 +2061,35 @@ export type CreatePerawatanRecordInput = {
   tanggalPerawatan: Scalars['Time']['input'];
 };
 
-export type CreatePupukUsageInput = {
-  hargaPerKg: Scalars['Float']['input'];
-  jenisPupuk: Scalars['String']['input'];
-  jumlahKg: Scalars['Float']['input'];
-  perawatanRecordId: Scalars['String']['input'];
-};
-
 export type CreateTarifBlokInput = {
   basis?: InputMaybe<Scalars['Float']['input']>;
+  bjrMaxKg?: InputMaybe<Scalars['Float']['input']>;
+  bjrMinKg?: InputMaybe<Scalars['Float']['input']>;
   companyId: Scalars['ID']['input'];
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  keterangan?: InputMaybe<Scalars['String']['input']>;
+  landTypeId?: InputMaybe<Scalars['ID']['input']>;
   perlakuan: Scalars['String']['input'];
   premi?: InputMaybe<Scalars['Float']['input']>;
+  schemeType?: InputMaybe<Scalars['String']['input']>;
+  sortOrder?: InputMaybe<Scalars['Int']['input']>;
+  targetLebihKg?: InputMaybe<Scalars['Float']['input']>;
+  tarifCode?: InputMaybe<Scalars['String']['input']>;
   tarifLebaran?: InputMaybe<Scalars['Float']['input']>;
   tarifLibur?: InputMaybe<Scalars['Float']['input']>;
+  tarifPremi1?: InputMaybe<Scalars['Float']['input']>;
+  tarifPremi2?: InputMaybe<Scalars['Float']['input']>;
+  tarifUpah?: InputMaybe<Scalars['Float']['input']>;
+};
+
+export type CreateTariffRuleOverrideInput = {
+  effectiveFrom?: InputMaybe<Scalars['Time']['input']>;
+  effectiveTo?: InputMaybe<Scalars['Time']['input']>;
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  overrideType: TariffOverrideType;
+  premi?: InputMaybe<Scalars['Float']['input']>;
+  ruleId: Scalars['ID']['input'];
   tarifPremi1?: InputMaybe<Scalars['Float']['input']>;
   tarifPremi2?: InputMaybe<Scalars['Float']['input']>;
   tarifUpah?: InputMaybe<Scalars['Float']['input']>;
@@ -1749,6 +2109,8 @@ export type CreateUserInput = {
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
   /** Manager/Supervisor identifier */
   managerId?: InputMaybe<Scalars['String']['input']>;
+  /** Operational subtype for MANDOR users */
+  mandorType?: InputMaybe<MandorType>;
   /** Display name of the user */
   name: Scalars['String']['input'];
   /** Initial password for the user */
@@ -1970,6 +2332,19 @@ export type DeviceInfoInput = {
   osVersion: Scalars['String']['input'];
   /** Screen resolution */
   screenResolution?: InputMaybe<Scalars['String']['input']>;
+};
+
+/**
+ * DeviceRenewInput for exchanging an offline/session token for a new access+refresh token pair.
+ * Use this when refreshToken returns REFRESH_EXPIRED or REFRESH_REVOKED.
+ */
+export type DeviceRenewInput = {
+  /** Device fingerprint for additional security validation */
+  deviceFingerprint?: InputMaybe<Scalars['String']['input']>;
+  /** Device ID bound to this token */
+  deviceId: Scalars['String']['input'];
+  /** Opaque offline/session token received at login (30-day validity) */
+  offlineToken: Scalars['String']['input'];
 };
 
 /** DeviceResponse represents the response from device operations. */
@@ -2736,6 +3111,10 @@ export type HarvestRecordSyncInput = {
   companyId?: InputMaybe<Scalars['String']['input']>;
   /** Division ID */
   divisionId?: InputMaybe<Scalars['String']['input']>;
+  /** Employee-origin division ID */
+  employeeDivisionId?: InputMaybe<Scalars['String']['input']>;
+  /** Employee-origin division name snapshot */
+  employeeDivisionName?: InputMaybe<Scalars['String']['input']>;
   /** Estate ID */
   estateId?: InputMaybe<Scalars['String']['input']>;
   /** Jumlah janjang busuk/abnormal */
@@ -2780,6 +3159,17 @@ export type HarvestRecordSyncInput = {
   totalBrondolan?: InputMaybe<Scalars['Float']['input']>;
 };
 
+/** Paginated response for harvest records. */
+export type HarvestRecordsPaginatedResponse = {
+  __typename?: 'HarvestRecordsPaginatedResponse';
+  /** Harvest records for current page */
+  data: Array<HarvestRecord>;
+  /** Whether there are more records after this page */
+  hasMore: Scalars['Boolean']['output'];
+  /** Total number of records matching filters */
+  totalCount: Scalars['Int']['output'];
+};
+
 /** Harvest status enum representing approval workflow. */
 export enum HarvestStatus {
   /** Approved by asisten */
@@ -2804,20 +3194,6 @@ export type HarvestSyncInput = {
   deviceId: Scalars['String']['input'];
   /** Records to sync */
   records: Array<HarvestRecordSyncInput>;
-};
-
-/** Herbisida (Herbicide) usage record. */
-export type HerbisidaUsage = {
-  __typename?: 'HerbisidaUsage';
-  createdAt: Scalars['Time']['output'];
-  hargaPerLiter: Scalars['Float']['output'];
-  id: Scalars['ID']['output'];
-  jenisHerbisida: Scalars['String']['output'];
-  jumlahLiter: Scalars['Float']['output'];
-  perawatanRecord: PerawatanRecord;
-  perawatanRecordId: Scalars['String']['output'];
-  totalBiaya: Scalars['Float']['output'];
-  updatedAt: Scalars['Time']['output'];
 };
 
 /** JWTTokenFilterInput allows filtering JWT token records. */
@@ -2875,6 +3251,18 @@ export enum JenisPerawatan {
   PenyemprotanHerbisida = 'PENYEMPROTAN_HERBISIDA',
   PerawatanJalan = 'PERAWATAN_JALAN'
 }
+
+/** LandType represents master classification used by block and tariff. */
+export type LandType = {
+  __typename?: 'LandType';
+  code: Scalars['String']['output'];
+  createdAt: Scalars['Time']['output'];
+  description?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  isActive: Scalars['Boolean']['output'];
+  name: Scalars['String']['output'];
+  updatedAt: Scalars['Time']['output'];
+};
 
 /** LogoutAllDevicesResponse represents the result of a multi-device logout operation. */
 export type LogoutAllDevicesResponse = {
@@ -2961,6 +3349,48 @@ export type ManagerAnalyticsData = {
   qualityAnalysis: QualityAnalysisData;
 };
 
+/** ManagerBlockOption represents manager-scoped block option for form inputs. */
+export type ManagerBlockOption = {
+  __typename?: 'ManagerBlockOption';
+  blockCode: Scalars['String']['output'];
+  divisionId: Scalars['ID']['output'];
+  divisionName: Scalars['String']['output'];
+  estateId: Scalars['ID']['output'];
+  estateName: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+};
+
+/** ManagerBlockProductionBudget represents monthly production budget per block. */
+export type ManagerBlockProductionBudget = {
+  __typename?: 'ManagerBlockProductionBudget';
+  actualCost: Scalars['Float']['output'];
+  blockCode: Scalars['String']['output'];
+  blockId: Scalars['ID']['output'];
+  blockName: Scalars['String']['output'];
+  createdAt: Scalars['Time']['output'];
+  createdBy: Scalars['String']['output'];
+  createdById: Scalars['ID']['output'];
+  divisionId: Scalars['ID']['output'];
+  divisionName: Scalars['String']['output'];
+  estateId: Scalars['ID']['output'];
+  estateName: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  notes?: Maybe<Scalars['String']['output']>;
+  period: Scalars['String']['output'];
+  plannedCost: Scalars['Float']['output'];
+  targetTon: Scalars['Float']['output'];
+  updatedAt: Scalars['Time']['output'];
+  workflowStatus: ManagerBudgetWorkflowStatus;
+};
+
+/** ManagerDivisionProductionBudget represents monthly production budget per division. */
+export enum ManagerBudgetWorkflowStatus {
+  Approved = 'APPROVED',
+  Draft = 'DRAFT',
+  Review = 'REVIEW'
+}
+
 /** ManagerDashboardData represents aggregated dashboard data for Manager. */
 export type ManagerDashboardData = {
   __typename?: 'ManagerDashboardData';
@@ -3003,6 +3433,34 @@ export type ManagerDashboardStats = {
   totalEstates: Scalars['Int']['output'];
   /** This week's production (tons) */
   weeklyProduction: Scalars['Float']['output'];
+};
+
+/** ManagerDivisionOption represents manager-scoped division option for form inputs. */
+export type ManagerDivisionOption = {
+  __typename?: 'ManagerDivisionOption';
+  estateId: Scalars['ID']['output'];
+  estateName: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+};
+
+export type ManagerDivisionProductionBudget = {
+  __typename?: 'ManagerDivisionProductionBudget';
+  actualCost: Scalars['Float']['output'];
+  createdAt: Scalars['Time']['output'];
+  createdBy: Scalars['String']['output'];
+  divisionId: Scalars['ID']['output'];
+  divisionName: Scalars['String']['output'];
+  estateId: Scalars['ID']['output'];
+  estateName: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  notes?: Maybe<Scalars['String']['output']>;
+  overrideApproved: Scalars['Boolean']['output'];
+  period: Scalars['String']['output'];
+  plannedCost: Scalars['Float']['output'];
+  targetTon: Scalars['Float']['output'];
+  updatedAt: Scalars['Time']['output'];
+  workflowStatus: ManagerBudgetWorkflowStatus;
 };
 
 /** ManagerEvent represents a notable event for the manager. */
@@ -3496,6 +3954,8 @@ export type MandorProfile = {
   estate: Estate;
   /** Supervisor-specific work metrics */
   mandorStats?: Maybe<MandorStats>;
+  /** Operational subtype for this mandor */
+  mandorType?: Maybe<MandorType>;
   /** Basic user information */
   user: User;
 };
@@ -3561,11 +4021,15 @@ export type MandorSyncItemResult = {
   hasConflict: Scalars['Boolean']['output'];
   /** Local ID */
   localId: Scalars['String']['output'];
+  /** Reason for rejection (populated when status=REJECTED) */
+  reason?: Maybe<Scalars['String']['output']>;
   /** Server ID (assigned or existing) */
   serverId?: Maybe<Scalars['String']['output']>;
   /** Server version */
   serverVersion?: Maybe<Scalars['Int']['output']>;
-  /** Success */
+  /** Sync status: ACCEPTED or REJECTED */
+  status: SyncItemStatus;
+  /** Success (kept for backward compatibility) */
   success: Scalars['Boolean']['output'];
 };
 
@@ -3628,6 +4092,14 @@ export type MandorTodayWork = {
   workersInvolved: Scalars['Int']['output'];
 };
 
+/** Mandor Type distinguishes operational specialization for mandor users. */
+export enum MandorType {
+  /** Mandor responsible for harvest workflows */
+  Panen = 'PANEN',
+  /** Mandor responsible for maintenance workflows */
+  Perawatan = 'PERAWATAN'
+}
+
 /** MandorWorkload represents supervisor field work metrics. */
 export type MandorWorkload = {
   __typename?: 'MandorWorkload';
@@ -3686,6 +4158,8 @@ export type Mutation = {
   /** Approve single harvest record */
   approveHarvest: ApproveHarvestResult;
   approveHarvestRecord: HarvestRecord;
+  /** Approve a pending web QR login session from an authenticated device */
+  approveWebQRLogin: WebQrLoginStatusPayload;
   /**
    * Assign features to a role.
    * Only SUPER_ADMIN can assign role features.
@@ -3729,10 +4203,14 @@ export type Mutation = {
   clearUserFeatures: Scalars['Boolean']['output'];
   /** Remove all permission overrides for a user */
   clearUserPermissions: Scalars['Boolean']['output'];
+  /** Consume an approved web QR login session and establish cookie session */
+  consumeWebQRLogin: WebLoginPayload;
   /** Create a new API key (SUPER_ADMIN only) */
   createAPIKey: ApiKeyReveal;
   /** Create action item */
   createAreaManagerActionItem: AreaManagerActionItem;
+  /** Create bridge mapping BKM -> company */
+  createBkmCompanyBridge: BkmCompanyBridgeRule;
   createBlock: Block;
   createCompany: Company;
   /** Create new company */
@@ -3749,26 +4227,35 @@ export type Mutation = {
   createFeature: Feature;
   createGradingRecord: GradingRecord;
   createHarvestRecord: HarvestRecord;
-  createHerbisidaUsage: HerbisidaUsage;
+  createLandType: LandType;
+  /** Create manager block production budget */
+  createManagerBlockProductionBudget: ManagerBlockProductionBudget;
+  /** Create manager division production budget */
+  createManagerDivisionProductionBudget: ManagerDivisionProductionBudget;
   /** Create new harvest record */
   createMandorHarvest: MandorHarvestResult;
   createPKSRecord: PksRecord;
+  createPerawatanMaterialUsage: PerawatanMaterialUsage;
   createPerawatanRecord: PerawatanRecord;
   /** Create a new permission */
   createPermission: Permission;
-  createPupukUsage: PupukUsage;
   /** Create a new role */
   createRole: Role;
   /** Create super admin */
   createSuperAdmin: User;
   createTarifBlok: TarifBlok;
+  createTariffRuleOverride: TariffRuleOverride;
   /** Create a new user with role-based authorization */
   createUser: UserMutationResponse;
   createVehicle: Vehicle;
   createVehicleTax: VehicleTax;
   createVehicleTaxDocument: VehicleTaxDocument;
+  /** Create short-lived QR session for web login */
+  createWebQRLoginSession: WebQrLoginSessionPayload;
   /** Deactivate user */
   deactivateUser: UserManagementResult;
+  /** Delete bridge mapping BKM -> company */
+  deleteBkmCompanyBridge: Scalars['Boolean']['output'];
   deleteBlock: Scalars['Boolean']['output'];
   deleteCompany: Scalars['Boolean']['output'];
   /** Delete company */
@@ -3784,15 +4271,22 @@ export type Mutation = {
    */
   deleteFeature: Scalars['Boolean']['output'];
   deleteHarvestRecord: Scalars['Boolean']['output'];
+  deleteLandType: Scalars['Boolean']['output'];
+  /** Delete manager block production budget */
+  deleteManagerBlockProductionBudget: Scalars['Boolean']['output'];
+  /** Delete manager division production budget */
+  deleteManagerDivisionProductionBudget: Scalars['Boolean']['output'];
   /** Delete harvest record (only pending) */
   deleteMandorHarvest: MandorHarvestResult;
   deletePKSRecord: Scalars['Boolean']['output'];
+  deletePerawatanMaterialUsage: Scalars['Boolean']['output'];
   deletePerawatanRecord: Scalars['Boolean']['output'];
   /** Delete a permission */
   deletePermission: Scalars['Boolean']['output'];
   /** Delete a role */
   deleteRole: Scalars['Boolean']['output'];
   deleteTarifBlok: Scalars['Boolean']['output'];
+  deleteTariffRuleOverride: Scalars['Boolean']['output'];
   /** Delete a user with cascade handling */
   deleteUser: UserMutationResponse;
   deleteVehicle: Scalars['Boolean']['output'];
@@ -3804,6 +4298,8 @@ export type Mutation = {
    * Requires SUPER_ADMIN or COMPANY_ADMIN role (with appropriate scope).
    */
   denyUserFeature: UserFeature;
+  /** Renew access+refresh tokens using offline/session token (use when refresh token is expired/revoked) */
+  deviceRenew: AuthPayload;
   /** Extend company trial */
   extendCompanyTrial: CompanyManagementResult;
   /** Force logout all sessions for a user (Super Admin only) */
@@ -3921,6 +4417,8 @@ export type Mutation = {
   unregisterFCMToken: Scalars['Boolean']['output'];
   /** Update action item status */
   updateActionItemStatus: AreaManagerActionItem;
+  /** Update bridge mapping BKM -> company */
+  updateBkmCompanyBridge: BkmCompanyBridgeRule;
   updateBlock: Block;
   updateCompany: Company;
   /** Update company */
@@ -3942,9 +4440,15 @@ export type Mutation = {
   updateFeature: Feature;
   updateGradingRecord: GradingRecord;
   updateHarvestRecord: HarvestRecord;
+  updateLandType: LandType;
+  /** Update manager block production budget */
+  updateManagerBlockProductionBudget: ManagerBlockProductionBudget;
+  /** Update manager division production budget */
+  updateManagerDivisionProductionBudget: ManagerDivisionProductionBudget;
   /** Update existing harvest record */
   updateMandorHarvest: MandorHarvestResult;
   updatePKSRecord: PksRecord;
+  updatePerawatanMaterialUsage: PerawatanMaterialUsage;
   updatePerawatanRecord: PerawatanRecord;
   /** Update an existing permission */
   updatePermission: Permission;
@@ -3953,10 +4457,15 @@ export type Mutation = {
   /** Update system settings */
   updateSystemSettings: SystemSettings;
   updateTarifBlok: TarifBlok;
+  updateTariffRuleOverride: TariffRuleOverride;
   /** Update an existing user with proper validation */
   updateUser: UserMutationResponse;
   updateVehicle: Vehicle;
   updateVehicleTax: VehicleTax;
+  /** Bulk upsert BKM detail records. Master records must already exist. */
+  upsertBkmDetails: UpsertBkmResult;
+  /** Bulk upsert BKM master records. Must be called BEFORE upsertBkmDetails. */
+  upsertBkmMasters: UpsertBkmResult;
   /** Web authentication with cookie-based session management */
   webLogin: WebLoginPayload;
 };
@@ -4009,6 +4518,11 @@ export type MutationApproveHarvestArgs = {
 
 export type MutationApproveHarvestRecordArgs = {
   input: ApproveHarvestInput;
+};
+
+
+export type MutationApproveWebQrLoginArgs = {
+  input: WebQrApproveInput;
 };
 
 
@@ -4107,6 +4621,11 @@ export type MutationClearUserPermissionsArgs = {
 };
 
 
+export type MutationConsumeWebQrLoginArgs = {
+  input: WebQrConsumeInput;
+};
+
+
 export type MutationCreateApiKeyArgs = {
   input: CreateApiKeyInput;
 };
@@ -4119,6 +4638,11 @@ export type MutationCreateAreaManagerActionItemArgs = {
   priority: ActionPriority;
   title: Scalars['String']['input'];
   type: AreaManagerActionType;
+};
+
+
+export type MutationCreateBkmCompanyBridgeArgs = {
+  input: CreateBkmCompanyBridgeInput;
 };
 
 
@@ -4172,8 +4696,18 @@ export type MutationCreateHarvestRecordArgs = {
 };
 
 
-export type MutationCreateHerbisidaUsageArgs = {
-  input: CreateHerbisidaUsageInput;
+export type MutationCreateLandTypeArgs = {
+  input: CreateLandTypeInput;
+};
+
+
+export type MutationCreateManagerBlockProductionBudgetArgs = {
+  input: CreateManagerBlockProductionBudgetInput;
+};
+
+
+export type MutationCreateManagerDivisionProductionBudgetArgs = {
+  input: CreateManagerDivisionProductionBudgetInput;
 };
 
 
@@ -4187,6 +4721,11 @@ export type MutationCreatePksRecordArgs = {
 };
 
 
+export type MutationCreatePerawatanMaterialUsageArgs = {
+  input: CreatePerawatanMaterialUsageInput;
+};
+
+
 export type MutationCreatePerawatanRecordArgs = {
   input: CreatePerawatanRecordInput;
 };
@@ -4197,11 +4736,6 @@ export type MutationCreatePermissionArgs = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   resource: Scalars['String']['input'];
-};
-
-
-export type MutationCreatePupukUsageArgs = {
-  input: CreatePupukUsageInput;
 };
 
 
@@ -4223,6 +4757,11 @@ export type MutationCreateSuperAdminArgs = {
 
 export type MutationCreateTarifBlokArgs = {
   input: CreateTarifBlokInput;
+};
+
+
+export type MutationCreateTariffRuleOverrideArgs = {
+  input: CreateTariffRuleOverrideInput;
 };
 
 
@@ -4249,6 +4788,11 @@ export type MutationCreateVehicleTaxDocumentArgs = {
 export type MutationDeactivateUserArgs = {
   reason?: InputMaybe<Scalars['String']['input']>;
   userId: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteBkmCompanyBridgeArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -4293,6 +4837,21 @@ export type MutationDeleteHarvestRecordArgs = {
 };
 
 
+export type MutationDeleteLandTypeArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteManagerBlockProductionBudgetArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteManagerDivisionProductionBudgetArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type MutationDeleteMandorHarvestArgs = {
   deviceId: Scalars['String']['input'];
   id: Scalars['ID']['input'];
@@ -4300,6 +4859,11 @@ export type MutationDeleteMandorHarvestArgs = {
 
 
 export type MutationDeletePksRecordArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeletePerawatanMaterialUsageArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -4320,6 +4884,11 @@ export type MutationDeleteRoleArgs = {
 
 
 export type MutationDeleteTarifBlokArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteTariffRuleOverrideArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -4346,6 +4915,11 @@ export type MutationDeleteVehicleTaxDocumentArgs = {
 
 export type MutationDenyUserFeatureArgs = {
   input: DenyUserFeatureInput;
+};
+
+
+export type MutationDeviceRenewArgs = {
+  input: DeviceRenewInput;
 };
 
 
@@ -4633,6 +5207,11 @@ export type MutationUpdateActionItemStatusArgs = {
 };
 
 
+export type MutationUpdateBkmCompanyBridgeArgs = {
+  input: UpdateBkmCompanyBridgeInput;
+};
+
+
 export type MutationUpdateBlockArgs = {
   input: UpdateBlockInput;
 };
@@ -4698,6 +5277,21 @@ export type MutationUpdateHarvestRecordArgs = {
 };
 
 
+export type MutationUpdateLandTypeArgs = {
+  input: UpdateLandTypeInput;
+};
+
+
+export type MutationUpdateManagerBlockProductionBudgetArgs = {
+  input: UpdateManagerBlockProductionBudgetInput;
+};
+
+
+export type MutationUpdateManagerDivisionProductionBudgetArgs = {
+  input: UpdateManagerDivisionProductionBudgetInput;
+};
+
+
 export type MutationUpdateMandorHarvestArgs = {
   input: UpdateMandorHarvestInput;
 };
@@ -4705,6 +5299,11 @@ export type MutationUpdateMandorHarvestArgs = {
 
 export type MutationUpdatePksRecordArgs = {
   input: UpdatePksRecordInput;
+};
+
+
+export type MutationUpdatePerawatanMaterialUsageArgs = {
+  input: UpdatePerawatanMaterialUsageInput;
 };
 
 
@@ -4738,6 +5337,11 @@ export type MutationUpdateTarifBlokArgs = {
 };
 
 
+export type MutationUpdateTariffRuleOverrideArgs = {
+  input: UpdateTariffRuleOverrideInput;
+};
+
+
 export type MutationUpdateUserArgs = {
   input: UpdateUserInput;
 };
@@ -4750,6 +5354,16 @@ export type MutationUpdateVehicleArgs = {
 
 export type MutationUpdateVehicleTaxArgs = {
   input: UpdateVehicleTaxInput;
+};
+
+
+export type MutationUpsertBkmDetailsArgs = {
+  input: Array<BkmDetailUpsertInput>;
+};
+
+
+export type MutationUpsertBkmMastersArgs = {
+  input: Array<BkmMasterUpsertInput>;
 };
 
 
@@ -4898,6 +5512,34 @@ export type Pagination = {
   pages: Scalars['Int']['output'];
   /** Total number of items */
   total: Scalars['Int']['output'];
+};
+
+/** Material category used in maintenance work. */
+export enum PerawatanMaterialCategory {
+  Herbisida = 'HERBISIDA',
+  Pupuk = 'PUPUK'
+}
+
+/** Measurement unit for maintenance material usage. */
+export enum PerawatanMaterialUnit {
+  Kg = 'KG',
+  Liter = 'LITER'
+}
+
+/** Generic material usage record attached to a maintenance transaction. */
+export type PerawatanMaterialUsage = {
+  __typename?: 'PerawatanMaterialUsage';
+  createdAt: Scalars['Time']['output'];
+  id: Scalars['ID']['output'];
+  materialCategory: PerawatanMaterialCategory;
+  materialName: Scalars['String']['output'];
+  perawatanRecord: PerawatanRecord;
+  perawatanRecordId: Scalars['String']['output'];
+  quantity: Scalars['Float']['output'];
+  totalCost: Scalars['Float']['output'];
+  unit: PerawatanMaterialUnit;
+  unitPrice: Scalars['Float']['output'];
+  updatedAt: Scalars['Time']['output'];
 };
 
 /** PerawatanRecord represents maintenance activities on plantation blocks. */
@@ -5117,20 +5759,6 @@ export type ProductionTrendData = {
   trendPercentage: Scalars['Float']['output'];
 };
 
-/** Pupuk (Fertilizer) usage record. */
-export type PupukUsage = {
-  __typename?: 'PupukUsage';
-  createdAt: Scalars['Time']['output'];
-  hargaPerKg: Scalars['Float']['output'];
-  id: Scalars['ID']['output'];
-  jenisPupuk: Scalars['String']['output'];
-  jumlahKg: Scalars['Float']['output'];
-  perawatanRecord: PerawatanRecord;
-  perawatanRecordId: Scalars['String']['output'];
-  totalBiaya: Scalars['Float']['output'];
-  updatedAt: Scalars['Time']['output'];
-};
-
 /** QRTokenStatus represents the current state of a QR token. */
 export enum QrTokenStatus {
   /** Token is active and can be used */
@@ -5230,10 +5858,20 @@ export type Query = {
   bjrCalculationByPKS?: Maybe<BjrCalculation>;
   /** Retrieve all BJR calculations */
   bjrCalculations: Array<BjrCalculation>;
+  /** List bridge mapping BKM -> company */
+  bkmCompanyBridges: BkmCompanyBridgeListResponse;
+  /** Get BKM Potong Buah analytics aggregates without returning detail rows. */
+  bkmPotongBuahAnalytics: BkmPotongBuahAnalytics;
+  /** Get BKM Potong Buah report as flat list with pagination */
+  bkmPotongBuahFlat: BkmPotongBuahFlatResponse;
+  /** Get BKM Potong Buah report (pekerjaan=41001) aggregated by estate/divisi/blok. */
+  bkmPotongBuahReport: BkmPotongBuahSummary;
   /** Get a specific block by ID */
   block?: Maybe<Block>;
   /** Get block activities for a division */
   blockActivities: Array<BlockActivity>;
+  /** Retrieve block tariff change logs with pagination and optional filters */
+  blockTariffChangeLogs: BlockTariffChangeLogPaginationResponse;
   /** Retrieve all plantation blocks */
   blocks: Array<Block>;
   /** Retrieve plantation blocks with pagination and optional filters */
@@ -5364,10 +6002,12 @@ export type Query = {
   harvestRecords: Array<HarvestRecord>;
   /** Filter harvest records by approval status */
   harvestRecordsByStatus: Array<HarvestRecord>;
-  /** Get herbicide usage records */
-  herbisidaUsageRecords: Array<HerbisidaUsage>;
+  /** Retrieve harvest records with server-side pagination */
+  harvestRecordsPaginated: HarvestRecordsPaginatedResponse;
   /** List jwt_tokens records (SUPER_ADMIN only) */
   jwtTokens: Array<JwtTokenRecord>;
+  /** Retrieve land type master data used for block and tariff */
+  landTypes: Array<LandType>;
   /**
    * List all features with optional filtering and pagination.
    * Requires SUPER_ADMIN or COMPANY_ADMIN role.
@@ -5377,10 +6017,18 @@ export type Query = {
   managerActionItems: Array<ManagerActionItem>;
   /** Get manager analytics data */
   managerAnalytics: ManagerAnalyticsData;
+  /** Get blocks under manager assigned estates/divisions */
+  managerBlockOptions: Array<ManagerBlockOption>;
+  /** Get manager scoped block production budgets */
+  managerBlockProductionBudgets: Array<ManagerBlockProductionBudget>;
   /** Get manager dashboard data */
   managerDashboard: ManagerDashboardData;
   /** Get manager dashboard stats */
   managerDashboardStats: ManagerDashboardStats;
+  /** Get divisions under manager assigned estates */
+  managerDivisionOptions: Array<ManagerDivisionOption>;
+  /** Get manager scoped division production budgets */
+  managerDivisionProductionBudgets: Array<ManagerDivisionProductionBudget>;
   /** Get manager monitoring data */
   managerMonitor: ManagerMonitorData;
   /** Get manager team summary */
@@ -5391,12 +6039,18 @@ export type Query = {
   mandorActivities: Array<MandorActivity>;
   /** Get blocks available for mandor */
   mandorBlocks: Array<Block>;
+  /** Get changed blocks available for mandor since last sync */
+  mandorBlocksSync: Array<Block>;
   /** Get mandor dashboard data */
   mandorDashboard: MandorDashboardData;
   /** Get mandor dashboard stats */
   mandorDashboardStats: MandorDashboardStats;
+  /** Get changed assignment masters for mandor since last sync */
+  mandorDivisionMastersSync: UserAssignments;
   /** Get employees available for mandor */
   mandorEmployees: Array<Employee>;
+  /** Get changed employees available for mandor since last sync */
+  mandorEmployeesSync: Array<Employee>;
   /** Get single harvest record */
   mandorHarvestRecord?: Maybe<MandorHarvestRecord>;
   /** Get mandor harvest history */
@@ -5418,6 +6072,14 @@ export type Query = {
   /** Get pending approvals list */
   pendingApprovals: ApprovalListResponse;
   pendingGradingApprovals: Array<GradingRecord>;
+  /** Get a specific maintenance material usage record by ID */
+  perawatanMaterialUsageRecord?: Maybe<PerawatanMaterialUsage>;
+  /** Get all maintenance material usage records */
+  perawatanMaterialUsageRecords: Array<PerawatanMaterialUsage>;
+  /** Filter maintenance material usage records by category */
+  perawatanMaterialUsageRecordsByCategory: Array<PerawatanMaterialUsage>;
+  /** Filter maintenance material usage records by parent maintenance record */
+  perawatanMaterialUsageRecordsByRecord: Array<PerawatanMaterialUsage>;
   /** Get a specific maintenance record by ID */
   perawatanRecord?: Maybe<PerawatanRecord>;
   /** Retrieve all maintenance records */
@@ -5440,8 +6102,6 @@ export type Query = {
   platformStatistics: PlatformStats;
   /** Get production trend data */
   productionTrend: ProductionTrendData;
-  /** Get fertilizer usage records */
-  pupukUsageRecords: Array<PupukUsage>;
   /** Get quality analysis data */
   qualityAnalysis: QualityAnalysisData;
   /** Check if source role can manage target role based on hierarchy */
@@ -5515,6 +6175,8 @@ export type Query = {
   systemSettings: SystemSettings;
   /** Retrieve master tariff/treatment data for blocks */
   tarifBloks: Array<TarifBlok>;
+  /** Retrieve tariff rule overrides (NORMAL/HOLIDAY/LEBARAN) with optional period */
+  tariffRuleOverrides: Array<TariffRuleOverride>;
   /** Get timbangan dashboard */
   timbanganDashboard: TimbanganDashboardData;
   /** Get timbangan history */
@@ -5549,6 +6211,8 @@ export type Query = {
   /** Get vehicles currently outside (exited today, no same-day entry) */
   vehiclesOutside: Array<VehicleOutsideInfo>;
   vehiclesPaginated: VehiclePaginationResponse;
+  /** Check QR login status for web login polling */
+  webQRLoginStatus: WebQrLoginStatusPayload;
   /** Get weighing queue */
   weighingQueue: Array<WeighingQueueItem>;
   /** Get weighing record */
@@ -5621,8 +6285,40 @@ export type QueryAreaManagerCompanyDetailArgs = {
 };
 
 
+export type QueryAreaManagerDashboardArgs = {
+  companyId?: InputMaybe<Scalars['ID']['input']>;
+  dateFrom?: InputMaybe<Scalars['Time']['input']>;
+  dateTo?: InputMaybe<Scalars['Time']['input']>;
+};
+
+
 export type QueryBjrCalculationByPksArgs = {
   pksRecordId: Scalars['String']['input'];
+};
+
+
+export type QueryBkmCompanyBridgesArgs = {
+  filter?: InputMaybe<BkmCompanyBridgeFilterInput>;
+  page?: InputMaybe<Scalars['Int']['input']>;
+  pageSize?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type QueryBkmPotongBuahAnalyticsArgs = {
+  filter: BkmPotongBuahFilter;
+  topN?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type QueryBkmPotongBuahFlatArgs = {
+  filter: BkmPotongBuahFilter;
+  limit: Scalars['Int']['input'];
+  page: Scalars['Int']['input'];
+};
+
+
+export type QueryBkmPotongBuahReportArgs = {
+  filter: BkmPotongBuahFilter;
 };
 
 
@@ -5633,6 +6329,16 @@ export type QueryBlockArgs = {
 
 export type QueryBlockActivitiesArgs = {
   divisionId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type QueryBlockTariffChangeLogsArgs = {
+  blockId?: InputMaybe<Scalars['ID']['input']>;
+  companyId?: InputMaybe<Scalars['ID']['input']>;
+  eventType?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  page?: InputMaybe<Scalars['Int']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -5840,8 +6546,26 @@ export type QueryHarvestRecordArgs = {
 };
 
 
+export type QueryHarvestRecordsArgs = {
+  dateFrom?: InputMaybe<Scalars['Time']['input']>;
+  dateTo?: InputMaybe<Scalars['Time']['input']>;
+};
+
+
 export type QueryHarvestRecordsByStatusArgs = {
   status: HarvestStatus;
+};
+
+
+export type QueryHarvestRecordsPaginatedArgs = {
+  dateFrom?: InputMaybe<Scalars['Time']['input']>;
+  dateTo?: InputMaybe<Scalars['Time']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  page?: InputMaybe<Scalars['Int']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
+  sortBy?: InputMaybe<Scalars['String']['input']>;
+  sortDir?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<HarvestStatus>;
 };
 
 
@@ -5870,6 +6594,24 @@ export type QueryManagerAnalyticsArgs = {
 };
 
 
+export type QueryManagerBlockOptionsArgs = {
+  divisionId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type QueryManagerBlockProductionBudgetsArgs = {
+  blockId?: InputMaybe<Scalars['ID']['input']>;
+  divisionId?: InputMaybe<Scalars['ID']['input']>;
+  period?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryManagerDivisionProductionBudgetsArgs = {
+  divisionId?: InputMaybe<Scalars['ID']['input']>;
+  period?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type QueryManagersUnderAreaArgs = {
   companyId?: InputMaybe<Scalars['ID']['input']>;
 };
@@ -5885,9 +6627,26 @@ export type QueryMandorBlocksArgs = {
 };
 
 
+export type QueryMandorBlocksSyncArgs = {
+  divisionId?: InputMaybe<Scalars['ID']['input']>;
+  updatedSince: Scalars['Time']['input'];
+};
+
+
+export type QueryMandorDivisionMastersSyncArgs = {
+  updatedSince: Scalars['Time']['input'];
+};
+
+
 export type QueryMandorEmployeesArgs = {
   divisionId?: InputMaybe<Scalars['ID']['input']>;
   search?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryMandorEmployeesSyncArgs = {
+  divisionId?: InputMaybe<Scalars['ID']['input']>;
+  updatedSince: Scalars['Time']['input'];
 };
 
 
@@ -5919,6 +6678,21 @@ export type QueryMandorStatusesArgs = {
 
 export type QueryPendingApprovalsArgs = {
   filter?: InputMaybe<ApprovalFilterInput>;
+};
+
+
+export type QueryPerawatanMaterialUsageRecordArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryPerawatanMaterialUsageRecordsByCategoryArgs = {
+  materialCategory: PerawatanMaterialCategory;
+};
+
+
+export type QueryPerawatanMaterialUsageRecordsByRecordArgs = {
+  perawatanRecordId: Scalars['ID']['input'];
 };
 
 
@@ -6054,6 +6828,8 @@ export type QueryRolePermissionsArgs = {
 
 export type QueryRolesArgs = {
   activeOnly?: InputMaybe<Scalars['Boolean']['input']>;
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -6096,6 +6872,13 @@ export type QuerySystemAlertsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   severity?: InputMaybe<AlertSeverity>;
   unacknowledgedOnly?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+
+export type QueryTariffRuleOverridesArgs = {
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  overrideType?: InputMaybe<TariffOverrideType>;
+  ruleId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 
@@ -6199,6 +6982,12 @@ export type QueryVehiclesPaginatedArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   page?: InputMaybe<Scalars['Int']['input']>;
   search?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryWebQrLoginStatusArgs = {
+  challenge: Scalars['String']['input'];
+  sessionId: Scalars['String']['input'];
 };
 
 
@@ -7051,13 +7840,17 @@ export type SatpamSyncItemResult = {
   hasConflict: Scalars['Boolean']['output'];
   /** Local ID */
   id: Scalars['String']['output'];
+  /** Reason for rejection (populated when status=REJECTED) */
+  reason?: Maybe<Scalars['String']['output']>;
   /** Record type */
   recordType: Scalars['String']['output'];
   /** Server ID */
   serverId?: Maybe<Scalars['String']['output']>;
   /** Server version */
   serverVersion?: Maybe<Scalars['Int']['output']>;
-  /** Success */
+  /** Sync status: ACCEPTED or REJECTED */
+  status: SyncItemStatus;
+  /** Success (kept for backward compatibility) */
   success: Scalars['Boolean']['output'];
 };
 
@@ -7394,6 +8187,18 @@ export type SyncEmployeeInput = {
   role: Scalars['String']['input'];
 };
 
+/**
+ * SyncItemStatus represents the outcome of a single sync record pushed to the server.
+ * ACCEPTED: record was saved (new) or already existed (idempotent).
+ * REJECTED: record failed validation or an unresolvable conflict occurred.
+ */
+export enum SyncItemStatus {
+  /** Record successfully accepted or already exists on server (idempotent) */
+  Accepted = 'ACCEPTED',
+  /** Record rejected due to validation failure or unresolvable conflict */
+  Rejected = 'REJECTED'
+}
+
 /** SyncOperation represents sync operation types. */
 export enum SyncOperation {
   /** Batch operation */
@@ -7709,15 +8514,49 @@ export enum SystemStatus {
 export type TarifBlok = {
   __typename?: 'TarifBlok';
   basis?: Maybe<Scalars['Float']['output']>;
+  bjrMaxKg?: Maybe<Scalars['Float']['output']>;
+  bjrMinKg?: Maybe<Scalars['Float']['output']>;
   company?: Maybe<Company>;
   companyId: Scalars['String']['output'];
   createdAt: Scalars['Time']['output'];
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
+  keterangan?: Maybe<Scalars['String']['output']>;
+  landType?: Maybe<LandType>;
+  landTypeId?: Maybe<Scalars['ID']['output']>;
   perlakuan: Scalars['String']['output'];
   premi?: Maybe<Scalars['Float']['output']>;
+  schemeType?: Maybe<Scalars['String']['output']>;
+  sortOrder?: Maybe<Scalars['Int']['output']>;
+  targetLebihKg?: Maybe<Scalars['Float']['output']>;
+  tarifCode?: Maybe<Scalars['String']['output']>;
   tarifLebaran?: Maybe<Scalars['Float']['output']>;
   tarifLibur?: Maybe<Scalars['Float']['output']>;
+  tarifPremi1?: Maybe<Scalars['Float']['output']>;
+  tarifPremi2?: Maybe<Scalars['Float']['output']>;
+  tarifUpah?: Maybe<Scalars['Float']['output']>;
+  updatedAt: Scalars['Time']['output'];
+};
+
+/** TariffOverrideType defines override context for tariff rule. */
+export enum TariffOverrideType {
+  Holiday = 'HOLIDAY',
+  Lebaran = 'LEBARAN',
+  Normal = 'NORMAL'
+}
+
+/** TariffRuleOverride stores contextual tariff override with optional period. */
+export type TariffRuleOverride = {
+  __typename?: 'TariffRuleOverride';
+  createdAt: Scalars['Time']['output'];
+  effectiveFrom?: Maybe<Scalars['Time']['output']>;
+  effectiveTo?: Maybe<Scalars['Time']['output']>;
+  id: Scalars['ID']['output'];
+  isActive: Scalars['Boolean']['output'];
+  notes?: Maybe<Scalars['String']['output']>;
+  overrideType: TariffOverrideType;
+  premi?: Maybe<Scalars['Float']['output']>;
+  ruleId: Scalars['ID']['output'];
   tarifPremi1?: Maybe<Scalars['Float']['output']>;
   tarifPremi2?: Maybe<Scalars['Float']['output']>;
   tarifUpah?: Maybe<Scalars['Float']['output']>;
@@ -7881,11 +8720,25 @@ export enum TrendDirection {
   Up = 'UP'
 }
 
+/** Input update BKM bridge. */
+export type UpdateBkmCompanyBridgeInput = {
+  companyId?: InputMaybe<Scalars['ID']['input']>;
+  divisiKey?: InputMaybe<Scalars['String']['input']>;
+  estateKey?: InputMaybe<Scalars['String']['input']>;
+  id: Scalars['ID']['input'];
+  iddataPrefix?: InputMaybe<Scalars['String']['input']>;
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  priority?: InputMaybe<Scalars['Int']['input']>;
+  sourceSystem?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type UpdateBlockInput = {
   blockCode?: InputMaybe<Scalars['String']['input']>;
   cropType?: InputMaybe<Scalars['String']['input']>;
   id: Scalars['ID']['input'];
   istm?: InputMaybe<Scalars['String']['input']>;
+  landTypeId?: InputMaybe<Scalars['ID']['input']>;
   luasHa?: InputMaybe<Scalars['Float']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   plantingYear?: InputMaybe<Scalars['Int']['input']>;
@@ -8010,6 +8863,37 @@ export type UpdateHarvestRecordInput = {
   karyawan?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type UpdateLandTypeInput = {
+  code?: InputMaybe<Scalars['String']['input']>;
+  description?: InputMaybe<Scalars['String']['input']>;
+  id: Scalars['ID']['input'];
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UpdateManagerBlockProductionBudgetInput = {
+  actualCost?: InputMaybe<Scalars['Float']['input']>;
+  blockId?: InputMaybe<Scalars['ID']['input']>;
+  id: Scalars['ID']['input'];
+  notes?: InputMaybe<Scalars['String']['input']>;
+  period?: InputMaybe<Scalars['String']['input']>;
+  plannedCost?: InputMaybe<Scalars['Float']['input']>;
+  targetTon?: InputMaybe<Scalars['Float']['input']>;
+  workflowStatus?: InputMaybe<ManagerBudgetWorkflowStatus>;
+};
+
+export type UpdateManagerDivisionProductionBudgetInput = {
+  actualCost?: InputMaybe<Scalars['Float']['input']>;
+  divisionId?: InputMaybe<Scalars['ID']['input']>;
+  id: Scalars['ID']['input'];
+  notes?: InputMaybe<Scalars['String']['input']>;
+  overrideApproved?: InputMaybe<Scalars['Boolean']['input']>;
+  period?: InputMaybe<Scalars['String']['input']>;
+  plannedCost?: InputMaybe<Scalars['Float']['input']>;
+  targetTon?: InputMaybe<Scalars['Float']['input']>;
+  workflowStatus?: InputMaybe<ManagerBudgetWorkflowStatus>;
+};
+
 /** UpdateMandorHarvestInput for updating existing harvest. */
 export type UpdateMandorHarvestInput = {
   /** Updated weight */
@@ -8038,6 +8922,15 @@ export type UpdatePksRecordInput = {
   nomorDo?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type UpdatePerawatanMaterialUsageInput = {
+  id: Scalars['ID']['input'];
+  materialCategory?: InputMaybe<PerawatanMaterialCategory>;
+  materialName?: InputMaybe<Scalars['String']['input']>;
+  quantity?: InputMaybe<Scalars['Float']['input']>;
+  unit?: InputMaybe<PerawatanMaterialUnit>;
+  unitPrice?: InputMaybe<Scalars['Float']['input']>;
+};
+
 export type UpdatePerawatanRecordInput = {
   catatan?: InputMaybe<Scalars['String']['input']>;
   herbisidaDigunakan?: InputMaybe<Scalars['String']['input']>;
@@ -8063,13 +8956,34 @@ export type UpdateSystemSettingsInput = {
 
 export type UpdateTarifBlokInput = {
   basis?: InputMaybe<Scalars['Float']['input']>;
+  bjrMaxKg?: InputMaybe<Scalars['Float']['input']>;
+  bjrMinKg?: InputMaybe<Scalars['Float']['input']>;
   companyId?: InputMaybe<Scalars['ID']['input']>;
   id: Scalars['ID']['input'];
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  keterangan?: InputMaybe<Scalars['String']['input']>;
+  landTypeId?: InputMaybe<Scalars['ID']['input']>;
   perlakuan?: InputMaybe<Scalars['String']['input']>;
   premi?: InputMaybe<Scalars['Float']['input']>;
+  schemeType?: InputMaybe<Scalars['String']['input']>;
+  sortOrder?: InputMaybe<Scalars['Int']['input']>;
+  targetLebihKg?: InputMaybe<Scalars['Float']['input']>;
+  tarifCode?: InputMaybe<Scalars['String']['input']>;
   tarifLebaran?: InputMaybe<Scalars['Float']['input']>;
   tarifLibur?: InputMaybe<Scalars['Float']['input']>;
+  tarifPremi1?: InputMaybe<Scalars['Float']['input']>;
+  tarifPremi2?: InputMaybe<Scalars['Float']['input']>;
+  tarifUpah?: InputMaybe<Scalars['Float']['input']>;
+};
+
+export type UpdateTariffRuleOverrideInput = {
+  effectiveFrom?: InputMaybe<Scalars['Time']['input']>;
+  effectiveTo?: InputMaybe<Scalars['Time']['input']>;
+  id: Scalars['ID']['input'];
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  overrideType?: InputMaybe<TariffOverrideType>;
+  premi?: InputMaybe<Scalars['Float']['input']>;
   tarifPremi1?: InputMaybe<Scalars['Float']['input']>;
   tarifPremi2?: InputMaybe<Scalars['Float']['input']>;
   tarifUpah?: InputMaybe<Scalars['Float']['input']>;
@@ -8093,6 +9007,8 @@ export type UpdateUserInput = {
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
   /** New manager/supervisor assignment */
   managerId?: InputMaybe<Scalars['String']['input']>;
+  /** New operational subtype for MANDOR users */
+  mandorType?: InputMaybe<MandorType>;
   /** New display name */
   name?: InputMaybe<Scalars['String']['input']>;
   /** New phone number */
@@ -8161,6 +9077,12 @@ export type UpdateWeighingRecordInput = {
   weighingTime?: InputMaybe<Scalars['Time']['input']>;
 };
 
+export type UpsertBkmResult = {
+  __typename?: 'UpsertBkmResult';
+  received: Scalars['Int']['output'];
+  upserted: Scalars['Int']['output'];
+};
+
 /**
  * User represents a system user with role-based access control.
  * Supports hierarchical roles from field workers to system administrators.
@@ -8178,6 +9100,8 @@ export type User = {
   createdAt: Scalars['Time']['output'];
   /** Divisions assigned to this user */
   divisions?: Maybe<Array<Division>>;
+  /** Resolved mandor subtype from the active company assignment */
+  effectiveMandorType?: Maybe<MandorType>;
   /** Optional email address for notifications */
   email?: Maybe<Scalars['String']['output']>;
   /** Estates assigned to this user */
@@ -8238,6 +9162,7 @@ export type UserCompanyAssignment = {
   estateAssignments?: Maybe<Array<UserEstateAssignment>>;
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
+  mandorType?: Maybe<MandorType>;
   updatedAt: Scalars['Time']['output'];
   user?: Maybe<User>;
   userId: Scalars['ID']['output'];
@@ -8796,6 +9721,62 @@ export type WebLoginPayload = {
   user?: Maybe<User>;
 };
 
+/** WebQRApproveInput is used by authenticated mobile/web users to approve QR login. */
+export type WebQrApproveInput = {
+  challenge: Scalars['String']['input'];
+  sessionId: Scalars['String']['input'];
+};
+
+/** WebQRConsumeInput is used by web client to consume an approved QR login session. */
+export type WebQrConsumeInput = {
+  challenge: Scalars['String']['input'];
+  sessionId: Scalars['String']['input'];
+};
+
+/** WebQRLoginSessionPayload represents a newly generated QR login session. */
+export type WebQrLoginSessionPayload = {
+  __typename?: 'WebQRLoginSessionPayload';
+  /** Random challenge bound to the QR session */
+  challenge?: Maybe<Scalars['String']['output']>;
+  /** Session expiration timestamp */
+  expiresAt?: Maybe<Scalars['Time']['output']>;
+  /** Result message */
+  message: Scalars['String']['output'];
+  /** QR data content to be rendered/scanned */
+  qrData?: Maybe<Scalars['String']['output']>;
+  /** QR session identifier */
+  sessionId?: Maybe<Scalars['String']['output']>;
+  /** Current QR session status */
+  status: WebQrSessionStatus;
+  /** Whether the operation succeeded */
+  success: Scalars['Boolean']['output'];
+};
+
+/** WebQRLoginStatusPayload represents status polling response for QR login. */
+export type WebQrLoginStatusPayload = {
+  __typename?: 'WebQRLoginStatusPayload';
+  /** Session expiration timestamp */
+  expiresAt?: Maybe<Scalars['Time']['output']>;
+  /** Result message */
+  message: Scalars['String']['output'];
+  /** QR session identifier */
+  sessionId?: Maybe<Scalars['String']['output']>;
+  /** Current QR session status */
+  status: WebQrSessionStatus;
+  /** Whether the operation succeeded */
+  success: Scalars['Boolean']['output'];
+  /** Approved user (present when approved/consumed and resolvable) */
+  user?: Maybe<User>;
+};
+
+/** WebQRSessionStatus represents QR login lifecycle state. */
+export enum WebQrSessionStatus {
+  Approved = 'APPROVED',
+  Consumed = 'CONSUMED',
+  Expired = 'EXPIRED',
+  Pending = 'PENDING'
+}
+
 /** WeighingQueueItem represents an item in weighing queue. */
 export type WeighingQueueItem = {
   __typename?: 'WeighingQueueItem';
@@ -8919,14 +9900,14 @@ export enum WeighingStatus {
   PendingSecond = 'PENDING_SECOND'
 }
 
-export type UserFieldsFragment = { __typename?: 'User', id: string, username: string, email?: string | null, name: string, role: UserRole, isActive: boolean, createdAt: Date, updatedAt: Date };
+export type UserFieldsFragment = { __typename?: 'User', id: string, username: string, email?: string | null, name: string, role: UserRole, effectiveMandorType?: MandorType | null, isActive: boolean, createdAt: Date, updatedAt: Date };
 
 export type WebLoginMutationVariables = Exact<{
   input: WebLoginInput;
 }>;
 
 
-export type WebLoginMutation = { __typename?: 'Mutation', webLogin: { __typename?: 'WebLoginPayload', success: boolean, message: string, sessionId?: string | null, user?: { __typename?: 'User', managerId?: string | null, id: string, username: string, email?: string | null, name: string, role: UserRole, isActive: boolean, createdAt: Date, updatedAt: Date, manager?: { __typename?: 'User', id: string, name: string } | null } | null, assignments?: { __typename?: 'UserAssignments', companies: Array<{ __typename?: 'Company', id: string, name: string, status: CompanyStatus, address?: string | null }>, estates: Array<{ __typename?: 'Estate', id: string, name: string, companyId: string, location?: string | null, luasHa?: number | null }>, divisions: Array<{ __typename?: 'Division', id: string, name: string, code: string, estateId: string }> } | null } };
+export type WebLoginMutation = { __typename?: 'Mutation', webLogin: { __typename?: 'WebLoginPayload', success: boolean, message: string, sessionId?: string | null, user?: { __typename?: 'User', managerId?: string | null, id: string, username: string, email?: string | null, name: string, role: UserRole, effectiveMandorType?: MandorType | null, isActive: boolean, createdAt: Date, updatedAt: Date, manager?: { __typename?: 'User', id: string, name: string } | null } | null } };
 
 export type LogoutMutationVariables = Exact<{ [key: string]: never; }>;
 
@@ -8936,14 +9917,14 @@ export type LogoutMutation = { __typename?: 'Mutation', logout: boolean };
 export type MeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MeQuery = { __typename?: 'Query', me?: { __typename?: 'User', id: string, username: string, email?: string | null, name: string, role: UserRole, isActive: boolean, createdAt: Date, updatedAt: Date } | null };
+export type MeQuery = { __typename?: 'Query', me?: { __typename?: 'User', id: string, username: string, email?: string | null, name: string, role: UserRole, effectiveMandorType?: MandorType | null, isActive: boolean, createdAt: Date, updatedAt: Date } | null };
 
 export type RefreshTokenMutationVariables = Exact<{
   input: RefreshTokenInput;
 }>;
 
 
-export type RefreshTokenMutation = { __typename?: 'Mutation', refreshToken: { __typename?: 'AuthPayload', accessToken: string, refreshToken: string, expiresAt: Date, user: { __typename?: 'User', id: string, username: string, email?: string | null, name: string, role: UserRole, isActive: boolean, createdAt: Date, updatedAt: Date } } };
+export type RefreshTokenMutation = { __typename?: 'Mutation', refreshToken: { __typename?: 'AuthPayload', accessToken: string, refreshToken: string, expiresAt: Date, user: { __typename?: 'User', id: string, username: string, email?: string | null, name: string, role: UserRole, effectiveMandorType?: MandorType | null, isActive: boolean, createdAt: Date, updatedAt: Date } } };
 
 export type GetHarvestRecordsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -9091,6 +10072,58 @@ export type DeleteDivisionMutationVariables = Exact<{
 
 export type DeleteDivisionMutation = { __typename?: 'Mutation', deleteDivision: boolean };
 
+export type GetPerawatanRecordsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetPerawatanRecordsQuery = { __typename?: 'Query', perawatanRecords: Array<{ __typename?: 'PerawatanRecord', id: string, blockId: string, jenisPerawatan: JenisPerawatan, tanggalPerawatan: Date, pekerjaId: string, luasArea: number, pupukDigunakan?: string | null, herbisidaDigunakan?: string | null, catatan?: string | null, status: StatusPerawatan, createdAt: Date, updatedAt: Date, block: { __typename?: 'Block', id: string, blockCode: string, name: string, divisionId: string }, pekerja: { __typename?: 'User', id: string, name: string, role: UserRole, effectiveMandorType?: MandorType | null } }> };
+
+export type GetPerawatanMaterialUsageRecordsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetPerawatanMaterialUsageRecordsQuery = { __typename?: 'Query', perawatanMaterialUsageRecords: Array<{ __typename?: 'PerawatanMaterialUsage', id: string, perawatanRecordId: string, materialCategory: PerawatanMaterialCategory, materialName: string, quantity: number, unit: PerawatanMaterialUnit, unitPrice: number, totalCost: number, createdAt: Date, updatedAt: Date, perawatanRecord: { __typename?: 'PerawatanRecord', id: string, jenisPerawatan: JenisPerawatan, tanggalPerawatan: Date, status: StatusPerawatan, block: { __typename?: 'Block', id: string, blockCode: string, name: string } } }> };
+
+export type GetPerawatanMaterialUsageRecordQueryVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type GetPerawatanMaterialUsageRecordQuery = { __typename?: 'Query', perawatanMaterialUsageRecord?: { __typename?: 'PerawatanMaterialUsage', id: string, perawatanRecordId: string, materialCategory: PerawatanMaterialCategory, materialName: string, quantity: number, unit: PerawatanMaterialUnit, unitPrice: number, totalCost: number, createdAt: Date, updatedAt: Date, perawatanRecord: { __typename?: 'PerawatanRecord', id: string, jenisPerawatan: JenisPerawatan, tanggalPerawatan: Date, status: StatusPerawatan, block: { __typename?: 'Block', id: string, blockCode: string, name: string } } } | null };
+
+export type GetPerawatanMaterialUsageRecordsByCategoryQueryVariables = Exact<{
+  materialCategory: PerawatanMaterialCategory;
+}>;
+
+
+export type GetPerawatanMaterialUsageRecordsByCategoryQuery = { __typename?: 'Query', perawatanMaterialUsageRecordsByCategory: Array<{ __typename?: 'PerawatanMaterialUsage', id: string, perawatanRecordId: string, materialCategory: PerawatanMaterialCategory, materialName: string, quantity: number, unit: PerawatanMaterialUnit, unitPrice: number, totalCost: number, createdAt: Date, updatedAt: Date, perawatanRecord: { __typename?: 'PerawatanRecord', id: string, jenisPerawatan: JenisPerawatan, tanggalPerawatan: Date, status: StatusPerawatan, block: { __typename?: 'Block', id: string, blockCode: string, name: string } } }> };
+
+export type GetPerawatanMaterialUsageRecordsByRecordQueryVariables = Exact<{
+  perawatanRecordId: Scalars['ID']['input'];
+}>;
+
+
+export type GetPerawatanMaterialUsageRecordsByRecordQuery = { __typename?: 'Query', perawatanMaterialUsageRecordsByRecord: Array<{ __typename?: 'PerawatanMaterialUsage', id: string, perawatanRecordId: string, materialCategory: PerawatanMaterialCategory, materialName: string, quantity: number, unit: PerawatanMaterialUnit, unitPrice: number, totalCost: number, createdAt: Date, updatedAt: Date, perawatanRecord: { __typename?: 'PerawatanRecord', id: string, jenisPerawatan: JenisPerawatan, tanggalPerawatan: Date, status: StatusPerawatan, block: { __typename?: 'Block', id: string, blockCode: string, name: string } } }> };
+
+export type CreatePerawatanMaterialUsageMutationVariables = Exact<{
+  input: CreatePerawatanMaterialUsageInput;
+}>;
+
+
+export type CreatePerawatanMaterialUsageMutation = { __typename?: 'Mutation', createPerawatanMaterialUsage: { __typename?: 'PerawatanMaterialUsage', id: string, perawatanRecordId: string, materialCategory: PerawatanMaterialCategory, materialName: string, quantity: number, unit: PerawatanMaterialUnit, unitPrice: number, totalCost: number, createdAt: Date, updatedAt: Date } };
+
+export type UpdatePerawatanMaterialUsageMutationVariables = Exact<{
+  input: UpdatePerawatanMaterialUsageInput;
+}>;
+
+
+export type UpdatePerawatanMaterialUsageMutation = { __typename?: 'Mutation', updatePerawatanMaterialUsage: { __typename?: 'PerawatanMaterialUsage', id: string, perawatanRecordId: string, materialCategory: PerawatanMaterialCategory, materialName: string, quantity: number, unit: PerawatanMaterialUnit, unitPrice: number, totalCost: number, createdAt: Date, updatedAt: Date } };
+
+export type DeletePerawatanMaterialUsageMutationVariables = Exact<{
+  id: Scalars['ID']['input'];
+}>;
+
+
+export type DeletePerawatanMaterialUsageMutation = { __typename?: 'Mutation', deletePerawatanMaterialUsage: boolean };
+
 export type GetUsersQueryVariables = Exact<{
   companyId?: InputMaybe<Scalars['String']['input']>;
   role?: InputMaybe<UserRole>;
@@ -9101,28 +10134,28 @@ export type GetUsersQueryVariables = Exact<{
 }>;
 
 
-export type GetUsersQuery = { __typename?: 'Query', users: { __typename?: 'UserListResponse', totalCount: number, hasNextPage: boolean, users: Array<{ __typename?: 'User', id: string, username: string, name: string, email?: string | null, phoneNumber?: string | null, avatar?: string | null, role: UserRole, isActive: boolean, createdAt: Date, updatedAt: Date, managerId?: string | null, companyId?: string | null, manager?: { __typename?: 'User', id: string, name: string } | null, companies?: Array<{ __typename?: 'Company', id: string, name: string }> | null, company?: { __typename?: 'Company', id: string, name: string } | null, estates?: Array<{ __typename?: 'Estate', id: string, name: string }> | null, divisions?: Array<{ __typename?: 'Division', id: string, name: string }> | null }>, pageInfo: { __typename?: 'PageInfo', currentPage: number, totalPages: number, hasNextPage: boolean, hasPreviousPage: boolean } } };
+export type GetUsersQuery = { __typename?: 'Query', users: { __typename?: 'UserListResponse', totalCount: number, hasNextPage: boolean, users: Array<{ __typename?: 'User', id: string, username: string, name: string, email?: string | null, phoneNumber?: string | null, avatar?: string | null, role: UserRole, effectiveMandorType?: MandorType | null, isActive: boolean, createdAt: Date, updatedAt: Date, managerId?: string | null, companyId?: string | null, manager?: { __typename?: 'User', id: string, name: string } | null, companies?: Array<{ __typename?: 'Company', id: string, name: string, logoUrl?: string | null }> | null, company?: { __typename?: 'Company', id: string, name: string, logoUrl?: string | null } | null, estates?: Array<{ __typename?: 'Estate', id: string, name: string }> | null, divisions?: Array<{ __typename?: 'Division', id: string, name: string }> | null }>, pageInfo: { __typename?: 'PageInfo', currentPage: number, totalPages: number, hasNextPage: boolean, hasPreviousPage: boolean } } };
 
 export type GetUserQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
 
-export type GetUserQuery = { __typename?: 'Query', user?: { __typename?: 'User', id: string, username: string, name: string, email?: string | null, phoneNumber?: string | null, avatar?: string | null, role: UserRole, isActive: boolean, managerId?: string | null, companyId?: string | null, companies?: Array<{ __typename?: 'Company', id: string, name: string }> | null, manager?: { __typename?: 'User', id: string, name: string } | null, estates?: Array<{ __typename?: 'Estate', id: string, name: string }> | null, divisions?: Array<{ __typename?: 'Division', id: string, name: string }> | null } | null };
+export type GetUserQuery = { __typename?: 'Query', user?: { __typename?: 'User', id: string, username: string, name: string, email?: string | null, phoneNumber?: string | null, avatar?: string | null, role: UserRole, effectiveMandorType?: MandorType | null, isActive: boolean, managerId?: string | null, companyId?: string | null, companies?: Array<{ __typename?: 'Company', id: string, name: string }> | null, manager?: { __typename?: 'User', id: string, name: string } | null, estates?: Array<{ __typename?: 'Estate', id: string, name: string }> | null, divisions?: Array<{ __typename?: 'Division', id: string, name: string }> | null } | null };
 
 export type CreateUserMutationVariables = Exact<{
   input: CreateUserInput;
 }>;
 
 
-export type CreateUserMutation = { __typename?: 'Mutation', createUser: { __typename?: 'UserMutationResponse', success: boolean, message: string, user?: { __typename?: 'User', id: string, username: string, role: UserRole } | null } };
+export type CreateUserMutation = { __typename?: 'Mutation', createUser: { __typename?: 'UserMutationResponse', success: boolean, message: string, user?: { __typename?: 'User', id: string, username: string, role: UserRole, effectiveMandorType?: MandorType | null } | null } };
 
 export type UpdateUserMutationVariables = Exact<{
   input: UpdateUserInput;
 }>;
 
 
-export type UpdateUserMutation = { __typename?: 'Mutation', updateUser: { __typename?: 'UserMutationResponse', success: boolean, message: string, user?: { __typename?: 'User', id: string, username: string, role: UserRole } | null } };
+export type UpdateUserMutation = { __typename?: 'Mutation', updateUser: { __typename?: 'UserMutationResponse', success: boolean, message: string, user?: { __typename?: 'User', id: string, username: string, role: UserRole, effectiveMandorType?: MandorType | null } | null } };
 
 export type DeleteUserMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -9177,6 +10210,7 @@ export const UserFieldsFragmentDoc = gql`
   email
   name
   role
+  effectiveMandorType
   isActive
   createdAt
   updatedAt
@@ -9300,27 +10334,6 @@ export const WebLoginDocument = gql`
       manager {
         id
         name
-      }
-    }
-    assignments {
-      companies {
-        id
-        name
-        status
-        address
-      }
-      estates {
-        id
-        name
-        companyId
-        location
-        luasHa
-      }
-      divisions {
-        id
-        name
-        code
-        estateId
       }
     }
     sessionId
@@ -10254,6 +11267,437 @@ export function useDeleteDivisionMutation(baseOptions?: Apollo.MutationHookOptio
 export type DeleteDivisionMutationHookResult = ReturnType<typeof useDeleteDivisionMutation>;
 export type DeleteDivisionMutationResult = Apollo.MutationResult<DeleteDivisionMutation>;
 export type DeleteDivisionMutationOptions = Apollo.BaseMutationOptions<DeleteDivisionMutation, DeleteDivisionMutationVariables>;
+export const GetPerawatanRecordsDocument = gql`
+    query GetPerawatanRecords {
+  perawatanRecords {
+    id
+    blockId
+    block {
+      id
+      blockCode
+      name
+      divisionId
+    }
+    jenisPerawatan
+    tanggalPerawatan
+    pekerjaId
+    pekerja {
+      id
+      name
+      role
+      effectiveMandorType
+    }
+    luasArea
+    pupukDigunakan
+    herbisidaDigunakan
+    catatan
+    status
+    createdAt
+    updatedAt
+  }
+}
+    `;
+
+/**
+ * __useGetPerawatanRecordsQuery__
+ *
+ * To run a query within a React component, call `useGetPerawatanRecordsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetPerawatanRecordsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetPerawatanRecordsQuery({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useGetPerawatanRecordsQuery(baseOptions?: Apollo.QueryHookOptions<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>(GetPerawatanRecordsDocument, options);
+      }
+export function useGetPerawatanRecordsLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>(GetPerawatanRecordsDocument, options);
+        }
+// @ts-ignore
+export function useGetPerawatanRecordsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>;
+export function useGetPerawatanRecordsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanRecordsQuery | undefined, GetPerawatanRecordsQueryVariables>;
+export function useGetPerawatanRecordsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>) {
+          const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>(GetPerawatanRecordsDocument, options);
+        }
+export type GetPerawatanRecordsQueryHookResult = ReturnType<typeof useGetPerawatanRecordsQuery>;
+export type GetPerawatanRecordsLazyQueryHookResult = ReturnType<typeof useGetPerawatanRecordsLazyQuery>;
+export type GetPerawatanRecordsSuspenseQueryHookResult = ReturnType<typeof useGetPerawatanRecordsSuspenseQuery>;
+export type GetPerawatanRecordsQueryResult = Apollo.QueryResult<GetPerawatanRecordsQuery, GetPerawatanRecordsQueryVariables>;
+export const GetPerawatanMaterialUsageRecordsDocument = gql`
+    query GetPerawatanMaterialUsageRecords {
+  perawatanMaterialUsageRecords {
+    id
+    perawatanRecordId
+    materialCategory
+    materialName
+    quantity
+    unit
+    unitPrice
+    totalCost
+    createdAt
+    updatedAt
+    perawatanRecord {
+      id
+      jenisPerawatan
+      tanggalPerawatan
+      status
+      block {
+        id
+        blockCode
+        name
+      }
+    }
+  }
+}
+    `;
+
+/**
+ * __useGetPerawatanMaterialUsageRecordsQuery__
+ *
+ * To run a query within a React component, call `useGetPerawatanMaterialUsageRecordsQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetPerawatanMaterialUsageRecordsQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetPerawatanMaterialUsageRecordsQuery({
+ *   variables: {
+ *   },
+ * });
+ */
+export function useGetPerawatanMaterialUsageRecordsQuery(baseOptions?: Apollo.QueryHookOptions<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>(GetPerawatanMaterialUsageRecordsDocument, options);
+      }
+export function useGetPerawatanMaterialUsageRecordsLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>(GetPerawatanMaterialUsageRecordsDocument, options);
+        }
+// @ts-ignore
+export function useGetPerawatanMaterialUsageRecordsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordsQuery | undefined, GetPerawatanMaterialUsageRecordsQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>) {
+          const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>(GetPerawatanMaterialUsageRecordsDocument, options);
+        }
+export type GetPerawatanMaterialUsageRecordsQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsQuery>;
+export type GetPerawatanMaterialUsageRecordsLazyQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsLazyQuery>;
+export type GetPerawatanMaterialUsageRecordsSuspenseQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsSuspenseQuery>;
+export type GetPerawatanMaterialUsageRecordsQueryResult = Apollo.QueryResult<GetPerawatanMaterialUsageRecordsQuery, GetPerawatanMaterialUsageRecordsQueryVariables>;
+export const GetPerawatanMaterialUsageRecordDocument = gql`
+    query GetPerawatanMaterialUsageRecord($id: ID!) {
+  perawatanMaterialUsageRecord(id: $id) {
+    id
+    perawatanRecordId
+    materialCategory
+    materialName
+    quantity
+    unit
+    unitPrice
+    totalCost
+    createdAt
+    updatedAt
+    perawatanRecord {
+      id
+      jenisPerawatan
+      tanggalPerawatan
+      status
+      block {
+        id
+        blockCode
+        name
+      }
+    }
+  }
+}
+    `;
+
+/**
+ * __useGetPerawatanMaterialUsageRecordQuery__
+ *
+ * To run a query within a React component, call `useGetPerawatanMaterialUsageRecordQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetPerawatanMaterialUsageRecordQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetPerawatanMaterialUsageRecordQuery({
+ *   variables: {
+ *      id: // value for 'id'
+ *   },
+ * });
+ */
+export function useGetPerawatanMaterialUsageRecordQuery(baseOptions: Apollo.QueryHookOptions<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables> & ({ variables: GetPerawatanMaterialUsageRecordQueryVariables; skip?: boolean; } | { skip: boolean; }) ) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>(GetPerawatanMaterialUsageRecordDocument, options);
+      }
+export function useGetPerawatanMaterialUsageRecordLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>(GetPerawatanMaterialUsageRecordDocument, options);
+        }
+// @ts-ignore
+export function useGetPerawatanMaterialUsageRecordSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordQuery | undefined, GetPerawatanMaterialUsageRecordQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>) {
+          const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>(GetPerawatanMaterialUsageRecordDocument, options);
+        }
+export type GetPerawatanMaterialUsageRecordQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordQuery>;
+export type GetPerawatanMaterialUsageRecordLazyQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordLazyQuery>;
+export type GetPerawatanMaterialUsageRecordSuspenseQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordSuspenseQuery>;
+export type GetPerawatanMaterialUsageRecordQueryResult = Apollo.QueryResult<GetPerawatanMaterialUsageRecordQuery, GetPerawatanMaterialUsageRecordQueryVariables>;
+export const GetPerawatanMaterialUsageRecordsByCategoryDocument = gql`
+    query GetPerawatanMaterialUsageRecordsByCategory($materialCategory: PerawatanMaterialCategory!) {
+  perawatanMaterialUsageRecordsByCategory(materialCategory: $materialCategory) {
+    id
+    perawatanRecordId
+    materialCategory
+    materialName
+    quantity
+    unit
+    unitPrice
+    totalCost
+    createdAt
+    updatedAt
+    perawatanRecord {
+      id
+      jenisPerawatan
+      tanggalPerawatan
+      status
+      block {
+        id
+        blockCode
+        name
+      }
+    }
+  }
+}
+    `;
+
+/**
+ * __useGetPerawatanMaterialUsageRecordsByCategoryQuery__
+ *
+ * To run a query within a React component, call `useGetPerawatanMaterialUsageRecordsByCategoryQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetPerawatanMaterialUsageRecordsByCategoryQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetPerawatanMaterialUsageRecordsByCategoryQuery({
+ *   variables: {
+ *      materialCategory: // value for 'materialCategory'
+ *   },
+ * });
+ */
+export function useGetPerawatanMaterialUsageRecordsByCategoryQuery(baseOptions: Apollo.QueryHookOptions<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables> & ({ variables: GetPerawatanMaterialUsageRecordsByCategoryQueryVariables; skip?: boolean; } | { skip: boolean; }) ) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>(GetPerawatanMaterialUsageRecordsByCategoryDocument, options);
+      }
+export function useGetPerawatanMaterialUsageRecordsByCategoryLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>(GetPerawatanMaterialUsageRecordsByCategoryDocument, options);
+        }
+// @ts-ignore
+export function useGetPerawatanMaterialUsageRecordsByCategorySuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordsByCategorySuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordsByCategoryQuery | undefined, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordsByCategorySuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>) {
+          const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>(GetPerawatanMaterialUsageRecordsByCategoryDocument, options);
+        }
+export type GetPerawatanMaterialUsageRecordsByCategoryQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsByCategoryQuery>;
+export type GetPerawatanMaterialUsageRecordsByCategoryLazyQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsByCategoryLazyQuery>;
+export type GetPerawatanMaterialUsageRecordsByCategorySuspenseQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsByCategorySuspenseQuery>;
+export type GetPerawatanMaterialUsageRecordsByCategoryQueryResult = Apollo.QueryResult<GetPerawatanMaterialUsageRecordsByCategoryQuery, GetPerawatanMaterialUsageRecordsByCategoryQueryVariables>;
+export const GetPerawatanMaterialUsageRecordsByRecordDocument = gql`
+    query GetPerawatanMaterialUsageRecordsByRecord($perawatanRecordId: ID!) {
+  perawatanMaterialUsageRecordsByRecord(perawatanRecordId: $perawatanRecordId) {
+    id
+    perawatanRecordId
+    materialCategory
+    materialName
+    quantity
+    unit
+    unitPrice
+    totalCost
+    createdAt
+    updatedAt
+    perawatanRecord {
+      id
+      jenisPerawatan
+      tanggalPerawatan
+      status
+      block {
+        id
+        blockCode
+        name
+      }
+    }
+  }
+}
+    `;
+
+/**
+ * __useGetPerawatanMaterialUsageRecordsByRecordQuery__
+ *
+ * To run a query within a React component, call `useGetPerawatanMaterialUsageRecordsByRecordQuery` and pass it any options that fit your needs.
+ * When your component renders, `useGetPerawatanMaterialUsageRecordsByRecordQuery` returns an object from Apollo Client that contains loading, error, and data properties
+ * you can use to render your UI.
+ *
+ * @param baseOptions options that will be passed into the query, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options;
+ *
+ * @example
+ * const { data, loading, error } = useGetPerawatanMaterialUsageRecordsByRecordQuery({
+ *   variables: {
+ *      perawatanRecordId: // value for 'perawatanRecordId'
+ *   },
+ * });
+ */
+export function useGetPerawatanMaterialUsageRecordsByRecordQuery(baseOptions: Apollo.QueryHookOptions<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables> & ({ variables: GetPerawatanMaterialUsageRecordsByRecordQueryVariables; skip?: boolean; } | { skip: boolean; }) ) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useQuery<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>(GetPerawatanMaterialUsageRecordsByRecordDocument, options);
+      }
+export function useGetPerawatanMaterialUsageRecordsByRecordLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>) {
+          const options = {...defaultOptions, ...baseOptions}
+          return Apollo.useLazyQuery<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>(GetPerawatanMaterialUsageRecordsByRecordDocument, options);
+        }
+// @ts-ignore
+export function useGetPerawatanMaterialUsageRecordsByRecordSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordsByRecordSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>): Apollo.UseSuspenseQueryResult<GetPerawatanMaterialUsageRecordsByRecordQuery | undefined, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>;
+export function useGetPerawatanMaterialUsageRecordsByRecordSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>) {
+          const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
+          return Apollo.useSuspenseQuery<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>(GetPerawatanMaterialUsageRecordsByRecordDocument, options);
+        }
+export type GetPerawatanMaterialUsageRecordsByRecordQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsByRecordQuery>;
+export type GetPerawatanMaterialUsageRecordsByRecordLazyQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsByRecordLazyQuery>;
+export type GetPerawatanMaterialUsageRecordsByRecordSuspenseQueryHookResult = ReturnType<typeof useGetPerawatanMaterialUsageRecordsByRecordSuspenseQuery>;
+export type GetPerawatanMaterialUsageRecordsByRecordQueryResult = Apollo.QueryResult<GetPerawatanMaterialUsageRecordsByRecordQuery, GetPerawatanMaterialUsageRecordsByRecordQueryVariables>;
+export const CreatePerawatanMaterialUsageDocument = gql`
+    mutation CreatePerawatanMaterialUsage($input: CreatePerawatanMaterialUsageInput!) {
+  createPerawatanMaterialUsage(input: $input) {
+    id
+    perawatanRecordId
+    materialCategory
+    materialName
+    quantity
+    unit
+    unitPrice
+    totalCost
+    createdAt
+    updatedAt
+  }
+}
+    `;
+export type CreatePerawatanMaterialUsageMutationFn = Apollo.MutationFunction<CreatePerawatanMaterialUsageMutation, CreatePerawatanMaterialUsageMutationVariables>;
+
+/**
+ * __useCreatePerawatanMaterialUsageMutation__
+ *
+ * To run a mutation, you first call `useCreatePerawatanMaterialUsageMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useCreatePerawatanMaterialUsageMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [createPerawatanMaterialUsageMutation, { data, loading, error }] = useCreatePerawatanMaterialUsageMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useCreatePerawatanMaterialUsageMutation(baseOptions?: Apollo.MutationHookOptions<CreatePerawatanMaterialUsageMutation, CreatePerawatanMaterialUsageMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<CreatePerawatanMaterialUsageMutation, CreatePerawatanMaterialUsageMutationVariables>(CreatePerawatanMaterialUsageDocument, options);
+      }
+export type CreatePerawatanMaterialUsageMutationHookResult = ReturnType<typeof useCreatePerawatanMaterialUsageMutation>;
+export type CreatePerawatanMaterialUsageMutationResult = Apollo.MutationResult<CreatePerawatanMaterialUsageMutation>;
+export type CreatePerawatanMaterialUsageMutationOptions = Apollo.BaseMutationOptions<CreatePerawatanMaterialUsageMutation, CreatePerawatanMaterialUsageMutationVariables>;
+export const UpdatePerawatanMaterialUsageDocument = gql`
+    mutation UpdatePerawatanMaterialUsage($input: UpdatePerawatanMaterialUsageInput!) {
+  updatePerawatanMaterialUsage(input: $input) {
+    id
+    perawatanRecordId
+    materialCategory
+    materialName
+    quantity
+    unit
+    unitPrice
+    totalCost
+    createdAt
+    updatedAt
+  }
+}
+    `;
+export type UpdatePerawatanMaterialUsageMutationFn = Apollo.MutationFunction<UpdatePerawatanMaterialUsageMutation, UpdatePerawatanMaterialUsageMutationVariables>;
+
+/**
+ * __useUpdatePerawatanMaterialUsageMutation__
+ *
+ * To run a mutation, you first call `useUpdatePerawatanMaterialUsageMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useUpdatePerawatanMaterialUsageMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [updatePerawatanMaterialUsageMutation, { data, loading, error }] = useUpdatePerawatanMaterialUsageMutation({
+ *   variables: {
+ *      input: // value for 'input'
+ *   },
+ * });
+ */
+export function useUpdatePerawatanMaterialUsageMutation(baseOptions?: Apollo.MutationHookOptions<UpdatePerawatanMaterialUsageMutation, UpdatePerawatanMaterialUsageMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<UpdatePerawatanMaterialUsageMutation, UpdatePerawatanMaterialUsageMutationVariables>(UpdatePerawatanMaterialUsageDocument, options);
+      }
+export type UpdatePerawatanMaterialUsageMutationHookResult = ReturnType<typeof useUpdatePerawatanMaterialUsageMutation>;
+export type UpdatePerawatanMaterialUsageMutationResult = Apollo.MutationResult<UpdatePerawatanMaterialUsageMutation>;
+export type UpdatePerawatanMaterialUsageMutationOptions = Apollo.BaseMutationOptions<UpdatePerawatanMaterialUsageMutation, UpdatePerawatanMaterialUsageMutationVariables>;
+export const DeletePerawatanMaterialUsageDocument = gql`
+    mutation DeletePerawatanMaterialUsage($id: ID!) {
+  deletePerawatanMaterialUsage(id: $id)
+}
+    `;
+export type DeletePerawatanMaterialUsageMutationFn = Apollo.MutationFunction<DeletePerawatanMaterialUsageMutation, DeletePerawatanMaterialUsageMutationVariables>;
+
+/**
+ * __useDeletePerawatanMaterialUsageMutation__
+ *
+ * To run a mutation, you first call `useDeletePerawatanMaterialUsageMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useDeletePerawatanMaterialUsageMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [deletePerawatanMaterialUsageMutation, { data, loading, error }] = useDeletePerawatanMaterialUsageMutation({
+ *   variables: {
+ *      id: // value for 'id'
+ *   },
+ * });
+ */
+export function useDeletePerawatanMaterialUsageMutation(baseOptions?: Apollo.MutationHookOptions<DeletePerawatanMaterialUsageMutation, DeletePerawatanMaterialUsageMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<DeletePerawatanMaterialUsageMutation, DeletePerawatanMaterialUsageMutationVariables>(DeletePerawatanMaterialUsageDocument, options);
+      }
+export type DeletePerawatanMaterialUsageMutationHookResult = ReturnType<typeof useDeletePerawatanMaterialUsageMutation>;
+export type DeletePerawatanMaterialUsageMutationResult = Apollo.MutationResult<DeletePerawatanMaterialUsageMutation>;
+export type DeletePerawatanMaterialUsageMutationOptions = Apollo.BaseMutationOptions<DeletePerawatanMaterialUsageMutation, DeletePerawatanMaterialUsageMutationVariables>;
 export const GetUsersDocument = gql`
     query GetUsers($companyId: String, $role: UserRole, $isActive: Boolean, $search: String, $limit: Int, $offset: Int) {
   users(
@@ -10272,6 +11716,7 @@ export const GetUsersDocument = gql`
       phoneNumber
       avatar
       role
+      effectiveMandorType
       isActive
       createdAt
       updatedAt
@@ -10284,10 +11729,12 @@ export const GetUsersDocument = gql`
       companies {
         id
         name
+        logoUrl
       }
       company {
         id
         name
+        logoUrl
       }
       estates {
         id
@@ -10360,6 +11807,7 @@ export const GetUserDocument = gql`
     phoneNumber
     avatar
     role
+    effectiveMandorType
     isActive
     managerId
     companyId
@@ -10427,6 +11875,7 @@ export const CreateUserDocument = gql`
       id
       username
       role
+      effectiveMandorType
     }
   }
 }
@@ -10466,6 +11915,7 @@ export const UpdateUserDocument = gql`
       id
       username
       role
+      effectiveMandorType
     }
   }
 }

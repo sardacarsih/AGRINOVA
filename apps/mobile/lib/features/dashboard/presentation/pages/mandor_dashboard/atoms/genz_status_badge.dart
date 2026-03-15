@@ -191,7 +191,7 @@ class GenZOfflineBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message ?? 'Mode Offline — Data disinkronkan saat online',
-              style: MandorTheme.bodySmall.copyWith(
+              style: MandorTheme.bodySmallFor(context).copyWith(
                 color: MandorTheme.amberOrange,
               ),
             ),

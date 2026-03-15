@@ -132,13 +132,7 @@ echo.
 REM ── Update whatsnew files ─────────────────────────────────────────────────
 echo ── Catatan Rilis (whatsnew/) ────────────────────────────────────────────
 set "WHATSNEW_ID=%ROOT_DIR%\apps\mobile\whatsnew\whatsnew-id-ID"
-set "WHATSNEW_ID_LEGACY=%ROOT_DIR%\apps\mobile\whatsnew\whatsnew-id"
 set "WHATSNEW_EN=%ROOT_DIR%\apps\mobile\whatsnew\whatsnew-en-US"
-if not exist "%WHATSNEW_ID%" (
-  if exist "%WHATSNEW_ID_LEGACY%" (
-    copy /Y "%WHATSNEW_ID_LEGACY%" "%WHATSNEW_ID%" >nul
-  )
-)
 echo.
 echo Isi saat ini dari whatsnew-id-ID:
 echo ─────────────────────────────────────────

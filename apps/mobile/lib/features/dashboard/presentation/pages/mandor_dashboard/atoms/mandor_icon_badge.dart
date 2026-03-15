@@ -32,7 +32,10 @@ class MandorIconBadge extends StatelessWidget {
               decoration: BoxDecoration(
                 color: MandorTheme.coralRed,
                 shape: BoxShape.circle,
-                border: Border.all(color: MandorTheme.darkGreen, width: 1.5),
+                border: Border.all(
+                  color: MandorTheme.of(context).cardBackground,
+                  width: 1.5,
+                ),
               ),
               constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
               child: Text(

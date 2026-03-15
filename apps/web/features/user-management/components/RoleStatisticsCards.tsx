@@ -56,7 +56,7 @@ const roleConfig: Record<
         iconBg: 'bg-amber-100 dark:bg-amber-950/50',
     },
     [UserRole.Mandor]: {
-        label: 'Mandor',
+        label: 'Mandor (Panen/Perawatan)',
         icon: Users,
         iconColor: 'text-orange-700 dark:text-orange-300',
         iconBg: 'bg-orange-100 dark:bg-orange-950/50',

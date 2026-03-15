@@ -1,9 +1,9 @@
 name: Web Release
 
 on:
-  push:
-    tags:
-      - "web/v*.*.*"
+  release:
+    types:
+      - published
   workflow_dispatch:
     inputs:
       version:
@@ -20,6 +20,7 @@ concurrency:
 
 env:
   NODE_VERSION: "20"
+  NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
   validate:
@@ -41,6 +42,15 @@ jobs:
       - name: Install web dependencies
         working-directory: apps/web
         run: npm ci
+
+      - name: Restore Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: ${{ runner.os }}-web-nextjs-${{ hashFiles('apps/web/package-lock.json') }}-${{ hashFiles('apps/web/**/*.ts', 'apps/web/**/*.tsx', 'apps/web/**/*.js', 'apps/web/**/*.jsx', 'apps/web/**/*.mjs', 'apps/web/**/*.css', 'apps/web/next.config.js', 'apps/web/next.config.mjs') }}
+          restore-keys: |
+            ${{ runner.os }}-web-nextjs-${{ hashFiles('apps/web/package-lock.json') }}-
+            ${{ runner.os }}-web-nextjs-
 
       - name: Type check
         working-directory: apps/web
@@ -73,6 +83,13 @@ jobs:
               exit 1
             fi
             tag_name="web/v${version_name}"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            tag_name="${{ github.event.release.tag_name }}"
+            if [[ ! "$tag_name" =~ ^web/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+              echo "Invalid web release tag format: $tag_name (expected web/vX.Y.Z)"
+              exit 1
+            fi
+            version_name="${BASH_REMATCH[1]}"
           else
             tag_name="${{ github.ref_name }}"
             if [[ ! "$tag_name" =~ ^web/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
@@ -90,6 +107,15 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
+
+      - name: Restore Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: ${{ runner.os }}-web-nextjs-${{ hashFiles('apps/web/package-lock.json') }}-${{ hashFiles('apps/web/**/*.ts', 'apps/web/**/*.tsx', 'apps/web/**/*.js', 'apps/web/**/*.jsx', 'apps/web/**/*.mjs', 'apps/web/**/*.css', 'apps/web/next.config.js', 'apps/web/next.config.mjs') }}
+          restore-keys: |
+            ${{ runner.os }}-web-nextjs-${{ hashFiles('apps/web/package-lock.json') }}-
+            ${{ runner.os }}-web-nextjs-
 
       - name: Build web standalone artifact
         shell: pwsh
@@ -114,9 +140,12 @@ jobs:
       - name: Build release body
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "release" ]; then
             tag="${{ steps.version.outputs.tag }}"
             body="$(git tag -l --format='%(contents)' "$tag")"
+            if [ -z "$body" ] && [ "${{ github.event_name }}" = "release" ]; then
+              body="${{ github.event.release.body }}"
+            fi
             if [ -z "$body" ]; then
               body="Web release $tag"
             fi

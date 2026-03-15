@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/di/dependency_injection.dart';
 import '../../../../core/services/role_service.dart';
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../../shared/widgets/auth_listener_wrapper.dart';
 import '../blocs/area_manager_dashboard_bloc.dart';
@@ -41,8 +42,9 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<AreaManagerDashboardBloc>(
-      create: (_) => sl<AreaManagerDashboardBloc>()
-        ..add(const AreaManagerDashboardLoadRequested()),
+      create: (_) =>
+          sl<AreaManagerDashboardBloc>()
+            ..add(const AreaManagerDashboardLoadRequested()),
       child: AuthListenerWrapper(
         child: BlocBuilder<AuthBloc, AuthState>(
           builder: (context, state) {
@@ -63,7 +65,10 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
     final dataScope = RoleService.getDataAccessScope(role);
 
     return Scaffold(
-      backgroundColor: AreaManagerTheme.scaffoldBackground,
+      backgroundColor: RuntimeThemeSlotResolver.dashboardBackground(
+        context,
+        fallback: AreaManagerTheme.scaffoldBackground,
+      ),
       appBar: _buildAppBar(context, state),
       body: _buildBody(context, state, dataScope, features, permissions),
       bottomNavigationBar: _buildBottomNavigation(context),
@@ -71,30 +76,46 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
   }
 
   PreferredSizeWidget _buildAppBar(
-      BuildContext context, AuthAuthenticated state) {
+    BuildContext context,
+    AuthAuthenticated state,
+  ) {
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: AreaManagerTheme.primaryTeal,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: Colors.white,
+    );
+    final navbarIcon = RuntimeThemeSlotResolver.navbarIcon(
+      context,
+      fallback: Colors.white,
+    );
+
     return AppBar(
       elevation: 0,
-      backgroundColor: AreaManagerTheme.primaryTeal,
-      foregroundColor: Colors.white,
+      backgroundColor: navbarBg,
+      foregroundColor: navbarFg,
       leading: IconButton(
-        icon: const Icon(Icons.notifications_outlined),
+        icon: Icon(Icons.notifications_outlined, color: navbarIcon),
         onPressed: () => _showNotifications(context),
       ),
-      title: const Text(
+      title: Text(
         'Area Manager',
         style: TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 20,
+          color: navbarFg,
         ),
       ),
       centerTitle: true,
       actions: [
         IconButton(
-          icon: const Icon(Icons.bar_chart),
+          icon: Icon(Icons.bar_chart, color: navbarIcon),
           onPressed: () => _showComingSoon(context, 'Analytics'),
         ),
         IconButton(
-          icon: const Icon(Icons.more_vert),
+          icon: Icon(Icons.more_vert, color: navbarIcon),
           onPressed: () => _showMenu(context, state),
         ),
       ],
@@ -162,10 +183,12 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
               if (dashState is AreaManagerDashboardLoaded &&
                   dashState.companyPerformance.isNotEmpty) {
                 final perfs = dashState.companyPerformance
-                    .map((cp) => EstatePerformance(
-                          name: cp.companyName,
-                          percentage: cp.targetAchievement.clamp(0, 100),
-                        ))
+                    .map(
+                      (cp) => EstatePerformance(
+                        name: cp.companyName,
+                        percentage: cp.targetAchievement.clamp(0, 100),
+                      ),
+                    )
                     .toList();
                 return AreaManagerPerformanceSection(performances: perfs);
               }
@@ -193,9 +216,29 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
   }
 
   Widget _buildBottomNavigation(BuildContext context) {
+    final footerBg = RuntimeThemeSlotResolver.footerBackground(
+      context,
+      fallback: Colors.white,
+    );
+    final footerSelected = RuntimeThemeSlotResolver.footerSelected(
+      context,
+      fallback: AreaManagerTheme.primaryTeal,
+    );
+    final footerUnselected = RuntimeThemeSlotResolver.footerUnselected(
+      context,
+      fallback: AreaManagerTheme.textMuted,
+    );
+    final footerBorder = RuntimeThemeSlotResolver.footerBorder(
+      context,
+      fallback: Colors.transparent,
+    );
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: footerBg,
+        border: RuntimeThemeSlotResolver.hasFooterBorder
+            ? Border(top: BorderSide(color: footerBorder))
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
@@ -206,9 +249,9 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: AreaManagerTheme.primaryTeal,
-        unselectedItemColor: AreaManagerTheme.textMuted,
+        backgroundColor: footerBg,
+        selectedItemColor: footerSelected,
+        unselectedItemColor: footerUnselected,
         currentIndex: _currentIndex,
         selectedFontSize: 12,
         unselectedFontSize: 12,
@@ -257,10 +300,7 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              'Loading dashboard...',
-              style: AreaManagerTheme.bodyMedium,
-            ),
+            Text('Loading dashboard...', style: AreaManagerTheme.bodyMedium),
           ],
         ),
       ),
@@ -326,8 +366,19 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
   void _showNotifications(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Notifications coming soon'),
-        backgroundColor: AreaManagerTheme.primaryTeal,
+        content: Text(
+          'Notifications coming soon',
+          style: TextStyle(
+            color: RuntimeThemeSlotResolver.notificationBannerText(
+              context,
+              fallback: Colors.white,
+            ),
+          ),
+        ),
+        backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+          context,
+          fallback: AreaManagerTheme.primaryTeal,
+        ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -335,12 +386,31 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
   }
 
   void _showMenu(BuildContext context, AuthAuthenticated state) {
+    final modalBg = RuntimeThemeSlotResolver.modalBackground(
+      context,
+      fallback: Colors.white,
+    );
+    final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+      context,
+      fallback: AreaManagerTheme.primaryTeal,
+    );
+    final sidebarIcon = RuntimeThemeSlotResolver.sidebarIcon(
+      context,
+      fallback: AreaManagerTheme.textPrimary,
+    );
+    final sidebarText = RuntimeThemeSlotResolver.sidebarForeground(
+      context,
+      fallback: AreaManagerTheme.textPrimary,
+    );
+
     showModalBottomSheet(
       context: context,
+      backgroundColor: modalBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => Container(
+        color: modalBg,
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -356,27 +426,33 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
             const SizedBox(height: 20),
             ListTile(
               leading: CircleAvatar(
-                backgroundColor: AreaManagerTheme.primaryTeal,
+                backgroundColor: modalAccent,
                 child: Text(
-                  state.user.username[0].toUpperCase(),
+                  _resolveUserInitial(state),
                   style: const TextStyle(color: Colors.white),
                 ),
               ),
-              title: Text(state.user.fullName),
-              subtitle: Text(RoleService.getRoleDisplayName(state.user.role)),
+              title: Text(
+                state.user.fullName,
+                style: TextStyle(color: sidebarText),
+              ),
+              subtitle: Text(
+                RoleService.getRoleDisplayName(state.user.role),
+                style: TextStyle(color: sidebarText.withValues(alpha: 0.7)),
+              ),
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text('Profile'),
+              leading: Icon(Icons.person_outline, color: sidebarIcon),
+              title: Text('Profile', style: TextStyle(color: sidebarText)),
               onTap: () {
                 Navigator.pop(context);
                 _showComingSoon(context, 'Profile');
               },
             ),
             ListTile(
-              leading: const Icon(Icons.qr_code_scanner_outlined),
-              title: const Text('QR Login Web'),
+              leading: Icon(Icons.qr_code_scanner_outlined, color: sidebarIcon),
+              title: Text('QR Login Web', style: TextStyle(color: sidebarText)),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.pushNamed(context, AppRoutes.webQRLogin);
@@ -399,13 +475,37 @@ class _AreaManagerPageState extends State<AreaManagerPage> {
   void _showComingSoon(BuildContext context, String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$feature coming soon'),
-        backgroundColor: AreaManagerTheme.primaryTeal,
+        content: Text(
+          '$feature coming soon',
+          style: TextStyle(
+            color: RuntimeThemeSlotResolver.notificationBannerText(
+              context,
+              fallback: Colors.white,
+            ),
+          ),
+        ),
+        backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+          context,
+          fallback: AreaManagerTheme.primaryTeal,
+        ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         duration: const Duration(seconds: 2),
       ),
     );
   }
-}
 
+  String _resolveUserInitial(AuthAuthenticated state) {
+    final username = state.user.username.trim();
+    if (username.isNotEmpty) {
+      return username.substring(0, 1).toUpperCase();
+    }
+
+    final fullName = state.user.fullName.trim();
+    if (fullName.isNotEmpty) {
+      return fullName.substring(0, 1).toUpperCase();
+    }
+
+    return '?';
+  }
+}

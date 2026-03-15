@@ -240,15 +240,20 @@ func mapMobileAuthError(err error) error {
 
 func mapUserToGraphQL(user sharedDomain.UserDTO) *auth.User {
 	gqlUser := &auth.User{
-		ID:          user.ID,
-		Username:    user.Username,
-		Name:        user.Name,
-		Email:       user.Email,
-		PhoneNumber: user.Phone,
-		Avatar:      user.Avatar,
-		Role:        auth.UserRole(user.Role),
-		IsActive:    user.IsActive,
-		ManagerID:   user.ManagerID,
+		ID:                  user.ID,
+		Username:            user.Username,
+		Name:                user.Name,
+		Email:               user.Email,
+		PhoneNumber:         user.Phone,
+		Avatar:              user.Avatar,
+		Role:                auth.UserRole(user.Role),
+		IsActive:            user.IsActive,
+		ManagerID:           user.ManagerID,
+		EffectiveMandorType: nil,
+	}
+	if user.EffectiveMandorType != nil {
+		mandorType := auth.MandorType(user.EffectiveMandorType.String())
+		gqlUser.EffectiveMandorType = &mandorType
 	}
 
 	if user.Manager != nil {
@@ -280,9 +285,10 @@ func mapAssignmentsToUserAssignments(assignments []sharedDomain.AssignmentDTO) *
 	for _, assignment := range assignments {
 		if assignment.Company != nil && !companyMap[assignment.Company.ID] {
 			companies = append(companies, &master.Company{
-				ID:     assignment.Company.ID,
-				Name:   assignment.Company.Name,
-				Status: master.CompanyStatus(assignment.Company.Status),
+				ID:      assignment.Company.ID,
+				Name:    assignment.Company.Name,
+				LogoURL: assignment.Company.LogoURL,
+				Status:  master.CompanyStatus(assignment.Company.Status),
 			})
 			companyMap[assignment.Company.ID] = true
 		}

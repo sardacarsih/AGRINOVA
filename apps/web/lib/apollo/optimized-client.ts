@@ -151,6 +151,36 @@ const errorLink = onError((errorResponse) => {
   // Log GraphQL errors with context
   if (graphQLErrors) {
     graphQLErrors.forEach(({ message, locations, path, extensions }) => {
+      const normalizedOperation = String(operation.operationName || '').toLowerCase();
+      const normalizedMessage = String(message || '').toLowerCase();
+      const pathHead = Array.isArray(path) ? String(path[0] || '').toLowerCase() : String(path || '').toLowerCase();
+      const isExpectedManagerBudgetApprovalValidationError =
+        pathHead === 'updatemanagerblockproductionbudget' &&
+        normalizedMessage.includes('pagu divisi untuk periode') &&
+        normalizedMessage.includes('belum diset');
+      const isExpectedAreaManagerCompanyDetailNotFound =
+        normalizedOperation === 'areamanagercompanymonitordetail' &&
+        normalizedMessage.includes('company not found') &&
+        pathHead === 'areamanagercompanydetail';
+
+      if (isExpectedAreaManagerCompanyDetailNotFound) {
+        console.info('ℹ️ GraphQL Info: Detail perusahaan belum tersedia (company/estate belum siap).', {
+          message,
+          path,
+          operation: operation.operationName,
+        });
+        return;
+      }
+
+      if (isExpectedManagerBudgetApprovalValidationError) {
+        console.info('ℹ️ GraphQL Info: Approval budget blok tertahan karena pagu divisi belum diset.', {
+          message,
+          path,
+          operation: operation.operationName,
+        });
+        return;
+      }
+
       const errorCode = String(extensions?.code || 'UNKNOWN');
 
       console.error(`❌ GraphQL Error [${errorCode}]:`, {

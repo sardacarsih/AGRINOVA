@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
@@ -14,12 +14,13 @@ export default function BlocksPage() {
   const locale = useLocale();
   const router = useRouter();
 
-  if (isLoading) {
-    return <PageLoading />;
-  }
+  useEffect(() => {
+    if (!isLoading && (!isAuthenticated || !user)) {
+      router.replace('/login');
+    }
+  }, [isAuthenticated, isLoading, router, user]);
 
-  if (!isAuthenticated || !user) {
-    router.push('/login');
+  if (isLoading || !isAuthenticated || !user) {
     return <PageLoading />;
   }
 
@@ -45,4 +46,3 @@ export default function BlocksPage() {
     </ProtectedRoute>
   );
 }
-

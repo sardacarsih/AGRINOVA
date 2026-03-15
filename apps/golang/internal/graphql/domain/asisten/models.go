@@ -68,25 +68,31 @@ type AsistenQuickAction struct {
 
 // ApprovalItem for pending approvals.
 type ApprovalItem struct {
-	ID               string               `json:"id"`
-	Mandor           *auth.User           `json:"mandor"`
-	Block            *master.Block        `json:"block"`
-	Division         *master.Division     `json:"division"`
-	HarvestDate      time.Time            `json:"harvestDate"`
-	EmployeeCount    int32                `json:"employeeCount"`
-	Employees        string               `json:"employees"`
-	TbsCount         int32                `json:"tbsCount"`
-	Weight           float64              `json:"weight"`
-	SubmittedAt      time.Time            `json:"submittedAt"`
-	ElapsedTime      string               `json:"elapsedTime"`
-	Status           mandor.HarvestStatus `json:"status"`
-	HasPhoto         bool                 `json:"hasPhoto"`
-	PhotoUrls        []string             `json:"photoUrls,omitempty"`
-	Coordinates      *common.Coordinates  `json:"coordinates,omitempty"`
-	Notes            *string              `json:"notes,omitempty"`
-	Priority         ApprovalPriority     `json:"priority"`
-	ValidationStatus ValidationStatus     `json:"validationStatus"`
-	ValidationIssues []string             `json:"validationIssues,omitempty"`
+	ID                string               `json:"id"`
+	Mandor            *auth.User           `json:"mandor"`
+	Block             *master.Block        `json:"block"`
+	Division          *master.Division     `json:"division"`
+	HarvestDate       time.Time            `json:"harvestDate"`
+	EmployeeCount     int32                `json:"employeeCount"`
+	Employees         string               `json:"employees"`
+	TbsCount          int32                `json:"tbsCount"`
+	Weight            float64              `json:"weight"`
+	SubmittedAt       time.Time            `json:"submittedAt"`
+	ElapsedTime       string               `json:"elapsedTime"`
+	Status            mandor.HarvestStatus `json:"status"`
+	JjgMatang         int32                `json:"jjgMatang"`
+	JjgMentah         int32                `json:"jjgMentah"`
+	JjgLewatMatang    int32                `json:"jjgLewatMatang"`
+	JjgBusukAbnormal  int32                `json:"jjgBusukAbnormal"`
+	JjgTangkaiPanjang int32                `json:"jjgTangkaiPanjang"`
+	TotalBrondolan    float64              `json:"totalBrondolan"`
+	HasPhoto          bool                 `json:"hasPhoto"`
+	PhotoUrls         []string             `json:"photoUrls,omitempty"`
+	Coordinates       *common.Coordinates  `json:"coordinates,omitempty"`
+	Notes             *string              `json:"notes,omitempty"`
+	Priority          ApprovalPriority     `json:"priority"`
+	ValidationStatus  ValidationStatus     `json:"validationStatus"`
+	ValidationIssues  []string             `json:"validationIssues,omitempty"`
 }
 
 // ApprovalFilterInput for filtering approvals.

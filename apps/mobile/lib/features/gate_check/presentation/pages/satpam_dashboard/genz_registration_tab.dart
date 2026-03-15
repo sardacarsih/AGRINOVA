@@ -2,13 +2,14 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../data/models/gate_check_models.dart';
 import '../../widgets/guest_registration_form.dart';
+import 'genz_theme.dart';
 
 /// Gen Z Styled Registration Tab with Futuristic Dark Theme
-/// 
+///
 /// Features:
 /// - Neon glow effects (purple, green, red)
 /// - Glassmorphism with blurred backgrounds
-/// - Dark futuristic gradient background
+/// - Brightness-aware gradient background
 /// - Smooth rounded corners (20-32px)
 /// - Minimalistic, clean typography
 /// - Light reflections and soft shadows
@@ -46,13 +47,12 @@ class GenZRegistrationTab extends StatefulWidget {
   State<GenZRegistrationTab> createState() => _GenZRegistrationTabState();
 }
 
-class _GenZRegistrationTabState extends State<GenZRegistrationTab> with AutomaticKeepAliveClientMixin {
-  // Neon colors
+class _GenZRegistrationTabState extends State<GenZRegistrationTab>
+    with AutomaticKeepAliveClientMixin {
+  // Neon accent colors (unchanged)
   static const Color neonPurple = Color(0xFF8B5CF6);
   static const Color neonGreen = Color(0xFF10B981);
   static const Color neonRed = Color(0xFFEF4444);
-  static const Color darkBg = Color(0xFF111827);
-  static const Color darkCard = Color(0xFF1F2937);
 
   // Helper for opacity colors
   static Color _withAlpha(Color color, double opacity) {
@@ -66,12 +66,8 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [darkBg, Color(0xFF0F172A)],
-        ),
+      decoration: BoxDecoration(
+        gradient: GenZTheme.backgroundGradientFor(context),
       ),
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -82,11 +78,11 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
             // Prominent Header - Pendaftaran Tamu at TOP
             _buildFuturisticHeader(),
             const SizedBox(height: 28),
-            
+
             // Intent Toggle with neon styling
-            _buildNeonEntryExitToggle(),
+            _buildNeonEntryExitToggle(context),
             const SizedBox(height: 24),
-            
+
             // Guest Registration Form with glassmorphism
             _buildGlassFormContainer(context),
           ],
@@ -96,6 +92,7 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
   }
 
   /// Futuristic header with neon glow - Pendaftaran Tamu at TOP
+  /// Header is on a purple gradient background, so all text/icons stay white
   Widget _buildFuturisticHeader() {
     return Container(
       decoration: BoxDecoration(
@@ -206,9 +203,10 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
   }
 
   /// Neon-styled entry/exit toggle
-  Widget _buildNeonEntryExitToggle() {
+  Widget _buildNeonEntryExitToggle(BuildContext context) {
     final isEntry = widget.generationIntent == 'ENTRY';
-    
+    final themeColors = GenZTheme.of(context);
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
@@ -227,18 +225,16 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
           child: Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: _withAlpha(darkCard, 0.9),
+              color: themeColors.cardBackground.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: _withAlpha(Colors.white, 0.1),
-                width: 1,
-              ),
+              border: Border.all(color: themeColors.surfaceOverlay, width: 1),
             ),
             child: Row(
               children: [
                 // Entry option
                 Expanded(
                   child: _buildToggleOption(
+                    context: context,
                     label: 'ENTRY',
                     subtitle: 'Masuk',
                     icon: Icons.arrow_upward_rounded,
@@ -251,6 +247,7 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
                 // Exit option
                 Expanded(
                   child: _buildToggleOption(
+                    context: context,
                     label: 'EXIT',
                     subtitle: 'Keluar',
                     icon: Icons.arrow_downward_rounded,
@@ -268,6 +265,7 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
   }
 
   Widget _buildToggleOption({
+    required BuildContext context,
     required String label,
     required String subtitle,
     required IconData icon,
@@ -275,6 +273,8 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
     required Color accentColor,
     required VoidCallback onTap,
   }) {
+    final themeColors = GenZTheme.of(context);
+
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
@@ -295,7 +295,9 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
           color: isSelected ? null : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? _withAlpha(accentColor, 0.5) : Colors.transparent,
+            color: isSelected
+                ? _withAlpha(accentColor, 0.5)
+                : Colors.transparent,
             width: 1.5,
           ),
           boxShadow: isSelected
@@ -317,7 +319,7 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
               decoration: BoxDecoration(
                 color: isSelected
                     ? _withAlpha(accentColor, 0.2)
-                    : _withAlpha(Colors.white, 0.05),
+                    : themeColors.surfaceOverlay,
                 borderRadius: BorderRadius.circular(12),
                 border: isSelected
                     ? Border.all(color: _withAlpha(accentColor, 0.4))
@@ -325,7 +327,7 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
               ),
               child: Icon(
                 icon,
-                color: isSelected ? accentColor : _withAlpha(Colors.white, 0.5),
+                color: isSelected ? accentColor : themeColors.bodySecondary,
                 size: 22,
               ),
             ),
@@ -339,7 +341,9 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: isSelected ? accentColor : _withAlpha(Colors.white, 0.6),
+                      color: isSelected
+                          ? accentColor
+                          : themeColors.bodySecondary,
                       letterSpacing: 1,
                       shadows: isSelected
                           ? [
@@ -357,8 +361,10 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
                     style: TextStyle(
                       fontSize: 12,
                       color: isSelected
-                          ? _withAlpha(Colors.white, 0.7)
-                          : _withAlpha(Colors.white, 0.4),
+                          ? (themeColors.isDark
+                                ? _withAlpha(Colors.white, 0.75)
+                                : themeColors.bodySecondary)
+                          : themeColors.bodyTertiary,
                     ),
                   ),
                 ],
@@ -372,6 +378,8 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
 
   /// Glassmorphism container for the form
   Widget _buildGlassFormContainer(BuildContext context) {
+    final themeColors = GenZTheme.of(context);
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
@@ -395,68 +403,52 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  _withAlpha(darkCard, 0.95),
-                  _withAlpha(const Color(0xFF374151), 0.85),
+                  themeColors.cardBackground.withValues(alpha: 0.95),
+                  themeColors.borderColor.withValues(alpha: 0.85),
                 ],
               ),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: _withAlpha(Colors.white, 0.08),
-                width: 1,
-              ),
+              border: Border.all(color: themeColors.surfaceOverlay, width: 1),
             ),
             child: Theme(
-              // Apply dark theme to all form elements
-              data: ThemeData.dark().copyWith(
-                colorScheme: const ColorScheme.dark(
+              // Apply brightness-aware theme to form elements.
+              data: Theme.of(context).copyWith(
+                colorScheme: Theme.of(context).colorScheme.copyWith(
                   primary: neonPurple,
                   secondary: neonGreen,
-                  surface: darkCard,
+                  surface: themeColors.cardBackground,
+                  onSurface: themeColors.headingColor,
+                  error: neonRed,
                 ),
                 inputDecorationTheme: InputDecorationTheme(
                   filled: true,
-                  fillColor: _withAlpha(const Color(0xFF374151), 0.6),
+                  fillColor: themeColors.inputFill,
                   labelStyle: TextStyle(
-                    color: _withAlpha(Colors.white, 0.7),
+                    color: themeColors.bodySecondary,
                     fontWeight: FontWeight.w500,
                   ),
-                  hintStyle: TextStyle(
-                    color: _withAlpha(Colors.white, 0.4),
-                  ),
+                  hintStyle: TextStyle(color: themeColors.bodyTertiary),
                   prefixIconColor: neonPurple,
-                  suffixIconColor: _withAlpha(neonPurple, 0.7),
+                  suffixIconColor: themeColors.bodyTertiary,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                      color: _withAlpha(Colors.white, 0.1),
-                    ),
+                    borderSide: BorderSide(color: themeColors.borderColor),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                      color: _withAlpha(Colors.white, 0.1),
-                    ),
+                    borderSide: BorderSide(color: themeColors.borderColor),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(
-                      color: neonPurple,
-                      width: 2,
-                    ),
+                    borderSide: const BorderSide(color: neonPurple, width: 2),
                   ),
                   errorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(
-                      color: neonRed,
-                      width: 1.5,
-                    ),
+                    borderSide: const BorderSide(color: neonRed, width: 1.5),
                   ),
                   focusedErrorBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(
-                      color: neonRed,
-                      width: 2,
-                    ),
+                    borderSide: const BorderSide(color: neonRed, width: 2),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 18,
@@ -464,38 +456,39 @@ class _GenZRegistrationTabState extends State<GenZRegistrationTab> with Automati
                   ),
                 ),
                 elevatedButtonTheme: ElevatedButtonThemeData(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: neonPurple,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ).copyWith(
-                    backgroundColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.disabled)) {
-                        return _withAlpha(neonPurple, 0.3);
-                      }
-                      if (states.contains(WidgetState.pressed)) {
-                        return _withAlpha(neonPurple, 0.8);
-                      }
-                      return neonPurple;
-                    }),
-                  ),
+                  style:
+                      ElevatedButton.styleFrom(
+                        backgroundColor: neonPurple,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ).copyWith(
+                        backgroundColor: WidgetStateProperty.resolveWith((
+                          states,
+                        ) {
+                          if (states.contains(WidgetState.disabled)) {
+                            return _withAlpha(neonPurple, 0.3);
+                          }
+                          if (states.contains(WidgetState.pressed)) {
+                            return _withAlpha(neonPurple, 0.8);
+                          }
+                          return neonPurple;
+                        }),
+                      ),
                 ),
                 dropdownMenuTheme: DropdownMenuThemeData(
                   inputDecorationTheme: InputDecorationTheme(
                     filled: true,
-                    fillColor: _withAlpha(const Color(0xFF374151), 0.6),
+                    fillColor: themeColors.inputFill,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(
-                        color: _withAlpha(Colors.white, 0.1),
-                      ),
+                      borderSide: BorderSide(color: themeColors.borderColor),
                     ),
                   ),
                 ),

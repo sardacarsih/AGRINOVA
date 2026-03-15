@@ -40,6 +40,9 @@
       "Bash(go test:*)",
       "Bash(xargs:*)",
       "Bash(python3:*)",
+      "Read(//c/Users/dharyadi/.claude/plugins/**)",
+      "Read(//c/Users/dharyadi/.claude/**)",
+      "Bash(cat:*)",
       "Bash(flutter pub deps:*)",
       "Bash(flutter pub add:*)"
     ],

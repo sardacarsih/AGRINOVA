@@ -2,6 +2,7 @@
   "ENV": "staging",
   "APP_NAME": "Agrinova Staging",
   "BASE_URL": "https://staging.agrinova.com",
+  "WEB_BASE_URL": "https://staging.agrinova.com",
   "WS_URL": "wss://staging.agrinova.com",
   "GRAPHQL_PATH": "/graphql",
   "WS_PATH": "/ws",

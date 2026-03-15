@@ -12,6 +12,8 @@ import { useAuth } from '@/hooks/use-auth';
 import type { AuthSession, LoginFormData, User } from '@/types/auth';
 import { PermissionManager } from '@/lib/auth/permissions';
 import cookieAuthService from '@/lib/auth/cookie-auth-service';
+import { useRuntimeTheme } from '@/features/theme-campaigns/hooks/use-runtime-theme';
+import { useThemeMode } from '@/hooks/use-theme';
 
 const SplashCursor = dynamic(() => import('@/components/animations/splash-cursor'), {
   ssr: false,
@@ -23,9 +25,6 @@ interface FeatureItem {
   icon: LucideIcon;
   title: string;
   description: string;
-  color: string;
-  bgColor: string;
-  borderColor: string;
 }
 
 interface LoginErrorBoundaryState {
@@ -92,11 +91,11 @@ function LoginPageContent() {
   const [isRedirectingAfterAuth, setIsRedirectingAfterAuth] = React.useState(false);
   const hasRedirectedAfterAuthRef = React.useRef(false);
   const shouldReduceMotion = useReducedMotion();
-  const [isMobileViewport, setIsMobileViewport] = React.useState<boolean>(() => {
-    if (typeof window === 'undefined') {
-      return false;
-    }
-    return window.matchMedia('(max-width: 767px)').matches;
+  const [isMobileViewport, setIsMobileViewport] = React.useState(false);
+  const { resolvedTheme } = useThemeMode();
+  const runtimeTheme = useRuntimeTheme({
+    platform: isMobileViewport ? 'mobile' : 'web',
+    mode: resolvedTheme === 'dark' ? 'dark' : 'light',
   });
 
   const redirectPath = searchParams?.get('redirect') || null;
@@ -166,6 +165,37 @@ function LoginPageContent() {
       mediaQuery.removeEventListener('change', syncViewportMode);
     };
   }, []);
+
+  const runtimeStyle = React.useMemo(
+    () =>
+      ({
+        '--login-accent': runtimeTheme.accentColor,
+        '--login-accent-soft': runtimeTheme.accentSoftColor,
+        '--login-card-border': runtimeTheme.cardBorderColor,
+        '--login-bg-image': runtimeTheme.backgroundImage ? `url(${runtimeTheme.backgroundImage})` : 'none',
+      } as React.CSSProperties),
+    [
+      runtimeTheme.accentColor,
+      runtimeTheme.accentSoftColor,
+      runtimeTheme.backgroundImage,
+      runtimeTheme.cardBorderColor,
+    ]
+  );
+
+  const runtimeIconStrokeWidth = React.useMemo(() => {
+    if (runtimeTheme.iconPack === 'rounded-enterprise') return 1.8;
+    if (runtimeTheme.iconPack === 'glyph-ops') return 2.5;
+    return 2;
+  }, [runtimeTheme.iconPack]);
+
+  const runtimeIconStyle = React.useMemo(() => {
+    if (runtimeTheme.iconPack === 'rounded-enterprise') {
+      return { strokeLinecap: 'round', strokeLinejoin: 'round' } as React.CSSProperties;
+    }
+    return undefined;
+  }, [runtimeTheme.iconPack]);
+
+  const runtimeIconExtraClass = runtimeTheme.iconPack === 'glyph-ops' ? 'fill-current' : '';
 
   const isExpectedAuthFailure = (message: string): boolean => {
     const normalized = message.toLowerCase();
@@ -327,33 +357,21 @@ function LoginPageContent() {
       icon: TrendingUp,
       title: "Real-time Analytics",
       description: "Monitoring Produksi Panen dan Lalu lintas Kendaraan di kebun.",
-      color: "text-emerald-600 dark:text-emerald-400",
-      bgColor: "bg-emerald-50 dark:bg-emerald-900/20",
-      borderColor: "border-emerald-200 dark:border-emerald-800"
     },
     {
       icon: Shield,
       title: "Secure Operations",
-      description: "Keamanan tingkat enterprise dengan enkripsi end-to-end",
-      color: "text-blue-600 dark:text-blue-400",
-      bgColor: "bg-blue-50 dark:bg-blue-900/20",
-      borderColor: "border-blue-200 dark:border-blue-800"
+      description: "Keamanan tingkat enterprise dengan TLS/SSL, autentikasi JWT, dan kontrol akses berbasis peran",
     },
     {
       icon: Clock,
       title: "Offline-First Mobile",
       description: "Tetap produktif meski tanpa koneksi internet untuk role Mandor dan Satpam",
-      color: "text-purple-600 dark:text-purple-400",
-      bgColor: "bg-purple-50 dark:bg-purple-900/20",
-      borderColor: "border-purple-200 dark:border-purple-800"
     },
     {
       icon: Users,
       title: "Multi-Role Access",
       description: "Semua peran kebun — Mandor, Satpam, Asisten, Manager hingga Grading — dalam satu sistem.",
-      color: "text-orange-600 dark:text-orange-400",
-      bgColor: "bg-orange-50 dark:bg-orange-900/20",
-      borderColor: "border-orange-200 dark:border-orange-800"
     }
   ];
 
@@ -361,7 +379,8 @@ function LoginPageContent() {
     return (
       <div
         data-page="login-mobile"
-        className="min-h-[100dvh] bg-gradient-to-b from-slate-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950"
+        className="login-theme-runtime min-h-[100dvh] bg-gradient-to-b from-slate-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950"
+        style={runtimeStyle}
       >
         <a
           href="#main-content"
@@ -382,26 +401,36 @@ function LoginPageContent() {
             <motion.header variants={itemVariants} className="text-center mb-4">
               <div className="inline-flex items-center justify-center gap-2 mb-3">
                 <div
-                  className="flex-shrink-0 p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg"
+                  className="login-accent-surface flex-shrink-0 rounded-lg p-2"
                   role="img"
                   aria-label="AgrInova logo"
                 >
-                  <Sprout className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                  <Sprout
+                    className={`login-accent-text h-5 w-5 ${runtimeIconExtraClass}`}
+                    strokeWidth={runtimeIconStrokeWidth}
+                    style={runtimeIconStyle}
+                    aria-hidden="true"
+                  />
                 </div>
                 <h1 className="text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">
-                  Agr<span className="text-emerald-600 dark:text-emerald-400">I</span>nova
+                  Agr<span className="login-accent-text">I</span>nova
                 </h1>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-300">
                 Digital Plantation Intelligence
               </p>
+              {runtimeTheme.data?.campaign?.campaign_name ? (
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                  Theme aktif: {runtimeTheme.data.campaign.campaign_name}
+                </p>
+              ) : null}
             </motion.header>
 
             <motion.section
               variants={itemVariants}
               role="form"
               aria-labelledby="login-heading-mobile"
-              className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500 focus-within:ring-offset-2"
+              className="login-runtime-card overflow-hidden rounded-2xl border border-slate-200 bg-white/95 shadow-xl backdrop-blur-xl focus-within:ring-2 focus-within:ring-offset-2 dark:border-slate-700 dark:bg-slate-900/95"
             >
               <header className="px-4 pt-5 pb-4 text-center border-b border-slate-200 dark:border-slate-700">
                 <h2
@@ -427,15 +456,27 @@ function LoginPageContent() {
 
               <footer className="px-4 pb-5 flex flex-col items-center gap-2">
                 <div className="flex items-center justify-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-                  <Shield className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                  <span className="text-center">Dilindungi dengan enkripsi end-to-end</span>
+                  <Shield
+                    className={`h-3 w-3 flex-shrink-0 login-accent-text ${runtimeIconExtraClass}`}
+                    strokeWidth={runtimeIconStrokeWidth}
+                    style={runtimeIconStyle}
+                    aria-hidden="true"
+                  />
+                  <span className="text-center">Dilindungi dengan TLS/SSL dan autentikasi JWT</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <a
                     href="/privacy-policy"
-                    className="text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                    className="login-accent-link text-xs text-slate-400 transition-colors"
                   >
                     Kebijakan Privasi
+                  </a>
+                  <span className="text-xs text-slate-300 dark:text-slate-600">|</span>
+                  <a
+                    href="/terms-of-service"
+                    className="login-accent-link text-xs text-slate-400 transition-colors"
+                  >
+                    Syarat &amp; Ketentuan
                   </a>
                   <span className="text-xs text-slate-300 dark:text-slate-600">•</span>
                   <span className="text-xs text-slate-400 dark:text-slate-500">
@@ -453,7 +494,8 @@ function LoginPageContent() {
   return (
     <div
       data-page="login"
-      className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950"
+      className="login-theme-runtime min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950"
+      style={runtimeStyle}
     >
       {/* Skip to main content for screen readers */}
       <a
@@ -508,21 +550,26 @@ function LoginPageContent() {
               <header className="text-center lg:text-left mt-0">
                 <div className="flex items-center justify-center lg:justify-start gap-4 mb-6">
                   <div
-                    className="flex-shrink-0 p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl"
+                    className="login-accent-surface flex-shrink-0 rounded-2xl p-3"
                     role="img"
                     aria-label="AgrInova logo - palm oil plantation management"
                   >
-                    <Sprout className="h-10 w-10 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                    <Sprout
+                      className={`login-accent-text h-10 w-10 ${runtimeIconExtraClass}`}
+                      strokeWidth={runtimeIconStrokeWidth}
+                      style={runtimeIconStyle}
+                      aria-hidden="true"
+                    />
                   </div>
                   <div>
                     <h1
                       id="brand-heading"
                       className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black text-slate-800 dark:text-slate-100 tracking-tight"
                     >
-                      Agr<span className="text-emerald-600 dark:text-emerald-400">I</span>nova
+                      Agr<span className="login-accent-text">I</span>nova
                     </h1>
                     <div className="flex items-center gap-2 mt-1">
-                      <div className="h-1 w-8 bg-emerald-500 rounded-full" aria-hidden="true"></div>
+                      <div className="login-accent-bg h-1 w-8 rounded-full" aria-hidden="true"></div>
                       <p
                         className="text-lg font-medium text-slate-600 dark:text-slate-400"
                         id="brand-tagline"
@@ -530,6 +577,11 @@ function LoginPageContent() {
                         Digital Plantation Intelligence
                       </p>
                     </div>
+                    {runtimeTheme.data?.campaign?.campaign_name ? (
+                      <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                        Theme aktif: {runtimeTheme.data.campaign.campaign_name}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
 
@@ -541,6 +593,19 @@ function LoginPageContent() {
                   Solusi inovatif untuk manajemen perkebunan kelapa sawit dengan keamanan enterprise.
                 </motion.p>
               </header>
+
+              {runtimeTheme.illustration ? (
+                <motion.div
+                  variants={itemVariants}
+                  className="login-illustration-shell w-full overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-sm dark:border-slate-700 dark:bg-slate-900/50"
+                >
+                  <img
+                    src={runtimeTheme.illustration}
+                    alt="Runtime theme illustration"
+                    className="login-illustration-image h-full w-full object-cover"
+                  />
+                </motion.div>
+              ) : null}
 
               {/* Key Features Grid */}
               <motion.div
@@ -560,11 +625,7 @@ function LoginPageContent() {
                         scale: 1.02,
                         transition: { duration: 0.2 }
                       }}
-                      className={`w-full p-6 rounded-2xl border transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${index === 0 ? 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' :
-                          index === 1 ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' :
-                            index === 2 ? 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800' :
-                              'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
-                        }`}
+                      className="login-feature-card w-full p-6 rounded-2xl border transition-all duration-300 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2"
                       tabIndex={0}
                       role="article"
                       aria-labelledby={`feature-${index}-title`}
@@ -582,11 +643,12 @@ function LoginPageContent() {
                           role="img"
                           aria-label={feature.title}
                         >
-                          <Icon className={`h-6 w-6 ${index === 0 ? 'text-emerald-600 dark:text-emerald-400' :
-                              index === 1 ? 'text-blue-600 dark:text-blue-400' :
-                                index === 2 ? 'text-purple-600 dark:text-purple-400' :
-                                  'text-orange-600 dark:text-orange-400'
-                            }`} aria-hidden="true" />
+                          <Icon
+                            className={`h-6 w-6 login-feature-icon ${runtimeIconExtraClass}`}
+                            strokeWidth={runtimeIconStrokeWidth}
+                            style={runtimeIconStyle}
+                            aria-hidden="true"
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3
@@ -613,7 +675,7 @@ function LoginPageContent() {
 
               {/* Mobile App Download Card */}
               <motion.div variants={itemVariants}>
-                <div className="bg-gradient-to-br from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 backdrop-blur-sm rounded-2xl p-6 border border-emerald-200 dark:border-emerald-800">
+                <div className="login-download-panel backdrop-blur-sm rounded-2xl p-6 border">
                   <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mb-4">
                     📱 Download Agrinova Mobile
                   </h3>
@@ -621,17 +683,25 @@ function LoginPageContent() {
                     {/* Android Download */}
                     <a
                       href="https://play.google.com/store/apps/details?id=com.agrinova.android"
-                      className="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-xl border border-green-200 dark:border-green-800 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 group"
+                      className="login-download-link flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 group"
                       aria-label="Download di Google Play Store"
                     >
-                      <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors">
-                        <Download className="h-5 w-5 text-green-600 dark:text-green-400" />
+                      <div className="login-download-badge w-10 h-10 rounded-lg flex items-center justify-center transition-colors">
+                        <Download
+                          className={`h-5 w-5 login-accent-text ${runtimeIconExtraClass}`}
+                          strokeWidth={runtimeIconStrokeWidth}
+                          style={runtimeIconStyle}
+                        />
                       </div>
                       <div className="flex-1">
-                        <div className="text-sm font-semibold text-green-700 dark:text-green-400">Android</div>
-                        <div className="text-xs text-green-600 dark:text-green-500">Google Play Store</div>
+                        <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">Android</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">Google Play Store</div>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-green-500 group-hover:translate-x-1 transition-transform" />
+                      <ChevronRight
+                        className={`h-4 w-4 login-accent-text group-hover:translate-x-1 transition-transform ${runtimeIconExtraClass}`}
+                        strokeWidth={runtimeIconStrokeWidth}
+                        style={runtimeIconStyle}
+                      />
                     </a>
 
                     {/* iOS App Store */}
@@ -640,17 +710,25 @@ function LoginPageContent() {
                         description: 'The iOS app will be available on the App Store soon.',
                         duration: 5000,
                       })}
-                      className="flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-xl border border-blue-200 dark:border-blue-800 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all duration-200 group"
+                      className="login-download-link flex items-center gap-3 p-3 rounded-xl border transition-all duration-200 group"
                       aria-label="iOS App Store coming soon"
                     >
-                      <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
-                        <ExternalLink className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      <div className="login-download-badge w-10 h-10 rounded-lg flex items-center justify-center transition-colors">
+                        <ExternalLink
+                          className={`h-5 w-5 login-accent-text ${runtimeIconExtraClass}`}
+                          strokeWidth={runtimeIconStrokeWidth}
+                          style={runtimeIconStyle}
+                        />
                       </div>
                       <div className="flex-1">
-                        <div className="text-sm font-semibold text-blue-700 dark:text-blue-400">iOS App Store</div>
-                        <div className="text-xs text-blue-600 dark:text-blue-500">Coming Soon</div>
+                        <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">iOS App Store</div>
+                        <div className="text-xs text-slate-500 dark:text-slate-400">Coming Soon</div>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-blue-500 group-hover:translate-x-1 transition-transform" />
+                      <ChevronRight
+                        className={`h-4 w-4 login-accent-text group-hover:translate-x-1 transition-transform ${runtimeIconExtraClass}`}
+                        strokeWidth={runtimeIconStrokeWidth}
+                        style={runtimeIconStyle}
+                      />
                     </button>
                   </div>
                 </div>
@@ -664,20 +742,25 @@ function LoginPageContent() {
             >
               <div className="flex items-center justify-center gap-2 mb-3">
                 <div
-                  className="flex-shrink-0 p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg"
+                  className="login-accent-surface flex-shrink-0 rounded-lg p-2"
                   role="img"
                   aria-label="AgrInova logo"
                 >
-                  <Sprout className="h-5 w-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                  <Sprout
+                    className={`login-accent-text h-5 w-5 ${runtimeIconExtraClass}`}
+                    strokeWidth={runtimeIconStrokeWidth}
+                    style={runtimeIconStyle}
+                    aria-hidden="true"
+                  />
                 </div>
                 <h1 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-slate-100 tracking-tight">
-                  Agr<span className="text-emerald-600 dark:text-emerald-400">I</span>nova
+                  Agr<span className="login-accent-text">I</span>nova
                 </h1>
               </div>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mb-1">
                 Digital Plantation Intelligence
               </p>
-              <div className="h-0.5 w-16 bg-emerald-500 rounded-full mx-auto" aria-hidden="true"></div>
+              <div className="login-accent-bg mx-auto h-0.5 w-16 rounded-full" aria-hidden="true"></div>
             </motion.div>
 
             {/* Login Form Section - Mobile-first responsive with fixed height container */}
@@ -693,7 +776,7 @@ function LoginPageContent() {
                     y: -2,
                     transition: { duration: 0.3 }
                   }}
-                  className="login-card bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-xl sm:rounded-2xl lg:rounded-3xl shadow-lg sm:shadow-xl lg:shadow-2xl border-2 border-amber-400 dark:border-amber-500 overflow-hidden focus-within:ring-2 focus-within:ring-amber-400 focus-within:ring-offset-2 w-full flex flex-col flex-1"
+                  className="login-card login-runtime-card flex w-full flex-1 flex-col overflow-hidden rounded-xl border-2 bg-white/90 shadow-lg backdrop-blur-xl focus-within:ring-2 focus-within:ring-offset-2 dark:bg-slate-900/90 sm:rounded-2xl sm:shadow-xl lg:rounded-3xl lg:shadow-2xl"
                   tabIndex={-1}
                 >
                   {/* Login Header - Mobile optimized */}
@@ -704,11 +787,16 @@ function LoginPageContent() {
                       className="hidden md:flex justify-center mb-3 sm:mb-4"
                     >
                       <div
-                        className="p-2 sm:p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl sm:rounded-2xl"
+                        className="login-accent-surface rounded-xl p-2 sm:rounded-2xl sm:p-3"
                         role="img"
                         aria-label="AgrInova login"
                       >
-                        <Sprout className="h-6 w-6 sm:h-8 sm:w-8 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                        <Sprout
+                          className={`login-accent-text h-6 w-6 sm:h-8 sm:w-8 ${runtimeIconExtraClass}`}
+                          strokeWidth={runtimeIconStrokeWidth}
+                          style={runtimeIconStyle}
+                          aria-hidden="true"
+                        />
                       </div>
                     </motion.div>
                     <h2
@@ -739,15 +827,27 @@ function LoginPageContent() {
                   {/* Footer - Mobile responsive */}
                   <footer className="px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6 lg:pb-8 flex flex-col items-center gap-2">
                     <div className="flex items-center justify-center gap-1.5 sm:gap-2 text-xs text-slate-500 dark:text-slate-400">
-                      <Shield className="h-3 w-3 flex-shrink-0" aria-hidden="true" />
-                      <span className="text-center">Dilindungi dengan enkripsi end-to-end</span>
+                      <Shield
+                        className={`h-3 w-3 flex-shrink-0 login-accent-text ${runtimeIconExtraClass}`}
+                        strokeWidth={runtimeIconStrokeWidth}
+                        style={runtimeIconStyle}
+                        aria-hidden="true"
+                      />
+                      <span className="text-center">Dilindungi dengan TLS/SSL dan autentikasi JWT</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <a
                         href="/privacy-policy"
-                        className="text-xs text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                        className="login-accent-link text-xs text-slate-400 transition-colors"
                       >
                         Kebijakan Privasi
+                      </a>
+                      <span className="text-xs text-slate-300 dark:text-slate-600">|</span>
+                      <a
+                        href="/terms-of-service"
+                        className="login-accent-link text-xs text-slate-400 transition-colors"
+                      >
+                        Syarat &amp; Ketentuan
                       </a>
                       <span className="text-xs text-slate-300 dark:text-slate-600">•</span>
                       <span className="text-xs text-slate-400 dark:text-slate-500">

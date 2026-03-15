@@ -55,6 +55,8 @@ jspm_packages/
 
 # Optional npm cache directory
 .npm
+.npm-cache/
+playwright-browsers/
 
 # Optional eslint cache
 .eslintcache
@@ -163,6 +165,10 @@ apps/golang/build_errors*.txt
 apps/web/.next/
 apps/web/out/
 apps/web/coverage/
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/
+apps/web/e2e/.auth/
 apps/web/tsconfig.tsbuildinfo
 apps/web/build_*.txt
 apps/web/build_log*.txt
@@ -173,6 +179,11 @@ apps/web/bundle-analyzer*.html
 apps/web/public/*.apk
 apps/web/public/*.aab
 
+# Playwright artifacts
+test-results/
+playwright-report/
+blob-report/
+
 # Common secrets/certificates
 *.pem
 *.key
@@ -180,3 +191,20 @@ apps/web/public/*.aab
 *.pfx
 *.jks
 *.keystore
+
+# Local temp/debug artifacts
+/.tmp_*
+/.tmp-*
+/*-implement-the-following-plan.txt
+.tmp-k6-*.json
+apps/golang/.gocache/
+apps/golang/.gomodcache/
+apps/golang/gocache/
+apps/golang/tmp-go-cache/
+apps/golang/codex-tmp/
+apps/golang/uploads/avatars/
+apps/golang/uploads/harvest_photos/
+apps/golang/uploads/satpam_photos/
+apps/golang/scripts/k6/.tmp-*.json
+apps/golang/scripts/k6/*summary*.json
+apps/mobile/.tmp_figma_mcp/

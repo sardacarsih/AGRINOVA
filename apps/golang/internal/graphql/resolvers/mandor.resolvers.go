@@ -10,11 +10,13 @@ import (
 	"agrinovagraphql/server/internal/graphql/domain/common"
 	"agrinovagraphql/server/internal/graphql/domain/mandor"
 	"agrinovagraphql/server/internal/graphql/domain/master"
+	"agrinovagraphql/server/internal/graphql/generated"
 	"agrinovagraphql/server/internal/middleware"
 	notificationModels "agrinovagraphql/server/internal/notifications/models"
 	notificationServices "agrinovagraphql/server/internal/notifications/services"
 
 	panenModels "agrinovagraphql/server/internal/panen/models"
+	panenResolvers "agrinovagraphql/server/internal/panen/resolvers"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -28,6 +30,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // CreateMandorHarvest is the resolver for the createMandorHarvest field.
@@ -218,6 +221,7 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 	conflictsDetected := 0
 	createdCount := 0
 	updatedCount := 0
+	var createdNotificationBatch []*panenModels.HarvestRecord
 	var syncResults []*mandor.MandorSyncItemResult
 
 	stringValue := func(value *string) string {
@@ -226,52 +230,14 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 		}
 		return strings.TrimSpace(*value)
 	}
-	photoSummary := func(value *string) string {
-		raw := strings.TrimSpace(stringValue(value))
-		if raw == "" {
-			return ""
-		}
-		if strings.HasPrefix(raw, "data:image/") {
-			return fmt.Sprintf("data-uri(%d chars)", len(raw))
-		}
-		if len(raw) > 120 {
-			return raw[:120] + "..."
-		}
-		return raw
-	}
 
-	fmt.Printf(
-		"📥 [SyncHarvestRecords] deviceId=%s clientTimestamp=%s records=%d\n",
+	log.Printf(
+		"[SyncHarvestRecords] deviceId=%s clientTimestamp=%s records=%d",
 		strings.TrimSpace(input.DeviceID),
 		input.ClientTimestamp.Format(time.RFC3339),
 		len(input.Records),
 	)
-	for idx, recordInput := range input.Records {
-		if recordInput == nil {
-			fmt.Printf("⚠️ [SyncHarvestRecords][%d] record is nil\n", idx)
-			continue
-		}
-
-		fmt.Printf(
-			"📦 [SyncHarvestRecords][%d] localId=%s serverId=%s mandorId=%s blockId=%s karyawanId=%s nik=%q jumlahJanjang=%d beratTbs=%.2f status=%s companyId=%s estateId=%s divisionId=%s employeeDivisionId=%s employeeDivisionName=%s photo=%s\n",
-			idx,
-			strings.TrimSpace(recordInput.LocalID),
-			stringValue(recordInput.ServerID),
-			strings.TrimSpace(recordInput.MandorID),
-			strings.TrimSpace(recordInput.BlockID),
-			recordInput.KaryawanID,
-			strings.TrimSpace(recordInput.Nik),
-			recordInput.JumlahJanjang,
-			recordInput.BeratTbs,
-			stringValue(recordInput.Status),
-			stringValue(recordInput.CompanyID),
-			stringValue(recordInput.EstateID),
-			stringValue(recordInput.DivisionID),
-			stringValue(recordInput.EmployeeDivisionID),
-			stringValue(recordInput.EmployeeDivisionName),
-			photoSummary(recordInput.PhotoURL),
-		)
-	}
+	syncLookupCtx := r.PanenResolver.WithSyncLookupCache(ctx)
 
 	for _, recordInput := range input.Records {
 		if recordInput == nil {
@@ -287,8 +253,11 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 
 		var err error
 		var record *mandor.HarvestRecord
-		isConflict := false
-		isUpdate := false
+		var createdModel *panenModels.HarvestRecord
+		recordCreated := false
+		recordUpdated := false
+		recordConflict := false
+		conflictResolutionFailed := false
 		effectiveMandorID := authUserID
 		effectiveDeviceID := strings.TrimSpace(input.DeviceID)
 		effectiveKaryawanID := normalizeSyncKaryawanID(recordInput.KaryawanID)
@@ -321,95 +290,83 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 			continue
 		}
 
-		// Determine if this is an UPDATE or CREATE based on ServerID presence
-		if recordInput.ServerID != nil && *recordInput.ServerID != "" {
-			// UPDATE: Record has a server ID - this is an update to existing record
-			isUpdate = true
-			existing, findErr := r.PanenResolver.HarvestRecord(ctx, *recordInput.ServerID)
-			if findErr != nil || existing == nil {
-				// Server record not found - try to create instead
-				isUpdate = false
-			} else {
-				if strings.TrimSpace(existing.MandorID) != effectiveMandorID {
-					errMsg := "access denied: cannot sync another mandor's harvest record"
-					syncResults = append(syncResults, &mandor.MandorSyncItemResult{
-						LocalID:  recordInput.LocalID,
-						ServerID: recordInput.ServerID,
-						Success:  false,
-						Status:   common.SyncItemStatusRejected,
-						Error:    &errMsg,
-					})
-					failureCount++
-					continue
-				}
+		err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			scopedPanenResolver := r.PanenResolver.WithDB(tx)
+			isUpdate := false
 
-				// Check for conflicts before updating
-				isConflict, err = r.checkAndResolveConflict(ctx, (*panenModels.HarvestRecord)(existing), recordInput, effectiveDeviceID, effectiveKaryawanID, effectiveNik)
-				if err != nil {
-					failureCount++
-					conflictsDetected++
-					errMsg := fmt.Sprintf("conflict resolution failed: %v", err)
-					syncResults = append(syncResults, &mandor.MandorSyncItemResult{
-						LocalID: recordInput.LocalID,
-						Success: false,
-						Status:  common.SyncItemStatusRejected,
-						Error:   &errMsg,
-					})
-					continue
-				}
-
-				if isConflict {
-					conflictsDetected++
-					// Server wins - return existing record without update
-					record = existing
+			// Determine if this is an UPDATE or CREATE based on ServerID presence.
+			if recordInput.ServerID != nil && *recordInput.ServerID != "" {
+				isUpdate = true
+				existing, findErr := scopedPanenResolver.GetHarvestRecordLight(syncLookupCtx, *recordInput.ServerID)
+				if findErr != nil || existing == nil {
+					// Server record not found - fall back to create path.
+					isUpdate = false
 				} else {
+					if strings.TrimSpace(existing.MandorID) != effectiveMandorID {
+						return fmt.Errorf("access denied: cannot sync another mandor's harvest record")
+					}
+
+					isConflict, conflictErr := r.checkAndResolveConflict(
+						syncLookupCtx,
+						(*panenModels.HarvestRecord)(existing),
+						recordInput,
+						effectiveDeviceID,
+						effectiveKaryawanID,
+						effectiveNik,
+					)
+					if conflictErr != nil {
+						conflictResolutionFailed = true
+						return fmt.Errorf("conflict resolution failed: %w", conflictErr)
+					}
+
+					if isConflict {
+						recordConflict = true
+						// Server wins - return existing record without write.
+						record = existing
+						return nil
+					}
+
 					// No conflict - allow updates for:
 					// 1) normal draft update (PENDING -> PENDING)
 					// 2) correction flow (REJECTED -> PENDING)
 					existingStatus := strings.ToUpper(strings.TrimSpace(string(existing.Status)))
 					requestedStatus := strings.ToUpper(strings.TrimSpace(stringValue(recordInput.Status)))
 					allowRejectedCorrection := existingStatus == "REJECTED" && requestedStatus == "PENDING"
-					if existingStatus == "PENDING" || allowRejectedCorrection {
-						record, err = r.updateHarvestRecordFromSync(
-							ctx,
-							*recordInput.ServerID,
-							recordInput,
-							effectiveDeviceID,
-							effectiveKaryawanID,
-							effectiveNik,
-							effectiveEmployeeDivisionID,
-							effectiveEmployeeDivisionName,
-							allowRejectedCorrection,
-						)
-						if err == nil {
-							updatedCount++
-						}
-					} else {
-						// Record is APPROVED or any non-correctable state - cannot update
-						errMsg := fmt.Sprintf("cannot update record with status %s", existing.Status)
-						syncResults = append(syncResults, &mandor.MandorSyncItemResult{
-							LocalID:  recordInput.LocalID,
-							ServerID: recordInput.ServerID,
-							Success:  false,
-							Status:   common.SyncItemStatusRejected,
-							Error:    &errMsg,
-						})
-						failureCount++
-						continue
+					if existingStatus != "PENDING" && !allowRejectedCorrection {
+						return fmt.Errorf("cannot update record with status %s", existing.Status)
 					}
+
+					updatedRecord, updateErr := r.updateHarvestRecordFromSync(
+						syncLookupCtx,
+						scopedPanenResolver,
+						*recordInput.ServerID,
+						recordInput,
+						effectiveDeviceID,
+						effectiveKaryawanID,
+						effectiveNik,
+						effectiveEmployeeDivisionID,
+						effectiveEmployeeDivisionName,
+						allowRejectedCorrection,
+					)
+					if updateErr != nil {
+						return updateErr
+					}
+
+					record = updatedRecord
+					recordUpdated = true
+					return nil
 				}
 			}
-		}
 
-		// CREATE: No server ID or server record not found
-		if !isUpdate {
-			// Check for idempotency using LocalID
-			existing, findErr := r.PanenResolver.GetByLocalID(ctx, recordInput.LocalID, effectiveMandorID)
-			if findErr == nil && existing != nil {
-				// Record already exists by LocalID - treat as success (idempotent)
-				record = (*mandor.HarvestRecord)(existing)
-			} else {
-				// Create new record
+			// CREATE: No server ID or server record not found.
+			if !isUpdate {
+				existing, findErr := scopedPanenResolver.GetByLocalIDLight(syncLookupCtx, recordInput.LocalID, effectiveMandorID)
+				if findErr == nil && existing != nil {
+					// Record already exists by LocalID - treat as success (idempotent).
+					record = (*mandor.HarvestRecord)(existing)
+					return nil
+				}
+
 				localID := recordInput.LocalID
 				var localIDPtr *string
 				if localID != "" {
@@ -427,7 +384,7 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 					BeratTbs:      recordInput.BeratTbs,
 				}
 
-				// Add optional fields from sync input
+				// Add optional fields from sync input.
 				if recordInput.Notes != nil {
 					createInput.Notes = recordInput.Notes
 				}
@@ -471,42 +428,29 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 					createInput.EmployeeDivisionName = effectiveEmployeeDivisionName
 				}
 				createInput.KaryawanID = effectiveKaryawanID
+
 				if recordInput.PhotoURL != nil {
 					photoValue := strings.TrimSpace(*recordInput.PhotoURL)
 					if photoValue != "" {
 						resolvedPhotoURL, photoErr := r.saveHarvestPhotoFromPayload(recordInput.LocalID, photoValue)
 						if photoErr != nil {
-							err = fmt.Errorf("failed to process harvest photo: %w", photoErr)
-						} else {
-							createInput.PhotoURL = &resolvedPhotoURL
+							return fmt.Errorf("failed to process harvest photo: %w", photoErr)
 						}
+						createInput.PhotoURL = &resolvedPhotoURL
 					}
 				}
 
-				var model *panenModels.HarvestRecord
-				if err == nil {
-					model, err = r.PanenResolver.CreateHarvestRecord(ctx, createInput)
-					if err == nil {
-						if enforceErr := r.enforceSyncIdentity(
-							ctx,
-							model,
-							effectiveKaryawanID,
-							effectiveNik,
-							effectiveEmployeeDivisionID,
-							effectiveEmployeeDivisionName,
-						); enforceErr != nil {
-							err = enforceErr
-						}
-					}
-					if err == nil {
-						record = (*mandor.HarvestRecord)(model)
-						createdCount++
-						r.notifyAsistenHarvestCreated(ctx, model)
-						publishHarvestRecordCreated((*mandor.HarvestRecord)(model))
-					}
+				model, createErr := scopedPanenResolver.CreateHarvestRecordForSync(syncLookupCtx, createInput)
+				if createErr != nil {
+					return createErr
 				}
+				record = (*mandor.HarvestRecord)(model)
+				createdModel = model
+				recordCreated = true
 			}
-		}
+
+			return nil
+		})
 
 		itemResult := &mandor.MandorSyncItemResult{
 			LocalID: recordInput.LocalID,
@@ -514,12 +458,26 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 
 		if err != nil {
 			failureCount++
+			if conflictResolutionFailed {
+				conflictsDetected++
+			}
 			errMsg := err.Error()
 			itemResult.Success = false
 			itemResult.Status = common.SyncItemStatusRejected
 			itemResult.Error = &errMsg
 		} else {
 			successCount++
+			if recordConflict {
+				conflictsDetected++
+			}
+			if recordUpdated {
+				updatedCount++
+			}
+			if recordCreated {
+				createdCount++
+				createdNotificationBatch = append(createdNotificationBatch, createdModel)
+				publishHarvestRecordCreated((*mandor.HarvestRecord)(createdModel))
+			}
 			itemResult.Success = true
 			itemResult.Status = common.SyncItemStatusAccepted
 			if record != nil {
@@ -527,6 +485,12 @@ func (r *mutationResolver) SyncHarvestRecords(ctx context.Context, input mandor.
 			}
 		}
 		syncResults = append(syncResults, itemResult)
+	}
+
+	if len(createdNotificationBatch) == 1 {
+		r.notifyAsistenHarvestCreated(ctx, createdNotificationBatch[0])
+	} else if len(createdNotificationBatch) > 1 {
+		r.notifyAsistenHarvestCreatedBatch(ctx, createdNotificationBatch)
 	}
 
 	transactionID := fmt.Sprintf("txn_%d", time.Now().UnixNano())
@@ -575,19 +539,47 @@ func (r *mutationResolver) notifyAsistenHarvestCreated(ctx context.Context, reco
 			blockName = name
 		}
 	}
+	blockID := strings.TrimSpace(record.BlockID)
 
 	harvestID := strings.TrimSpace(record.ID)
 	bunchCount := record.JumlahJanjang
+	weight := record.BeratTbs
 
 	notifier := r.FCMNotificationService
-	if !isNilValue(notifier) {
-		go func(notifier HarvestFCMNotifier) {
+	notificationService := r.NotificationService
+	if isNilValue(notifier) && notificationService == nil {
+		return
+	}
+
+	go func(
+		notifier HarvestFCMNotifier,
+		notificationService *notificationServices.NotificationService,
+		harvestID string,
+		mandorID string,
+		blockID string,
+		mandorName string,
+		blockName string,
+		bunchCount int32,
+		weight float64,
+	) {
+		lookupCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		resolvedMandorName, resolvedBlockName := r.resolveHarvestNotificationLabels(
+			lookupCtx,
+			mandorID,
+			blockID,
+			mandorName,
+			blockName,
+		)
+
+		if !isNilValue(notifier) {
 			err := notifier.NotifyAsistenNewHarvest(
 				context.Background(),
 				harvestID,
 				mandorID,
-				mandorName,
-				blockName,
+				resolvedMandorName,
+				resolvedBlockName,
 				bunchCount,
 			)
 			if err != nil {
@@ -598,18 +590,16 @@ func (r *mutationResolver) notifyAsistenHarvestCreated(ctx context.Context, reco
 					err,
 				)
 			}
-		}(notifier)
-	}
+		}
 
-	if r.NotificationService != nil {
-		go func() {
+		if notificationService != nil {
 			if err := r.notifyHarvestCreatedHierarchyNotifications(
 				context.Background(),
 				harvestID,
 				mandorID,
-				mandorName,
-				blockName,
-				record.BeratTbs,
+				resolvedMandorName,
+				resolvedBlockName,
+				weight,
 			); err != nil {
 				log.Printf(
 					"Failed to create hierarchical harvest-created notification for harvest %s: %v",
@@ -617,8 +607,80 @@ func (r *mutationResolver) notifyAsistenHarvestCreated(ctx context.Context, reco
 					err,
 				)
 			}
-		}()
+		}
+	}(
+		notifier,
+		notificationService,
+		harvestID,
+		mandorID,
+		blockID,
+		mandorName,
+		blockName,
+		bunchCount,
+		weight,
+	)
+}
+
+func (r *mutationResolver) resolveHarvestNotificationLabels(
+	ctx context.Context,
+	mandorID string,
+	blockID string,
+	fallbackMandorName string,
+	fallbackBlockName string,
+) (string, string) {
+	mandorName := strings.TrimSpace(fallbackMandorName)
+	if mandorName == "" {
+		mandorName = "Mandor"
 	}
+
+	blockName := strings.TrimSpace(fallbackBlockName)
+	if blockName == "" {
+		blockName = "Block"
+	}
+
+	if r.db == nil {
+		return mandorName, blockName
+	}
+
+	if mandorName == "Mandor" && strings.TrimSpace(mandorID) != "" {
+		var row struct {
+			Name     string `gorm:"column:name"`
+			Username string `gorm:"column:username"`
+		}
+		if err := r.db.WithContext(ctx).
+			Table("users").
+			Select("name", "username").
+			Where("id = ?", mandorID).
+			Limit(1).
+			Scan(&row).Error; err == nil {
+			if name := strings.TrimSpace(row.Name); name != "" {
+				mandorName = name
+			} else if username := strings.TrimSpace(row.Username); username != "" {
+				mandorName = username
+			}
+		}
+	}
+
+	if blockName == "Block" && strings.TrimSpace(blockID) != "" {
+		var row struct {
+			Name      string `gorm:"column:name"`
+			BlockCode string `gorm:"column:block_code"`
+		}
+		if err := r.db.WithContext(ctx).
+			Table("blocks").
+			Select("name", "block_code").
+			Where("id = ?", blockID).
+			Limit(1).
+			Scan(&row).Error; err == nil {
+			if name := strings.TrimSpace(row.Name); name != "" {
+				blockName = name
+			} else if code := strings.TrimSpace(row.BlockCode); code != "" {
+				blockName = code
+			}
+		}
+	}
+
+	return mandorName, blockName
 }
 
 type harvestNotificationRecipient struct {
@@ -986,6 +1048,206 @@ func getCurrentUserScope(ctx context.Context) (string, auth.UserRole) {
 	return userID, role
 }
 
+func (r *queryResolver) buildScopedHarvestFilters(
+	ctx context.Context,
+	userID string,
+	role auth.UserRole,
+	base *panenModels.HarvestFilters,
+) (*panenModels.HarvestFilters, bool, error) {
+	if strings.TrimSpace(userID) == "" {
+		return nil, false, fmt.Errorf("authentication required")
+	}
+	if r.MasterResolver == nil || r.MasterResolver.GetMasterService() == nil {
+		return nil, false, fmt.Errorf("master service unavailable")
+	}
+
+	assignments, err := r.MasterResolver.GetMasterService().GetUserAssignments(ctx, userID)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to load user assignments: %w", err)
+	}
+
+	companyIDs := make([]string, 0, len(assignments.Companies))
+	estateIDs := make([]string, 0, len(assignments.Estates))
+	divisionIDs := make([]string, 0, len(assignments.Divisions))
+	companySeen := make(map[string]struct{}, len(assignments.Companies))
+	estateSeen := make(map[string]struct{}, len(assignments.Estates))
+	divisionSeen := make(map[string]struct{}, len(assignments.Divisions))
+
+	for _, company := range assignments.Companies {
+		companyIDs = appendUniqueHarvestScopeID(companyIDs, companySeen, company.ID)
+	}
+	for _, estate := range assignments.Estates {
+		estateIDs = appendUniqueHarvestScopeID(estateIDs, estateSeen, estate.ID)
+	}
+	for _, division := range assignments.Divisions {
+		divisionIDs = appendUniqueHarvestScopeID(divisionIDs, divisionSeen, division.ID)
+	}
+
+	filters := &panenModels.HarvestFilters{}
+	if base != nil {
+		*filters = *base
+		filters.MandorIDs = append([]string(nil), base.MandorIDs...)
+		filters.CompanyIDs = append([]string(nil), base.CompanyIDs...)
+		filters.EstateIDs = append([]string(nil), base.EstateIDs...)
+		filters.DivisionIDs = append([]string(nil), base.DivisionIDs...)
+	}
+
+	// Reset scope dimensions and set exactly one role-priority scope.
+	filters.CompanyIDs = nil
+	filters.EstateIDs = nil
+	filters.DivisionIDs = nil
+
+	switch role {
+	case auth.UserRoleManager:
+		if len(estateIDs) > 0 {
+			filters.EstateIDs = estateIDs
+			return filters, true, nil
+		}
+	case auth.UserRoleAsisten:
+		if len(divisionIDs) > 0 {
+			filters.DivisionIDs = divisionIDs
+			return filters, true, nil
+		}
+	case auth.UserRoleAreaManager, auth.UserRoleCompanyAdmin:
+		if len(companyIDs) > 0 {
+			filters.CompanyIDs = companyIDs
+			return filters, true, nil
+		}
+	}
+
+	return nil, false, nil
+}
+
+func (r *queryResolver) buildHierarchyMandorScopedHarvestFilters(
+	ctx context.Context,
+	userID string,
+	base *panenModels.HarvestFilters,
+) (*panenModels.HarvestFilters, bool, error) {
+	mandorIDs, err := r.getHierarchyMandorIDs(ctx, userID)
+	if err != nil {
+		return nil, false, err
+	}
+	if len(mandorIDs) == 0 {
+		return nil, false, nil
+	}
+
+	filters := &panenModels.HarvestFilters{}
+	if base != nil {
+		*filters = *base
+		filters.MandorIDs = append([]string(nil), base.MandorIDs...)
+		filters.CompanyIDs = append([]string(nil), base.CompanyIDs...)
+		filters.EstateIDs = append([]string(nil), base.EstateIDs...)
+		filters.DivisionIDs = append([]string(nil), base.DivisionIDs...)
+	}
+	filters.MandorIDs = mandorIDs
+
+	return filters, true, nil
+}
+
+func (r *queryResolver) getHierarchyMandorIDs(ctx context.Context, userID string) ([]string, error) {
+	if strings.TrimSpace(userID) == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
+	if r.HierarchyService == nil {
+		return nil, fmt.Errorf("hierarchy service unavailable")
+	}
+
+	queue := []string{userID}
+	visited := map[string]struct{}{userID: {}}
+	mandorSeen := make(map[string]struct{})
+	mandorIDs := make([]string, 0)
+
+	for len(queue) > 0 {
+		currentID := queue[0]
+		queue = queue[1:]
+
+		children, err := r.HierarchyService.GetChildren(ctx, currentID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load hierarchy children: %w", err)
+		}
+
+		for _, child := range children {
+			if child == nil {
+				continue
+			}
+
+			childID := strings.TrimSpace(child.ID)
+			if childID == "" {
+				continue
+			}
+
+			if child.Role == auth.UserRoleMandor {
+				if _, exists := mandorSeen[childID]; !exists {
+					mandorSeen[childID] = struct{}{}
+					mandorIDs = append(mandorIDs, childID)
+				}
+			}
+
+			if _, seen := visited[childID]; seen {
+				continue
+			}
+			visited[childID] = struct{}{}
+			queue = append(queue, childID)
+		}
+	}
+
+	return mandorIDs, nil
+}
+
+func appendUniqueHarvestScopeID(target []string, seen map[string]struct{}, raw string) []string {
+	id := strings.TrimSpace(raw)
+	if id == "" {
+		return target
+	}
+	if _, exists := seen[id]; exists {
+		return target
+	}
+	seen[id] = struct{}{}
+	return append(target, id)
+}
+
+func harvestScopeContains(scope []string, value string) bool {
+	target := strings.TrimSpace(value)
+	if target == "" {
+		return false
+	}
+	for _, scopeID := range scope {
+		if strings.EqualFold(strings.TrimSpace(scopeID), target) {
+			return true
+		}
+	}
+	return false
+}
+
+func isHarvestRecordInScopedAssignments(record *panenModels.HarvestRecord, filters *panenModels.HarvestFilters) bool {
+	if record == nil || filters == nil {
+		return false
+	}
+
+	if len(filters.CompanyIDs) > 0 {
+		if record.CompanyID == nil || !harvestScopeContains(filters.CompanyIDs, *record.CompanyID) {
+			return false
+		}
+	}
+	if len(filters.EstateIDs) > 0 {
+		if record.EstateID == nil || !harvestScopeContains(filters.EstateIDs, *record.EstateID) {
+			return false
+		}
+	}
+	if len(filters.DivisionIDs) > 0 {
+		if record.DivisionID == nil || !harvestScopeContains(filters.DivisionIDs, *record.DivisionID) {
+			return false
+		}
+	}
+	if len(filters.MandorIDs) > 0 {
+		if strings.TrimSpace(record.MandorID) == "" || !harvestScopeContains(filters.MandorIDs, record.MandorID) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (r *mutationResolver) ensureManagerCanAccessHarvest(
 	ctx context.Context,
 	managerID string,
@@ -1091,6 +1353,7 @@ func sanitizeFileComponent(value string) string {
 // updateHarvestRecordFromSync updates an existing harvest record from sync input
 func (r *mutationResolver) updateHarvestRecordFromSync(
 	ctx context.Context,
+	panenResolver *panenResolvers.PanenResolver,
 	serverID string,
 	input *mandor.HarvestRecordSyncInput,
 	deviceID string,
@@ -1136,33 +1399,26 @@ func (r *mutationResolver) updateHarvestRecordFromSync(
 	}
 
 	// Call the update service
-	updated, err := r.PanenResolver.UpdateHarvestRecord(ctx, updateInput)
+	updated, err := panenResolver.UpdateHarvestRecordForSync(ctx, updateInput)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update harvest record: %w", err)
 	}
 
 	updatedModel := (*panenModels.HarvestRecord)(updated)
+	needsSave := false
 	if input.PhotoURL != nil {
 		photoValue := strings.TrimSpace(*input.PhotoURL)
 		if photoValue == "" {
 			updatedModel.PhotoURL = nil
+			needsSave = true
 		} else {
 			resolvedPhotoURL, photoErr := r.saveHarvestPhotoFromPayload(input.LocalID, photoValue)
 			if photoErr != nil {
 				return nil, fmt.Errorf("failed to process harvest photo: %w", photoErr)
 			}
 			updatedModel.PhotoURL = &resolvedPhotoURL
+			needsSave = true
 		}
-	}
-	if err := r.enforceSyncIdentity(
-		ctx,
-		updatedModel,
-		karyawanID,
-		nik,
-		employeeDivisionID,
-		employeeDivisionName,
-	); err != nil {
-		return nil, fmt.Errorf("failed to apply sync identity: %w", err)
 	}
 
 	// Correction flow: when mandor edits rejected data and resubmits,
@@ -1173,8 +1429,12 @@ func (r *mutationResolver) updateHarvestRecordFromSync(
 		updatedModel.RejectedReason = nil
 		updatedModel.ApprovedAt = nil
 		updatedModel.ApprovedBy = nil
-		if err := r.PanenResolver.SaveHarvestRecord(ctx, updatedModel); err != nil {
-			return nil, fmt.Errorf("failed to reset corrected harvest status to pending: %w", err)
+		needsSave = true
+	}
+
+	if needsSave {
+		if err := panenResolver.SaveHarvestRecord(ctx, updatedModel); err != nil {
+			return nil, fmt.Errorf("failed to persist sync-only harvest updates: %w", err)
 		}
 	}
 
@@ -1233,30 +1493,6 @@ func (r *mutationResolver) resolveHarvestNikFromSyncInput(
 		return nil
 	}
 	return normalizeSyncNik(input.Nik)
-}
-
-func (r *mutationResolver) enforceSyncIdentity(
-	ctx context.Context,
-	record *panenModels.HarvestRecord,
-	karyawanID *string,
-	nik *string,
-	employeeDivisionID *string,
-	employeeDivisionName *string,
-) error {
-	if record == nil {
-		return nil
-	}
-	if karyawanID != nil {
-		record.KaryawanID = karyawanID
-	}
-	record.Nik = nik
-	if employeeDivisionID != nil {
-		record.EmployeeDivisionID = employeeDivisionID
-	}
-	if employeeDivisionName != nil {
-		record.EmployeeDivisionName = employeeDivisionName
-	}
-	return r.PanenResolver.SaveHarvestRecord(ctx, record)
 }
 
 func normalizeSyncKaryawanID(karyawanID string) *string {
@@ -1421,14 +1657,9 @@ func (r *queryResolver) MandorBlocks(ctx context.Context, divisionID *string) ([
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
-	// Get user's division assignments
-	var assignedDivisionIDs []string
-	if err := r.db.WithContext(ctx).
-		Table("user_division_assignments").
-		Select("division_id").
-		Where("user_id = ? AND is_active = true", userID).
-		Pluck("division_id", &assignedDivisionIDs).Error; err != nil {
-		return nil, fmt.Errorf("failed to get division assignments: %w", err)
+	assignedDivisionIDs, err := r.getMandorAssignedDivisionIDs(ctx, userID)
+	if err != nil {
+		return nil, err
 	}
 
 	// If no division assignments, return empty list
@@ -1439,24 +1670,9 @@ func (r *queryResolver) MandorBlocks(ctx context.Context, divisionID *string) ([
 	// Query blocks available to this mandor
 	var blocks []*master.Block
 	query := r.db.WithContext(ctx).Model(&master.Block{})
-
-	// Filter by specific division if provided
-	if divisionID != nil && *divisionID != "" {
-		// Validate user has access to this division
-		hasAccess := false
-		for _, id := range assignedDivisionIDs {
-			if id == *divisionID {
-				hasAccess = true
-				break
-			}
-		}
-		if !hasAccess {
-			return nil, fmt.Errorf("access denied to division")
-		}
-		query = query.Where("division_id = ?", *divisionID)
-	} else {
-		// Return blocks from all assigned divisions
-		query = query.Where("division_id IN ?", assignedDivisionIDs)
+	query, err = r.applyMandorDivisionScope(query, assignedDivisionIDs, divisionID, "division_id")
+	if err != nil {
+		return nil, err
 	}
 
 	if err := query.Where("is_active = ?", true).Find(&blocks).Error; err != nil {
@@ -1473,6 +1689,14 @@ func (r *queryResolver) MandorEmployees(ctx context.Context, divisionID *string,
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
+	assignedDivisionIDs, err := r.getMandorAssignedDivisionIDs(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(assignedDivisionIDs) == 0 {
+		return []*master.Employee{}, nil
+	}
+
 	// Get user's company_id from context
 	companyID, _ := ctx.Value("company_id").(string)
 
@@ -1485,9 +1709,9 @@ func (r *queryResolver) MandorEmployees(ctx context.Context, divisionID *string,
 		query = query.Where("company_id = ?", companyID)
 	}
 
-	// Filter by division if provided (employees may have division assignment)
-	if divisionID != nil && *divisionID != "" {
-		query = query.Where("division_id = ?", *divisionID)
+	query, err = r.applyMandorDivisionScope(query, assignedDivisionIDs, divisionID, "division_id")
+	if err != nil {
+		return nil, err
 	}
 
 	// Search by name or NIK
@@ -1496,11 +1720,169 @@ func (r *queryResolver) MandorEmployees(ctx context.Context, divisionID *string,
 		query = query.Where("name ILIKE ? OR nik ILIKE ?", searchPattern, searchPattern)
 	}
 
-	if err := query.Where("is_active = ?", true).Limit(50).Find(&employees).Error; err != nil {
-		return nil, fmt.Errorf("failed to get employees: %w", err)
+	query = query.Where("is_active = ?", true).Order("id ASC")
+
+	// Internal pagination to avoid hard cap/truncation and still keep query memory-friendly.
+	const pageSize = 200
+	offset := 0
+	for {
+		var batch []*master.Employee
+		if err := query.Offset(offset).Limit(pageSize).Find(&batch).Error; err != nil {
+			return nil, fmt.Errorf("failed to get employees: %w", err)
+		}
+		if len(batch) == 0 {
+			break
+		}
+
+		employees = append(employees, batch...)
+		offset += len(batch)
+		if len(batch) < pageSize {
+			break
+		}
 	}
 
 	return employees, nil
+}
+
+// MandorDivisionMastersSync is the resolver for the mandorDivisionMastersSync field.
+func (r *queryResolver) MandorDivisionMastersSync(ctx context.Context, updatedSince time.Time) (*auth.UserAssignments, error) {
+	assignments, err := r.MasterResolver.GetMyAssignments(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get assignment masters: %w", err)
+	}
+
+	result := &auth.UserAssignments{
+		Companies: make([]*master.Company, 0),
+		Estates:   make([]*master.Estate, 0),
+		Divisions: make([]*master.Division, 0),
+		Blocks:    make([]*master.Block, 0),
+	}
+
+	if assignments == nil {
+		return result, nil
+	}
+
+	for _, company := range assignments.Companies {
+		if company != nil && company.UpdatedAt.After(updatedSince) {
+			result.Companies = append(result.Companies, company)
+		}
+	}
+
+	for _, estate := range assignments.Estates {
+		if estate != nil && estate.UpdatedAt.After(updatedSince) {
+			result.Estates = append(result.Estates, estate)
+		}
+	}
+
+	for _, division := range assignments.Divisions {
+		if division != nil && division.UpdatedAt.After(updatedSince) {
+			result.Divisions = append(result.Divisions, division)
+		}
+	}
+
+	return result, nil
+}
+
+// MandorBlocksSync is the resolver for the mandorBlocksSync field.
+func (r *queryResolver) MandorBlocksSync(ctx context.Context, divisionID *string, updatedSince time.Time) ([]*master.Block, error) {
+	userID, ok := ctx.Value("user_id").(string)
+	if !ok || userID == "" {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	assignedDivisionIDs, err := r.getMandorAssignedDivisionIDs(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(assignedDivisionIDs) == 0 {
+		return []*master.Block{}, nil
+	}
+
+	var blocks []*master.Block
+	query := r.db.WithContext(ctx).Model(&master.Block{})
+	query, err = r.applyMandorDivisionScope(query, assignedDivisionIDs, divisionID, "division_id")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := query.
+		Where("updated_at > ?", updatedSince).
+		Order("updated_at ASC").
+		Find(&blocks).Error; err != nil {
+		return nil, fmt.Errorf("failed to get incremental blocks: %w", err)
+	}
+
+	return blocks, nil
+}
+
+// MandorEmployeesSync is the resolver for the mandorEmployeesSync field.
+func (r *queryResolver) MandorEmployeesSync(ctx context.Context, divisionID *string, updatedSince time.Time) ([]*master.Employee, error) {
+	userID, ok := ctx.Value("user_id").(string)
+	if !ok || userID == "" {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	assignedDivisionIDs, err := r.getMandorAssignedDivisionIDs(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(assignedDivisionIDs) == 0 {
+		return []*master.Employee{}, nil
+	}
+
+	companyID, _ := ctx.Value("company_id").(string)
+	var employees []*master.Employee
+	query := r.db.WithContext(ctx).Model(&master.Employee{})
+	if companyID != "" {
+		query = query.Where("company_id = ?", companyID)
+	}
+
+	query, err = r.applyMandorDivisionScope(query, assignedDivisionIDs, divisionID, "division_id")
+	if err != nil {
+		return nil, err
+	}
+
+	if err := query.
+		Where("updated_at > ?", updatedSince).
+		Order("updated_at ASC").
+		Find(&employees).Error; err != nil {
+		return nil, fmt.Errorf("failed to get incremental employees: %w", err)
+	}
+
+	return employees, nil
+}
+
+func (r *queryResolver) getMandorAssignedDivisionIDs(ctx context.Context, userID string) ([]string, error) {
+	var assignedDivisionIDs []string
+	if err := r.db.WithContext(ctx).
+		Table("user_division_assignments").
+		Select("division_id").
+		Where("user_id = ? AND is_active = true", userID).
+		Pluck("division_id", &assignedDivisionIDs).Error; err != nil {
+		return nil, fmt.Errorf("failed to get division assignments: %w", err)
+	}
+
+	return assignedDivisionIDs, nil
+}
+
+func (r *queryResolver) applyMandorDivisionScope(query *gorm.DB, assignedDivisionIDs []string, divisionID *string, column string) (*gorm.DB, error) {
+	if len(assignedDivisionIDs) == 0 {
+		return query.Where("1 = 0"), nil
+	}
+
+	if divisionID != nil {
+		trimmedDivisionID := strings.TrimSpace(*divisionID)
+		if trimmedDivisionID != "" {
+			for _, assignedDivisionID := range assignedDivisionIDs {
+				if assignedDivisionID == trimmedDivisionID {
+					return query.Where(fmt.Sprintf("%s = ?", column), trimmedDivisionID), nil
+				}
+			}
+			return nil, fmt.Errorf("access denied to division")
+		}
+	}
+
+	return query.Where(fmt.Sprintf("%s IN ?", column), assignedDivisionIDs), nil
 }
 
 // MandorHistory is the resolver for the mandorHistory field.
@@ -1536,24 +1918,18 @@ func (r *queryResolver) MandorPendingSyncItems(ctx context.Context, deviceID str
 // MandorServerUpdates is the resolver for the mandorServerUpdates field.
 // This returns harvest records that have been updated since the given timestamp.
 // Used by mobile app to sync approval status changes from server.
-func (r *queryResolver) MandorServerUpdates(ctx context.Context, since time.Time, deviceID string) ([]*mandor.MandorHarvestRecord, error) {
-	fmt.Printf("📥 [MandorServerUpdates] Called with since=%v, deviceID=%s\n", since, deviceID)
-
+func (r *queryResolver) MandorServerUpdates(ctx context.Context, since time.Time, _ string) ([]*mandor.MandorHarvestRecord, error) {
 	// Get the authenticated user's ID from context
 	userID, ok := ctx.Value("user_id").(string)
 	if !ok || userID == "" {
-		fmt.Printf("❌ [MandorServerUpdates] User not authenticated\n")
 		return nil, fmt.Errorf("user not authenticated")
 	}
-	fmt.Printf("✅ [MandorServerUpdates] User ID: %s\n", userID)
 
 	// Query harvest records for this mandor that have been updated since the given time
 	records, err := r.PanenResolver.GetHarvestRecordsByMandorSince(ctx, userID, since)
 	if err != nil {
-		fmt.Printf("❌ [MandorServerUpdates] Database error: %v\n", err)
 		return nil, fmt.Errorf("failed to fetch harvest updates: %w", err)
 	}
-	fmt.Printf("✅ [MandorServerUpdates] Found %d records\n", len(records))
 
 	// Convert HarvestRecord to MandorHarvestRecord
 	result := make([]*mandor.MandorHarvestRecord, len(records))
@@ -1561,7 +1937,6 @@ func (r *queryResolver) MandorServerUpdates(ctx context.Context, since time.Time
 		result[i] = convertToMandorHarvestRecord(record)
 	}
 
-	fmt.Printf("✅ [MandorServerUpdates] Returning %d records\n", len(result))
 	return result, nil
 }
 
@@ -1625,7 +2000,7 @@ func convertToMandorHarvestRecord(record *mandor.HarvestRecord) *mandor.MandorHa
 
 	return &mandor.MandorHarvestRecord{
 		ID:                record.ID,
-		LocalID:           nil, // Server doesn't track local IDs
+		LocalID:           record.LocalID,
 		Tanggal:           record.Tanggal,
 		MandorID:          record.MandorID,
 		MandorName:        mandorName,
@@ -1664,6 +2039,9 @@ func convertToMandorHarvestRecord(record *mandor.HarvestRecord) *mandor.MandorHa
 // HarvestRecords is the resolver for the harvestRecords field.
 func (r *queryResolver) HarvestRecords(ctx context.Context, dateFrom *time.Time, dateTo *time.Time) ([]*mandor.HarvestRecord, error) {
 	userID, role := getCurrentUserScope(ctx)
+	if userID == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
 
 	var (
 		harvestModels []*panenModels.HarvestRecord
@@ -1678,17 +2056,36 @@ func (r *queryResolver) HarvestRecords(ctx context.Context, dateFrom *time.Time,
 
 	switch role {
 	case auth.UserRoleMandor:
-		if userID == "" {
-			return nil, fmt.Errorf("authentication required")
-		}
 		harvestModels, err = r.PanenResolver.HarvestRecordsByMandor(ctx, userID, filters)
 	case auth.UserRoleManager:
-		if userID == "" {
-			return nil, fmt.Errorf("authentication required")
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, filters)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if hasScope {
+			harvestModels, err = r.PanenResolver.HarvestRecords(ctx, scopedFilters)
+			break
 		}
 		harvestModels, err = r.PanenResolver.HarvestRecordsByManager(ctx, userID, filters)
+	case auth.UserRoleAsisten, auth.UserRoleAreaManager, auth.UserRoleCompanyAdmin:
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, filters)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if hasScope {
+			harvestModels, err = r.PanenResolver.HarvestRecords(ctx, scopedFilters)
+			break
+		}
+
+		hierarchyFilters, hasHierarchyScope, hierarchyErr := r.buildHierarchyMandorScopedHarvestFilters(ctx, userID, filters)
+		if hierarchyErr != nil {
+			return nil, hierarchyErr
+		}
+		if !hasHierarchyScope {
+			return []*mandor.HarvestRecord{}, nil
+		}
+		harvestModels, err = r.PanenResolver.HarvestRecords(ctx, hierarchyFilters)
 	default:
-		// For other roles, use the generic GetHarvestRecords with filters
 		harvestModels, err = r.PanenResolver.HarvestRecords(ctx, filters)
 	}
 	if err != nil {
@@ -1704,9 +2101,145 @@ func (r *queryResolver) HarvestRecords(ctx context.Context, dateFrom *time.Time,
 	return result, nil
 }
 
+// HarvestRecordsPaginated is the resolver for the harvestRecordsPaginated field.
+func (r *queryResolver) HarvestRecordsPaginated(ctx context.Context, page *int32, limit *int32, status *mandor.HarvestStatus, search *string, sortBy *string, sortDir *string, dateFrom *time.Time, dateTo *time.Time) (*generated.HarvestRecordsPaginatedResponse, error) {
+	userID, role := getCurrentUserScope(ctx)
+	if userID == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
+
+	// Defaults
+	pageVal := int32(1)
+	if page != nil && *page > 0 {
+		pageVal = *page
+	}
+	limitVal := int32(10)
+	if limit != nil && *limit > 0 {
+		limitVal = *limit
+		if limitVal > 100 {
+			limitVal = 100
+		}
+	}
+	offset := int((pageVal - 1) * limitVal)
+	limitInt := int(limitVal)
+
+	// Build filters
+	filters := &panenModels.HarvestFilters{
+		DateFrom: dateFrom,
+		DateTo:   dateTo,
+		Status:   status,
+		Search:   search,
+		OrderBy:  sortBy,
+		OrderDir: sortDir,
+		Limit:    &limitInt,
+		Offset:   &offset,
+	}
+
+	// Count filters (same without pagination)
+	countFilters := &panenModels.HarvestFilters{
+		DateFrom: dateFrom,
+		DateTo:   dateTo,
+		Status:   status,
+		Search:   search,
+	}
+
+	var (
+		harvestModels []*panenModels.HarvestRecord
+		totalCount    int64
+		err           error
+		countErr      error
+	)
+
+	switch role {
+	case auth.UserRoleMandor:
+		harvestModels, err = r.PanenResolver.HarvestRecordsByMandor(ctx, userID, filters)
+		if err == nil {
+			mandorCountFilters := *countFilters
+			mandorID := userID
+			mandorCountFilters.MandorID = &mandorID
+			totalCount, countErr = r.PanenResolver.CountHarvestRecords(ctx, &mandorCountFilters)
+		}
+	case auth.UserRoleManager:
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, filters)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if hasScope {
+			harvestModels, err = r.PanenResolver.HarvestRecords(ctx, scopedFilters)
+			if err == nil {
+				scopedCountFilters, _, _ := r.buildScopedHarvestFilters(ctx, userID, role, countFilters)
+				totalCount, countErr = r.PanenResolver.CountHarvestRecords(ctx, scopedCountFilters)
+			}
+		} else {
+			harvestModels, err = r.PanenResolver.HarvestRecordsByManager(ctx, userID, filters)
+			if err == nil {
+				managerCountFilters := *countFilters
+				totalCount, countErr = r.PanenResolver.CountHarvestRecords(ctx, &managerCountFilters)
+			}
+		}
+	case auth.UserRoleAsisten, auth.UserRoleAreaManager, auth.UserRoleCompanyAdmin:
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, filters)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if hasScope {
+			harvestModels, err = r.PanenResolver.HarvestRecords(ctx, scopedFilters)
+			if err == nil {
+				scopedCountFilters, _, _ := r.buildScopedHarvestFilters(ctx, userID, role, countFilters)
+				totalCount, countErr = r.PanenResolver.CountHarvestRecords(ctx, scopedCountFilters)
+			}
+		} else {
+			hierarchyFilters, hasHierarchyScope, hierarchyErr := r.buildHierarchyMandorScopedHarvestFilters(ctx, userID, filters)
+			if hierarchyErr != nil {
+				return nil, hierarchyErr
+			}
+			if !hasHierarchyScope {
+				return &generated.HarvestRecordsPaginatedResponse{
+					Data:       []*mandor.HarvestRecord{},
+					TotalCount: 0,
+					HasMore:    false,
+				}, nil
+			}
+			harvestModels, err = r.PanenResolver.HarvestRecords(ctx, hierarchyFilters)
+			if err == nil {
+				hierarchyCountFilters, _, _ := r.buildHierarchyMandorScopedHarvestFilters(ctx, userID, countFilters)
+				totalCount, countErr = r.PanenResolver.CountHarvestRecords(ctx, hierarchyCountFilters)
+			}
+		}
+	default:
+		harvestModels, err = r.PanenResolver.HarvestRecords(ctx, filters)
+		if err == nil {
+			totalCount, countErr = r.PanenResolver.CountHarvestRecords(ctx, countFilters)
+		}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	if countErr != nil {
+		return nil, countErr
+	}
+
+	result := make([]*mandor.HarvestRecord, len(harvestModels))
+	for i, model := range harvestModels {
+		result[i] = (*mandor.HarvestRecord)(model)
+	}
+
+	hasMore := int64(offset)+int64(len(result)) < totalCount
+
+	return &generated.HarvestRecordsPaginatedResponse{
+		Data:       result,
+		TotalCount: int32(totalCount),
+		HasMore:    hasMore,
+	}, nil
+}
+
 // HarvestRecord is the resolver for the harvestRecord field.
 func (r *queryResolver) HarvestRecord(ctx context.Context, id string) (*mandor.HarvestRecord, error) {
 	userID, role := getCurrentUserScope(ctx)
+	if userID == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
 
 	var (
 		harvestModel *panenModels.HarvestRecord
@@ -1714,9 +2247,6 @@ func (r *queryResolver) HarvestRecord(ctx context.Context, id string) (*mandor.H
 	)
 	switch role {
 	case auth.UserRoleMandor:
-		if userID == "" {
-			return nil, fmt.Errorf("authentication required")
-		}
 		harvestModel, err = r.PanenResolver.HarvestRecord(ctx, id)
 		if err != nil {
 			return nil, err
@@ -1728,9 +2258,24 @@ func (r *queryResolver) HarvestRecord(ctx context.Context, id string) (*mandor.H
 			return nil, fmt.Errorf("harvest record not found")
 		}
 	case auth.UserRoleManager:
-		if userID == "" {
-			return nil, fmt.Errorf("authentication required")
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, nil)
+		if scopeErr != nil {
+			return nil, scopeErr
 		}
+		if hasScope {
+			harvestModel, err = r.PanenResolver.HarvestRecord(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			if harvestModel == nil {
+				return nil, nil
+			}
+			if !isHarvestRecordInScopedAssignments(harvestModel, scopedFilters) {
+				return nil, fmt.Errorf("harvest record not found")
+			}
+			break
+		}
+
 		harvestModel, err = r.PanenResolver.HarvestRecordByManager(ctx, id, userID)
 		if err != nil {
 			var harvestErr *panenModels.HarvestError
@@ -1741,6 +2286,43 @@ func (r *queryResolver) HarvestRecord(ctx context.Context, id string) (*mandor.H
 		}
 		if harvestModel == nil {
 			return nil, nil
+		}
+	case auth.UserRoleAsisten, auth.UserRoleAreaManager, auth.UserRoleCompanyAdmin:
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, nil)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if hasScope {
+			harvestModel, err = r.PanenResolver.HarvestRecord(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+			if harvestModel == nil {
+				return nil, nil
+			}
+			if !isHarvestRecordInScopedAssignments(harvestModel, scopedFilters) {
+				return nil, fmt.Errorf("harvest record not found")
+			}
+			break
+		}
+
+		hierarchyFilters, hasHierarchyScope, hierarchyErr := r.buildHierarchyMandorScopedHarvestFilters(ctx, userID, nil)
+		if hierarchyErr != nil {
+			return nil, hierarchyErr
+		}
+		if !hasHierarchyScope {
+			return nil, fmt.Errorf("harvest record not found")
+		}
+
+		harvestModel, err = r.PanenResolver.HarvestRecord(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if harvestModel == nil {
+			return nil, nil
+		}
+		if !isHarvestRecordInScopedAssignments(harvestModel, hierarchyFilters) {
+			return nil, fmt.Errorf("harvest record not found")
 		}
 	default:
 		harvestModel, err = r.PanenResolver.HarvestRecord(ctx, id)
@@ -1758,40 +2340,76 @@ func (r *queryResolver) HarvestRecord(ctx context.Context, id string) (*mandor.H
 // HarvestRecordsByStatus is the resolver for the harvestRecordsByStatus field.
 func (r *queryResolver) HarvestRecordsByStatus(ctx context.Context, status mandor.HarvestStatus) ([]*mandor.HarvestRecord, error) {
 	userID, role := getCurrentUserScope(ctx)
+	if userID == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
 
 	var harvestModels []*panenModels.HarvestRecord
 
 	if role == auth.UserRoleMandor {
-		if userID == "" {
-			return nil, fmt.Errorf("authentication required")
-		}
-
-		records, fetchErr := r.PanenResolver.HarvestRecordsByMandor(ctx, userID, nil)
-		if fetchErr != nil {
-			return nil, fetchErr
-		}
-
-		expectedStatus := strings.TrimSpace(status.String())
-		for _, record := range records {
-			if strings.EqualFold(strings.TrimSpace(string(record.Status)), expectedStatus) {
-				harvestModels = append(harvestModels, record)
-			}
-		}
-	} else if role == auth.UserRoleManager {
-		if userID == "" {
-			return nil, fmt.Errorf("authentication required")
-		}
-		records, fetchErr := r.PanenResolver.HarvestRecordsByManagerAndStatus(ctx, userID, status)
+		records, fetchErr := r.PanenResolver.HarvestRecordsByMandor(ctx, userID, &panenModels.HarvestFilters{
+			Status: &status,
+		})
 		if fetchErr != nil {
 			return nil, fetchErr
 		}
 		harvestModels = records
-	} else {
-		var err error
-		harvestModels, err = r.PanenResolver.HarvestRecordsByStatus(ctx, status)
-		if err != nil {
-			return nil, err
+	} else if role == auth.UserRoleManager {
+		filters := &panenModels.HarvestFilters{
+			Status: &status,
 		}
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, filters)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if hasScope {
+			records, fetchErr := r.PanenResolver.HarvestRecords(ctx, scopedFilters)
+			if fetchErr != nil {
+				return nil, fetchErr
+			}
+			harvestModels = records
+		} else {
+			records, fetchErr := r.PanenResolver.HarvestRecordsByManagerAndStatus(ctx, userID, status)
+			if fetchErr != nil {
+				return nil, fetchErr
+			}
+			harvestModels = records
+		}
+	} else if role == auth.UserRoleAsisten || role == auth.UserRoleAreaManager || role == auth.UserRoleCompanyAdmin {
+		filters := &panenModels.HarvestFilters{
+			Status: &status,
+		}
+		scopedFilters, hasScope, scopeErr := r.buildScopedHarvestFilters(ctx, userID, role, filters)
+		if scopeErr != nil {
+			return nil, scopeErr
+		}
+		if hasScope {
+			records, fetchErr := r.PanenResolver.HarvestRecords(ctx, scopedFilters)
+			if fetchErr != nil {
+				return nil, fetchErr
+			}
+			harvestModels = records
+		} else {
+			hierarchyFilters, hasHierarchyScope, hierarchyErr := r.buildHierarchyMandorScopedHarvestFilters(ctx, userID, filters)
+			if hierarchyErr != nil {
+				return nil, hierarchyErr
+			}
+			if !hasHierarchyScope {
+				return []*mandor.HarvestRecord{}, nil
+			}
+
+			records, fetchErr := r.PanenResolver.HarvestRecords(ctx, hierarchyFilters)
+			if fetchErr != nil {
+				return nil, fetchErr
+			}
+			harvestModels = records
+		}
+	} else {
+		records, fetchErr := r.PanenResolver.HarvestRecordsByStatus(ctx, status)
+		if fetchErr != nil {
+			return nil, fetchErr
+		}
+		harvestModels = records
 	}
 
 	// Convert slice of internal models to slice of generated types

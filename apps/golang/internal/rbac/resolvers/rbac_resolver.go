@@ -3,6 +3,8 @@ package resolvers
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"agrinovagraphql/server/internal/middleware"
@@ -55,8 +57,30 @@ func (r *RBACResolver) RoleHierarchy(ctx context.Context) ([]*models.Role, error
 }
 
 // Roles resolves the roles query
-func (r *RBACResolver) Roles(ctx context.Context, activeOnly bool) ([]*models.Role, error) {
-	result, err := r.rbacService.GetAllRoles(ctx, activeOnly)
+func (r *RBACResolver) Roles(ctx context.Context, activeOnly bool, first *int, after *string) ([]*models.Role, error) {
+	var (
+		result []map[string]interface{}
+		err    error
+	)
+
+	if first != nil && *first > 0 {
+		offset := 0
+		if after != nil {
+			cursor := strings.TrimSpace(*after)
+			if cursor != "" {
+				parsedOffset, parseErr := strconv.Atoi(cursor)
+				if parseErr != nil || parsedOffset < 0 {
+					return nil, fmt.Errorf("invalid after cursor")
+				}
+				offset = parsedOffset
+			}
+		}
+
+		result, err = r.rbacService.GetRolesPage(ctx, activeOnly, *first, offset)
+	} else {
+		result, err = r.rbacService.GetAllRoles(ctx, activeOnly)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get roles: %w", err)
 	}
@@ -372,16 +396,16 @@ func (r *RBACResolver) RBACStats(ctx context.Context) (*models.RBACStats, error)
 
 	// Convert map to RBACStats model
 	rbacStats := &models.RBACStats{
-		TotalRoles:            stats["total_roles"].(int64),
-		ActiveRoles:           stats["active_roles"].(int64),
-		SystemRoles:           stats["system_roles"].(int64),
-		CustomRoles:           stats["custom_roles"].(int64),
-		TotalPermissions:      stats["total_permissions"].(int64),
-		ActivePermissions:     stats["active_permissions"].(int64),
-		TotalRolePermissions:  stats["total_role_permissions"].(int64),
-		TotalUserOverrides:    stats["total_user_overrides"].(int64),
-		ActiveUserOverrides:   stats["active_user_overrides"].(int64),
-		ExpiredUserOverrides:  stats["expired_user_overrides"].(int64),
+		TotalRoles:           stats["total_roles"].(int64),
+		ActiveRoles:          stats["active_roles"].(int64),
+		SystemRoles:          stats["system_roles"].(int64),
+		CustomRoles:          stats["custom_roles"].(int64),
+		TotalPermissions:     stats["total_permissions"].(int64),
+		ActivePermissions:    stats["active_permissions"].(int64),
+		TotalRolePermissions: stats["total_role_permissions"].(int64),
+		TotalUserOverrides:   stats["total_user_overrides"].(int64),
+		ActiveUserOverrides:  stats["active_user_overrides"].(int64),
+		ExpiredUserOverrides: stats["expired_user_overrides"].(int64),
 	}
 
 	if cacheStats, ok := stats["cache_stats"].(map[string]interface{}); ok {

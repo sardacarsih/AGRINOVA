@@ -1,12 +1,14 @@
 'use client';
 
+import Link from 'next/link';
 import React from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import { ManagerDashboardLayout } from '@/components/layouts/role-layouts/ManagerDashboardLayout';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -24,10 +26,15 @@ import {
   type DeleteManagerDivisionProductionBudgetResponse,
   type GetManagerDivisionOptionsResponse,
   type GetManagerDivisionProductionBudgetsResponse,
+  type ManagerBudgetWorkflowStatus,
   type ManagerDivisionProductionBudget,
   type UpdateManagerDivisionProductionBudgetInput,
   type UpdateManagerDivisionProductionBudgetResponse,
 } from '@/lib/apollo/queries/manager-division-production-budget';
+import {
+  GET_MANAGER_BLOCK_PRODUCTION_BUDGETS,
+  type GetManagerBlockProductionBudgetsResponse,
+} from '@/lib/apollo/queries/manager-block-production-budget';
 
 type DivisionOption = {
   id: string;
@@ -38,19 +45,37 @@ type DivisionOption = {
 
 type BudgetFormValues = {
   divisionId: string;
-  period: string;
   targetTon: string;
   plannedCost: string;
-  actualCost: string;
+  workflowStatus: ManagerBudgetWorkflowStatus;
+  overrideApproved: boolean;
   notes: string;
+};
+
+type ControlTowerRow = {
+  divisionId: string;
+  divisionName: string;
+  estateName: string;
+  period: string;
+  budgetId?: string;
+  paguTargetTon: number;
+  paguPlannedCost: number;
+  paguActualCost: number;
+  workflowStatus: ManagerBudgetWorkflowStatus;
+  overrideApproved: boolean;
+  notes: string;
+  hasPagu: boolean;
+  rollupTargetTon: number;
+  rollupPlannedCost: number;
+  rollupActualCost: number;
 };
 
 const EMPTY_FORM: BudgetFormValues = {
   divisionId: '',
-  period: '',
   targetTon: '',
   plannedCost: '',
-  actualCost: '',
+  workflowStatus: 'DRAFT',
+  overrideApproved: false,
   notes: '',
 };
 
@@ -71,6 +96,12 @@ const numberParser = (value: string): number => {
 
 const normalizeText = (value?: string | null): string => (value || '').trim().toLowerCase();
 
+const getCurrentPeriod = (): string => {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  return `${now.getFullYear()}-${month}`;
+};
+
 const formatPeriodLabel = (period: string): string => {
   if (!period) return '-';
   const [year, month] = period.split('-');
@@ -89,8 +120,13 @@ const resolveErrorMessage = (error: unknown, fallback: string): string => {
   return fallback;
 };
 
+const isOverrideAllowed = (row: Pick<ControlTowerRow, 'workflowStatus' | 'overrideApproved'>): boolean =>
+  row.workflowStatus === 'APPROVED' && row.overrideApproved;
+
 export default function ManagerDivisionProductionBudgetPage() {
   const { toast } = useToast();
+
+  const [selectedPeriod, setSelectedPeriod] = React.useState(getCurrentPeriod);
 
   const {
     data: divisionOptionsData,
@@ -101,11 +137,25 @@ export default function ManagerDivisionProductionBudgetPage() {
   });
 
   const {
-    data: budgetData,
+    data: divisionBudgetData,
     loading: budgetsLoading,
     error: budgetsError,
-    refetch: refetchBudgets,
+    refetch: refetchDivisionBudgets,
   } = useQuery<GetManagerDivisionProductionBudgetsResponse>(GET_MANAGER_DIVISION_PRODUCTION_BUDGETS, {
+    variables: {
+      period: selectedPeriod,
+    },
+    fetchPolicy: 'cache-and-network',
+  });
+
+  const {
+    data: blockBudgetData,
+    loading: blockBudgetsLoading,
+    error: blockBudgetsError,
+  } = useQuery<GetManagerBlockProductionBudgetsResponse>(GET_MANAGER_BLOCK_PRODUCTION_BUDGETS, {
+    variables: {
+      period: selectedPeriod,
+    },
     fetchPolicy: 'cache-and-network',
   });
 
@@ -120,18 +170,9 @@ export default function ManagerDivisionProductionBudgetPage() {
   );
 
   const budgets = React.useMemo<ManagerDivisionProductionBudget[]>(
-    () => budgetData?.managerDivisionProductionBudgets || [],
-    [budgetData?.managerDivisionProductionBudgets],
+    () => divisionBudgetData?.managerDivisionProductionBudgets || [],
+    [divisionBudgetData?.managerDivisionProductionBudgets],
   );
-
-  const [isFormOpen, setIsFormOpen] = React.useState(false);
-  const [editingId, setEditingId] = React.useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = React.useState('');
-  const [divisionFilter, setDivisionFilter] = React.useState('all');
-  const [periodFilter, setPeriodFilter] = React.useState('');
-  const [formValues, setFormValues] = React.useState<BudgetFormValues>(EMPTY_FORM);
-
-  const isMutating = creating || updating || deleting;
 
   const divisionOptions = React.useMemo(() => {
     const uniqueById = new Map<string, DivisionOption>();
@@ -153,42 +194,114 @@ export default function ManagerDivisionProductionBudgetPage() {
     );
   }, [divisionOptionsData?.managerDivisionOptions]);
 
-  const stats = React.useMemo(() => {
-    const totalPlanned = budgets.reduce((sum, item) => sum + item.plannedCost, 0);
-    const totalActual = budgets.reduce((sum, item) => sum + item.actualCost, 0);
-    const divisionCount = new Set(budgets.map((item) => normalizeText(item.divisionName))).size;
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [divisionFilter, setDivisionFilter] = React.useState('all');
+  const [formValues, setFormValues] = React.useState<BudgetFormValues>(EMPTY_FORM);
+
+  const isMutating = creating || updating || deleting;
+
+  const controlRows = React.useMemo<ControlTowerRow[]>(() => {
+    const blockBudgets = blockBudgetData?.managerBlockProductionBudgets || [];
+    const rollupMap = new Map<string, { target: number; planned: number; actual: number }>();
+
+    blockBudgets.forEach((item) => {
+      const current = rollupMap.get(item.divisionId) || { target: 0, planned: 0, actual: 0 };
+      rollupMap.set(item.divisionId, {
+        target: current.target + item.targetTon,
+        planned: current.planned + item.plannedCost,
+        actual: current.actual + item.actualCost,
+      });
+    });
+
+    const budgetMap = new Map<string, ManagerDivisionProductionBudget>();
+    budgets.forEach((item) => {
+      budgetMap.set(item.divisionId, item);
+    });
+
+    const rows: ControlTowerRow[] = divisionOptions.map((division) => {
+      const existingBudget = budgetMap.get(division.id);
+      const rollup = rollupMap.get(division.id) || { target: 0, planned: 0, actual: 0 };
+
+      return {
+        divisionId: division.id,
+        divisionName: division.name,
+        estateName: division.estateName,
+        period: selectedPeriod,
+        budgetId: existingBudget?.id,
+        paguTargetTon: existingBudget?.targetTon || 0,
+        paguPlannedCost: existingBudget?.plannedCost || 0,
+        paguActualCost: existingBudget?.actualCost || 0,
+        workflowStatus: existingBudget?.workflowStatus || 'DRAFT',
+        overrideApproved: existingBudget?.overrideApproved || false,
+        notes: existingBudget?.notes || '',
+        hasPagu: Boolean(existingBudget),
+        rollupTargetTon: rollup.target,
+        rollupPlannedCost: rollup.planned,
+        rollupActualCost: rollup.actual,
+      };
+    });
+
+    budgets.forEach((item) => {
+      if (rows.some((row) => row.divisionId === item.divisionId)) {
+        return;
+      }
+
+      const rollup = rollupMap.get(item.divisionId) || { target: 0, planned: 0, actual: 0 };
+      rows.push({
+        divisionId: item.divisionId,
+        divisionName: item.divisionName,
+        estateName: item.estateName,
+        period: item.period,
+        budgetId: item.id,
+        paguTargetTon: item.targetTon,
+        paguPlannedCost: item.plannedCost,
+        paguActualCost: item.actualCost,
+        workflowStatus: item.workflowStatus,
+        overrideApproved: item.overrideApproved,
+        notes: item.notes || '',
+        hasPagu: true,
+        rollupTargetTon: rollup.target,
+        rollupPlannedCost: rollup.planned,
+        rollupActualCost: rollup.actual,
+      });
+    });
+
+    return rows.sort(
+      (a, b) => a.estateName.localeCompare(b.estateName, 'id') || a.divisionName.localeCompare(b.divisionName, 'id'),
+    );
+  }, [blockBudgetData?.managerBlockProductionBudgets, budgets, divisionOptions, selectedPeriod]);
+
+  const summary = React.useMemo(() => {
+    const totalPagu = controlRows.reduce((sum, row) => sum + row.paguPlannedCost, 0);
+    const totalRollupPlanned = controlRows.reduce((sum, row) => sum + row.rollupPlannedCost, 0);
+    const totalRollupActual = controlRows.reduce((sum, row) => sum + row.rollupActualCost, 0);
+    const configured = controlRows.filter((row) => row.hasPagu).length;
+    const overBudget = controlRows.filter(
+      (row) => row.hasPagu && row.rollupPlannedCost > row.paguPlannedCost && !isOverrideAllowed(row),
+    ).length;
 
     return {
-      totalItems: budgets.length,
-      totalPlanned,
-      totalActual,
-      divisionCount,
-      variance: totalActual - totalPlanned,
+      totalDivisions: controlRows.length,
+      configured,
+      totalPagu,
+      totalRollupPlanned,
+      totalRollupActual,
+      gapPlannedVsPagu: totalRollupPlanned - totalPagu,
+      overBudget,
     };
-  }, [budgets]);
+  }, [controlRows]);
 
-  const filteredBudgets = React.useMemo(() => {
+  const filteredRows = React.useMemo(() => {
     const normalizedSearch = normalizeText(searchTerm);
-
-    return [...budgets]
-      .filter((item) => {
-        const searchable = [
-          item.divisionName,
-          item.estateName,
-          item.notes,
-          item.createdBy,
-          item.period,
-        ]
-          .join(' ')
-          .toLowerCase();
-
-        const matchesSearch = !normalizedSearch || searchable.includes(normalizedSearch);
-        const matchesDivision = divisionFilter === 'all' || item.divisionId === divisionFilter;
-        const matchesPeriod = !periodFilter || item.period === periodFilter;
-        return matchesSearch && matchesDivision && matchesPeriod;
-      })
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  }, [budgets, divisionFilter, periodFilter, searchTerm]);
+    return controlRows.filter((row) => {
+      const searchable = `${row.divisionName} ${row.estateName} ${row.notes}`.toLowerCase();
+      const matchesSearch = !normalizedSearch || searchable.includes(normalizedSearch);
+      const matchesDivision = divisionFilter === 'all' || row.divisionId === divisionFilter;
+      return matchesSearch && matchesDivision;
+    });
+  }, [controlRows, divisionFilter, searchTerm]);
 
   const resetForm = React.useCallback(() => {
     setFormValues(EMPTY_FORM);
@@ -202,49 +315,50 @@ export default function ManagerDivisionProductionBudgetPage() {
     setIsFormOpen(true);
   }, []);
 
-  const openEditForm = React.useCallback((item: ManagerDivisionProductionBudget) => {
-    setEditingId(item.id);
+  const openEditForm = React.useCallback((row: ControlTowerRow) => {
+    setEditingId(row.budgetId || null);
     setFormValues({
-      divisionId: item.divisionId || '',
-      period: item.period,
-      targetTon: String(item.targetTon),
-      plannedCost: String(item.plannedCost),
-      actualCost: String(item.actualCost),
-      notes: item.notes || '',
+      divisionId: row.divisionId,
+      targetTon: row.paguTargetTon > 0 ? String(row.paguTargetTon) : '',
+      plannedCost: row.paguPlannedCost > 0 ? String(row.paguPlannedCost) : '',
+      workflowStatus: row.workflowStatus,
+      overrideApproved: row.overrideApproved,
+      notes: row.notes || '',
     });
     setIsFormOpen(true);
   }, []);
 
-  const handleDivisionSelect = React.useCallback((divisionId: string) => {
-    setFormValues((current) => ({
-      ...current,
-      divisionId,
-    }));
-  }, []);
+  const handleDeletePagu = React.useCallback(
+    async (row: ControlTowerRow) => {
+      if (!row.budgetId) {
+        toast({
+          title: 'Pagu belum tersedia',
+          description: 'Divisi ini belum memiliki pagu yang bisa dihapus.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
-  const handleDelete = React.useCallback(async (item: ManagerDivisionProductionBudget) => {
-    const confirmed = window.confirm(`Hapus budget divisi ${item.divisionName} periode ${item.period}?`);
-    if (!confirmed) return;
+      const confirmed = window.confirm(`Hapus pagu divisi ${row.divisionName} untuk periode ${selectedPeriod}?`);
+      if (!confirmed) return;
 
-    try {
-      await deleteBudgetMutation({
-        variables: {
-          id: item.id,
-        },
-      });
-      await refetchBudgets();
-      toast({
-        title: 'Budget dihapus',
-        description: `Data budget ${item.divisionName} berhasil dihapus.`,
-      });
-    } catch (error) {
-      toast({
-        title: 'Gagal menghapus budget',
-        description: resolveErrorMessage(error, 'Terjadi kesalahan saat menghapus data budget.'),
-        variant: 'destructive',
-      });
-    }
-  }, [deleteBudgetMutation, refetchBudgets, toast]);
+      try {
+        await deleteBudgetMutation({ variables: { id: row.budgetId } });
+        await refetchDivisionBudgets();
+        toast({
+          title: 'Pagu dihapus',
+          description: `Pagu divisi ${row.divisionName} berhasil dihapus.`,
+        });
+      } catch (error) {
+        toast({
+          title: 'Gagal menghapus pagu',
+          description: resolveErrorMessage(error, 'Terjadi kesalahan saat menghapus pagu divisi.'),
+          variant: 'destructive',
+        });
+      }
+    },
+    [deleteBudgetMutation, refetchDivisionBudgets, selectedPeriod, toast],
+  );
 
   const handleSubmit = React.useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -253,7 +367,7 @@ export default function ManagerDivisionProductionBudgetPage() {
       if (!formValues.divisionId) {
         toast({
           title: 'Data belum lengkap',
-          description: 'Divisi wajib dipilih dari daftar divisi.',
+          description: 'Divisi wajib dipilih.',
           variant: 'destructive',
         });
         return;
@@ -263,30 +377,7 @@ export default function ManagerDivisionProductionBudgetPage() {
       if (!selectedDivision) {
         toast({
           title: 'Divisi tidak valid',
-          description: 'Divisi yang dipilih tidak ditemukan pada data assignment.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      if (!formValues.period) {
-        toast({
-          title: 'Data belum lengkap',
-          description: 'Periode budget wajib dipilih.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const duplicateItem = budgets.find((item) => {
-        if (editingId && item.id === editingId) return false;
-        return item.divisionId === selectedDivision.id && item.period === formValues.period;
-      });
-
-      if (duplicateItem) {
-        toast({
-          title: 'Duplikat tidak diizinkan',
-          description: `Budget untuk ${selectedDivision.name} periode ${formValues.period} sudah ada.`,
+          description: 'Divisi yang dipilih tidak ditemukan pada scope manager.',
           variant: 'destructive',
         });
         return;
@@ -294,109 +385,133 @@ export default function ManagerDivisionProductionBudgetPage() {
 
       const targetTon = numberParser(formValues.targetTon);
       const plannedCost = numberParser(formValues.plannedCost);
-      const actualCost = numberParser(formValues.actualCost);
-
       if (targetTon <= 0 || plannedCost <= 0) {
         toast({
           title: 'Nilai tidak valid',
-          description: 'Target produksi dan budget rencana harus lebih dari 0.',
+          description: 'Target ton dan pagu biaya harus lebih dari 0.',
           variant: 'destructive',
         });
         return;
       }
 
-      if (actualCost < 0) {
-        toast({
-          title: 'Nilai tidak valid',
-          description: 'Nilai realisasi tidak boleh negatif.',
-          variant: 'destructive',
-        });
-        return;
-      }
-
+      const existing = budgets.find((item) => item.divisionId === selectedDivision.id);
+      const workflowStatus = formValues.workflowStatus;
+      const overrideApproved = workflowStatus === 'APPROVED' && formValues.overrideApproved;
       const payload: CreateManagerDivisionProductionBudgetInput = {
         divisionId: selectedDivision.id,
-        period: formValues.period,
+        period: selectedPeriod,
         targetTon,
         plannedCost,
-        actualCost,
+        actualCost: existing?.actualCost || 0,
+        workflowStatus,
+        overrideApproved,
         notes: formValues.notes.trim(),
       };
 
       try {
-        if (editingId) {
+        if (editingId || existing?.id) {
           const updatePayload: UpdateManagerDivisionProductionBudgetInput = {
-            id: editingId,
+            id: editingId || existing!.id,
             ...payload,
           };
-          await updateBudgetMutation({
-            variables: {
-              input: updatePayload,
-            },
-          });
+          await updateBudgetMutation({ variables: { input: updatePayload } });
           toast({
-            title: 'Budget diperbarui',
-            description: `Data budget ${selectedDivision.name} berhasil diperbarui.`,
+            title: 'Pagu diperbarui',
+            description: `Pagu divisi ${selectedDivision.name} berhasil diperbarui.`,
           });
         } else {
-          await createBudgetMutation({
-            variables: {
-              input: payload,
-            },
-          });
+          await createBudgetMutation({ variables: { input: payload } });
           toast({
-            title: 'Budget ditambahkan',
-            description: `Data budget ${selectedDivision.name} berhasil disimpan.`,
+            title: 'Pagu ditambahkan',
+            description: `Pagu divisi ${selectedDivision.name} berhasil disimpan.`,
           });
         }
 
-        await refetchBudgets();
+        await refetchDivisionBudgets();
         resetForm();
       } catch (error) {
         toast({
-          title: editingId ? 'Gagal memperbarui budget' : 'Gagal menambah budget',
-          description: resolveErrorMessage(error, 'Terjadi kesalahan saat menyimpan data budget.'),
+          title: editingId ? 'Gagal memperbarui pagu' : 'Gagal menambah pagu',
+          description: resolveErrorMessage(error, 'Terjadi kesalahan saat menyimpan pagu divisi.'),
           variant: 'destructive',
         });
       }
     },
-    [budgets, createBudgetMutation, divisionOptions, editingId, formValues, refetchBudgets, resetForm, toast, updateBudgetMutation],
+    [
+      budgets,
+      createBudgetMutation,
+      divisionOptions,
+      editingId,
+      formValues.divisionId,
+      formValues.notes,
+      formValues.plannedCost,
+      formValues.targetTon,
+      formValues.workflowStatus,
+      formValues.overrideApproved,
+      refetchDivisionBudgets,
+      resetForm,
+      selectedPeriod,
+      toast,
+      updateBudgetMutation,
+    ],
   );
 
   return (
     <ManagerDashboardLayout
-      title="Budget Produksi Perdivisi"
-      description="Kelola rencana dan realisasi budget produksi per divisi (CRUD)."
+      title="Budget Divisi (Control Tower)"
+      description="Divisi sebagai pagu, detail biaya dan realisasi dari rollup budget per blok."
     >
       <div className="space-y-6 p-4 md:p-6">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Total Item Budget</CardDescription>
-              <CardTitle>{stats.totalItems}</CardTitle>
-            </CardHeader>
-          </Card>
+        <Card className="border-dashed">
+          <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <CardTitle>Detail Operasional Per Blok</CardTitle>
+              <CardDescription>
+                Input detail dilakukan di halaman budget blok, halaman ini fokus untuk pagu divisi dan kontrol gap.
+              </CardDescription>
+            </div>
+            <Button asChild variant="outline">
+              <Link href="/budget-blok">
+                Buka Budget Blok
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardHeader>
+        </Card>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total Divisi</CardDescription>
-              <CardTitle>{stats.divisionCount}</CardTitle>
+              <CardTitle>{summary.totalDivisions}</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0 text-xs text-muted-foreground">Pagu terkonfigurasi: {summary.configured}</CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Total Pagu Divisi</CardDescription>
+              <CardTitle className="text-base">{currencyFormatter.format(summary.totalPagu)}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Rencana</CardDescription>
-              <CardTitle className="text-base">{currencyFormatter.format(stats.totalPlanned)}</CardTitle>
+              <CardDescription>Rollup Rencana Blok</CardDescription>
+              <CardTitle className="text-base">{currencyFormatter.format(summary.totalRollupPlanned)}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Realisasi</CardDescription>
-              <CardTitle className="text-base">{currencyFormatter.format(stats.totalActual)}</CardTitle>
+              <CardDescription>Rollup Realisasi Blok</CardDescription>
+              <CardTitle className="text-base">{currencyFormatter.format(summary.totalRollupActual)}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Gap Rencana vs Pagu</CardDescription>
+              <CardTitle className="text-base">{currencyFormatter.format(summary.gapPlannedVsPagu)}</CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              <Badge variant={stats.variance > 0 ? 'destructive' : 'secondary'}>
-                Selisih {currencyFormatter.format(stats.variance)}
-              </Badge>
+              <Badge variant={summary.overBudget > 0 ? 'destructive' : 'secondary'}>{summary.overBudget} divisi over budget</Badge>
             </CardContent>
           </Card>
         </div>
@@ -405,18 +520,24 @@ export default function ManagerDivisionProductionBudgetPage() {
           <CardHeader className="space-y-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <CardTitle>Daftar Budget Produksi Divisi</CardTitle>
-                <CardDescription>Kelola data budget produksi per divisi untuk kebutuhan operasional.</CardDescription>
+                <CardTitle>Kontrol Pagu Divisi</CardTitle>
+                <CardDescription>Set pagu divisi per periode, lalu monitor gap dari rollup budget blok.</CardDescription>
               </div>
               <Button onClick={openCreateForm} disabled={divisionOptions.length === 0 || divisionsLoading || isMutating}>
                 <Plus className="mr-2 h-4 w-4" />
-                Tambah Budget
+                Set Pagu Divisi
               </Button>
             </div>
 
             <div className="grid gap-3 md:grid-cols-3">
               <Input
-                placeholder="Cari divisi, estate, catatan..."
+                type="month"
+                value={selectedPeriod}
+                onChange={(event) => setSelectedPeriod(event.target.value)}
+              />
+
+              <Input
+                placeholder="Cari divisi atau estate..."
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
               />
@@ -434,47 +555,37 @@ export default function ManagerDivisionProductionBudgetPage() {
                   ))}
                 </SelectContent>
               </Select>
-
-              <Input
-                type="month"
-                value={periodFilter}
-                onChange={(event) => setPeriodFilter(event.target.value)}
-              />
             </div>
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {divisionsError && (
-              <p className="text-sm text-red-600">
-                Gagal memuat daftar divisi berdasarkan assignment estate manager.
-              </p>
-            )}
-
-            {budgetsError && (
-              <p className="text-sm text-red-600">
-                Gagal memuat data budget dari database. Coba refresh halaman.
-              </p>
-            )}
-
-            {!divisionsError && !divisionsLoading && divisionOptions.length === 0 && (
-              <p className="text-sm text-amber-600">
-                Data divisi tidak tersedia. Budget tidak bisa dibuat sebelum daftar divisi tersedia.
-              </p>
-            )}
+            {divisionsError && <p className="text-sm text-red-600">Gagal memuat daftar divisi manager.</p>}
+            {budgetsError && <p className="text-sm text-red-600">Gagal memuat data pagu divisi.</p>}
+            {blockBudgetsError && <p className="text-sm text-red-600">Gagal memuat rollup budget blok.</p>}
 
             {isFormOpen && (
               <Card className="border-dashed">
                 <CardHeader>
-                  <CardTitle>{editingId ? 'Edit Budget Produksi' : 'Tambah Budget Produksi'}</CardTitle>
-                  <CardDescription>Lengkapi data budget produksi per divisi.</CardDescription>
+                  <CardTitle>{editingId ? 'Edit Pagu Divisi' : 'Set Pagu Divisi'}</CardTitle>
+                  <CardDescription>
+                    Periode aktif: {formatPeriodLabel(selectedPeriod)}. Nilai ini menjadi batas kontrol budget dari detail blok.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
                       <Label>Pilih Divisi</Label>
-                      <Select value={formValues.divisionId} onValueChange={handleDivisionSelect}>
+                      <Select
+                        value={formValues.divisionId}
+                        onValueChange={(divisionId) =>
+                          setFormValues((current) => ({
+                            ...current,
+                            divisionId,
+                          }))
+                        }
+                      >
                         <SelectTrigger>
-                          <SelectValue placeholder="Pilih divisi dari data assignment" />
+                          <SelectValue placeholder="Pilih divisi" />
                         </SelectTrigger>
                         <SelectContent>
                           {divisionOptions.map((division) => (
@@ -486,19 +597,9 @@ export default function ManagerDivisionProductionBudgetPage() {
                       </Select>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label>Periode</Label>
-                        <Input
-                          type="month"
-                          value={formValues.period}
-                          onChange={(event) =>
-                            setFormValues((current) => ({ ...current, period: event.target.value }))
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Target Produksi (Ton)</Label>
+                        <Label>Pagu Target Produksi (Ton)</Label>
                         <Input
                           type="number"
                           min="0"
@@ -511,7 +612,7 @@ export default function ManagerDivisionProductionBudgetPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Budget Rencana (IDR)</Label>
+                        <Label>Pagu Budget Biaya (IDR)</Label>
                         <Input
                           type="number"
                           min="0"
@@ -527,36 +628,71 @@ export default function ManagerDivisionProductionBudgetPage() {
 
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label>Realisasi (IDR)</Label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="1"
-                          value={formValues.actualCost}
-                          onChange={(event) =>
-                            setFormValues((current) => ({ ...current, actualCost: event.target.value }))
+                        <Label>Workflow Pagu</Label>
+                        <Select
+                          value={formValues.workflowStatus}
+                          onValueChange={(value) =>
+                            setFormValues((current) => ({
+                              ...current,
+                              workflowStatus: value as ManagerBudgetWorkflowStatus,
+                              overrideApproved:
+                                value === 'APPROVED' ? current.overrideApproved : false,
+                            }))
                           }
-                          placeholder="0"
-                        />
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih status workflow" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="DRAFT">DRAFT</SelectItem>
+                            <SelectItem value="REVIEW">REVIEW</SelectItem>
+                            <SelectItem value="APPROVED">APPROVED</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Catatan</Label>
-                        <Textarea
-                          value={formValues.notes}
-                          onChange={(event) =>
-                            setFormValues((current) => ({ ...current, notes: event.target.value }))
+                      <div className="flex items-center gap-3 rounded-md border px-3 py-2">
+                        <Checkbox
+                          id="override-approved"
+                          checked={formValues.workflowStatus === 'APPROVED' ? formValues.overrideApproved : false}
+                          disabled={formValues.workflowStatus !== 'APPROVED'}
+                          onCheckedChange={(checked) =>
+                            setFormValues((current) => ({
+                              ...current,
+                              overrideApproved: checked === true,
+                            }))
                           }
-                          placeholder="Catatan tambahan budget..."
                         />
+                        <div className="space-y-1">
+                          <Label htmlFor="override-approved">Override over budget</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Aktifkan hanya jika rollup blok boleh melewati pagu divisi.
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="submit" disabled={isMutating}>
-                        {editingId ? 'Simpan Perubahan' : 'Simpan Budget'}
-                      </Button>
-                      <Button type="button" variant="outline" onClick={resetForm} disabled={isMutating}>
+                    <div className="space-y-2">
+                      <Label>Catatan Pagu</Label>
+                      <Textarea
+                        value={formValues.notes}
+                        onChange={(event) =>
+                          setFormValues((current) => ({ ...current, notes: event.target.value }))
+                        }
+                        placeholder="Catatan kontrol budget divisi"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={resetForm}
+                        disabled={isMutating}
+                      >
                         Batal
+                      </Button>
+                      <Button type="submit" disabled={isMutating}>
+                        {editingId ? 'Simpan Perubahan' : 'Simpan Pagu'}
                       </Button>
                     </div>
                   </form>
@@ -564,67 +700,90 @@ export default function ManagerDivisionProductionBudgetPage() {
               </Card>
             )}
 
-            <div className="rounded-md border">
+            <div className="rounded-lg border">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Divisi</TableHead>
                     <TableHead>Estate</TableHead>
-                    <TableHead>Periode</TableHead>
-                    <TableHead className="text-right">Target Ton</TableHead>
-                    <TableHead className="text-right">Rencana</TableHead>
-                    <TableHead className="text-right">Realisasi</TableHead>
-                    <TableHead className="text-right">Selisih</TableHead>
-                    <TableHead>Catatan</TableHead>
-                    <TableHead className="w-28">Aksi</TableHead>
+                    <TableHead className="text-right">Pagu Target</TableHead>
+                    <TableHead className="text-right">Pagu Biaya</TableHead>
+                    <TableHead className="text-right">Rollup Target</TableHead>
+                    <TableHead className="text-right">Rollup Rencana</TableHead>
+                    <TableHead className="text-right">Rollup Realisasi</TableHead>
+                    <TableHead className="text-right">Gap Rencana-Pagu</TableHead>
+                    <TableHead>Workflow</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[132px] text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredBudgets.length === 0 ? (
+                  {(budgetsLoading || blockBudgetsLoading) && (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center text-muted-foreground">
-                        {budgetsLoading
-                          ? 'Memuat data budget...'
-                          : 'Belum ada data budget. Klik "Tambah Budget" untuk mulai input.'}
+                      <TableCell colSpan={11} className="text-center text-sm text-muted-foreground">
+                        Memuat control tower budget...
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    filteredBudgets.map((item) => {
-                      const variance = item.actualCost - item.plannedCost;
+                  )}
 
+                  {!budgetsLoading && !blockBudgetsLoading && filteredRows.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={11} className="text-center text-sm text-muted-foreground">
+                        Tidak ada data untuk filter saat ini.
+                      </TableCell>
+                    </TableRow>
+                  )}
+
+                  {!budgetsLoading &&
+                    !blockBudgetsLoading &&
+                    filteredRows.map((row) => {
+                      const gapPlannedVsPagu = row.rollupPlannedCost - row.paguPlannedCost;
+                      const overBudget = row.hasPagu && gapPlannedVsPagu > 0;
+                      const blockedByLimit = overBudget && !isOverrideAllowed(row);
                       return (
-                        <TableRow key={item.id}>
-                          <TableCell className="font-medium">{item.divisionName}</TableCell>
-                          <TableCell>{item.estateName}</TableCell>
-                          <TableCell>{formatPeriodLabel(item.period)}</TableCell>
-                          <TableCell className="text-right">{item.targetTon.toLocaleString('id-ID')}</TableCell>
-                          <TableCell className="text-right">{currencyFormatter.format(item.plannedCost)}</TableCell>
-                          <TableCell className="text-right">{currencyFormatter.format(item.actualCost)}</TableCell>
+                        <TableRow key={`${row.divisionId}-${selectedPeriod}`}>
+                          <TableCell className="font-medium">{row.divisionName}</TableCell>
+                          <TableCell>{row.estateName}</TableCell>
+                          <TableCell className="text-right">{row.paguTargetTon.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{currencyFormatter.format(row.paguPlannedCost)}</TableCell>
+                          <TableCell className="text-right">{row.rollupTargetTon.toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{currencyFormatter.format(row.rollupPlannedCost)}</TableCell>
+                          <TableCell className="text-right">{currencyFormatter.format(row.rollupActualCost)}</TableCell>
                           <TableCell className="text-right">
-                            <Badge variant={variance > 0 ? 'destructive' : 'secondary'}>
-                              {currencyFormatter.format(variance)}
+                            <Badge variant={blockedByLimit ? 'destructive' : 'secondary'}>
+                              {currencyFormatter.format(gapPlannedVsPagu)}
                             </Badge>
                           </TableCell>
-                          <TableCell className="max-w-[260px] truncate">{item.notes || '-'}</TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1">
+                            <Badge variant={row.workflowStatus === 'APPROVED' ? 'secondary' : 'outline'}>
+                              {row.workflowStatus}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {!row.hasPagu && <Badge variant="outline">Pagu Belum Set</Badge>}
+                            {row.hasPagu && blockedByLimit && <Badge variant="destructive">Over Budget (Blocked)</Badge>}
+                            {row.hasPagu && overBudget && isOverrideAllowed(row) && (
+                              <Badge variant="outline">Over Budget (Override)</Badge>
+                            )}
+                            {row.hasPagu && !overBudget && <Badge variant="secondary">Dalam Batas</Badge>}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
                               <Button
                                 type="button"
-                                size="icon"
                                 variant="ghost"
-                                onClick={() => openEditForm(item)}
+                                size="icon"
                                 disabled={isMutating}
+                                onClick={() => openEditForm(row)}
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
                               <Button
                                 type="button"
-                                size="icon"
                                 variant="ghost"
-                                onClick={() => {
-                                  void handleDelete(item);
-                                }}
-                                disabled={isMutating}
+                                size="icon"
+                                disabled={isMutating || !row.budgetId}
+                                onClick={() => handleDeletePagu(row)}
                               >
                                 <Trash2 className="h-4 w-4 text-red-600" />
                               </Button>
@@ -632,8 +791,7 @@ export default function ManagerDivisionProductionBudgetPage() {
                           </TableCell>
                         </TableRow>
                       );
-                    })
-                  )}
+                    })}
                 </TableBody>
               </Table>
             </div>

@@ -16,12 +16,7 @@ import 'unified_secure_storage_service.dart';
 import 'photo_compression_service.dart';
 import 'enhanced_conflict_resolution_service.dart';
 
-enum _SyncAuthTierOutcome {
-  accessValid,
-  refreshed,
-  renewed,
-  reLoginRequired,
-}
+enum _SyncAuthTierOutcome { accessValid, refreshed, renewed, reLoginRequired }
 
 /// GraphQL-based Sync Service for Offline-First Gate Check Operations
 ///
@@ -71,12 +66,12 @@ class GraphQLSyncService {
     required core.ConnectivityService connectivity,
     PhotoCompressionService? photoService,
     EnhancedConflictResolutionService? conflictResolver,
-  })  : _db = database,
-        _graphqlClient = graphqlClient,
-        _connectivity = connectivity,
-        _photoService = photoService ?? PhotoCompressionService(),
-        _conflictResolver =
-            conflictResolver ?? EnhancedConflictResolutionService() {
+  }) : _db = database,
+       _graphqlClient = graphqlClient,
+       _connectivity = connectivity,
+       _photoService = photoService ?? PhotoCompressionService(),
+       _conflictResolver =
+           conflictResolver ?? EnhancedConflictResolutionService() {
     _initializeSyncService();
   }
 
@@ -93,23 +88,27 @@ class GraphQLSyncService {
 
       // Check queue size before inserting to prevent storage exhaustion
       final countResult = await db.rawQuery(
-          "SELECT COUNT(*) as count FROM sync_queue WHERE status IN ('PENDING', 'FAILED')");
+        "SELECT COUNT(*) as count FROM sync_queue WHERE status IN ('PENDING', 'FAILED')",
+      );
       final currentCount = countResult.first['count'] as int? ?? 0;
 
       if (currentCount >= _maxSyncQueueSize) {
         _logger.w(
-            'Sync queue at maximum capacity ($currentCount). Pruning old records...');
+          'Sync queue at maximum capacity ($currentCount). Pruning old records...',
+        );
         await _pruneSyncQueue();
 
         // Recheck after pruning
         final recheckResult = await db.rawQuery(
-            "SELECT COUNT(*) as count FROM sync_queue WHERE status IN ('PENDING', 'FAILED')");
+          "SELECT COUNT(*) as count FROM sync_queue WHERE status IN ('PENDING', 'FAILED')",
+        );
         final recheckCount = recheckResult.first['count'] as int? ?? 0;
 
         if (recheckCount >= _maxSyncQueueSize) {
           _logger.e('Sync queue still full after pruning ($recheckCount)');
           throw Exception(
-              'Sync queue full. Please sync data before adding more records.');
+            'Sync queue full. Please sync data before adding more records.',
+          );
         }
       }
 
@@ -149,6 +148,30 @@ class GraphQLSyncService {
 
   /// Get the last sync time
   Future<DateTime?> getLastSyncTime() async {
+    try {
+      final result = await _db.rawQuery('''
+        SELECT sync_completed_at
+        FROM sync_logs
+        WHERE status = 'COMPLETED'
+          AND sync_completed_at IS NOT NULL
+        ORDER BY sync_completed_at DESC
+        LIMIT 1
+      ''');
+
+      if (result.isNotEmpty) {
+        final rawValue = result.first['sync_completed_at'];
+        final timestamp = rawValue is int
+            ? rawValue
+            : int.tryParse(rawValue?.toString() ?? '');
+
+        if (timestamp != null && timestamp > 0) {
+          _lastSuccessfulSync = DateTime.fromMillisecondsSinceEpoch(timestamp);
+        }
+      }
+    } catch (e) {
+      _logger.w('Failed to load last sync timestamp from sync_logs', error: e);
+    }
+
     return _lastSuccessfulSync;
   }
 
@@ -172,15 +195,17 @@ class GraphQLSyncService {
         // Try to initialize GraphQL client if not already initialized
         if (!_graphqlClient.isInitialized) {
           _logger.i(
-              'Network online but GraphQL client not initialized, attempting initialization...');
+            'Network online but GraphQL client not initialized, attempting initialization...',
+          );
           try {
             await _graphqlClient.initialize(baseUrl: ApiConstants.baseUrl);
             _logger.i('GraphQL client initialized after connectivity restored');
             _setupRealTimeSubscriptions();
           } catch (e) {
             _logger.e(
-                'Failed to initialize GraphQL client after connectivity restored',
-                error: e);
+              'Failed to initialize GraphQL client after connectivity restored',
+              error: e,
+            );
             return;
           }
         }
@@ -232,7 +257,8 @@ class GraphQLSyncService {
         _graphqlClient.client;
       } catch (e) {
         _logger.w(
-            'GraphQL client not yet initialized, skipping real-time subscriptions setup');
+          'GraphQL client not yet initialized, skipping real-time subscriptions setup',
+        );
         // Schedule retry after a short delay
         Timer(const Duration(seconds: 5), () {
           if (_autoSyncEnabled && _connectivity.isOnline) {
@@ -243,34 +269,38 @@ class GraphQLSyncService {
       }
 
       // Subscribe to real-time vehicle entry updates
-      final vehicleEntrySubscription =
-          _graphqlClient.subscribe<Map<String, dynamic>>(
-        GateCheckQueries.guestLogUpdatesOptions(),
-      );
+      final vehicleEntrySubscription = _graphqlClient
+          .subscribe<Map<String, dynamic>>(
+            GateCheckQueries.guestLogUpdatesOptions(),
+          );
 
-      _subscriptions.add(vehicleEntrySubscription.listen(
-        (result) => _handleVehicleEntrySubscriptionUpdate(result),
-        onError: (error) {
-          _logger.e('Vehicle entry subscription error', error: error);
-          _reconnectSubscriptions();
-        },
-      ));
+      _subscriptions.add(
+        vehicleEntrySubscription.listen(
+          (result) => _handleVehicleEntrySubscriptionUpdate(result),
+          onError: (error) {
+            _logger.e('Vehicle entry subscription error', error: error);
+            _reconnectSubscriptions();
+          },
+        ),
+      );
 
       // Subscribe to device-scoped sync status updates
       final deviceId = await _getDeviceId();
       if (deviceId.isNotEmpty) {
-        final syncStatusSubscription =
-            _graphqlClient.subscribe<Map<String, dynamic>>(
-          SatpamQueries.satpamSyncUpdateOptions(deviceId: deviceId),
-        );
+        final syncStatusSubscription = _graphqlClient
+            .subscribe<Map<String, dynamic>>(
+              SatpamQueries.satpamSyncUpdateOptions(deviceId: deviceId),
+            );
 
-        _subscriptions.add(syncStatusSubscription.listen(
-          (result) => _handleSyncStatusSubscriptionUpdate(result),
-          onError: (error) {
-            _logger.e('Sync status subscription error', error: error);
-            _reconnectSubscriptions();
-          },
-        ));
+        _subscriptions.add(
+          syncStatusSubscription.listen(
+            (result) => _handleSyncStatusSubscriptionUpdate(result),
+            onError: (error) {
+              _logger.e('Sync status subscription error', error: error);
+              _reconnectSubscriptions();
+            },
+          ),
+        );
       }
 
       _logger.d('Real-time satpam GraphQL subscriptions established');
@@ -290,10 +320,7 @@ class GraphQLSyncService {
       final guestLogId = record['id'] as String?;
       if (guestLogId == null || guestLogId.isEmpty) return;
 
-      await _handleGuestLogUpdated({
-        'guestLogId': guestLogId,
-        ...record,
-      });
+      await _handleGuestLogUpdated({'guestLogId': guestLogId, ...record});
     } catch (e) {
       _logger.e('Error handling vehicle entry subscription update', error: e);
     }
@@ -506,7 +533,8 @@ class GraphQLSyncService {
         return _SyncAuthTierOutcome.accessValid;
       }
       _logger.i(
-          '_ensureAuth: access token expired/near expiry, trying refresh tiers...');
+        '_ensureAuth: access token expired/near expiry, trying refresh tiers...',
+      );
     }
 
     final authGql = GraphQLAuthService(_graphqlClient.client);
@@ -563,7 +591,8 @@ class GraphQLSyncService {
     // Check connectivity - do an active check for USB debugging scenarios
     if (!_connectivity.isOnline) {
       _logger.w(
-          'Connectivity reports offline, attempting active connection check...');
+        'Connectivity reports offline, attempting active connection check...',
+      );
       final hasConnection = await _connectivity.checkConnection();
       if (!hasConnection) {
         return GraphQLSyncResult.error('No internet connection');
@@ -580,7 +609,8 @@ class GraphQLSyncService {
       } catch (e) {
         _logger.e('Failed to initialize GraphQL client during sync', error: e);
         return GraphQLSyncResult.error(
-            'GraphQL client initialization failed. Please restart the app.');
+          'GraphQL client initialization failed. Please restart the app.',
+        );
       }
     }
 
@@ -588,15 +618,17 @@ class GraphQLSyncService {
     if (!_graphqlClient.isInitialized) {
       _logger.w('GraphQL client still not initialized after attempt');
       return GraphQLSyncResult.error(
-          'GraphQL client not initialized. Please restart the app.');
+        'GraphQL client not initialized. Please restart the app.',
+      );
     }
 
     return await _performFullSync(forceFullSync: forceFullSync);
   }
 
   /// Perform full synchronization
-  Future<GraphQLSyncResult> _performFullSync(
-      {bool forceFullSync = false}) async {
+  Future<GraphQLSyncResult> _performFullSync({
+    bool forceFullSync = false,
+  }) async {
     _isSyncing = true;
     _lastSyncAttempt = DateTime.now();
 
@@ -612,17 +644,21 @@ class GraphQLSyncService {
       final authOutcome = await _ensureAuthWithTier();
       if (authOutcome == _SyncAuthTierOutcome.reLoginRequired) {
         _logger.w(
-            'All auth tiers failed — user must re-login before sync can proceed.');
+          'All auth tiers failed — user must re-login before sync can proceed.',
+        );
         _isSyncing = false;
         return GraphQLSyncResult.error(
-            'Sesi berakhir. Silahkan login ulang untuk melanjutkan sinkronisasi.');
+          'Sesi berakhir. Silahkan login ulang untuk melanjutkan sinkronisasi.',
+        );
       }
 
-      _notifyProgress(SyncProgress(
-        phase: GraphQLSyncPhase.starting,
-        message: 'Starting GraphQL synchronization...',
-        progress: 0.0,
-      ));
+      _notifyProgress(
+        SyncProgress(
+          phase: GraphQLSyncPhase.starting,
+          message: 'Starting GraphQL synchronization...',
+          progress: 0.0,
+        ),
+      );
 
       final result = GraphQLSyncResult.success();
 
@@ -656,19 +692,18 @@ class GraphQLSyncService {
         await _updateSyncTimestamp(result.success);
       }
 
-      _notifyProgress(SyncProgress(
-        phase: GraphQLSyncPhase.completed,
-        message: result.message,
-        progress: 1.0,
-        result: result,
-      ));
+      _notifyProgress(
+        SyncProgress(
+          phase: GraphQLSyncPhase.completed,
+          message: result.message,
+          progress: 1.0,
+          result: result,
+        ),
+      );
 
       if (!result.success) {
         await _scheduleRetryForFailure(
-          messages: [
-            result.message,
-            ...result.errors,
-          ],
+          messages: [result.message, ...result.errors],
         );
       }
 
@@ -682,12 +717,14 @@ class GraphQLSyncService {
       );
       final errorResult = GraphQLSyncResult.error(errorMessage);
 
-      _notifyProgress(SyncProgress(
-        phase: GraphQLSyncPhase.error,
-        message: errorResult.message,
-        progress: 0.0,
-        result: errorResult,
-      ));
+      _notifyProgress(
+        SyncProgress(
+          phase: GraphQLSyncPhase.error,
+          message: errorResult.message,
+          progress: 0.0,
+          result: errorResult,
+        ),
+      );
 
       await _scheduleRetryForFailure(
         sourceError: e,
@@ -709,8 +746,9 @@ class GraphQLSyncService {
       final userRole = user?.role.toUpperCase() ?? '';
 
       if (userRole != 'SATPAM') {
-        _logger
-            .d('Skipping guest log sync - not available for role: $userRole');
+        _logger.d(
+          'Skipping guest log sync - not available for role: $userRole',
+        );
         return GraphQLSyncResult(
           success: true,
           message: 'Guest log sync skipped (not applicable for $userRole role)',
@@ -719,11 +757,13 @@ class GraphQLSyncService {
         );
       }
 
-      _notifyProgress(SyncProgress(
-        phase: GraphQLSyncPhase.syncingGuestLogs,
-        message: 'Syncing guest logs to server...',
-        progress: 0.1,
-      ));
+      _notifyProgress(
+        SyncProgress(
+          phase: GraphQLSyncPhase.syncingGuestLogs,
+          message: 'Syncing guest logs to server...',
+          progress: 0.1,
+        ),
+      );
 
       final pendingLogs = await _db.query(
         'gate_guest_logs',
@@ -753,7 +793,8 @@ class GraphQLSyncService {
         final localId = logData['guest_id']?.toString();
         if (localId == null || localId.isEmpty) {
           _logger.e(
-              'Found guest log without guest_id in pending queue. Skipping to avoid sync status mismatch. Record: $logData');
+            'Found guest log without guest_id in pending queue. Skipping to avoid sync status mismatch. Record: $logData',
+          );
           continue;
         }
 
@@ -809,8 +850,9 @@ class GraphQLSyncService {
         guestLogRecords.add({
           'id': localId,
           'serverId': logData['server_record_id'],
-          'operation':
-              logData['server_record_id'] != null ? 'UPDATE' : 'CREATE',
+          'operation': logData['server_record_id'] != null
+              ? 'UPDATE'
+              : 'CREATE',
           'data': {
             'localId': logData['guest_id']?.toString() ?? localId,
             'driverName': logData['driver_name']?.toString() ?? 'Unknown',
@@ -823,11 +865,12 @@ class GraphQLSyncService {
             'cargoOwner': logData['cargo_owner']?.toString(),
             'estimatedWeight': logData['estimated_weight'] != null
                 ? (logData['estimated_weight'] is num
-                    ? logData['estimated_weight'].toDouble()
-                    : double.tryParse(logData['estimated_weight'].toString()))
+                      ? logData['estimated_weight'].toDouble()
+                      : double.tryParse(logData['estimated_weight'].toString()))
                 : null,
             'deliveryOrderNumber': logData['delivery_order_number']?.toString(),
-            'gatePosition': logData['gate_position']?.toString() ??
+            'gatePosition':
+                logData['gate_position']?.toString() ??
                 logData['entry_gate']?.toString() ??
                 logData['exit_gate']?.toString(),
             'notes': logData['notes']?.toString(),
@@ -839,14 +882,14 @@ class GraphQLSyncService {
             ),
             // Time and gate fields
             'entryTime': entryTimeMs != null
-                ? DateTime.fromMillisecondsSinceEpoch(entryTimeMs)
-                    .toUtc()
-                    .toIso8601String()
+                ? DateTime.fromMillisecondsSinceEpoch(
+                    entryTimeMs,
+                  ).toUtc().toIso8601String()
                 : null,
             'exitTime': exitTimeMs != null
-                ? DateTime.fromMillisecondsSinceEpoch(exitTimeMs)
-                    .toUtc()
-                    .toIso8601String()
+                ? DateTime.fromMillisecondsSinceEpoch(
+                    exitTimeMs,
+                  ).toUtc().toIso8601String()
                 : null,
             'entryGate': logData['entry_gate']?.toString(),
             'exitGate': logData['exit_gate']?.toString(),
@@ -916,7 +959,8 @@ class GraphQLSyncService {
           if (rowsUpdated > 0) {
             processedCount++;
             _logger.d(
-                'Guest log synced and updated locally: $localId -> $serverId');
+              'Guest log synced and updated locally: $localId -> $serverId',
+            );
 
             // Update sync_queue to clear the "Pending" count on dashboard
             try {
@@ -931,14 +975,18 @@ class GraphQLSyncService {
                 whereArgs: ['gate_guest_logs', localId, 'PENDING'],
               );
               _logger.d(
-                  'Updated sync_queue for guest log $localId: $queueUpdated items completed');
+                'Updated sync_queue for guest log $localId: $queueUpdated items completed',
+              );
             } catch (queueError) {
-              _logger.w('Failed to update sync_queue for $localId',
-                  error: queueError);
+              _logger.w(
+                'Failed to update sync_queue for $localId',
+                error: queueError,
+              );
             }
           } else {
             _logger.w(
-                'Guest log synced to server but failed to update local status. GuestID: $localId (Rows updated: 0)');
+              'Guest log synced to server but failed to update local status. GuestID: $localId (Rows updated: 0)',
+            );
             // This logic path confirms the user's issue: Server OK, but Local DB not updated.
             // Usually implies guest_id mismatch or record deleted.
           }
@@ -972,11 +1020,13 @@ class GraphQLSyncService {
   /// Sync employee logs using GraphQL mutations
   Future<GraphQLSyncResult> _syncEmployeeLogs() async {
     try {
-      _notifyProgress(SyncProgress(
-        phase: GraphQLSyncPhase.syncingAccessLogs,
-        message: 'Syncing employee logs to server...',
-        progress: 0.2,
-      ));
+      _notifyProgress(
+        SyncProgress(
+          phase: GraphQLSyncPhase.syncingAccessLogs,
+          message: 'Syncing employee logs to server...',
+          progress: 0.2,
+        ),
+      );
 
       // Query pending employee logs from local database
       final pendingLogs = await _db.query(
@@ -1017,8 +1067,8 @@ class GraphQLSyncService {
           'gatePosition': logData['gate_id'], // Mapped from gate_id
           'scannedAt': (logData['entry_time'] ?? logData['created_at'])
               ?.toString(), // Mapped from entry_time
-          'qrTimestamp':
-              logData['created_at']?.toString(), // Mapped from created_at
+          'qrTimestamp': logData['created_at']
+              ?.toString(), // Mapped from created_at
           // Scan info
           'scannedById': logData['created_by'], // Mapped from created_by
           'deviceId': logData['device_id'],
@@ -1072,10 +1122,12 @@ class GraphQLSyncService {
 
             processedCount++;
             _logger.d(
-                'Employee log synced: ${logData['local_id'] ?? logData['log_id']}');
+              'Employee log synced: ${logData['local_id'] ?? logData['log_id']}',
+            );
           } else {
             throw Exception(
-                'Server rejected employee log sync: ${syncData?['message']}');
+              'Server rejected employee log sync: ${syncData?['message']}',
+            );
           }
         } catch (e) {
           final logId = logData['local_id'] ?? logData['log_id'];
@@ -1171,8 +1223,10 @@ class GraphQLSyncService {
     return 'Token kadaluarsa';
   }
 
-  Future<String> _resolveSyncErrorMessage(Object error,
-      {String? fallback}) async {
+  Future<String> _resolveSyncErrorMessage(
+    Object error, {
+    String? fallback,
+  }) async {
     if (error is OperationException) {
       final authMessage = await _resolveAuthErrorMessage(error);
       if (authMessage != null) {
@@ -1186,11 +1240,13 @@ class GraphQLSyncService {
   /// Sync QR tokens using GraphQL mutations
   Future<GraphQLSyncResult> _syncQRTokens() async {
     try {
-      _notifyProgress(SyncProgress(
-        phase: GraphQLSyncPhase.syncingQRTokens,
-        message: 'Syncing QR tokens...',
-        progress: 0.3,
-      ));
+      _notifyProgress(
+        SyncProgress(
+          phase: GraphQLSyncPhase.syncingQRTokens,
+          message: 'Syncing QR tokens...',
+          progress: 0.3,
+        ),
+      );
 
       final pendingTokens = await _db.query(
         'gate_qr_tokens',
@@ -1229,8 +1285,8 @@ class GraphQLSyncService {
                 'qr_tokens',
                 {
                   'sync_status': 'SYNCED',
-                  'server_validation_id': validationData['tokenData']
-                      ?['tokenId'],
+                  'server_validation_id':
+                      validationData['tokenData']?['tokenId'],
                   'synced_at': DateTime.now().millisecondsSinceEpoch,
                 },
                 where: 'id = ?',
@@ -1272,30 +1328,38 @@ class GraphQLSyncService {
   /// Sync photos using GraphQL mutations with compression
   Future<GraphQLSyncResult> _syncPhotos() async {
     try {
-      _notifyProgress(SyncProgress(
-        phase: GraphQLSyncPhase.syncingPhotos,
-        message: 'Compressing and uploading photos...',
-        progress: 0.6,
-      ));
+      _notifyProgress(
+        SyncProgress(
+          phase: GraphQLSyncPhase.syncingPhotos,
+          message: 'Compressing and uploading photos...',
+          progress: 0.6,
+        ),
+      );
 
-      final pendingPhotos = await _db.rawQuery('''
+      final pendingPhotos = await _db.rawQuery(
+        '''
         SELECT p.* FROM gate_check_photos p
         LEFT JOIN gate_guest_logs l ON p.related_record_id = l.guest_id
         WHERE p.sync_status IN ('PENDING', 'FAILED')
         AND (p.related_record_type != 'GUEST_LOG' OR l.sync_status = 'SYNCED')
         ORDER BY p.taken_at ASC
         LIMIT ?
-      ''', [_photoBatchSize]);
+      ''',
+        [_photoBatchSize],
+      );
 
       // --- DEBUG START ---
       try {
-        final allPhotosCount = await _db
-            .rawQuery('SELECT COUNT(*) as count FROM gate_check_photos');
+        final allPhotosCount = await _db.rawQuery(
+          'SELECT COUNT(*) as count FROM gate_check_photos',
+        );
         _logger.i(
-            '📸 DEBUG: Total photos in DB: ${allPhotosCount.first['count']}');
+          '📸 DEBUG: Total photos in DB: ${allPhotosCount.first['count']}',
+        );
 
         final statusCounts = await _db.rawQuery(
-            'SELECT sync_status, COUNT(*) as count FROM gate_check_photos GROUP BY sync_status');
+          'SELECT sync_status, COUNT(*) as count FROM gate_check_photos GROUP BY sync_status',
+        );
         _logger.i('📸 DEBUG: Photo status breakdown: $statusCounts');
 
         final blockedPhotos = await _db.rawQuery('''
@@ -1309,7 +1373,8 @@ class GraphQLSyncService {
         ''');
         if (blockedPhotos.isNotEmpty) {
           _logger.w(
-              '📸 DEBUG: Sample blocked photos (Parent not synced): $blockedPhotos');
+            '📸 DEBUG: Sample blocked photos (Parent not synced): $blockedPhotos',
+          );
         }
       } catch (e) {
         _logger.e('📸 DEBUG ERROR: $e');
@@ -1317,7 +1382,8 @@ class GraphQLSyncService {
       // --- DEBUG END ---
 
       _logger.i(
-          '📸 Syncing photos: Found ${pendingPhotos.length} pending photos eligible for sync');
+        '📸 Syncing photos: Found ${pendingPhotos.length} pending photos eligible for sync',
+      );
 
       if (pendingPhotos.isEmpty) {
         return GraphQLSyncResult(
@@ -1338,7 +1404,8 @@ class GraphQLSyncService {
         final guestLogId = photo['related_record_id']?.toString() ?? '';
         if (guestLogId.isEmpty) {
           _logger.w(
-              '⚠️ Photo ${photo['photo_id']} skipped: Missing related_record_id');
+            '⚠️ Photo ${photo['photo_id']} skipped: Missing related_record_id',
+          );
           continue;
         }
 
@@ -1357,7 +1424,8 @@ class GraphQLSyncService {
           final photos = entry.value;
 
           _logger.i(
-              '📸 Processing batch for GuestLog: $guestLogId (${photos.length} photos)');
+            '📸 Processing batch for GuestLog: $guestLogId (${photos.length} photos)',
+          );
 
           // Map to SatpamPhotoSyncRecord for backend
           final syncPhotosInput = <Map<String, dynamic>>[];
@@ -1374,18 +1442,18 @@ class GraphQLSyncService {
                 'localId': photo['photo_id'],
                 'photoId': photo['photo_id'],
                 'guestLogId': guestLogId,
-                'photoType':
-                    _mapPhotoType(photo['photo_type']?.toString() ?? ''),
+                'photoType': _mapPhotoType(
+                  photo['photo_type']?.toString() ?? '',
+                ),
                 'localPath': photo['file_path'],
                 'fileName': photo['file_name'],
                 'fileSize': photo['file_size'],
                 'fileHash': '', // Optional hash
                 'photoData': compressedData['base64Data'],
                 'takenAt': DateTime.fromMillisecondsSinceEpoch(
-                        photo['taken_at'] as int? ??
-                            DateTime.now().millisecondsSinceEpoch)
-                    .toUtc()
-                    .toIso8601String(),
+                  photo['taken_at'] as int? ??
+                      DateTime.now().millisecondsSinceEpoch,
+                ).toUtc().toIso8601String(),
               });
             } catch (e) {
               _logger.e('❌ Error compressing photo ${photo['photo_id']}: $e');
@@ -1396,7 +1464,7 @@ class GraphQLSyncService {
                 'gate_check_photos',
                 {
                   'sync_status': 'FAILED',
-                  'sync_error': 'Compression failed: $e'
+                  'sync_error': 'Compression failed: $e',
                 },
                 where: 'photo_id = ?',
                 whereArgs: [photo['photo_id']],
@@ -1406,7 +1474,8 @@ class GraphQLSyncService {
 
           if (syncPhotosInput.isEmpty) {
             _logger.w(
-                '⚠️ Batch for $guestLogId skipped: No valid photos after compression');
+              '⚠️ Batch for $guestLogId skipped: No valid photos after compression',
+            );
             continue;
           }
 
@@ -1417,8 +1486,9 @@ class GraphQLSyncService {
             batchId: batchId,
           );
 
-          _logger
-              .d('📡 Sending Mutation SyncSatpamPhotos for batch $batchId...');
+          _logger.d(
+            '📡 Sending Mutation SyncSatpamPhotos for batch $batchId...',
+          );
           final result = await _graphqlClient.mutate(mutationOptions);
 
           if (result.hasException) {
@@ -1439,7 +1509,7 @@ class GraphQLSyncService {
             final failedUploads = syncResult['failedUploads'] as int? ?? 0;
             final serverErrors =
                 (syncResult['errors'] as List?)?.cast<Map<String, dynamic>>() ??
-                    [];
+                [];
 
             // 1. Mark FAILED photos
             for (final error in serverErrors) {
@@ -1450,7 +1520,7 @@ class GraphQLSyncService {
                   'gate_check_photos',
                   {
                     'sync_status': 'FAILED',
-                    'sync_error': error['error'] ?? 'Unknown server error'
+                    'sync_error': error['error'] ?? 'Unknown server error',
                   },
                   where: 'photo_id = ?',
                   whereArgs: [targetId],
@@ -1474,7 +1544,7 @@ class GraphQLSyncService {
                     {
                       'sync_status': 'SYNCED',
                       'synced_at': DateTime.now().millisecondsSinceEpoch,
-                      'sync_error': null // Clear any previous error
+                      'sync_error': null, // Clear any previous error
                     },
                     where: 'photo_id = ?',
                     whereArgs: [photo['photo_id']],
@@ -1486,7 +1556,8 @@ class GraphQLSyncService {
 
             if (failedUploads > 0) {
               errors.add(
-                  'Batch $guestLogId finished with $failedUploads failures');
+                'Batch $guestLogId finished with $failedUploads failures',
+              );
             }
           }
         } catch (e) {
@@ -1524,11 +1595,13 @@ class GraphQLSyncService {
   /// Resolve sync conflicts using conflict resolution service
   Future<GraphQLSyncResult> _resolveConflicts() async {
     try {
-      _notifyProgress(SyncProgress(
-        phase: GraphQLSyncPhase.resolvingConflicts,
-        message: 'Resolving data conflicts...',
-        progress: 0.8,
-      ));
+      _notifyProgress(
+        SyncProgress(
+          phase: GraphQLSyncPhase.resolvingConflicts,
+          message: 'Resolving data conflicts...',
+          progress: 0.8,
+        ),
+      );
 
       final conflicts = await _conflictResolver.getPendingConflicts();
       int resolvedCount = 0;
@@ -1537,7 +1610,8 @@ class GraphQLSyncService {
       for (final conflict in conflicts) {
         try {
           final resolution = await _conflictResolver.autoResolveConflict(
-              conflictId: conflict.conflictId);
+            conflictId: conflict.conflictId,
+          );
 
           if (resolution.success) {
             // Apply resolution via GraphQL mutation
@@ -1574,11 +1648,13 @@ class GraphQLSyncService {
   /// Pull updates from server
   Future<GraphQLSyncResult> _pullServerUpdates() async {
     try {
-      _notifyProgress(SyncProgress(
-        phase: GraphQLSyncPhase.pullingUpdates,
-        message: 'Pulling server updates...',
-        progress: 0.9,
-      ));
+      _notifyProgress(
+        SyncProgress(
+          phase: GraphQLSyncPhase.pullingUpdates,
+          message: 'Pulling server updates...',
+          progress: 0.9,
+        ),
+      );
 
       // Pull QR tokens
       await _pullQRTokens();
@@ -1620,7 +1696,8 @@ class GraphQLSyncService {
           if (error.message.contains('authentication required') ||
               error.message.contains('no user context')) {
             _logger.w(
-                'Authentication error pulling QR tokens: ${error.message}. Skipping QR token sync.');
+              'Authentication error pulling QR tokens: ${error.message}. Skipping QR token sync.',
+            );
             return; // Skip gracefully, don't throw
           }
         }
@@ -1645,16 +1722,19 @@ class GraphQLSyncService {
               'max_usage': tokenData['maxUsage'],
               'status': tokenData['status'],
               'expires_at': tokenData['expiresAt'] != null
-                  ? DateTime.parse(tokenData['expiresAt'])
-                      .millisecondsSinceEpoch
+                  ? DateTime.parse(
+                      tokenData['expiresAt'],
+                    ).millisecondsSinceEpoch
                   : null,
               'generated_at': tokenData['generatedAt'] != null
-                  ? DateTime.parse(tokenData['generatedAt'])
-                      .millisecondsSinceEpoch
+                  ? DateTime.parse(
+                      tokenData['generatedAt'],
+                    ).millisecondsSinceEpoch
                   : null,
               'last_used_at': tokenData['lastUsedAt'] != null
-                  ? DateTime.parse(tokenData['lastUsedAt'])
-                      .millisecondsSinceEpoch
+                  ? DateTime.parse(
+                      tokenData['lastUsedAt'],
+                    ).millisecondsSinceEpoch
                   : null,
               // Guest info from nested guestLog
               'driver_name': guestLog?['driverName'] ?? guestLog?['guestName'],
@@ -1664,8 +1744,9 @@ class GraphQLSyncService {
               'guest_log_status': guestLog?['status'],
               // Timestamps
               'created_at': tokenData['createdAt'] != null
-                  ? DateTime.parse(tokenData['createdAt'])
-                      .millisecondsSinceEpoch
+                  ? DateTime.parse(
+                      tokenData['createdAt'],
+                    ).millisecondsSinceEpoch
                   : DateTime.now().millisecondsSinceEpoch,
               'updated_at': DateTime.now().millisecondsSinceEpoch,
             });
@@ -1688,21 +1769,26 @@ class GraphQLSyncService {
       final userRole = user?.role.toUpperCase() ?? '';
 
       if (userRole != 'SATPAM') {
-        _logger
-            .d('Skipping guest log pull - not available for role: $userRole');
+        _logger.d(
+          'Skipping guest log pull - not available for role: $userRole',
+        );
         return;
       }
 
       final deviceId = await _getDeviceId();
 
       // Get last sync time
-      final lastSync = await _db.query('sync_logs',
-          orderBy: 'sync_completed_at DESC', limit: 1);
+      final lastSync = await _db.query(
+        'sync_logs',
+        orderBy: 'sync_completed_at DESC',
+        limit: 1,
+      );
 
       DateTime since;
       if (lastSync.isNotEmpty && lastSync.first['sync_completed_at'] != null) {
         since = DateTime.fromMillisecondsSinceEpoch(
-            lastSync.first['sync_completed_at'] as int);
+          lastSync.first['sync_completed_at'] as int,
+        );
       } else {
         // Default to 7 days ago if no sync history
         since = DateTime.now().subtract(const Duration(days: 7));
@@ -1723,7 +1809,8 @@ class GraphQLSyncService {
               error.message.contains('no user context') ||
               error.message.contains('tidak terautentikasi')) {
             _logger.w(
-                'Authentication error pulling guest logs: ${error.message}. Skipping.');
+              'Authentication error pulling guest logs: ${error.message}. Skipping.',
+            );
             return;
           }
         }
@@ -1755,7 +1842,8 @@ class GraphQLSyncService {
 
               final guestLogData = {
                 'server_record_id': serverId,
-                'gate_position': logData['gatePosition'] ??
+                'gate_position':
+                    logData['gatePosition'] ??
                     'OUTSIDE', // Use server value or default
                 'guest_id': logData['guestId'] ?? serverId,
                 'driver_name': logData['driverName'] ?? logData['guestName'],
@@ -1781,7 +1869,7 @@ class GraphQLSyncService {
                 'delivery_order_number': logData['deliveryOrderNumber'],
                 'load_type': logData['loadType'],
                 'created_by': logData['createdBy'] ?? 'SERVER',
-                'generation_intent': logData['generationIntent']
+                'generation_intent': logData['generationIntent'],
               };
 
               if (existingRecords.isNotEmpty) {
@@ -1859,7 +1947,8 @@ class GraphQLSyncService {
       // we cannot satisfy the database constraints (user_role CHECK, company_id NOT NULL).
       if (user == null || user.companyId == null) {
         _logger.w(
-            'Skipping sync log: Missing user or company info (User: ${user?.username})');
+          'Skipping sync log: Missing user or company info (User: ${user?.username})',
+        );
         return;
       }
 
@@ -1872,16 +1961,20 @@ class GraphQLSyncService {
 
       // Check if referenced user and company exist to avoid FK violation
       // This is common during initial sync when master data hasn't been pulled yet
-      final userExists = await _db
-          .rawQuery('SELECT 1 FROM users WHERE user_id = ? LIMIT 1', [user.id]);
+      final userExists = await _db.rawQuery(
+        'SELECT 1 FROM users WHERE user_id = ? LIMIT 1',
+        [user.id],
+      );
 
       final companyExists = await _db.rawQuery(
-          'SELECT 1 FROM companies WHERE company_id = ? LIMIT 1',
-          [user.companyId]);
+        'SELECT 1 FROM companies WHERE company_id = ? LIMIT 1',
+        [user.companyId],
+      );
 
       if (userExists.isEmpty || companyExists.isEmpty) {
         _logger.w(
-            'Skipping sync log: Referenced user (${userExists.isNotEmpty}) or company (${companyExists.isNotEmpty}) not found locally');
+          'Skipping sync log: Referenced user (${userExists.isNotEmpty}) or company (${companyExists.isNotEmpty}) not found locally',
+        );
         return;
       }
 
@@ -1892,7 +1985,8 @@ class GraphQLSyncService {
         'user_role': user.role,
         'company_id': user.companyId!,
         'operation_type': 'GRAPHQL_FULL_SYNC',
-        'sync_started_at': _lastSyncAttempt?.millisecondsSinceEpoch ??
+        'sync_started_at':
+            _lastSyncAttempt?.millisecondsSinceEpoch ??
             DateTime.now().millisecondsSinceEpoch,
         'sync_completed_at': DateTime.now().millisecondsSinceEpoch,
         'status': success ? 'COMPLETED' : 'FAILED',
@@ -1952,8 +2046,9 @@ class GraphQLSyncService {
     ].where((text) => text.trim().isNotEmpty).join(' | ');
 
     if (_isTerminalSessionFailure(combinedText)) {
-      _logger
-          .w('Sync retry skipped: session is terminal, user must login again.');
+      _logger.w(
+        'Sync retry skipped: session is terminal, user must login again.',
+      );
       return;
     }
 
@@ -1961,7 +2056,8 @@ class GraphQLSyncService {
       final authOutcome = await _ensureAuthWithTier();
       if (authOutcome == _SyncAuthTierOutcome.reLoginRequired) {
         _logger.w(
-            'Sync retry skipped: auth tiers exhausted, user must login again.');
+          'Sync retry skipped: auth tiers exhausted, user must login again.',
+        );
         return;
       }
       if (authOutcome == _SyncAuthTierOutcome.refreshed) {
@@ -1984,14 +2080,12 @@ class GraphQLSyncService {
   }
 
   /// Schedule retry sync after failure
-  void _scheduleRetrySync({
-    Duration? delay,
-    String reason = 'sync_failure',
-  }) {
+  void _scheduleRetrySync({Duration? delay, String reason = 'sync_failure'}) {
     final effectiveDelay = delay ?? _retryDelay;
     _retrySyncTimer?.cancel();
     _logger.d(
-        'Scheduling retry sync in ${effectiveDelay.inSeconds}s (reason: $reason)');
+      'Scheduling retry sync in ${effectiveDelay.inSeconds}s (reason: $reason)',
+    );
     _retrySyncTimer = Timer(effectiveDelay, () {
       if (_autoSyncEnabled && _connectivity.isOnline && !_isSyncing) {
         _performFullSync();
@@ -2040,19 +2134,28 @@ class GraphQLSyncService {
   /// Get pending sync count
   Future<int> getPendingSyncCount() async {
     try {
-      final result = await _db.rawQuery('''
-        SELECT COUNT(*) as count FROM (
-          SELECT 1 FROM gate_guest_logs WHERE sync_status IN ('PENDING', 'FAILED')
-          UNION ALL
-          SELECT 1 FROM gate_employee_logs WHERE sync_status IN ('PENDING', 'FAILED')
-          UNION ALL
-          SELECT 1 FROM gate_check_photos WHERE sync_status IN ('PENDING', 'FAILED')
-        )
-      ''');
-
-      return result.first['count'] as int;
+      final guestPending = await _countUnsyncedRows('gate_guest_logs');
+      final employeePending = await _countUnsyncedRows('gate_employee_logs');
+      final photoPending = await _countUnsyncedRows('gate_check_photos');
+      return guestPending + employeePending + photoPending;
     } catch (e) {
       _logger.e('Error getting pending sync count', error: e);
+      return 0;
+    }
+  }
+
+  Future<int> _countUnsyncedRows(String tableName) async {
+    try {
+      final result = await _db.rawQuery(
+        "SELECT COUNT(*) as count FROM $tableName WHERE sync_status IN ('PENDING', 'FAILED')",
+      );
+
+      if (result.isEmpty) return 0;
+      final rawValue = result.first['count'];
+      if (rawValue is int) return rawValue;
+      return int.tryParse(rawValue?.toString() ?? '') ?? 0;
+    } catch (e) {
+      _logger.d('Skipping unsynced count for $tableName: $e');
       return 0;
     }
   }
@@ -2060,12 +2163,24 @@ class GraphQLSyncService {
   /// Reset failed records for retry
   Future<void> resetFailedRecords() async {
     try {
-      await _db.update('gate_guest_logs', {'sync_status': 'PENDING'},
-          where: 'sync_status = ?', whereArgs: ['FAILED']);
-      await _db.update('gate_employee_logs', {'sync_status': 'PENDING'},
-          where: 'sync_status = ?', whereArgs: ['FAILED']);
-      await _db.update('gate_check_photos', {'sync_status': 'PENDING'},
-          where: 'sync_status = ?', whereArgs: ['FAILED']);
+      await _db.update(
+        'gate_guest_logs',
+        {'sync_status': 'PENDING'},
+        where: 'sync_status = ?',
+        whereArgs: ['FAILED'],
+      );
+      await _db.update(
+        'gate_employee_logs',
+        {'sync_status': 'PENDING'},
+        where: 'sync_status = ?',
+        whereArgs: ['FAILED'],
+      );
+      await _db.update(
+        'gate_check_photos',
+        {'sync_status': 'PENDING'},
+        where: 'sync_status = ?',
+        whereArgs: ['FAILED'],
+      );
 
       _logger.i('Failed records reset for retry');
     } catch (e) {
@@ -2098,7 +2213,8 @@ class GraphQLSyncService {
       _logger.d('Pruned $deletedFailed old failed records');
 
       _logger.i(
-          'Sync queue pruned: ${deletedSynced + deletedFailed} records removed');
+        'Sync queue pruned: ${deletedSynced + deletedFailed} records removed',
+      );
     } catch (e) {
       _logger.e('Error pruning sync queue', error: e);
     }
@@ -2111,15 +2227,18 @@ class GraphQLSyncService {
       final stats = <String, int>{};
 
       final pending = await db.rawQuery(
-          "SELECT COUNT(*) as count FROM sync_queue WHERE status = 'PENDING'");
+        "SELECT COUNT(*) as count FROM sync_queue WHERE status = 'PENDING'",
+      );
       stats['pending'] = pending.first['count'] as int? ?? 0;
 
       final failed = await db.rawQuery(
-          "SELECT COUNT(*) as count FROM sync_queue WHERE status = 'FAILED'");
+        "SELECT COUNT(*) as count FROM sync_queue WHERE status = 'FAILED'",
+      );
       stats['failed'] = failed.first['count'] as int? ?? 0;
 
       final synced = await db.rawQuery(
-          "SELECT COUNT(*) as count FROM sync_queue WHERE status = 'SYNCED'");
+        "SELECT COUNT(*) as count FROM sync_queue WHERE status = 'SYNCED'",
+      );
       stats['synced'] = synced.first['count'] as int? ?? 0;
 
       stats['total'] = stats['pending']! + stats['failed']! + stats['synced']!;
@@ -2177,20 +2296,20 @@ class GraphQLSyncResult {
   }) : timestamp = DateTime.now();
 
   GraphQLSyncResult.success([String? msg])
-      : this(
-          success: true,
-          message: msg ?? 'Sync completed successfully',
-          recordsProcessed: 0,
-          errors: [],
-        );
+    : this(
+        success: true,
+        message: msg ?? 'Sync completed successfully',
+        recordsProcessed: 0,
+        errors: [],
+      );
 
   GraphQLSyncResult.error(String error)
-      : this(
-          success: false,
-          message: error,
-          recordsProcessed: 0,
-          errors: [error],
-        );
+    : this(
+        success: false,
+        message: error,
+        recordsProcessed: 0,
+        errors: [error],
+      );
 
   void mergeWith(GraphQLSyncResult other) {
     success = success && other.success;

@@ -14,7 +14,10 @@ class AuthWrapper extends StatelessWidget {
       listener: (context, state) {
         if (state is AuthAuthenticated) {
           // Navigate to role-based dashboard
-          final route = AppRoutes.getDashboardRoute(state.user.role);
+          final route = AppRoutes.getDashboardRoute(
+            state.user.role,
+            mandorType: state.user.effectiveMandorType,
+          );
           Navigator.of(context).pushReplacementNamed(route);
         } else if (state is AuthError) {
           // Show error message
@@ -117,7 +120,10 @@ class AuthWrapper extends StatelessWidget {
                     ElevatedButton(
                       onPressed: () {
                         // Navigate to role-based dashboard
-                        final route = AppRoutes.getDashboardRoute(state.user.role);
+                        final route = AppRoutes.getDashboardRoute(
+                          state.user.role,
+                          mandorType: state.user.effectiveMandorType,
+                        );
                         Navigator.of(context).pushReplacementNamed(route);
                       },
                       child: const Text('Continue Offline'),

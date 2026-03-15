@@ -129,20 +129,23 @@ func (r *AuthResolver) DeviceRenew(ctx context.Context, input auth.DeviceRenewIn
 
 // Logout handles user logout
 func (r *AuthResolver) Logout(ctx context.Context) (bool, error) {
-	// 1. Check for Web Session (via Cookie)
-	// We check if the request has the session cookie using middleware helper or direct check
-	// Note: We need to access the request cookies. The WebResolver.WebLogout does this.
-	// But how do we *know* if it's a web request without trying?
-	// We can check if "http" context has the cookie.
-
+	// 1. Check for active web session from middleware context.
 	isWeb := false
-	httpCtx := ctx.Value("http")
-	if httpCtx != nil {
-		if httpContext, ok := httpCtx.(map[string]interface{}); ok {
-			if req, ok := httpContext["request"].(*http.Request); ok {
-				// Check for session_id cookie
-				if _, err := req.Cookie("session_id"); err == nil {
-					isWeb = true
+	if sessionID, ok := ctx.Value("session_id").(string); ok && sessionID != "" {
+		isWeb = true
+	} else {
+		// Fallback for cases where middleware could not populate context (e.g. stale cookie).
+		httpCtx := ctx.Value("http")
+		if httpCtx != nil {
+			if httpContext, ok := httpCtx.(map[string]interface{}); ok {
+				if req, ok := httpContext["request"].(*http.Request); ok {
+					cookieNames := []string{"session_id", "auth-session"}
+					for _, cookieName := range cookieNames {
+						if _, err := req.Cookie(cookieName); err == nil {
+							isWeb = true
+							break
+						}
+					}
 				}
 			}
 		}
@@ -368,6 +371,12 @@ func (r *AuthResolver) UpdateUser(ctx context.Context, input auth.UpdateUserInpu
 		role = sharedDomain.Role(*input.Role)
 	}
 
+	mandorType := resolveMandorTypeFromAssignments(existingUser.Assignments)
+	if input.MandorType != nil {
+		resolvedMandorType := sharedDomain.MandorType(*input.MandorType)
+		mandorType = &resolvedMandorType
+	}
+
 	isActive := existingUser.IsActive
 	if input.IsActive != nil {
 		isActive = *input.IsActive
@@ -386,6 +395,7 @@ func (r *AuthResolver) UpdateUser(ctx context.Context, input auth.UpdateUserInpu
 		Phone:       phone,
 		Avatar:      avatar,
 		Role:        role,
+		MandorType:  mandorType,
 		IsActive:    isActive,
 		CompanyIDs:  input.CompanyIDs,
 		EstateIDs:   input.EstateIDs,
@@ -532,12 +542,17 @@ func (r *AuthResolver) CreateUser(ctx context.Context, input auth.CreateUserInpu
 		Email:       input.Email,
 		Phone:       input.PhoneNumber,
 		Role:        sharedDomain.Role(input.Role),
+		MandorType:  nil,
 		IsActive:    isActive,
 		CompanyID:   primaryCompanyID,
 		CompanyIDs:  input.CompanyIDs,
 		EstateIDs:   input.EstateIDs,
 		DivisionIDs: input.DivisionIDs,
 		ManagerID:   input.ManagerID,
+	}
+	if input.MandorType != nil {
+		resolvedMandorType := sharedDomain.MandorType(*input.MandorType)
+		dto.MandorType = &resolvedMandorType
 	}
 
 	user, err := r.userManagementService.CreateUser(ctx, dto, input.Password)
@@ -555,18 +570,19 @@ func (r *AuthResolver) toGraphQLUser(u *sharedDomain.User) *auth.User {
 	}
 
 	user := &auth.User{
-		ID:          u.ID,
-		Username:    u.Username,
-		Name:        u.Name,
-		Email:       u.Email,
-		PhoneNumber: u.Phone,
-		Avatar:      u.Avatar,
-		Role:        auth.UserRole(u.Role),
-		IsActive:    u.IsActive,
-		CreatedAt:   u.CreatedAt,
-		UpdatedAt:   u.UpdatedAt,
-		ManagerID:   u.ManagerID,
-		Manager:     r.toGraphQLUser(u.Manager),
+		ID:                  u.ID,
+		Username:            u.Username,
+		Name:                u.Name,
+		Email:               u.Email,
+		PhoneNumber:         u.Phone,
+		Avatar:              u.Avatar,
+		Role:                auth.UserRole(u.Role),
+		IsActive:            u.IsActive,
+		CreatedAt:           u.CreatedAt,
+		UpdatedAt:           u.UpdatedAt,
+		ManagerID:           u.ManagerID,
+		Manager:             r.toGraphQLUser(u.Manager),
+		EffectiveMandorType: nil,
 	}
 
 	// Map company assignments so Company/CompanyID resolvers can resolve company info
@@ -579,12 +595,20 @@ func (r *AuthResolver) toGraphQLUser(u *sharedDomain.User) *auth.User {
 			}
 
 			companyAssignment := auth.UserCompanyAssignment{
-				ID:        assignment.ID,
-				UserID:    assignment.UserID,
-				CompanyID: assignment.CompanyID,
-				IsActive:  assignment.IsActive,
-				CreatedAt: assignment.CreatedAt,
-				UpdatedAt: assignment.UpdatedAt,
+				ID:         assignment.ID,
+				UserID:     assignment.UserID,
+				CompanyID:  assignment.CompanyID,
+				MandorType: nil,
+				IsActive:   assignment.IsActive,
+				CreatedAt:  assignment.CreatedAt,
+				UpdatedAt:  assignment.UpdatedAt,
+			}
+			if assignment.MandorType != nil && assignment.MandorType.IsValid() {
+				mandorType := auth.MandorType(assignment.MandorType.String())
+				companyAssignment.MandorType = &mandorType
+				if companyAssignment.IsActive && user.EffectiveMandorType == nil {
+					user.EffectiveMandorType = &mandorType
+				}
 			}
 
 			if assignment.AssignedBy != "" {
@@ -599,6 +623,7 @@ func (r *AuthResolver) toGraphQLUser(u *sharedDomain.User) *auth.User {
 				companyAssignment.Company = &master.Company{
 					ID:      assignment.Company.ID,
 					Name:    assignment.Company.Name,
+					LogoURL: assignment.Company.LogoURL,
 					Address: assignment.Company.Address,
 					Phone:   assignment.Company.Phone,
 				}
@@ -653,6 +678,25 @@ func (r *AuthResolver) toGraphQLUser(u *sharedDomain.User) *auth.User {
 	}
 
 	return user
+}
+
+func resolveMandorTypeFromAssignments(assignments []sharedDomain.Assignment) *sharedDomain.MandorType {
+	for _, assignment := range assignments {
+		if !assignment.IsActive {
+			continue
+		}
+		if assignment.EstateID != nil || assignment.DivisionID != nil {
+			continue
+		}
+		if assignment.MandorType == nil || !assignment.MandorType.IsValid() {
+			continue
+		}
+
+		resolved := *assignment.MandorType
+		return &resolved
+	}
+
+	return nil
 }
 
 func (r *AuthResolver) toGraphQLDevice(d *sharedDomain.DeviceBinding) *auth.Device {

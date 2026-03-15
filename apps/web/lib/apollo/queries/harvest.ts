@@ -45,8 +45,8 @@ export const HARVEST_RECORD_FRAGMENT = gql`
 // Query to get all harvest records
 export const GET_HARVEST_RECORDS = gql`
   ${HARVEST_RECORD_FRAGMENT}
-  query GetHarvestRecords {
-    harvestRecords {
+  query GetHarvestRecords($dateFrom: Time, $dateTo: Time) {
+    harvestRecords(dateFrom: $dateFrom, dateTo: $dateTo) {
       ...HarvestRecordFields
     }
   }
@@ -68,6 +68,25 @@ export const GET_HARVEST_STATISTICS = gql`
   }
 `;
 
+// Lightweight query source for client-side stats aggregation.
+export const GET_HARVEST_STATS_SOURCE = gql`
+  query GetHarvestStatsSource($dateFrom: Time, $dateTo: Time) {
+    harvestRecords(dateFrom: $dateFrom, dateTo: $dateTo) {
+      id
+      tanggal
+      status
+      beratTbs
+      jumlahJanjang
+      jjgMatang
+      jjgMentah
+      jjgLewatMatang
+      jjgBusukAbnormal
+      jjgTangkaiPanjang
+      totalBrondolan
+    }
+  }
+`;
+
 // Query to get harvest records by status
 export const GET_HARVEST_RECORDS_BY_STATUS = gql`
   ${HARVEST_RECORD_FRAGMENT}
@@ -78,6 +97,38 @@ export const GET_HARVEST_RECORDS_BY_STATUS = gql`
   }
 `;
 // Note: Limited queries removed - main fragment no longer includes estate field
+
+// Query to get harvest records with server-side pagination
+export const GET_HARVEST_RECORDS_PAGINATED = gql`
+  ${HARVEST_RECORD_FRAGMENT}
+  query GetHarvestRecordsPaginated(
+    $page: Int
+    $limit: Int
+    $status: HarvestStatus
+    $search: String
+    $sortBy: String
+    $sortDir: String
+    $dateFrom: Time
+    $dateTo: Time
+  ) {
+    harvestRecordsPaginated(
+      page: $page
+      limit: $limit
+      status: $status
+      search: $search
+      sortBy: $sortBy
+      sortDir: $sortDir
+      dateFrom: $dateFrom
+      dateTo: $dateTo
+    ) {
+      data {
+        ...HarvestRecordFields
+      }
+      totalCount
+      hasMore
+    }
+  }
+`;
 
 // Query to get a specific harvest record
 export const GET_HARVEST_RECORD = gql`
@@ -339,8 +390,36 @@ export interface GetHarvestRecordsByStatusResponse {
   harvestRecordsByStatus: HarvestRecord[];
 }
 
+export interface HarvestRecordsPaginatedData {
+  data: HarvestRecord[];
+  totalCount: number;
+  hasMore: boolean;
+}
+
+export interface GetHarvestRecordsPaginatedResponse {
+  harvestRecordsPaginated: HarvestRecordsPaginatedData;
+}
+
 export interface GetHarvestStatisticsResponse {
   harvestStatistics: HarvestStatistics;
+}
+
+export interface HarvestStatsSourceRecord {
+  id: string;
+  tanggal: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  beratTbs: number;
+  jumlahJanjang: number;
+  jjgMatang?: number | null;
+  jjgMentah?: number | null;
+  jjgLewatMatang?: number | null;
+  jjgBusukAbnormal?: number | null;
+  jjgTangkaiPanjang?: number | null;
+  totalBrondolan?: number | null;
+}
+
+export interface GetHarvestStatsSourceResponse {
+  harvestRecords: HarvestStatsSourceRecord[];
 }
 
 export interface GetHarvestRecordResponse {

@@ -155,10 +155,7 @@ func (s *SharedAuthService) RevokeAllUserSessions(ctx context.Context, targetUse
 		return 0, err
 	}
 
-	for _, session := range sessions {
-		_ = s.sessionRepo.RevokeSession(ctx, session.ID)
-	}
-
+	count := int64(len(sessions))
 	err = s.sessionRepo.RevokeAllUserSessions(ctx, targetUserID)
 	if err != nil {
 		return 0, err
@@ -170,7 +167,7 @@ func (s *SharedAuthService) RevokeAllUserSessions(ctx context.Context, targetUse
 		Details: map[string]interface{}{"revoked_by": revokedBy, "reason": reason, "action": "admin_revoke_all"},
 	})
 
-	return int64(len(sessions)), nil
+	return count, nil
 }
 
 // GetSessions returns sessions based on minimal filter (UserID)

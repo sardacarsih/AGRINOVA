@@ -36,6 +36,7 @@ func (UserModel) TableName() string {
 type CompanyModel struct {
 	ID        string    `gorm:"primaryKey;type:uuid"` // Simplified for test compatibility
 	Name      string    `gorm:"column:name;not null"`
+	LogoURL   *string   `gorm:"column:logo_url"`
 	Status    string    `gorm:"column:status;default:'Active'"`
 	Address   *string   `gorm:"column:address"`
 	Phone     *string   `gorm:"column:phone"`
@@ -96,6 +97,7 @@ type UserCompanyAssignmentModel struct {
 	ID         string    `gorm:"primaryKey;type:uuid"`
 	UserID     string    `gorm:"column:user_id;not null;index"`
 	CompanyID  string    `gorm:"column:company_id;not null;index"`
+	MandorType *string   `gorm:"column:mandor_type"`
 	IsActive   bool      `gorm:"column:is_active;default:true;index"`
 	AssignedBy string    `gorm:"column:assigned_by;type:uuid"`
 	AssignedAt time.Time `gorm:"column:assigned_at"`

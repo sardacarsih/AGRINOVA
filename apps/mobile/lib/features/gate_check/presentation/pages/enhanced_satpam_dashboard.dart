@@ -21,8 +21,10 @@ import 'satpam_dashboard/satpam_dashboard_widgets.dart';
 import 'satpam_dashboard/satpam_dashboard_helpers.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/pos_settings_service.dart';
+import '../../../../core/theme/theme_mode_service.dart';
 
 // Import Gen Z Components
+import 'satpam_dashboard/genz_theme.dart';
 import 'satpam_dashboard/genz_components.dart';
 // For RecentScanData
 import 'satpam_dashboard/genz_sync_tab.dart'; // Import Sync Tab
@@ -58,6 +60,7 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
   // State variables
   bool _isLoading = true;
   bool _isLoadingAction = false;
+  bool _isManualSyncing = false;
   String? _errorMessage;
   int _currentTabIndex = 0;
 
@@ -333,7 +336,7 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
       builder: (context, state) {
         if (state is AuthAuthenticated) {
           return Scaffold(
-            backgroundColor: const Color(0xFF111827),
+            backgroundColor: GenZTheme.of(context).scaffoldBackground,
             appBar: _buildAppBar(state),
             body: _buildMainBody(),
             bottomNavigationBar: _buildBottomNavigation(),
@@ -346,25 +349,43 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
 
   /// Build app bar with actions - matches mockup design
   PreferredSizeWidget _buildAppBar(AuthAuthenticated state) {
+    final colors = GenZTheme.of(context);
     return AppBar(
-      backgroundColor: const Color(0xFF1F2937),
+      backgroundColor: colors.cardBackground,
       elevation: 0,
       centerTitle: true,
       automaticallyImplyLeading: false,
-      title: const Text(
+      title: Text(
         'Sistem Pemeriksaan POS',
         textAlign: TextAlign.center,
         style: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w600,
-          color: Colors.white,
+          color: colors.headingColor,
         ),
       ),
       actions: [
+        AnimatedBuilder(
+          animation: ThemeModeService.instance,
+          builder: (context, _) {
+            final isDarkMode = ThemeModeService.instance.isDarkMode;
+            return IconButton(
+              onPressed: () {
+                ThemeModeService.instance.setDarkMode(!isDarkMode);
+              },
+              icon: Icon(
+                isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                color: colors.headingColor,
+              ),
+              tooltip: isDarkMode ? 'Mode gelap aktif' : 'Mode terang aktif',
+            );
+          },
+        ),
+
         // More options menu
         PopupMenuButton<String>(
-          icon: const Icon(Icons.more_horiz_rounded, color: Colors.white),
-          color: const Color(0xFF1F2937),
+          icon: Icon(Icons.more_horiz_rounded, color: colors.headingColor),
+          color: colors.cardBackground,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
@@ -381,10 +402,10 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => Scaffold(
-                      backgroundColor: const Color(0xFF111827),
+                      backgroundColor: GenZTheme.of(context).scaffoldBackground,
                       appBar: AppBar(
                         title: const Text('Profil User'),
-                        backgroundColor: const Color(0xFF1F2937),
+                        backgroundColor: GenZTheme.of(context).cardBackground,
                         elevation: 0,
                       ),
                       body: _buildProfileTab(),
@@ -410,105 +431,94 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
                 break;
             }
           },
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'pos_settings',
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.door_front_door,
-                    color: Colors.white.withValues(alpha: 0.7),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Pengaturan POS',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ],
+          itemBuilder: (context) {
+            final menuTextColor = colors.headingColor;
+            final menuIconColor = colors.bodySecondary;
+            return [
+              PopupMenuItem(
+                value: 'pos_settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.door_front_door, color: menuIconColor, size: 20),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Pengaturan POS',
+                      style: TextStyle(color: menuTextColor),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            PopupMenuItem(
-              value: 'biometric',
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.fingerprint_rounded,
-                    color: Colors.white.withValues(alpha: 0.7),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'Keamanan Biometrik',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ],
+              PopupMenuItem(
+                value: 'biometric',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.fingerprint_rounded,
+                      color: menuIconColor,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Keamanan Biometrik',
+                      style: TextStyle(color: menuTextColor),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            PopupMenuItem(
-              value: 'web_qr_login',
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.qr_code_scanner_rounded,
-                    color: Colors.white.withValues(alpha: 0.7),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  const Text(
-                    'QR Login Web',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ],
+              PopupMenuItem(
+                value: 'web_qr_login',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.qr_code_scanner_rounded,
+                      color: menuIconColor,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'QR Login Web',
+                      style: TextStyle(color: menuTextColor),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            PopupMenuItem(
-              value: 'sync',
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.sync_rounded,
-                    color: Colors.white.withValues(alpha: 0.7),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  const Text('Sync', style: TextStyle(color: Colors.white)),
-                ],
+              PopupMenuItem(
+                value: 'sync',
+                child: Row(
+                  children: [
+                    Icon(Icons.sync_rounded, color: menuIconColor, size: 20),
+                    const SizedBox(width: 12),
+                    Text('Sync', style: TextStyle(color: menuTextColor)),
+                  ],
+                ),
               ),
-            ),
-            PopupMenuItem(
-              value: 'validate',
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.person_rounded,
-                    color: Colors.white.withValues(alpha: 0.7),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  const Text('Profil', style: TextStyle(color: Colors.white)),
-                ],
+              PopupMenuItem(
+                value: 'validate',
+                child: Row(
+                  children: [
+                    Icon(Icons.person_rounded, color: menuIconColor, size: 20),
+                    const SizedBox(width: 12),
+                    Text('Profil', style: TextStyle(color: menuTextColor)),
+                  ],
+                ),
               ),
-            ),
-            const PopupMenuDivider(),
-            PopupMenuItem(
-              value: 'logout',
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.logout_rounded,
-                    color: Colors.red.withValues(alpha: 0.8),
-                    size: 20,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Keluar',
-                    style: TextStyle(color: Colors.red.withValues(alpha: 0.8)),
-                  ),
-                ],
+              PopupMenuDivider(height: 1),
+              PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.logout_rounded,
+                      color: GenZTheme.coralRed,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text('Keluar', style: TextStyle(color: GenZTheme.coralRed)),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ];
+          },
         ),
         const SizedBox(width: 4),
       ],
@@ -518,12 +528,8 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
   /// Build main body with tab view
   Widget _buildMainBody() {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF111827), Color(0xFF1F2937)],
-        ),
+      decoration: BoxDecoration(
+        gradient: GenZTheme.backgroundGradientFor(context),
       ),
       child: TabBarView(
         controller: _mainTabController,
@@ -557,7 +563,10 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
         ((_repositoryStats['total_gate_guest_logs'] as int?) ?? 0) +
         ((_repositoryStats['total_employee_logs'] as int?) ?? 0);
     final pendingRecords = (_repositoryStats['pending_sync'] as int?) ?? 0;
-    final syncedRecords = totalRecords - pendingRecords;
+    final syncedRecords = (totalRecords - pendingRecords).clamp(
+      0,
+      totalRecords,
+    );
 
     return GenZDashboardTab(
       userName: _userName,
@@ -643,7 +652,7 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
   Widget _buildSyncTab() {
     return GenZSyncTab(
       repositoryStats: _repositoryStats,
-      isLoading: _isLoading,
+      isSyncing: _isManualSyncing || (_repositoryStats['is_syncing'] == true),
       onManualSync: _performManualSync,
     );
   }
@@ -1305,6 +1314,7 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
 
   Widget _buildBottomNavigation() {
     return SatpamDashboardWidgets.buildBottomNavigation(
+      context: context,
       currentIndex: _currentTabIndex,
       onTap: _switchToTab,
     );
@@ -1321,106 +1331,140 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.door_front_door, color: Color(0xFF8B5CF6)),
-            SizedBox(width: 8),
-            Text(
-              'Pengaturan POS',
-              style: TextStyle(color: Colors.black, fontSize: 18),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: posNumberController,
-              style: const TextStyle(color: Colors.black),
-              decoration: InputDecoration(
-                labelText: 'Nomor/ID POS',
-                labelStyle: const TextStyle(color: Colors.black54),
-                hintText: 'cth: MAIN_GATE, POS_1',
-                hintStyle: const TextStyle(color: Colors.black38),
-                prefixIcon: const Icon(Icons.tag, color: Color(0xFF8B5CF6)),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.grey[400]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFF8B5CF6)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: posNameController,
-              style: const TextStyle(color: Colors.black),
-              decoration: InputDecoration(
-                labelText: 'Nama POS',
-                labelStyle: const TextStyle(color: Colors.black54),
-                hintText: 'cth: Gerbang Utama',
-                hintStyle: const TextStyle(color: Colors.black38),
-                prefixIcon: const Icon(
-                  Icons.label_outline,
-                  color: Color(0xFF8B5CF6),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide(color: Colors.grey[400]!),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFF8B5CF6)),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await POSSettingsService.resetToDefaults();
-              posNumberController.text = 'MAIN_GATE';
-              posNameController.text = 'Gerbang Utama';
-            },
-            child: const Text('Reset', style: TextStyle(color: Colors.black54)),
+      builder: (ctx) {
+        final themeColors = GenZTheme.of(ctx);
+        return AlertDialog(
+          backgroundColor: themeColors.dialogSurface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal', style: TextStyle(color: Colors.black54)),
+          title: Row(
+            children: [
+              const Icon(
+                Icons.door_front_door,
+                color: GenZTheme.electricPurple,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Pengaturan POS',
+                style: TextStyle(
+                  color: themeColors.headingColor,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8B5CF6),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: posNumberController,
+                style: TextStyle(color: themeColors.headingColor),
+                decoration: InputDecoration(
+                  labelText: 'Nomor/ID POS',
+                  labelStyle: TextStyle(color: themeColors.bodySecondary),
+                  hintText: 'cth: MAIN_GATE, POS_1',
+                  hintStyle: TextStyle(color: themeColors.bodyTertiary),
+                  prefixIcon: const Icon(
+                    Icons.tag,
+                    color: GenZTheme.electricPurple,
+                  ),
+                  filled: true,
+                  fillColor: themeColors.inputFill,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: themeColors.borderColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(
+                      color: GenZTheme.electricPurple,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: posNameController,
+                style: TextStyle(color: themeColors.headingColor),
+                decoration: InputDecoration(
+                  labelText: 'Nama POS',
+                  labelStyle: TextStyle(color: themeColors.bodySecondary),
+                  hintText: 'cth: Gerbang Utama',
+                  hintStyle: TextStyle(color: themeColors.bodyTertiary),
+                  prefixIcon: const Icon(
+                    Icons.label_outline,
+                    color: GenZTheme.electricPurple,
+                  ),
+                  filled: true,
+                  fillColor: themeColors.inputFill,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: themeColors.borderColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(
+                      color: GenZTheme.electricPurple,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await POSSettingsService.resetToDefaults();
+                posNumberController.text = 'MAIN_GATE';
+                posNameController.text = 'Gerbang Utama';
+              },
+              child: Text(
+                'Reset',
+                style: TextStyle(color: themeColors.bodySecondary),
               ),
             ),
-            onPressed: () async {
-              final posNumber = posNumberController.text.trim();
-              final posName = posNameController.text.trim();
-              if (posNumber.isEmpty) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text('Nomor POS tidak boleh kosong')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'Batal',
+                style: TextStyle(color: themeColors.bodySecondary),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: GenZTheme.electricPurple,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: () async {
+                final posNumber = posNumberController.text.trim();
+                final posName = posNameController.text.trim();
+                if (posNumber.isEmpty) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    const SnackBar(
+                      content: Text('Nomor POS tidak boleh kosong'),
+                    ),
+                  );
+                  return;
+                }
+                await POSSettingsService.saveSettings(
+                  posNumber: posNumber,
+                  posName: posName.isNotEmpty ? posName : posNumber,
                 );
-                return;
-              }
-              await POSSettingsService.saveSettings(
-                posNumber: posNumber,
-                posName: posName.isNotEmpty ? posName : posNumber,
-              );
-              await _loadPOSSettings();
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Simpan', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+                await _loadPOSSettings();
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text(
+                'Simpan',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1434,17 +1478,17 @@ class _EnhancedSatpamDashboardState extends State<EnhancedSatpamDashboard>
         context: context,
         serviceState: _serviceState!,
         onSyncStart: () {
-          if (mounted) setState(() => _isLoading = true);
+          if (mounted) setState(() => _isManualSyncing = true);
         },
         onSyncComplete: () {
-          if (mounted) setState(() => _isLoading = false);
+          if (mounted) setState(() => _isManualSyncing = false);
         },
       );
       await _loadDashboardData(showLoading: false);
     } catch (e) {
       _logger.e('Manual sync failed', error: e);
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() => _isManualSyncing = false);
         SatpamDashboardHelpers.showSnackBar(
           context,
           'Sync gagal: ${e.toString()}',

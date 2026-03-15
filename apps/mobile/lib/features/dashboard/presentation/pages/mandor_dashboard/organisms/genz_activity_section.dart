@@ -50,18 +50,18 @@ class GenZActivitySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildHeader(),
+        _buildHeader(context),
         const SizedBox(height: 14),
-        items.isEmpty ? _buildEmptyState() : _buildItemsList(),
+        items.isEmpty ? _buildEmptyState(context) : _buildItemsList(),
       ],
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text('Aktivitas Terkini', style: MandorTheme.headingSmall),
+        Text('Aktivitas Terkini', style: MandorTheme.headingSmallFor(context)),
         if (onViewAll != null)
           TextButton(
             onPressed: onViewAll,
@@ -92,35 +92,36 @@ class GenZActivitySection extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(BuildContext context) {
+    final theme = MandorTheme.of(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: MandorTheme.gray700.withValues(alpha: 0.3),
+        color: theme.borderColor.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: MandorTheme.gray600.withValues(alpha: 0.3)),
+        border: Border.all(color: theme.borderColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
           Icon(
             Icons.history_rounded,
             size: 48,
-            color: MandorTheme.gray500,
+            color: theme.bodyTertiary,
           ),
           const SizedBox(height: 12),
           Text(
             'Belum ada aktivitas',
-            style: MandorTheme.bodyLarge.copyWith(
-              color: MandorTheme.gray400,
+            style: MandorTheme.bodyLargeFor(context).copyWith(
+              color: theme.bodySecondary,
             ),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 6),
           Text(
             'Mulai input panen untuk melihat aktivitas Anda',
-            style: MandorTheme.bodySmall.copyWith(
-              color: MandorTheme.gray500,
+            style: MandorTheme.bodySmallFor(context).copyWith(
+              color: theme.bodyTertiary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -131,7 +132,7 @@ class GenZActivitySection extends StatelessWidget {
 
   Widget _buildItemsList() {
     final displayItems = items.take(maxItems).toList();
-    
+
     return Column(
       children: displayItems.map((item) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
@@ -152,22 +153,23 @@ class _ActivityItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final config = _getConfig();
-    
+    final theme = MandorTheme.of(context);
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: MandorTheme.gray800.withValues(alpha: 0.6),
+        color: theme.cardBackground.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: MandorTheme.gray700.withValues(alpha: 0.5),
+          color: theme.borderColor.withValues(alpha: 0.5),
         ),
       ),
       child: Row(
         children: [
           _buildIcon(config),
           const SizedBox(width: 14),
-          Expanded(child: _buildContent()),
-          _buildTimeBadge(),
+          Expanded(child: _buildContent(context)),
+          _buildTimeBadge(context),
         ],
       ),
     );
@@ -188,20 +190,20 @@ class _ActivityItemCard extends StatelessWidget {
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           item.title,
-          style: MandorTheme.labelBold,
+          style: MandorTheme.labelBoldFor(context),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 3),
         Text(
           item.subtitle,
-          style: MandorTheme.bodySmall,
+          style: MandorTheme.bodySmallFor(context),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -209,11 +211,11 @@ class _ActivityItemCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTimeBadge() {
+  Widget _buildTimeBadge(BuildContext context) {
     return Text(
       item.time,
-      style: MandorTheme.bodySmall.copyWith(
-        color: MandorTheme.gray500,
+      style: MandorTheme.bodySmallFor(context).copyWith(
+        color: MandorTheme.of(context).bodyTertiary,
       ),
     );
   }
@@ -258,4 +260,3 @@ class _ActivityConfig {
     required this.icon,
   });
 }
-

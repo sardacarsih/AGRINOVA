@@ -30,11 +30,34 @@ func NewPanenResolver(db *gorm.DB, authMiddleware *middleware.AuthMiddleware) *P
 	}
 }
 
+// WithDB returns a resolver clone that uses the provided DB handle.
+// Useful for running resolver/service logic inside an existing transaction.
+func (r *PanenResolver) WithDB(db *gorm.DB) *PanenResolver {
+	if db == nil {
+		return r
+	}
+	return &PanenResolver{
+		db:          db,
+		service:     panenServices.NewPanenService(db),
+		rbacService: r.rbacService,
+	}
+}
+
+// WithSyncLookupCache attaches a request-scoped lookup cache for sync-heavy write paths.
+func (r *PanenResolver) WithSyncLookupCache(ctx context.Context) context.Context {
+	return panenServices.WithHarvestSyncLookupCache(ctx)
+}
+
 // Query Resolvers
 
 // HarvestRecords retrieves harvest records
 func (r *PanenResolver) HarvestRecords(ctx context.Context, filters *models.HarvestFilters) ([]*models.HarvestRecord, error) {
 	return r.service.GetHarvestRecords(ctx, filters)
+}
+
+// CountHarvestRecords counts harvest records matching filters.
+func (r *PanenResolver) CountHarvestRecords(ctx context.Context, filters *models.HarvestFilters) (int64, error) {
+	return r.service.CountHarvestRecords(ctx, filters)
 }
 
 // HarvestRecordsByMandor retrieves harvest records by mandor ID.
@@ -50,6 +73,11 @@ func (r *PanenResolver) HarvestRecordsByManager(ctx context.Context, managerID s
 // HarvestRecord retrieves a specific harvest record by ID
 func (r *PanenResolver) HarvestRecord(ctx context.Context, id string) (*models.HarvestRecord, error) {
 	return r.service.GetHarvestRecord(ctx, id)
+}
+
+// GetHarvestRecordLight retrieves a harvest record by ID without preloading associations.
+func (r *PanenResolver) GetHarvestRecordLight(ctx context.Context, id string) (*models.HarvestRecord, error) {
+	return r.service.GetHarvestRecordLight(ctx, id)
 }
 
 // HarvestRecordByManager retrieves one harvest record if it belongs to manager hierarchy.
@@ -72,6 +100,11 @@ func (r *PanenResolver) GetByLocalID(ctx context.Context, localID, mandorID stri
 	return r.service.GetByLocalID(ctx, localID, mandorID)
 }
 
+// GetByLocalIDLight retrieves a harvest record by local ID without preloading associations.
+func (r *PanenResolver) GetByLocalIDLight(ctx context.Context, localID, mandorID string) (*models.HarvestRecord, error) {
+	return r.service.GetByLocalIDLight(ctx, localID, mandorID)
+}
+
 // Mutation Resolvers
 
 // CreateHarvestRecord creates a new harvest record
@@ -86,9 +119,19 @@ func (r *PanenResolver) CreateHarvestRecord(ctx context.Context, input mandor.Cr
 	return r.service.CreateHarvestRecord(ctx, input)
 }
 
+// CreateHarvestRecordForSync creates a harvest record using the lighter sync path.
+func (r *PanenResolver) CreateHarvestRecordForSync(ctx context.Context, input mandor.CreateHarvestRecordInput) (*models.HarvestRecord, error) {
+	return r.service.CreateHarvestRecordForSync(ctx, input)
+}
+
 // UpdateHarvestRecord updates an existing harvest record
 func (r *PanenResolver) UpdateHarvestRecord(ctx context.Context, input mandor.UpdateHarvestRecordInput) (*models.HarvestRecord, error) {
 	return r.service.UpdateHarvestRecord(ctx, input)
+}
+
+// UpdateHarvestRecordForSync updates a harvest record using the lighter sync path.
+func (r *PanenResolver) UpdateHarvestRecordForSync(ctx context.Context, input mandor.UpdateHarvestRecordInput) (*models.HarvestRecord, error) {
+	return r.service.UpdateHarvestRecordForSync(ctx, input)
 }
 
 // ApproveHarvestRecord approves a harvest record

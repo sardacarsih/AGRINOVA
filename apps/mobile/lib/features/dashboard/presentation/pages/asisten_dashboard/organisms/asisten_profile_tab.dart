@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../core/constants/api_constants.dart';
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../asisten_theme.dart';
 import '../../../../../auth/presentation/blocs/auth_bloc.dart';
 
@@ -9,10 +10,7 @@ import '../../../../../auth/presentation/blocs/auth_bloc.dart';
 class AsistenProfileTab extends StatelessWidget {
   final VoidCallback? onLogout;
 
-  const AsistenProfileTab({
-    super.key,
-    this.onLogout,
-  });
+  const AsistenProfileTab({super.key, this.onLogout});
 
   @override
   Widget build(BuildContext context) {
@@ -29,9 +27,7 @@ class AsistenProfileTab extends StatelessWidget {
           body: CustomScrollView(
             slivers: [
               // Blue Header with Profile Info
-              SliverToBoxAdapter(
-                child: _buildProfileHeader(user),
-              ),
+              SliverToBoxAdapter(child: _buildProfileHeader(user)),
               // Content
               SliverToBoxAdapter(
                 child: Padding(
@@ -42,19 +38,19 @@ class AsistenProfileTab extends StatelessWidget {
                       // Stats Cards Row
                       _buildStatsCardsRow(),
                       const SizedBox(height: 20),
-                      
+
                       // Informasi Akun Section
                       _buildAccountInfoSection(user),
                       const SizedBox(height: 20),
-                      
+
                       // Pengaturan Section
                       _buildSettingsSection(context),
                       const SizedBox(height: 20),
-                      
+
                       // App Info
                       _buildAppInfoSection(),
                       const SizedBox(height: 16),
-                      
+
                       // Logout Button
                       _buildLogoutButton(context),
                       const SizedBox(height: 32),
@@ -139,7 +135,10 @@ class AsistenProfileTab extends StatelessWidget {
                   const SizedBox(height: 8),
                   // Role Badge
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
@@ -252,10 +251,7 @@ class AsistenProfileTab extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF757575),
-              fontSize: 10,
-            ),
+            style: const TextStyle(color: Color(0xFF757575), fontSize: 10),
             textAlign: TextAlign.center,
           ),
         ],
@@ -298,7 +294,8 @@ class AsistenProfileTab extends StatelessWidget {
           _buildInfoRow(
             icon: Icons.phone_outlined,
             label: 'Telepon',
-            value: '+62 812-3456-7890', // TODO: Add phone to User model when API supports it
+            value:
+                '+62 812-3456-7890', // TODO: Add phone to User model when API supports it
           ),
           _buildInfoRow(
             icon: Icons.calendar_today_outlined,
@@ -333,10 +330,7 @@ class AsistenProfileTab extends StatelessWidget {
               const SizedBox(width: 12),
               Text(
                 label,
-                style: const TextStyle(
-                  color: Color(0xFF424242),
-                  fontSize: 14,
-                ),
+                style: const TextStyle(color: Color(0xFF424242), fontSize: 14),
               ),
               const Spacer(),
               Text(
@@ -421,10 +415,7 @@ class AsistenProfileTab extends StatelessWidget {
               children: const [
                 Text(
                   'Indonesia',
-                  style: TextStyle(
-                    color: Color(0xFF757575),
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Color(0xFF757575), fontSize: 14),
                 ),
                 Icon(Icons.chevron_right, color: Color(0xFF9E9E9E)),
               ],
@@ -514,11 +505,7 @@ class AsistenProfileTab extends StatelessWidget {
               color: const Color(0xFF1976D2),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
-              Icons.eco,
-              color: Colors.white,
-              size: 28,
-            ),
+            child: const Icon(Icons.eco, color: Colors.white, size: 28),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -532,10 +519,7 @@ class AsistenProfileTab extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             'v${ApiConstants.appVersionDisplay}',
-            style: const TextStyle(
-              color: Color(0xFF9E9E9E),
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 12),
           ),
         ],
       ),
@@ -550,11 +534,7 @@ class AsistenProfileTab extends StatelessWidget {
           context.read<AuthBloc>().add(AuthLogoutRequested());
           onLogout?.call();
         },
-        icon: const Icon(
-          Icons.logout,
-          color: Color(0xFFE53935),
-          size: 20,
-        ),
+        icon: const Icon(Icons.logout, color: Color(0xFFE53935), size: 20),
         label: const Text(
           'Keluar',
           style: TextStyle(
@@ -583,14 +563,24 @@ class AsistenProfileTab extends StatelessWidget {
   }
 
   void _showComingSoon(BuildContext context, String feature) {
+    final bannerBg = RuntimeThemeSlotResolver.notificationBannerBackground(
+      context,
+      fallback: AsistenTheme.pendingOrange,
+    );
+    final bannerText = RuntimeThemeSlotResolver.notificationBannerText(
+      context,
+      fallback: Colors.white,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$feature dalam pengembangan'),
-        backgroundColor: AsistenTheme.pendingOrange,
+        content: Text(
+          '$feature dalam pengembangan',
+          style: TextStyle(color: bannerText),
+        ),
+        backgroundColor: bannerBg,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
 }
-

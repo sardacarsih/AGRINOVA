@@ -19,10 +19,26 @@ type AreaManagerDashboardData {
   stats: AreaManagerStats!
   "Company performance overview"
   companyPerformance: [CompanyPerformanceData!]!
+  "Budget workflow summary for current period"
+  budgetWorkflowSummary: AreaManagerBudgetWorkflowSummary!
   "Regional alerts"
   alerts: [RegionalAlert!]!
   "Action items"
   actionItems: [AreaManagerActionItem!]!
+}
+
+"""
+AreaManagerBudgetWorkflowSummary for cross-company budget workflow monitoring.
+"""
+type AreaManagerBudgetWorkflowSummary {
+  "Draft budget count"
+  draft: Int!
+  "Review budget count"
+  review: Int!
+  "Approved budget count"
+  approved: Int!
+  "Total budget records in period"
+  total: Int!
 }
 
 """
@@ -77,6 +93,8 @@ type CompanyPerformanceData {
   status: CompanyHealthStatus!
   "Pending issues"
   pendingIssues: Int!
+  "Estate performance breakdown"
+  estatesPerformance: [CompanyEstatePerformance!]!
 }
 
 """
@@ -373,6 +391,7 @@ extend type Query {
   areaManagerDashboard(
     dateFrom: Time
     dateTo: Time
+    companyId: ID
   ): AreaManagerDashboardData! @requireAuth @hasRole(roles: [AREA_MANAGER])
   
   "Get company details for area manager"
@@ -447,3 +466,24 @@ extend type Subscription {
   "Company status change"
   companyStatusChange: CompanyPerformanceData! @requireAuth @hasRole(roles: [AREA_MANAGER])
 }
+
+"""
+CompanyEstatePerformance represents estate-level production breakdown for a company.
+"""
+type CompanyEstatePerformance {
+  "Estate ID"
+  estateId: ID!
+  "Estate Name"
+  estateName: String!
+  "Today's production (tons)"
+  todayProduction: Float!
+  "Monthly production (tons)"
+  monthlyProduction: Float!
+  "Monthly target (tons)"
+  monthlyTarget: Float!
+  "Target achievement percentage"
+  targetAchievement: Float!
+  "Quality score"
+  qualityScore: Float!
+}
+

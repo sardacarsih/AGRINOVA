@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
+import { useQuery } from '@apollo/client/react';
 import {
     CircleAlert,
     UserCog,
@@ -20,13 +21,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Badge } from '@/components/ui/badge';
-import { User, UserRole } from '@/gql/graphql';
+import { GetUsersDocument, MandorType, User, UserRole } from '@/gql/graphql';
 import { LOGIN_PASSWORD_MIN_LENGTH } from '@/lib/auth/validation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useEstates } from '@/features/master-data/hooks/useEstates';
 import { useDivisions } from '@/features/master-data/hooks/useDivisions';
+import { useAuth } from '@/hooks/use-auth';
 
 const ROLE_REQUIRES_COMPANY = new Set<UserRole>([
     UserRole.CompanyAdmin,
@@ -50,6 +52,27 @@ const ROLE_REQUIRES_DIVISION = new Set<UserRole>([
     UserRole.Mandor,
 ]);
 
+const ROLE_ALLOWED_MANAGER_ROLES: Record<UserRole, UserRole[]> = {
+    [UserRole.SuperAdmin]: [],
+    [UserRole.CompanyAdmin]: [UserRole.SuperAdmin],
+    [UserRole.AreaManager]: [UserRole.CompanyAdmin],
+    [UserRole.Manager]: [UserRole.AreaManager],
+    [UserRole.Asisten]: [UserRole.Manager],
+    [UserRole.Mandor]: [UserRole.Asisten],
+    [UserRole.Satpam]: [UserRole.Manager],
+    [UserRole.Timbangan]: [UserRole.Manager],
+    [UserRole.Grading]: [UserRole.Manager],
+};
+
+const ROLE_ALLOW_EMPTY_MANAGER = new Set<UserRole>([
+    UserRole.AreaManager,
+]);
+
+const MANDOR_TYPE_LABELS: Record<MandorType, string> = {
+    [MandorType.Panen]: 'Mandor Panen',
+    [MandorType.Perawatan]: 'Mandor Perawatan',
+};
+
 const normalizeIds = (ids?: Array<string | null | undefined> | null): string[] => {
     const cleaned = (ids || [])
         .filter((id): id is string => typeof id === 'string')
@@ -58,6 +81,9 @@ const normalizeIds = (ids?: Array<string | null | undefined> | null): string[] =
 
     return Array.from(new Set(cleaned));
 };
+
+const areSameIds = (a: string[], b: string[]): boolean =>
+    a.length === b.length && a.every((value, index) => value === b[index]);
 
 // Schema Validation
 const userFormSchema = z.object({
@@ -73,6 +99,7 @@ const userFormSchema = z.object({
             `Password minimal ${LOGIN_PASSWORD_MIN_LENGTH} karakter`
         ),
     role: z.nativeEnum(UserRole),
+    mandorType: z.nativeEnum(MandorType).optional().nullable(),
     managerId: z.string().optional().nullable(),
     companyIds: z.array(z.string()).optional(),
     estateIds: z.array(z.string()).optional(),
@@ -120,6 +147,22 @@ const userFormSchema = z.object({
             code: z.ZodIssueCode.custom,
             message: `Role ${values.role} wajib ada divisi`,
             path: ['divisionIds'],
+        });
+    }
+
+    if (values.role === UserRole.Mandor && !values.mandorType) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Role MANDOR wajib memilih tipe kerja',
+            path: ['mandorType'],
+        });
+    }
+
+    if (!ROLE_ALLOW_EMPTY_MANAGER.has(values.role) && !values.managerId) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Atasan langsung wajib diisi untuk role ${values.role}`,
+            path: ['managerId'],
         });
     }
 });
@@ -170,6 +213,7 @@ export function UserForm({
     title,
     description,
 }: UserFormProps) {
+    const { user: currentUser } = useAuth();
     const isEditing = Boolean(initialData?.id);
     const companyIdsInputKey = JSON.stringify((initialData as any)?.companyIds || []);
     const companiesEntityKey = JSON.stringify(
@@ -224,12 +268,6 @@ export function UserForm({
         divisionsEntityKey,
     ]);
 
-    // Filter managers (exclude self)
-    const managerCandidates = useMemo(
-        () => users.filter((u) => u.id !== initialData?.id),
-        [users, initialData?.id]
-    );
-
     const initialValues = useMemo<z.infer<typeof userFormSchema>>(() => ({
         name: initialData?.name || '',
         username: initialData?.username || '',
@@ -237,6 +275,7 @@ export function UserForm({
         phoneNumber: initialData?.phoneNumber || '',
         password: '',
         role: (initialData?.role as UserRole) || UserRole.Mandor,
+        mandorType: (initialData as any)?.effectiveMandorType || null,
         managerId:
             initialData?.managerId ||
             (initialData as any)?.manager_id ||
@@ -252,6 +291,7 @@ export function UserForm({
         initialData?.email,
         initialData?.phoneNumber,
         initialData?.role,
+        (initialData as any)?.effectiveMandorType,
         initialData?.managerId,
         (initialData as any)?.manager_id,
         (initialData as any)?.manager?.id,
@@ -271,19 +311,103 @@ export function UserForm({
     }, [form, initialValues]);
 
     const selectedRole = form.watch('role');
+    const selectedMandorType = form.watch('mandorType');
+    const selectedManagerId = form.watch('managerId');
     const selectedCompanyIds = form.watch('companyIds') || [];
     const selectedEstateIds = form.watch('estateIds') || [];
     const selectedDivisionIds = form.watch('divisionIds') || [];
 
+    useEffect(() => {
+        if (selectedRole === UserRole.Mandor) return;
+        if (!form.getValues('mandorType')) return;
+        form.setValue('mandorType', null, { shouldValidate: true, shouldDirty: true });
+    }, [form, selectedRole]);
+
+    const isCompanyAdminContext =
+        companySelectionReadOnly || currentUser?.role === UserRole.CompanyAdmin;
+
+    const managerRolesForSelectedRole = useMemo(
+        () => ROLE_ALLOWED_MANAGER_ROLES[selectedRole] || [],
+        [selectedRole]
+    );
+    const isManagerRequired = selectedRole !== UserRole.AreaManager;
+    const managerRoleFilter =
+        managerRolesForSelectedRole.length === 1 ? managerRolesForSelectedRole[0] : undefined;
+    const shouldSkipRoleFilterForManagerQuery =
+        isCompanyAdminContext &&
+        selectedRole === UserRole.Manager &&
+        managerRoleFilter === UserRole.AreaManager;
+
+    const { data: managerUsersData } = useQuery(GetUsersDocument, {
+        variables: {
+            role: shouldSkipRoleFilterForManagerQuery ? undefined : managerRoleFilter,
+            isActive: true,
+            limit: 1000,
+            companyId: selectedCompanyIds.length === 1 ? selectedCompanyIds[0] : undefined,
+        },
+        skip: managerRolesForSelectedRole.length === 0,
+        // Refresh from network first to avoid stale candidate options after role/company changes.
+        fetchPolicy: 'network-only',
+        nextFetchPolicy: 'cache-first',
+    });
+
+    const managerSourceUsers = useMemo(() => {
+        const queriedUsers = managerUsersData?.users?.users || [];
+        return queriedUsers.length > 0 ? queriedUsers : users;
+    }, [managerUsersData?.users?.users, users]);
+
+    const managerCandidates = useMemo(
+        () =>
+            managerSourceUsers.filter((u) => {
+                if (u.id === initialData?.id) return false;
+                if (!managerRolesForSelectedRole.includes(u.role)) return false;
+                if (u.isActive === false) return false;
+                return true;
+            }),
+        [managerSourceUsers, initialData?.id, managerRolesForSelectedRole]
+    );
+
+    useEffect(() => {
+        if (!selectedManagerId) return;
+        if (managerRolesForSelectedRole.length === 0) return;
+
+        const managerStillValid = managerCandidates.some((u) => u.id === selectedManagerId);
+        if (!managerStillValid) {
+            form.setValue('managerId', null, { shouldValidate: true });
+        }
+    }, [form, selectedManagerId, managerCandidates, managerRolesForSelectedRole.length]);
+
+    const selectedManager = useMemo(
+        () => managerCandidates.find((candidate) => candidate.id === selectedManagerId) || null,
+        [managerCandidates, selectedManagerId]
+    );
+
+    const managerEstateScopeIds = useMemo(
+        () => normalizeIds((selectedManager?.estates || []).map((estate: any) => estate?.id)),
+        [selectedManager?.estates]
+    );
+
+    const managerDivisionScopeIds = useMemo(
+        () => normalizeIds((selectedManager?.divisions || []).map((division: any) => division?.id)),
+        [selectedManager?.divisions]
+    );
+
     const selectedRoleData = roles.find((r) => r.role === selectedRole);
-    const selectedRoleName = selectedRoleData?.name || selectedRole;
+    const selectedRoleName =
+        selectedRole === UserRole.Mandor && selectedMandorType
+            ? MANDOR_TYPE_LABELS[selectedMandorType]
+            : selectedRoleData?.name || selectedRole;
     const selectedRoleDescription = selectedRoleData?.description || 'Akses pengguna standar';
+    const managerRoleHint =
+        managerRolesForSelectedRole.length > 0
+            ? `Atasan untuk role ${selectedRole} hanya: ${managerRolesForSelectedRole.join(', ')}. ${isManagerRequired ? 'Wajib dipilih.' : 'Opsional.'}`
+            : `Role ${selectedRole} tidak memerlukan atasan langsung.`;
 
     const selectedCompanyCount = selectedCompanyIds.length;
     const selectedEstateCount = selectedEstateIds.length;
     const selectedDivisionCount = selectedDivisionIds.length;
     const isCompanySelectionLocked = companySelectionReadOnly;
-    const isManagerSelectDisabled = false;
+    const isManagerSelectDisabled = managerRolesForSelectedRole.length === 0 || managerCandidates.length === 0;
 
     // Convert companies to options
     const companyOptions = useMemo(() => {
@@ -301,8 +425,16 @@ export function UserForm({
             return;
         }
 
+        if (isManagerRequired && !values.managerId) {
+            form.setError('managerId', {
+                message: `Atasan langsung wajib diisi untuk role ${values.role}`,
+            });
+            return;
+        }
+
         const normalizedValues = {
             ...values,
+            mandorType: values.role === UserRole.Mandor ? values.mandorType : null,
             companyIds: normalizeIds(values.companyIds),
             estateIds: normalizeIds(values.estateIds),
             divisionIds: normalizeIds(values.divisionIds),
@@ -474,24 +606,58 @@ export function UserForm({
                                             )}
                                         />
 
+                                        {selectedRole === UserRole.Mandor && (
+                                            <FormField
+                                                control={form.control}
+                                                name="mandorType"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-slate-700 font-medium">Tipe Mandor *</FormLabel>
+                                                        <Select
+                                                            onValueChange={(value) => field.onChange(value as MandorType)}
+                                                            value={field.value || ''}
+                                                        >
+                                                            <FormControl>
+                                                                <SelectTrigger className="bg-slate-50 border-slate-200">
+                                                                    <SelectValue placeholder="Pilih tipe mandor" />
+                                                                </SelectTrigger>
+                                                            </FormControl>
+                                                            <SelectContent>
+                                                                <SelectItem value={MandorType.Panen}>Mandor Panen</SelectItem>
+                                                                <SelectItem value={MandorType.Perawatan}>Mandor Perawatan</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                        <FormDescription>
+                                                            Subtype ini menentukan akses halaman panen atau perawatan untuk role MANDOR.
+                                                        </FormDescription>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        )}
+
                                         <FormField
                                             control={form.control}
                                             name="managerId"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <FormLabel className="text-slate-700 font-medium">Atasan Langsung (Manager)</FormLabel>
+                                                    <FormLabel className="text-slate-700 font-medium">
+                                                        Atasan Langsung (Manager){isManagerRequired ? ' *' : ''}
+                                                    </FormLabel>
                                                     <Select
-                                                        onValueChange={(val) => field.onChange(val === '__none__' ? null : val)}
-                                                        value={field.value || '__none__'}
+                                                        onValueChange={(val) => field.onChange(!isManagerRequired && val === '__none__' ? null : val)}
+                                                        value={field.value || (isManagerRequired ? '' : '__none__')}
                                                         disabled={isManagerSelectDisabled}
                                                     >
                                                         <FormControl>
                                                             <SelectTrigger className="bg-slate-50 border-slate-200 disabled:bg-slate-100 disabled:opacity-70">
-                                                                <SelectValue placeholder="Pilih manager (opsional)" />
+                                                                <SelectValue placeholder={isManagerRequired ? 'Pilih manager' : 'Pilih manager (opsional)'} />
                                                             </SelectTrigger>
                                                         </FormControl>
                                                         <SelectContent>
-                                                            <SelectItem value="__none__">Tanpa Manager / Mandiri</SelectItem>
+                                                            {!isManagerRequired && (
+                                                                <SelectItem value="__none__">Tanpa Manager / Mandiri</SelectItem>
+                                                            )}
                                                             {managerCandidates.map((u: any) => (
                                                                 <SelectItem key={u.id} value={u.id}>
                                                                     {u.name} ({u.role})
@@ -499,6 +665,7 @@ export function UserForm({
                                                             ))}
                                                         </SelectContent>
                                                     </Select>
+                                                    <FormDescription>{managerRoleHint}</FormDescription>
                                                     <FormMessage />
                                                 </FormItem>
                                             )}
@@ -546,6 +713,7 @@ export function UserForm({
                                                     form={form}
                                                     companyIds={form.watch('companyIds') || []}
                                                     isSingle={['ASISTEN', 'MANDOR'].includes(selectedRole)}
+                                                    managerEstateScopeIds={selectedManagerId ? managerEstateScopeIds : []}
                                                 />
                                             )}
 
@@ -553,6 +721,7 @@ export function UserForm({
                                                 <DivisionSelection
                                                     form={form}
                                                     estateIds={form.watch('estateIds') || []}
+                                                    managerDivisionScopeIds={selectedManagerId ? managerDivisionScopeIds : []}
                                                 />
                                             )}
                                         </div>
@@ -584,6 +753,11 @@ export function UserForm({
                                         <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                                             {selectedRoleDescription}
                                         </p>
+                                        {selectedRole === UserRole.Mandor && selectedMandorType && (
+                                            <p className="text-xs text-amber-700 mt-2">
+                                                Tipe aktif: {selectedMandorType === MandorType.Panen ? 'PANEN' : 'PERAWATAN'}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-50">
@@ -629,18 +803,56 @@ export function UserForm({
     );
 }
 
-function EstateSelection({ form, companyIds, isSingle }: { form: any; companyIds: string[]; isSingle: boolean }) {
+function EstateSelection({
+    form,
+    companyIds,
+    isSingle,
+    managerEstateScopeIds,
+}: {
+    form: any;
+    companyIds: string[];
+    isSingle: boolean;
+    managerEstateScopeIds: string[];
+}) {
     const companyId = companyIds.length === 1 ? companyIds[0] : undefined;
 
     const { estates, isLoading } = useEstates({ companyId });
 
+    const scopedEstates = useMemo(() => {
+        if (!managerEstateScopeIds.length) return estates || [];
+        const scopedSet = new Set(managerEstateScopeIds);
+        return (estates || []).filter((estate: any) => scopedSet.has(estate.id));
+    }, [estates, managerEstateScopeIds]);
+
+    const selectedEstateIds = form.watch('estateIds') || [];
+
+    useEffect(() => {
+        if (isLoading) return;
+
+        const selectedIds = normalizeIds(selectedEstateIds);
+        const validIdsSet = new Set(scopedEstates.map((estate: any) => estate.id));
+        const validSelected = selectedIds.filter((id) => validIdsSet.has(id));
+
+        let nextValue = validSelected;
+        if (isSingle && nextValue.length > 1) {
+            nextValue = [nextValue[0]];
+        }
+        if (scopedEstates.length === 1) {
+            nextValue = [scopedEstates[0].id];
+        }
+
+        if (!areSameIds(selectedIds, nextValue)) {
+            form.setValue('estateIds', nextValue, { shouldValidate: true, shouldDirty: true });
+        }
+    }, [form, isLoading, isSingle, scopedEstates, selectedEstateIds]);
+
     const estateOptions = useMemo(() => {
-        return (estates || []).map((e: any) => ({
+        return (scopedEstates || []).map((e: any) => ({
             value: e.id,
             label: e.name || e.nama,
             description: e.code || undefined,
         }));
-    }, [estates]);
+    }, [scopedEstates]);
 
     return (
         <FormField
@@ -660,7 +872,7 @@ function EstateSelection({ form, companyIds, isSingle }: { form: any; companyIds
                                     <SelectValue placeholder={isLoading ? 'Memuat estate...' : 'Pilih estate'} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {estates.map((e: any) => (
+                                    {scopedEstates.map((e: any) => (
                                         <SelectItem key={e.id} value={e.id}>
                                             {e.name || e.nama}
                                         </SelectItem>
@@ -679,6 +891,9 @@ function EstateSelection({ form, companyIds, isSingle }: { form: any; companyIds
                             />
                         )}
                     </FormControl>
+                    {managerEstateScopeIds.length > 0 && (
+                        <FormDescription>Daftar estate mengikuti penugasan Atasan Langsung.</FormDescription>
+                    )}
                     <FormMessage />
                 </FormItem>
             )}
@@ -686,18 +901,59 @@ function EstateSelection({ form, companyIds, isSingle }: { form: any; companyIds
     );
 }
 
-function DivisionSelection({ form, estateIds }: { form: any; estateIds: string[] }) {
+function DivisionSelection({
+    form,
+    estateIds,
+    managerDivisionScopeIds,
+}: {
+    form: any;
+    estateIds: string[];
+    managerDivisionScopeIds: string[];
+}) {
     const estateId = estateIds?.length === 1 ? estateIds[0] : undefined;
     const { divisions, isLoading } = useDivisions({ estateId });
 
+    const scopedDivisions = useMemo(() => {
+        if (!estateId) return [];
+        if (!managerDivisionScopeIds.length) return divisions || [];
+        const scopedSet = new Set(managerDivisionScopeIds);
+        return (divisions || []).filter((division: any) => scopedSet.has(division.id));
+    }, [divisions, estateId, managerDivisionScopeIds]);
+
+    const selectedDivisionIds = form.watch('divisionIds') || [];
+
+    useEffect(() => {
+        if (isLoading) return;
+
+        if (!estateId) {
+            if (normalizeIds(selectedDivisionIds).length > 0) {
+                form.setValue('divisionIds', [], { shouldValidate: true, shouldDirty: true });
+            }
+            return;
+        }
+
+        const selectedIds = normalizeIds(selectedDivisionIds);
+        const validIdsSet = new Set(scopedDivisions.map((division: any) => division.id));
+        const validSelected = selectedIds.filter((id) => validIdsSet.has(id));
+
+        let nextValue = validSelected;
+        if (scopedDivisions.length === 1) {
+            nextValue = [scopedDivisions[0].id];
+        }
+
+        if (!areSameIds(selectedIds, nextValue)) {
+            form.setValue('divisionIds', nextValue, { shouldValidate: true, shouldDirty: true });
+        }
+    }, [estateId, form, isLoading, scopedDivisions, selectedDivisionIds]);
+
     const divisionOptions = useMemo(() => {
         if (!estateId) return [];
-        return (divisions || []).map((d: any) => ({
+        return (scopedDivisions || []).map((d: any) => ({
             value: d.id,
             label: d.name || d.nama,
             description: d.code || undefined,
         }));
-    }, [divisions, estateId]);
+    }, [scopedDivisions, estateId]);
 
     if (!estateId) {
         return (
@@ -726,6 +982,9 @@ function DivisionSelection({ form, estateIds }: { form: any; estateIds: string[]
                             className="bg-white"
                         />
                     </FormControl>
+                    {managerDivisionScopeIds.length > 0 && (
+                        <FormDescription>Daftar divisi mengikuti penugasan Atasan Langsung.</FormDescription>
+                    )}
                     <FormMessage />
                 </FormItem>
             )}

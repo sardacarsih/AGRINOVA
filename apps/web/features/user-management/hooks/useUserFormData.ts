@@ -43,6 +43,9 @@ export function useUserFormData({
             isActive: onlyActiveUsers ? true : undefined,
             limit: 1000, // Fetch enough users to be useful for selection
         },
+        // Prevent stale cross-session user lists (e.g. after switching company admin accounts).
+        fetchPolicy: 'network-only',
+        nextFetchPolicy: 'cache-first',
     });
 
     // Fetch specific user if ID is provided (for edit mode)

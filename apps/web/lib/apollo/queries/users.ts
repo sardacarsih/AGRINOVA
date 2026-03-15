@@ -25,14 +25,17 @@ export const GET_USERS = gql`
         email
         phoneNumber
         role
+        effectiveMandorType
         companyId
         company {
           id
           name
+          logoUrl
         }
         companies {
           id
           name
+          logoUrl
         }
         estates {
           id
@@ -68,6 +71,7 @@ export const GET_USER = gql`
       email
       phoneNumber
       role
+      effectiveMandorType
       companyId
       company {
         id
@@ -221,6 +225,7 @@ export interface User {
   email?: string;
   phoneNumber?: string;
   role: string;
+  effectiveMandorType?: string;
   companyId?: string;
   company?: Company;
   companies?: Company[];
@@ -236,6 +241,7 @@ export interface User {
 export interface Company {
   id: string;
   name: string;
+  logoUrl?: string;
 }
 
 export interface Estate {
@@ -275,6 +281,7 @@ export interface CreateUserInput {
   email?: string;
   phoneNumber?: string;
   role: string;
+  mandorType?: string;
   companyIds?: string[];
   estateIds?: string[];
   divisionIds?: string[];
@@ -290,6 +297,7 @@ export interface UpdateUserInput {
   email?: string;
   phoneNumber?: string;
   role?: string;
+  mandorType?: string;
   companyIds?: string[];
   estateIds?: string[];
   divisionIds?: string[];

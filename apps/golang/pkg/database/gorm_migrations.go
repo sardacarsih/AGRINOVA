@@ -31,7 +31,6 @@ func AutoMigrateWithGORM(db *gorm.DB) error {
 		&auth.User{},
 		&master.Estate{},
 		&master.Division{},
-		&master.TarifBlok{},
 		&master.Block{},
 		&mandor.HarvestRecord{},
 	); err != nil {
@@ -264,41 +263,75 @@ func AddDatabaseConstraints(db *gorm.DB) error {
 		}
 	}
 
-	constraints := []string{
-		// Check constraints for data validation
-		`ALTER TABLE harvest_records 
-		 ADD CONSTRAINT check_berat_tbs_positive 
-		 CHECK (berat_tbs > 0)`,
-
-		`ALTER TABLE harvest_records 
-		 ADD CONSTRAINT check_jumlah_janjang_positive 
-		 CHECK (jumlah_janjang > 0)`,
-
-		`ALTER TABLE blocks 
-		 ADD CONSTRAINT check_blocks_area_ha_positive 
-		 CHECK (area_ha IS NULL OR area_ha > 0)`,
-
-		`ALTER TABLE estates 
-		 ADD CONSTRAINT check_estates_area_ha_positive 
-		 CHECK (area_ha IS NULL OR area_ha > 0)`,
-
-		// Role-based constraints
-		`ALTER TABLE users 
-		 ADD CONSTRAINT check_valid_role 
-		 CHECK (role IN ('SUPER_ADMIN', 'COMPANY_ADMIN', 'AREA_MANAGER', 'MANAGER', 'ASISTEN', 'MANDOR', 'SATPAM', 'TIMBANGAN', 'GRADING'))`,
-
-		`ALTER TABLE companies 
-		 ADD CONSTRAINT check_valid_status 
-		 CHECK (status IN ('ACTIVE', 'INACTIVE', 'SUSPENDED'))`,
-
-		`ALTER TABLE harvest_records 
-		 ADD CONSTRAINT check_valid_status 
-		 CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED'))`,
+	type constraintDef struct {
+		table string
+		name  string
+		sql   string
 	}
 
-	for _, constraintSQL := range constraints {
-		if err := db.Exec(constraintSQL).Error; err != nil {
-			log.Printf("Note: Constraint may already exist or failed to create: %v", err)
+	constraints := []constraintDef{
+		{
+			table: "harvest_records",
+			name:  "check_berat_tbs_positive",
+			sql: `ALTER TABLE harvest_records 
+		 ADD CONSTRAINT check_berat_tbs_positive 
+		 CHECK (berat_tbs > 0)`,
+		},
+		{
+			table: "harvest_records",
+			name:  "check_jumlah_janjang_positive",
+			sql: `ALTER TABLE harvest_records 
+		 ADD CONSTRAINT check_jumlah_janjang_positive 
+		 CHECK (jumlah_janjang > 0)`,
+		},
+		{
+			table: "blocks",
+			name:  "check_blocks_area_ha_positive",
+			sql: `ALTER TABLE blocks 
+		 ADD CONSTRAINT check_blocks_area_ha_positive 
+		 CHECK (area_ha IS NULL OR area_ha > 0)`,
+		},
+		{
+			table: "estates",
+			name:  "check_estates_area_ha_positive",
+			sql: `ALTER TABLE estates 
+		 ADD CONSTRAINT check_estates_area_ha_positive 
+		 CHECK (area_ha IS NULL OR area_ha > 0)`,
+		},
+		{
+			table: "users",
+			name:  "check_valid_role",
+			sql: `ALTER TABLE users 
+		 ADD CONSTRAINT check_valid_role 
+		 CHECK (role IN ('SUPER_ADMIN', 'COMPANY_ADMIN', 'AREA_MANAGER', 'MANAGER', 'ASISTEN', 'MANDOR', 'SATPAM', 'TIMBANGAN', 'GRADING'))`,
+		},
+		{
+			table: "companies",
+			name:  "check_valid_status",
+			sql: `ALTER TABLE companies 
+		 ADD CONSTRAINT check_valid_status 
+		 CHECK (status IN ('ACTIVE', 'INACTIVE', 'SUSPENDED'))`,
+		},
+		{
+			table: "harvest_records",
+			name:  "check_valid_status",
+			sql: `ALTER TABLE harvest_records 
+		 ADD CONSTRAINT check_valid_status 
+		 CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED'))`,
+		},
+	}
+
+	for _, constraint := range constraints {
+		exists, err := databaseConstraintExists(db, constraint.table, constraint.name)
+		if err != nil {
+			log.Printf("Warning: Failed to inspect constraint %s on %s: %v", constraint.name, constraint.table, err)
+			continue
+		}
+		if exists {
+			continue
+		}
+		if err := db.Exec(constraint.sql).Error; err != nil {
+			log.Printf("Warning: Failed to create constraint %s on %s: %v", constraint.name, constraint.table, err)
 		}
 	}
 

@@ -109,14 +109,14 @@ class GenZStatCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildIconContainer(),
-              _buildValue(),
+              _buildValue(context),
             ],
           ),
           const SizedBox(height: 12),
-          _buildLabel(),
+          _buildLabel(context),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
-            _buildSubtitle(),
+            _buildSubtitle(context),
           ],
         ],
       ),
@@ -140,26 +140,26 @@ class GenZStatCard extends StatelessWidget {
     );
   }
 
-  Widget _buildValue() {
+  Widget _buildValue(BuildContext context) {
     return Text(
       value,
-      style: MandorTheme.statValue(color: color),
+      style: MandorTheme.statValueFor(context, color: color),
     );
   }
 
-  Widget _buildLabel() {
+  Widget _buildLabel(BuildContext context) {
     return Text(
       label,
-      style: MandorTheme.statLabel(color: color),
+      style: MandorTheme.statLabelFor(context, color: color),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
   }
 
-  Widget _buildSubtitle() {
+  Widget _buildSubtitle(BuildContext context) {
     return Text(
       subtitle!,
-      style: MandorTheme.bodySmall.copyWith(
+      style: MandorTheme.bodySmallFor(context).copyWith(
         color: color.withValues(alpha: 0.6),
       ),
       maxLines: 1,

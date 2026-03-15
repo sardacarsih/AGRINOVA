@@ -135,6 +135,18 @@ type ApprovalItem {
   elapsedTime: String!
   "Status"
   status: HarvestStatus!
+  "Jumlah buah matang"
+  jjgMatang: Int!
+  "Jumlah buah mentah"
+  jjgMentah: Int!
+  "Jumlah buah lewat matang"
+  jjgLewatMatang: Int!
+  "Jumlah buah busuk/abnormal"
+  jjgBusukAbnormal: Int!
+  "Jumlah tangkai panjang"
+  jjgTangkaiPanjang: Int!
+  "Total brondolan"
+  totalBrondolan: Float!
   "Has photo"
   hasPhoto: Boolean!
   "Photo URLs"

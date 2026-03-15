@@ -45,7 +45,7 @@ class EnhancedDatabaseService {
 
   // Development mode configuration
   static const int _currentDatabaseVersion =
-      26; // Added harvest_records employee division snapshot columns
+      27; // Added users.mandor_type for mandor subtype routing
   static const bool _isDevelopmentMode = true;
   static const bool _recreateDatabaseOnStartupInDevelopment = false;
 
@@ -553,6 +553,17 @@ class EnhancedDatabaseService {
         _logger.i('v26 migration finished successfully');
       } catch (e) {
         _logger.e('v26 migration failed', error: e);
+      }
+    }
+
+    if (oldVersion < 27) {
+      _logger.i('Applying v27 migration: add users.mandor_type');
+      try {
+        await _safeAlterTableAddColumn(db, 'users',
+            "mandor_type TEXT CHECK (mandor_type IN ('PANEN', 'PERAWATAN'))");
+        _logger.i('v27 migration finished successfully');
+      } catch (e) {
+        _logger.e('v27 migration failed', error: e);
       }
     }
   }

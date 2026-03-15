@@ -6,7 +6,8 @@ import { HarvestDashboard } from '@/features/harvest/components/HarvestDashboard
 export default function HarvestPage() {
   return (
     <ProtectedRoute
-      allowedRoles={['MANDOR', 'ASISTEN', 'MANAGER']}
+      allowedRoles={['MANDOR', 'ASISTEN', 'MANAGER', 'AREA_MANAGER']}
+      allowedMandorTypes={['PANEN']}
       fallbackPath="/login"
     >
       <HarvestDashboard />

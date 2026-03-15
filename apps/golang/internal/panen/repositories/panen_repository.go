@@ -89,6 +89,18 @@ func (r *PanenRepository) GetHarvestRecordByID(ctx context.Context, id string) (
 	return &record, nil
 }
 
+// GetHarvestRecordByIDLight retrieves a harvest record by ID without preloading associations.
+func (r *PanenRepository) GetHarvestRecordByIDLight(ctx context.Context, id string) (*models.HarvestRecord, error) {
+	var record models.HarvestRecord
+	err := r.db.WithContext(ctx).
+		Where("id = ?", id).
+		First(&record).Error
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
 // GetByLocalID retrieves a harvest record by local ID and mandor ID
 func (r *PanenRepository) GetByLocalID(ctx context.Context, localID, mandorID string) (*models.HarvestRecord, error) {
 	var record models.HarvestRecord
@@ -101,6 +113,18 @@ func (r *PanenRepository) GetByLocalID(ctx context.Context, localID, mandorID st
 		Where("local_id = ? AND mandor_id = ?", localID, mandorID).
 		First(&record).Error
 
+	if err != nil {
+		return nil, err
+	}
+	return &record, nil
+}
+
+// GetByLocalIDLight retrieves a harvest record by local ID and mandor ID without preloading associations.
+func (r *PanenRepository) GetByLocalIDLight(ctx context.Context, localID, mandorID string) (*models.HarvestRecord, error) {
+	var record models.HarvestRecord
+	err := r.db.WithContext(ctx).
+		Where("local_id = ? AND mandor_id = ?", localID, mandorID).
+		First(&record).Error
 	if err != nil {
 		return nil, err
 	}
@@ -123,6 +147,77 @@ func (r *PanenRepository) GetHarvestRecords(ctx context.Context, filters *models
 	var records []*mandor.HarvestRecord
 	err := query.Find(&records).Error
 	return records, err
+}
+
+// CountHarvestRecords counts harvest records matching the given filters (no pagination/sorting applied).
+func (r *PanenRepository) CountHarvestRecords(ctx context.Context, filters *models.HarvestFilters) (int64, error) {
+	query := r.db.WithContext(ctx).Model(&mandor.HarvestRecord{})
+	query = r.applyHarvestWhereFilters(query, filters)
+
+	var count int64
+	err := query.Count(&count).Error
+	return count, err
+}
+
+// applyHarvestWhereFilters applies only WHERE conditions from filters (no order/limit/offset).
+// Used for counting total records.
+func (r *PanenRepository) applyHarvestWhereFilters(query *gorm.DB, filters *models.HarvestFilters) *gorm.DB {
+	if filters == nil {
+		return query
+	}
+
+	if len(filters.CompanyIDs) > 0 {
+		companyIDs := normalizeHarvestScopeIDs(filters.CompanyIDs)
+		if len(companyIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.company_id IN ?", companyIDs)
+	}
+	if len(filters.EstateIDs) > 0 {
+		estateIDs := normalizeHarvestScopeIDs(filters.EstateIDs)
+		if len(estateIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.estate_id IN ?", estateIDs)
+	}
+	if len(filters.DivisionIDs) > 0 {
+		divisionIDs := normalizeHarvestScopeIDs(filters.DivisionIDs)
+		if len(divisionIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.division_id IN ?", divisionIDs)
+	}
+	if len(filters.MandorIDs) > 0 {
+		mandorIDs := normalizeHarvestScopeIDs(filters.MandorIDs)
+		if len(mandorIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.mandor_id IN ?", mandorIDs)
+	}
+	if filters.MandorID != nil {
+		query = query.Where("harvest_records.mandor_id = ?", *filters.MandorID)
+	}
+	if filters.BlockID != nil {
+		query = query.Where("harvest_records.block_id = ?", *filters.BlockID)
+	}
+	if filters.Status != nil {
+		query = query.Where("harvest_records.status = ?", *filters.Status)
+	}
+	if filters.DateFrom != nil {
+		query = query.Where("harvest_records.tanggal >= ?", *filters.DateFrom)
+	}
+	if filters.DateTo != nil {
+		query = query.Where("harvest_records.tanggal <= ?", *filters.DateTo)
+	}
+	if filters.Search != nil && *filters.Search != "" {
+		searchTerm := "%" + strings.ToLower(*filters.Search) + "%"
+		query = query.Where(
+			"LOWER(COALESCE(harvest_records.nik, '')) LIKE ? OR LOWER(COALESCE(harvest_records.karyawan, '')) LIKE ? OR LOWER(COALESCE(harvest_records.notes, '')) LIKE ?",
+			searchTerm, searchTerm, searchTerm,
+		)
+	}
+
+	return query
 }
 
 // GetHarvestRecordsByStatus retrieves harvest records filtered by status
@@ -201,45 +296,64 @@ func (r *PanenRepository) GetHarvestRecordByIDForManager(ctx context.Context, id
 func (r *PanenRepository) UpdateHarvestRecord(ctx context.Context, id string, updates map[string]interface{}) (*models.HarvestRecord, error) {
 	var record models.HarvestRecord
 
-	// Start transaction
-	tx := r.db.WithContext(ctx).Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
 	filteredUpdates, err := r.filterHarvestRecordColumns(ctx, updates)
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 	if len(filteredUpdates) == 0 {
 		filteredUpdates = map[string]interface{}{"updated_at": time.Now()}
 	}
 
-	// Update the record
-	err = tx.Model(&record).Where("id = ?", id).Updates(filteredUpdates).Error
+	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Update the record
+		if updateErr := tx.Model(&models.HarvestRecord{}).
+			Where("id = ?", id).
+			Updates(filteredUpdates).Error; updateErr != nil {
+			return updateErr
+		}
+
+		// Fetch updated record with associations
+		return tx.Preload("Mandor").
+			Preload("Block").
+			Preload("Block.Division").
+			Preload("Block.Division.Estate").
+			Preload("Block.Division.Estate.Company").
+			Where("id = ?", id).
+			First(&record).Error
+	})
 	if err != nil {
-		tx.Rollback()
 		return nil, err
 	}
 
-	// Fetch updated record with associations
-	err = tx.Preload("Mandor").
-		Preload("Block").
-		Preload("Block.Division").
-		Preload("Block.Division.Estate").
-		Preload("Block.Division.Estate.Company").
-		Where("id = ?", id).
-		First(&record).Error
+	return &record, nil
+}
 
+// UpdateHarvestRecordLight updates an existing harvest record and returns the row without preloaded associations.
+func (r *PanenRepository) UpdateHarvestRecordLight(ctx context.Context, id string, updates map[string]interface{}) (*models.HarvestRecord, error) {
+	var record models.HarvestRecord
+
+	filteredUpdates, err := r.filterHarvestRecordColumns(ctx, updates)
 	if err != nil {
-		tx.Rollback()
+		return nil, err
+	}
+	if len(filteredUpdates) == 0 {
+		filteredUpdates = map[string]interface{}{"updated_at": time.Now()}
+	}
+
+	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if updateErr := tx.Model(&models.HarvestRecord{}).
+			Where("id = ?", id).
+			Updates(filteredUpdates).Error; updateErr != nil {
+			return updateErr
+		}
+
+		return tx.Where("id = ?", id).First(&record).Error
+	})
+	if err != nil {
 		return nil, err
 	}
 
-	return &record, tx.Commit().Error
+	return &record, nil
 }
 
 // ApproveHarvestRecord approves a harvest record
@@ -415,15 +529,29 @@ func (r *PanenRepository) CanModifyHarvestRecord(ctx context.Context, id string)
 // This is used for mobile sync to pull approval status updates from the server
 func (r *PanenRepository) GetHarvestRecordsByMandorSince(ctx context.Context, mandorID string, since time.Time) ([]*mandor.HarvestRecord, error) {
 	var records []*mandor.HarvestRecord
+	relevantStatuses := []models.HarvestStatus{
+		models.HarvestApproved,
+		models.HarvestRejected,
+	}
 	query := r.db.WithContext(ctx).
-		Preload("Mandor").
-		Preload("Block").
-		Preload("Block.Division").
-		Preload("Block.Division.Estate").
-		Preload("Block.Division.Estate.Company").
-		Where("harvest_records.mandor_id = ? AND harvest_records.updated_at > ?", mandorID, since).
+		Model(&mandor.HarvestRecord{}).
+		Select(
+			"id",
+			"local_id",
+			"mandor_id",
+			"status",
+			"approved_by",
+			"approved_at",
+			"rejected_reason",
+			"updated_at",
+		).
+		Where(
+			"harvest_records.mandor_id = ? AND harvest_records.updated_at > ? AND harvest_records.status IN ?",
+			mandorID,
+			since,
+			relevantStatuses,
+		).
 		Order("harvest_records.updated_at DESC")
-	query = r.applyEmployeeWorkerNameJoin(query)
 	err := query.Find(&records).Error
 
 	return records, err
@@ -438,11 +566,11 @@ func (r *PanenRepository) applyEmployeeWorkerNameJoin(query *gorm.DB) *gorm.DB {
 		Select(`
 			harvest_records.*,
 			COALESCE(
-				NULLIF(BTRIM(employees.name), ''),
-				NULLIF(BTRIM(employees.nik), ''),
-				NULLIF(BTRIM(harvest_records.nik), ''),
+				NULLIF(TRIM(employees.name), ''),
+				NULLIF(TRIM(employees.nik), ''),
+				NULLIF(TRIM(harvest_records.nik), ''),
 				CASE
-					WHEN harvest_records.karyawan_id IS NOT NULL THEN harvest_records.karyawan_id::text
+					WHEN harvest_records.karyawan_id IS NOT NULL THEN CAST(harvest_records.karyawan_id AS TEXT)
 					ELSE ''
 				END
 			) AS karyawan
@@ -542,8 +670,31 @@ func (r *PanenRepository) getHarvestRecordColumns(ctx context.Context) (map[stri
 		WHERE table_schema = current_schema()
 		  AND table_name = 'harvest_records'
 	`).Scan(&columnNames).Error
-	if err != nil {
-		return nil, err
+
+	if err != nil || len(columnNames) == 0 {
+		// SQLite/test fallback when information_schema/current_schema are unavailable.
+		var pragmaRows []struct {
+			Name string `gorm:"column:name"`
+		}
+		pragmaErr := r.db.WithContext(ctx).
+			Raw(`PRAGMA table_info('harvest_records')`).
+			Scan(&pragmaRows).Error
+		if pragmaErr != nil {
+			if err != nil {
+				return nil, err
+			}
+			return nil, pragmaErr
+		}
+		columnNames = make([]string, 0, len(pragmaRows))
+		for _, row := range pragmaRows {
+			if strings.TrimSpace(row.Name) == "" {
+				continue
+			}
+			columnNames = append(columnNames, row.Name)
+		}
+		if len(columnNames) == 0 && err != nil {
+			return nil, err
+		}
 	}
 
 	columns := make(map[string]struct{}, len(columnNames))
@@ -561,6 +712,34 @@ func (r *PanenRepository) applyHarvestFilters(query *gorm.DB, filters *models.Ha
 	}
 
 	// Apply filters
+	if len(filters.CompanyIDs) > 0 {
+		companyIDs := normalizeHarvestScopeIDs(filters.CompanyIDs)
+		if len(companyIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.company_id IN ?", companyIDs)
+	}
+	if len(filters.EstateIDs) > 0 {
+		estateIDs := normalizeHarvestScopeIDs(filters.EstateIDs)
+		if len(estateIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.estate_id IN ?", estateIDs)
+	}
+	if len(filters.DivisionIDs) > 0 {
+		divisionIDs := normalizeHarvestScopeIDs(filters.DivisionIDs)
+		if len(divisionIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.division_id IN ?", divisionIDs)
+	}
+	if len(filters.MandorIDs) > 0 {
+		mandorIDs := normalizeHarvestScopeIDs(filters.MandorIDs)
+		if len(mandorIDs) == 0 {
+			return query.Where("1 = 0")
+		}
+		query = query.Where("harvest_records.mandor_id IN ?", mandorIDs)
+	}
 	if filters.MandorID != nil {
 		query = query.Where("harvest_records.mandor_id = ?", *filters.MandorID)
 	}
@@ -645,4 +824,26 @@ func normalizeHarvestOrderBy(orderBy string) string {
 	default:
 		return "harvest_records.tanggal"
 	}
+}
+
+func normalizeHarvestScopeIDs(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, len(values))
+	normalized := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		normalized = append(normalized, trimmed)
+	}
+
+	return normalized
 }

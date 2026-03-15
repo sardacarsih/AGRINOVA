@@ -120,6 +120,29 @@ func (r *RBACRepository) GetAllRoles(activeOnly bool) ([]*models.Role, error) {
 	return roles, nil
 }
 
+// GetRolesPage retrieves a paginated slice of roles using limit/offset.
+func (r *RBACRepository) GetRolesPage(activeOnly bool, limit int, offset int) ([]*models.Role, error) {
+	var roles []*models.Role
+	query := r.db.Order("level ASC, name ASC")
+
+	if activeOnly {
+		query = query.Where("is_active = ?", true)
+	}
+
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	if offset > 0 {
+		query = query.Offset(offset)
+	}
+
+	if err := query.Find(&roles).Error; err != nil {
+		return nil, err
+	}
+
+	return roles, nil
+}
+
 // GetRolesByLevel retrieves all roles at a specific hierarchy level
 func (r *RBACRepository) GetRolesByLevel(level int) ([]*models.Role, error) {
 	var roles []*models.Role
