@@ -7,6 +7,7 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/mandor_master_sync_service.dart';
 import '../../../../core/services/perawatan_service.dart';
 import '../../../../core/services/role_service.dart';
+import '../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../../../shared/widgets/logout_menu_widget.dart';
 import '../../../auth/presentation/blocs/auth_bloc.dart';
 import 'mandor_perawatan_create_page.dart';
@@ -104,26 +105,40 @@ class _MandorPerawatanPageState extends State<MandorPerawatanPage> {
   Future<void> _deleteRecord(PerawatanRecordSummary record) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        icon: const Icon(
-          Icons.warning_amber_rounded,
-          color: Color(0xFFB45309),
-        ),
-        title: const Text('Hapus record?'),
-        content: Text(
-          'Record ${record.blockCode} pada ${_formatDate(record.tanggalPerawatan)} akan dihapus permanen.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Batal'),
+      builder: (dialogContext) {
+        final modalBg = RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback:
+              Theme.of(dialogContext).dialogTheme.backgroundColor ??
+              Theme.of(dialogContext).colorScheme.surface,
+        );
+        final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+          dialogContext,
+          fallback: const Color(0xFFB45309),
+        );
+        return AlertDialog(
+          backgroundColor: modalBg,
+          icon: const Icon(
+            Icons.warning_amber_rounded,
+            color: Color(0xFFB45309),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Hapus'),
+          title: const Text('Hapus record?'),
+          content: Text(
+            'Record ${record.blockCode} pada ${_formatDate(record.tanggalPerawatan)} akan dihapus permanen.',
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text('Batal', style: TextStyle(color: modalAccent)),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: modalAccent),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Hapus'),
+            ),
+          ],
+        );
+      },
     );
 
     if (shouldDelete != true) {
@@ -142,20 +157,33 @@ class _MandorPerawatanPageState extends State<MandorPerawatanPage> {
       }
       await showDialog<void>(
         context: context,
-        builder: (context) => AlertDialog(
-          icon: const Icon(
-            Icons.error_outline_rounded,
-            color: Color(0xFFB91C1C),
-          ),
-          title: const Text('Gagal menghapus record'),
-          content: SelectableText(error.toString()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Tutup'),
+        builder: (dialogContext) {
+          final modalBg = RuntimeThemeSlotResolver.modalBackground(
+            dialogContext,
+            fallback:
+                Theme.of(dialogContext).dialogTheme.backgroundColor ??
+                Theme.of(dialogContext).colorScheme.surface,
+          );
+          final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+            dialogContext,
+            fallback: const Color(0xFFB91C1C),
+          );
+          return AlertDialog(
+            backgroundColor: modalBg,
+            icon: const Icon(
+              Icons.error_outline_rounded,
+              color: Color(0xFFB91C1C),
             ),
-          ],
-        ),
+            title: const Text('Gagal menghapus record'),
+            content: SelectableText(error.toString()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text('Tutup', style: TextStyle(color: modalAccent)),
+              ),
+            ],
+          );
+        },
       );
     }
   }
@@ -166,6 +194,12 @@ class _MandorPerawatanPageState extends State<MandorPerawatanPage> {
   ) async {
     await showModalBottomSheet<void>(
       context: context,
+      backgroundColor: RuntimeThemeSlotResolver.modalBackground(
+        context,
+        fallback:
+            Theme.of(context).bottomSheetTheme.backgroundColor ??
+            Theme.of(context).colorScheme.surface,
+      ),
       isScrollControlled: true,
       builder: (sheetContext) {
         return _MaterialUsageBottomSheet(
@@ -184,8 +218,14 @@ class _MandorPerawatanPageState extends State<MandorPerawatanPage> {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        content: Row(
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback:
+              Theme.of(dialogContext).dialogTheme.backgroundColor ??
+              Theme.of(dialogContext).colorScheme.surface,
+        ),
+        content: const Row(
           children: [
             SizedBox(
               width: 18,
@@ -215,26 +255,43 @@ class _MandorPerawatanPageState extends State<MandorPerawatanPage> {
           : result.message;
       await showDialog<void>(
         context: context,
-        builder: (context) => AlertDialog(
-          icon: Icon(
-            result.success
-                ? Icons.check_circle_outline_rounded
-                : Icons.warning_amber_rounded,
-            color: result.success
+        builder: (dialogContext) {
+          final modalBg = RuntimeThemeSlotResolver.modalBackground(
+            dialogContext,
+            fallback:
+                Theme.of(dialogContext).dialogTheme.backgroundColor ??
+                Theme.of(dialogContext).colorScheme.surface,
+          );
+          final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+            dialogContext,
+            fallback: result.success
                 ? const Color(0xFF047857)
                 : const Color(0xFFB45309),
-          ),
-          title: Text(
-            result.success ? 'Sinkronisasi berhasil' : 'Sinkronisasi belum lengkap',
-          ),
-          content: SelectableText(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Tutup'),
+          );
+          return AlertDialog(
+            backgroundColor: modalBg,
+            icon: Icon(
+              result.success
+                  ? Icons.check_circle_outline_rounded
+                  : Icons.warning_amber_rounded,
+              color: result.success
+                  ? const Color(0xFF047857)
+                  : const Color(0xFFB45309),
             ),
-          ],
-        ),
+            title: Text(
+              result.success
+                  ? 'Sinkronisasi berhasil'
+                  : 'Sinkronisasi belum lengkap',
+            ),
+            content: SelectableText(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text('Tutup', style: TextStyle(color: modalAccent)),
+              ),
+            ],
+          );
+        },
       );
     } catch (error) {
       if (!mounted) {
@@ -243,20 +300,33 @@ class _MandorPerawatanPageState extends State<MandorPerawatanPage> {
       Navigator.of(context, rootNavigator: true).pop();
       await showDialog<void>(
         context: context,
-        builder: (context) => AlertDialog(
-          icon: const Icon(
-            Icons.error_outline_rounded,
-            color: Color(0xFFB91C1C),
-          ),
-          title: const Text('Sinkronisasi gagal'),
-          content: SelectableText(error.toString()),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Tutup'),
+        builder: (dialogContext) {
+          final modalBg = RuntimeThemeSlotResolver.modalBackground(
+            dialogContext,
+            fallback:
+                Theme.of(dialogContext).dialogTheme.backgroundColor ??
+                Theme.of(dialogContext).colorScheme.surface,
+          );
+          final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+            dialogContext,
+            fallback: const Color(0xFFB91C1C),
+          );
+          return AlertDialog(
+            backgroundColor: modalBg,
+            icon: const Icon(
+              Icons.error_outline_rounded,
+              color: Color(0xFFB91C1C),
             ),
-          ],
-        ),
+            title: const Text('Sinkronisasi gagal'),
+            content: SelectableText(error.toString()),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: Text('Tutup', style: TextStyle(color: modalAccent)),
+              ),
+            ],
+          );
+        },
       );
     }
   }
@@ -272,26 +342,49 @@ class _MandorPerawatanPageState extends State<MandorPerawatanPage> {
         }
 
         final user = state.user;
+        final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+          context,
+          fallback:
+              Theme.of(context).appBarTheme.backgroundColor ??
+              Theme.of(context).colorScheme.primary,
+        );
+        final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+          context,
+          fallback:
+              Theme.of(context).appBarTheme.foregroundColor ??
+              Theme.of(context).colorScheme.onPrimary,
+        );
+        final navbarIcon = RuntimeThemeSlotResolver.navbarIcon(
+          context,
+          fallback: navbarFg,
+        );
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Mandor Perawatan'),
+            title: Text('Mandor Perawatan', style: TextStyle(color: navbarFg)),
+            flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+                ? Container(color: navbarBg)
+                : null,
+            backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+                ? Colors.transparent
+                : navbarBg,
+            foregroundColor: navbarFg,
             actions: [
               IconButton(
                 onPressed: () => _openCreateTransaction(context),
-                icon: const Icon(Icons.add_circle_outline_rounded),
+                icon: Icon(Icons.add_circle_outline_rounded, color: navbarIcon),
                 tooltip: 'Transaksi baru',
               ),
               IconButton(
                 onPressed: () {
                   _reloadDashboard();
                 },
-                icon: const Icon(Icons.refresh_rounded),
+                icon: Icon(Icons.refresh_rounded, color: navbarIcon),
                 tooltip: 'Muat ulang',
               ),
               IconButton(
                 onPressed: _syncMasterData,
-                icon: const Icon(Icons.sync_rounded),
+                icon: Icon(Icons.sync_rounded, color: navbarIcon),
                 tooltip: 'Sinkronisasi master data',
               ),
               LogoutMenuWidget(
@@ -314,7 +407,8 @@ class _MandorPerawatanPageState extends State<MandorPerawatanPage> {
                 );
               }
 
-              final dashboard = snapshot.data ??
+              final dashboard =
+                  snapshot.data ??
                   const PerawatanDashboardSnapshot(
                     records: <PerawatanRecordSummary>[],
                     materialUsages: <PerawatanMaterialUsageSummary>[],
@@ -369,13 +463,17 @@ class _MandorPerawatanPageState extends State<MandorPerawatanPage> {
                         message: 'Belum ada record perawatan yang tersinkron.',
                       )
                     else
-                      ...dashboard.records.take(6).map(
+                      ...dashboard.records
+                          .take(6)
+                          .map(
                             (record) => Padding(
                               padding: const EdgeInsets.only(bottom: 12),
                               child: _PerawatanRecordCard(
                                 record: record,
-                                onTap: () =>
-                                    _showMaterialUsageBottomSheet(context, record),
+                                onTap: () => _showMaterialUsageBottomSheet(
+                                  context,
+                                  record,
+                                ),
                                 onEdit: () => _openEditTransaction(record),
                                 onDelete: () => _deleteRecord(record),
                               ),
@@ -392,7 +490,9 @@ class _MandorPerawatanPageState extends State<MandorPerawatanPage> {
                         message: 'Belum ada material usage yang tercatat.',
                       )
                     else
-                      ...dashboard.materialUsages.take(5).map(
+                      ...dashboard.materialUsages
+                          .take(5)
+                          .map(
                             (item) => Padding(
                               padding: const EdgeInsets.only(bottom: 10),
                               child: _MaterialUsageTile(item: item),
@@ -441,22 +541,13 @@ class _HeaderCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            userName,
-            style: theme.textTheme.titleMedium,
-          ),
+          Text(userName, style: theme.textTheme.titleMedium),
           const SizedBox(height: 14),
           Row(
             children: [
-              _HeaderBadge(
-                label: 'Record',
-                value: '$totalRecords',
-              ),
+              _HeaderBadge(label: 'Record', value: '$totalRecords'),
               const SizedBox(width: 10),
-              _HeaderBadge(
-                label: 'Aktif',
-                value: '$activeRecords',
-              ),
+              _HeaderBadge(label: 'Aktif', value: '$activeRecords'),
             ],
           ),
         ],
@@ -484,15 +575,15 @@ class _HeaderBadge extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: const Color(0xFF6B7280),
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelMedium?.copyWith(color: const Color(0xFF6B7280)),
           ),
           Text(
             value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -623,8 +714,8 @@ class _PerawatanRecordCard extends StatelessWidget {
                     child: Text(
                       '${record.blockCode} - ${record.blockName}',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   PopupMenuButton<String>(
@@ -639,10 +730,7 @@ class _PerawatanRecordCard extends StatelessWidget {
                       }
                     },
                     itemBuilder: (context) => const [
-                      PopupMenuItem<String>(
-                        value: 'edit',
-                        child: Text('Edit'),
-                      ),
+                      PopupMenuItem<String>(value: 'edit', child: Text('Edit')),
                       PopupMenuItem<String>(
                         value: 'delete',
                         child: Text('Hapus'),
@@ -671,8 +759,8 @@ class _PerawatanRecordCard extends StatelessWidget {
                 Text(
                   record.catatan!,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF4B5563),
-                      ),
+                    color: const Color(0xFF4B5563),
+                  ),
                 ),
               ],
             ],
@@ -751,9 +839,20 @@ class _MaterialUsageBottomSheetState extends State<_MaterialUsageBottomSheet> {
     final shouldRefresh = await showDialog<bool>(
       context: context,
       builder: (dialogContext) {
+        final modalBg = RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback:
+              Theme.of(dialogContext).dialogTheme.backgroundColor ??
+              Theme.of(dialogContext).colorScheme.surface,
+        );
+        final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+          dialogContext,
+          fallback: Theme.of(dialogContext).colorScheme.primary,
+        );
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
+              backgroundColor: modalBg,
               title: const Text('Tambah Material'),
               content: Form(
                 key: formKey,
@@ -768,7 +867,10 @@ class _MaterialUsageBottomSheetState extends State<_MaterialUsageBottomSheet> {
                           border: OutlineInputBorder(),
                         ),
                         items: const [
-                          DropdownMenuItem(value: 'PUPUK', child: Text('Pupuk')),
+                          DropdownMenuItem(
+                            value: 'PUPUK',
+                            child: Text('Pupuk'),
+                          ),
                           DropdownMenuItem(
                             value: 'HERBISIDA',
                             child: Text('Herbisida'),
@@ -825,7 +927,8 @@ class _MaterialUsageBottomSheetState extends State<_MaterialUsageBottomSheet> {
                           decimal: true,
                         ),
                         decoration: InputDecoration(
-                          labelText: 'Harga Satuan (${unit == 'KG' ? 'Kg' : 'Liter'})',
+                          labelText:
+                              'Harga Satuan (${unit == 'KG' ? 'Kg' : 'Liter'})',
                           border: const OutlineInputBorder(),
                         ),
                         validator: (value) {
@@ -843,9 +946,7 @@ class _MaterialUsageBottomSheetState extends State<_MaterialUsageBottomSheet> {
                         SelectableText.rich(
                           TextSpan(
                             text: 'Gagal menyimpan:\n',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
+                            style: Theme.of(context).textTheme.bodySmall
                                 ?.copyWith(
                                   color: const Color(0xFFB91C1C),
                                   fontWeight: FontWeight.w700,
@@ -868,9 +969,10 @@ class _MaterialUsageBottomSheetState extends State<_MaterialUsageBottomSheet> {
                   onPressed: isSubmitting
                       ? null
                       : () => Navigator.of(dialogContext).pop(false),
-                  child: const Text('Batal'),
+                  child: Text('Batal', style: TextStyle(color: modalAccent)),
                 ),
                 FilledButton(
+                  style: FilledButton.styleFrom(backgroundColor: modalAccent),
                   onPressed: isSubmitting
                       ? null
                       : () async {
@@ -882,7 +984,10 @@ class _MaterialUsageBottomSheetState extends State<_MaterialUsageBottomSheet> {
                             quantityController.text.trim().replaceAll(',', '.'),
                           );
                           final unitPrice = double.parse(
-                            unitPriceController.text.trim().replaceAll(',', '.'),
+                            unitPriceController.text.trim().replaceAll(
+                              ',',
+                              '.',
+                            ),
                           );
 
                           setDialogState(() {
@@ -967,9 +1072,9 @@ class _MaterialUsageBottomSheetState extends State<_MaterialUsageBottomSheet> {
               const SizedBox(height: 4),
               Text(
                 widget.record.blockName,
-                style: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.copyWith(color: const Color(0xFF6B7280)),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: const Color(0xFF6B7280),
+                ),
               ),
               const SizedBox(height: 12),
               Row(
@@ -1020,8 +1125,7 @@ class _MaterialUsageBottomSheetState extends State<_MaterialUsageBottomSheet> {
                 Expanded(
                   child: ListView.separated(
                     itemCount: _materials.length,
-                    separatorBuilder: (_, index) =>
-                        const SizedBox(height: 10),
+                    separatorBuilder: (_, index) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final item = _materials[index];
                       return _MaterialUsageTile(item: item);
@@ -1077,16 +1181,16 @@ class _MaterialUsageTile extends StatelessWidget {
               children: [
                 Text(
                   item.materialName,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '${item.materialCategory} - ${item.quantity.toStringAsFixed(1)} ${item.unit}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF6B7280),
-                      ),
+                    color: const Color(0xFF6B7280),
+                  ),
                 ),
               ],
             ),
@@ -1094,9 +1198,9 @@ class _MaterialUsageTile extends StatelessWidget {
           const SizedBox(width: 12),
           Text(
             'Rp ${item.totalCost.toStringAsFixed(0)}',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
         ],
       ),
@@ -1117,10 +1221,7 @@ class _InlineTag extends StatelessWidget {
         color: const Color(0xFFF3F4F6),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelMedium,
-      ),
+      child: Text(label, style: Theme.of(context).textTheme.labelMedium),
     );
   }
 }
@@ -1139,10 +1240,7 @@ class _EmptyCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
-      child: Text(
-        message,
-        style: Theme.of(context).textTheme.bodyMedium,
-      ),
+      child: Text(message, style: Theme.of(context).textTheme.bodyMedium),
     );
   }
 }
@@ -1151,10 +1249,7 @@ class _PerawatanErrorState extends StatelessWidget {
   final String message;
   final Future<void> Function() onRetry;
 
-  const _PerawatanErrorState({
-    required this.message,
-    required this.onRetry,
-  });
+  const _PerawatanErrorState({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
@@ -1172,9 +1267,9 @@ class _PerawatanErrorState extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Gagal memuat dashboard perawatan',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 10),
@@ -1182,8 +1277,8 @@ class _PerawatanErrorState extends StatelessWidget {
               TextSpan(
                 text: message,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF4B5563),
-                    ),
+                  color: const Color(0xFF4B5563),
+                ),
               ),
               textAlign: TextAlign.center,
             ),

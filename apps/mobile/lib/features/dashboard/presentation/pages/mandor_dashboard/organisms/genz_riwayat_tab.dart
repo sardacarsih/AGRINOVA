@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
+import '../../../../../../shared/widgets/themed_empty_state_illustration.dart';
 import '../mandor_theme.dart';
 import '../../../../../harvest/domain/entities/harvest_entity.dart';
 import '../../../../../harvest/presentation/blocs/harvest_bloc.dart';
@@ -794,86 +796,100 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
   Future<void> _showHarvestDetailDialog(Harvest harvest) async {
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: MandorTheme.of(dialogContext).cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Detail Panen',
-          style: TextStyle(color: MandorTheme.of(dialogContext).headingColor),
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDetailRow(dialogContext, 'ID Panen', harvest.id),
-              _buildDetailRow(dialogContext, 'Karyawan', harvest.employeeName),
-              _buildDetailRow(dialogContext, 'Blok', harvest.blockName),
-              _buildDetailRow(dialogContext, 'Divisi', harvest.divisionName),
-              _buildDetailRow(
-                dialogContext,
-                'Status',
-                harvest.status.toUpperCase(),
-              ),
-              _buildDetailRow(
-                dialogContext,
-                'Jumlah Janjang',
-                harvest.tbsQuantity.toStringAsFixed(0),
-              ),
-              _buildDetailRow(
-                dialogContext,
-                'Tanggal Panen',
-                _formatDate(harvest.harvestDate),
-              ),
-              if (harvest.notes != null && harvest.notes!.trim().isNotEmpty)
+      builder: (dialogContext) {
+        final modalBg = RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback: MandorTheme.of(dialogContext).cardBackground,
+        );
+        final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+          dialogContext,
+          fallback: MandorTheme.forestGreen,
+        );
+        return AlertDialog(
+          backgroundColor: modalBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Detail Panen',
+            style: TextStyle(color: MandorTheme.of(dialogContext).headingColor),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildDetailRow(dialogContext, 'ID Panen', harvest.id),
                 _buildDetailRow(
                   dialogContext,
-                  'Catatan',
-                  harvest.notes!.trim(),
+                  'Karyawan',
+                  harvest.employeeName,
                 ),
-              if (harvest.rejectionReason != null &&
-                  harvest.rejectionReason!.trim().isNotEmpty)
+                _buildDetailRow(dialogContext, 'Blok', harvest.blockName),
+                _buildDetailRow(dialogContext, 'Divisi', harvest.divisionName),
                 _buildDetailRow(
                   dialogContext,
-                  'Alasan Penolakan',
-                  harvest.rejectionReason!.trim(),
+                  'Status',
+                  harvest.status.toUpperCase(),
                 ),
-              if (_isRejectedCorrectable(harvest))
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    'Gunakan tombol Perbaiki untuk kirim ulang sebagai data Pending.',
-                    style: MandorTheme.labelSmallFor(
-                      dialogContext,
-                    ).copyWith(color: MandorTheme.amberOrange),
+                _buildDetailRow(
+                  dialogContext,
+                  'Jumlah Janjang',
+                  harvest.tbsQuantity.toStringAsFixed(0),
+                ),
+                _buildDetailRow(
+                  dialogContext,
+                  'Tanggal Panen',
+                  _formatDate(harvest.harvestDate),
+                ),
+                if (harvest.notes != null && harvest.notes!.trim().isNotEmpty)
+                  _buildDetailRow(
+                    dialogContext,
+                    'Catatan',
+                    harvest.notes!.trim(),
                   ),
+                if (harvest.rejectionReason != null &&
+                    harvest.rejectionReason!.trim().isNotEmpty)
+                  _buildDetailRow(
+                    dialogContext,
+                    'Alasan Penolakan',
+                    harvest.rejectionReason!.trim(),
+                  ),
+                if (_isRejectedCorrectable(harvest))
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Gunakan tombol Perbaiki untuk kirim ulang sebagai data Pending.',
+                      style: MandorTheme.labelSmallFor(
+                        dialogContext,
+                      ).copyWith(color: MandorTheme.amberOrange),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text('Tutup', style: TextStyle(color: modalAccent)),
+            ),
+            if (_canEditHarvest(harvest))
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  _showEditDialog(harvest);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: modalAccent,
+                  foregroundColor: Colors.white,
                 ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(
-              'Tutup',
-              style: TextStyle(color: MandorTheme.of(dialogContext).bodyColor),
-            ),
-          ),
-          if (_canEditHarvest(harvest))
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                _showEditDialog(harvest);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: MandorTheme.forestGreen,
+                child: Text(
+                  _isRejectedCorrectable(harvest) ? 'Perbaiki' : 'Edit',
+                ),
               ),
-              child: Text(
-                _isRejectedCorrectable(harvest) ? 'Perbaiki' : 'Edit',
-              ),
-            ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 
@@ -910,39 +926,47 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
 
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: MandorTheme.of(dialogContext).cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Hapus Panen',
-          style: TextStyle(color: MandorTheme.of(dialogContext).headingColor),
-        ),
-        content: Text(
-          'Yakin hapus data panen ${harvest.employeeName} di blok ${harvest.blockName}?',
-          style: MandorTheme.bodySmallFor(dialogContext),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(
-              'Batal',
-              style: TextStyle(
-                color: MandorTheme.of(dialogContext).bodySecondary,
+      builder: (dialogContext) {
+        final modalBg = RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback: MandorTheme.of(dialogContext).cardBackground,
+        );
+        final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+          dialogContext,
+          fallback: MandorTheme.coralRed,
+        );
+        return AlertDialog(
+          backgroundColor: modalBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            'Hapus Panen',
+            style: TextStyle(color: MandorTheme.of(dialogContext).headingColor),
+          ),
+          content: Text(
+            'Yakin hapus data panen ${harvest.employeeName} di blok ${harvest.blockName}?',
+            style: MandorTheme.bodySmallFor(dialogContext),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text('Batal', style: TextStyle(color: modalAccent)),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                harvestBloc.add(HarvestDeleteRequested(harvest.id));
+                Navigator.of(dialogContext).pop();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: modalAccent,
+                foregroundColor: Colors.white,
               ),
+              child: const Text('Hapus'),
             ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              harvestBloc.add(HarvestDeleteRequested(harvest.id));
-              Navigator.of(dialogContext).pop();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: MandorTheme.coralRed,
-            ),
-            child: const Text('Hapus'),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 
@@ -1007,9 +1031,10 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
             final isMatch = quantity > 0 && totalQuality == quantity;
 
             return AlertDialog(
-              backgroundColor: MandorTheme.of(
+              backgroundColor: RuntimeThemeSlotResolver.modalBackground(
                 dialogBuilderContext,
-              ).cardBackground,
+                fallback: MandorTheme.of(dialogBuilderContext).cardBackground,
+              ),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -1115,7 +1140,12 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                   child: Text(
                     'Batal',
                     style: TextStyle(
-                      color: MandorTheme.of(dialogBuilderContext).bodySecondary,
+                      color: RuntimeThemeSlotResolver.modalAccent(
+                        dialogBuilderContext,
+                        fallback: MandorTheme.of(
+                          dialogBuilderContext,
+                        ).bodySecondary,
+                      ),
                     ),
                   ),
                 ),
@@ -1172,7 +1202,11 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
                     Navigator.of(dialogContext).pop();
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: MandorTheme.forestGreen,
+                    backgroundColor: RuntimeThemeSlotResolver.modalAccent(
+                      dialogBuilderContext,
+                      fallback: MandorTheme.forestGreen,
+                    ),
+                    foregroundColor: Colors.white,
                   ),
                   child: const Text('Simpan'),
                 ),
@@ -1273,16 +1307,22 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: MandorTheme.of(context).borderColor.withValues(alpha: 0.3),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.inbox_rounded,
-              size: 48,
-              color: MandorTheme.of(context).bodyTertiary,
+          ThemedEmptyStateIllustration(
+            height: 120,
+            width: 140,
+            fallback: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: MandorTheme.of(
+                  context,
+                ).borderColor.withValues(alpha: 0.3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.inbox_rounded,
+                size: 48,
+                color: MandorTheme.of(context).bodyTertiary,
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -1306,8 +1346,20 @@ class _GenZRiwayatTabState extends State<GenZRiwayatTab> {
   }
 
   void _showSnackBar(String message) {
+    final bannerBg = RuntimeThemeSlotResolver.notificationBannerBackground(
+      context,
+      fallback: MandorTheme.electricBlue,
+    );
+    final bannerText = RuntimeThemeSlotResolver.notificationBannerText(
+      context,
+      fallback: Colors.white,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+      SnackBar(
+        content: Text(message, style: TextStyle(color: bannerText)),
+        backgroundColor: bannerBg,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 }

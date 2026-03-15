@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../mandor_theme.dart';
 import '../../../../../harvest/domain/entities/harvest_entity.dart';
 import '../../../../../harvest/presentation/blocs/harvest_bloc.dart';
@@ -144,7 +145,9 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
         }
       },
       child: Container(
-        decoration: BoxDecoration(gradient: MandorTheme.backgroundGradientFor(context)),
+        decoration: BoxDecoration(
+          gradient: MandorTheme.backgroundGradientFor(context),
+        ),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Form(
@@ -219,7 +222,10 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Input Panen Baru', style: MandorTheme.headingSmallFor(context)),
+                Text(
+                  'Input Panen Baru',
+                  style: MandorTheme.headingSmallFor(context),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   'Isi data panen untuk hari ini',
@@ -278,7 +284,9 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
               ),
               child: Icon(
                 icon,
-                color: isEmpty ? MandorTheme.of(context).bodySecondary : MandorTheme.forestGreen,
+                color: isEmpty
+                    ? MandorTheme.of(context).bodySecondary
+                    : MandorTheme.forestGreen,
                 size: 20,
               ),
             ),
@@ -295,14 +303,17 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                         ? MandorTheme.bodyMediumFor(context).copyWith(
                             color: MandorTheme.of(context).bodyTertiary,
                           )
-                        : MandorTheme.bodyMediumFor(context).copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                        : MandorTheme.bodyMediumFor(
+                            context,
+                          ).copyWith(fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: MandorTheme.of(context).bodyTertiary),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: MandorTheme.of(context).bodyTertiary,
+            ),
           ],
         ),
       ),
@@ -331,7 +342,10 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                 ),
               ),
               const SizedBox(width: 12),
-              Text('Jumlah Janjang', style: MandorTheme.labelMediumFor(context)),
+              Text(
+                'Jumlah Janjang',
+                style: MandorTheme.labelMediumFor(context),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -342,9 +356,9 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
             textAlign: TextAlign.center,
             decoration: InputDecoration(
               hintText: '0',
-              hintStyle: MandorTheme.headingLargeFor(context).copyWith(
-                color: MandorTheme.of(context).borderColor,
-              ),
+              hintStyle: MandorTheme.headingLargeFor(
+                context,
+              ).copyWith(color: MandorTheme.of(context).borderColor),
               filled: true,
               fillColor: MandorTheme.of(context).cardBackground,
               border: OutlineInputBorder(
@@ -407,7 +421,10 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                 ),
               ),
               const SizedBox(width: 12),
-              Text('Kualitas Janjang', style: MandorTheme.labelMediumFor(context)),
+              Text(
+                'Kualitas Janjang',
+                style: MandorTheme.labelMediumFor(context),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -477,7 +494,10 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Total Kualitas', style: MandorTheme.labelSmallFor(context)),
+                      Text(
+                        'Total Kualitas',
+                        style: MandorTheme.labelSmallFor(context),
+                      ),
                       const SizedBox(height: 6),
                       Text(
                         '$totalQuality / $quantity',
@@ -511,16 +531,16 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
       readOnly: readOnly,
       keyboardType: TextInputType.number,
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      style: MandorTheme.bodyMediumFor(context).copyWith(
-        color: MandorTheme.of(context).headingColor,
-      ),
+      style: MandorTheme.bodyMediumFor(
+        context,
+      ).copyWith(color: MandorTheme.of(context).headingColor),
       decoration: InputDecoration(
         labelText: label,
         labelStyle: MandorTheme.labelSmallFor(context),
         hintText: '0',
-        hintStyle: MandorTheme.bodySmallFor(context).copyWith(
-          color: MandorTheme.of(context).bodyTertiary,
-        ),
+        hintStyle: MandorTheme.bodySmallFor(
+          context,
+        ).copyWith(color: MandorTheme.of(context).bodyTertiary),
         filled: true,
         fillColor: MandorTheme.of(context).cardBackground,
         border: OutlineInputBorder(
@@ -530,7 +550,9 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(
-            color: readOnly ? MandorTheme.of(context).borderColor : MandorTheme.forestGreen,
+            color: readOnly
+                ? MandorTheme.of(context).borderColor
+                : MandorTheme.forestGreen,
           ),
         ),
       ),
@@ -596,7 +618,10 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
           if (!_isGettingLocation)
             IconButton(
               onPressed: _getCurrentLocation,
-              icon: Icon(Icons.refresh_rounded, color: MandorTheme.of(context).bodySecondary),
+              icon: Icon(
+                Icons.refresh_rounded,
+                color: MandorTheme.of(context).bodySecondary,
+              ),
               tooltip: 'Perbarui Lokasi',
             ),
         ],
@@ -725,7 +750,10 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                               color: MandorTheme.of(context).bodySecondary,
                             ),
                             const SizedBox(width: 8),
-                            Text('Ambil Foto', style: MandorTheme.bodyMediumFor(context)),
+                            Text(
+                              'Ambil Foto',
+                              style: MandorTheme.bodyMediumFor(context),
+                            ),
                           ],
                         ),
                 ),
@@ -745,7 +773,11 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
         children: [
           Row(
             children: [
-              Icon(Icons.notes_rounded, color: MandorTheme.of(context).bodySecondary, size: 20),
+              Icon(
+                Icons.notes_rounded,
+                color: MandorTheme.of(context).bodySecondary,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Text('Catatan', style: MandorTheme.labelMediumFor(context)),
               const Spacer(),
@@ -756,14 +788,14 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
           TextFormField(
             controller: _notesController,
             maxLines: 3,
-            style: MandorTheme.bodyMediumFor(context).copyWith(
-              color: MandorTheme.of(context).headingColor,
-            ),
+            style: MandorTheme.bodyMediumFor(
+              context,
+            ).copyWith(color: MandorTheme.of(context).headingColor),
             decoration: InputDecoration(
               hintText: 'Tambahkan catatan jika perlu...',
-              hintStyle: MandorTheme.bodySmallFor(context).copyWith(
-                color: MandorTheme.of(context).bodyTertiary,
-              ),
+              hintStyle: MandorTheme.bodySmallFor(
+                context,
+              ).copyWith(color: MandorTheme.of(context).bodyTertiary),
               filled: true,
               fillColor: MandorTheme.of(context).cardBackground,
               border: OutlineInputBorder(
@@ -814,7 +846,10 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                     children: [
                       const Icon(Icons.save_rounded),
                       const SizedBox(width: 8),
-                      Text('Simpan Panen', style: MandorTheme.buttonTextFor(context)),
+                      Text(
+                        'Simpan Panen',
+                        style: MandorTheme.buttonTextFor(context),
+                      ),
                     ],
                   ),
           ),
@@ -841,10 +876,33 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
   void _showEmployeeBottomSheet() {
     _employeeSearchController.clear();
     var filteredEmployees = List<Employee>.from(_employees);
+    final modalBg = RuntimeThemeSlotResolver.modalBackground(
+      context,
+      fallback: MandorTheme.of(context).cardBackground,
+    );
+    final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+      context,
+      fallback: MandorTheme.forestGreen,
+    );
+    final sidebarIcon = RuntimeThemeSlotResolver.sidebarIcon(
+      context,
+      fallback: MandorTheme.of(context).bodySecondary,
+    );
+    final sidebarText = RuntimeThemeSlotResolver.sidebarForeground(
+      context,
+      fallback: MandorTheme.of(context).headingColor,
+    );
+    final sidebarBorder =
+        RuntimeThemeSlotResolver.sidebarBorder() ??
+        MandorTheme.of(context).borderColor;
+    final sidebarBg = RuntimeThemeSlotResolver.sidebarBackground(
+      context,
+      fallback: MandorTheme.of(context).surfaceOverlay,
+    );
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: MandorTheme.of(context).cardBackground,
+      backgroundColor: modalBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -862,13 +920,16 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: MandorTheme.of(sheetContext).borderColor,
+                  color: sidebarBorder,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.all(16),
-                child: Text('Pilih Karyawan', style: MandorTheme.headingSmallFor(sheetContext)),
+                child: Text(
+                  'Pilih Karyawan',
+                  style: MandorTheme.headingSmallFor(sheetContext),
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -889,18 +950,15 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                       }
                     });
                   },
-                  style: MandorTheme.bodyMediumFor(sheetContext).copyWith(
-                    color: MandorTheme.of(sheetContext).headingColor,
-                  ),
+                  style: MandorTheme.bodyMediumFor(
+                    sheetContext,
+                  ).copyWith(color: sidebarText),
                   decoration: InputDecoration(
                     hintText: 'Cari karyawan, NIK, atau divisi',
                     hintStyle: MandorTheme.bodySmallFor(sheetContext).copyWith(
                       color: MandorTheme.of(sheetContext).bodyTertiary,
                     ),
-                    prefixIcon: Icon(
-                      Icons.search_rounded,
-                      color: MandorTheme.of(sheetContext).bodyTertiary,
-                    ),
+                    prefixIcon: Icon(Icons.search_rounded, color: sidebarIcon),
                     suffixIcon: _employeeSearchController.text.isEmpty
                         ? null
                         : IconButton(
@@ -912,20 +970,17 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                                 );
                               });
                             },
-                            icon: Icon(
-                              Icons.clear_rounded,
-                              color: MandorTheme.of(sheetContext).bodySecondary,
-                            ),
+                            icon: Icon(Icons.clear_rounded, color: sidebarIcon),
                           ),
                     filled: true,
-                    fillColor: MandorTheme.of(sheetContext).surfaceOverlay,
+                    fillColor: sidebarBg,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: MandorTheme.forestGreen),
+                      borderSide: BorderSide(color: modalAccent),
                     ),
                   ),
                 ),
@@ -954,8 +1009,8 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                           return ListTile(
                             leading: CircleAvatar(
                               backgroundColor: isSelected
-                                  ? MandorTheme.forestGreen
-                                  : MandorTheme.of(sheetContext).borderColor,
+                                  ? modalAccent
+                                  : sidebarBg,
                               child: Text(
                                 emp.name.isNotEmpty
                                     ? emp.name[0].toUpperCase()
@@ -965,22 +1020,20 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                             ),
                             title: Text(
                               emp.name,
-                              style: MandorTheme.bodyMediumFor(sheetContext).copyWith(
-                                color: MandorTheme.of(sheetContext).headingColor,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                              ),
+                              style: MandorTheme.bodyMediumFor(sheetContext)
+                                  .copyWith(
+                                    color: sidebarText,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                  ),
                             ),
                             subtitle: Text(
                               _buildEmployeeSubtitle(emp),
                               style: MandorTheme.labelSmallFor(sheetContext),
                             ),
                             trailing: isSelected
-                                ? Icon(
-                                    Icons.check_rounded,
-                                    color: MandorTheme.forestGreen,
-                                  )
+                                ? Icon(Icons.check_rounded, color: modalAccent)
                                 : null,
                             onTap: () {
                               setState(() => _selectedEmployee = emp);
@@ -1000,10 +1053,33 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
   void _showBlockBottomSheet() {
     _blockSearchController.clear();
     var filteredBlocks = List<Block>.from(_blocks);
+    final modalBg = RuntimeThemeSlotResolver.modalBackground(
+      context,
+      fallback: MandorTheme.of(context).cardBackground,
+    );
+    final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+      context,
+      fallback: MandorTheme.forestGreen,
+    );
+    final sidebarIcon = RuntimeThemeSlotResolver.sidebarIcon(
+      context,
+      fallback: MandorTheme.of(context).bodySecondary,
+    );
+    final sidebarText = RuntimeThemeSlotResolver.sidebarForeground(
+      context,
+      fallback: MandorTheme.of(context).headingColor,
+    );
+    final sidebarBorder =
+        RuntimeThemeSlotResolver.sidebarBorder() ??
+        MandorTheme.of(context).borderColor;
+    final sidebarBg = RuntimeThemeSlotResolver.sidebarBackground(
+      context,
+      fallback: MandorTheme.of(context).surfaceOverlay,
+    );
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: MandorTheme.of(context).cardBackground,
+      backgroundColor: modalBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -1021,7 +1097,7 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: MandorTheme.of(sheetContext).borderColor,
+                  color: sidebarBorder,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1053,18 +1129,15 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                       }
                     });
                   },
-                  style: MandorTheme.bodyMediumFor(sheetContext).copyWith(
-                    color: MandorTheme.of(sheetContext).headingColor,
-                  ),
+                  style: MandorTheme.bodyMediumFor(
+                    sheetContext,
+                  ).copyWith(color: sidebarText),
                   decoration: InputDecoration(
                     hintText: 'Cari blok, kode, divisi, atau estate',
                     hintStyle: MandorTheme.bodySmallFor(sheetContext).copyWith(
                       color: MandorTheme.of(sheetContext).bodyTertiary,
                     ),
-                    prefixIcon: Icon(
-                      Icons.search_rounded,
-                      color: MandorTheme.of(sheetContext).bodyTertiary,
-                    ),
+                    prefixIcon: Icon(Icons.search_rounded, color: sidebarIcon),
                     suffixIcon: _blockSearchController.text.isEmpty
                         ? null
                         : IconButton(
@@ -1074,20 +1147,17 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                                 filteredBlocks = List<Block>.from(_blocks);
                               });
                             },
-                            icon: Icon(
-                              Icons.clear_rounded,
-                              color: MandorTheme.of(sheetContext).bodySecondary,
-                            ),
+                            icon: Icon(Icons.clear_rounded, color: sidebarIcon),
                           ),
                     filled: true,
-                    fillColor: MandorTheme.of(sheetContext).surfaceOverlay,
+                    fillColor: sidebarBg,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: MandorTheme.forestGreen),
+                      borderSide: BorderSide(color: modalAccent),
                     ),
                   ),
                 ),
@@ -1121,36 +1191,32 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
                                     ? MandorTheme.forestGreen.withValues(
                                         alpha: 0.2,
                                       )
-                                    : MandorTheme.of(sheetContext).borderColor.withValues(
-                                        alpha: 0.3,
-                                      ),
+                                    : MandorTheme.of(
+                                        sheetContext,
+                                      ).borderColor.withValues(alpha: 0.3),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(
                                 Icons.location_on_rounded,
-                                color: isSelected
-                                    ? MandorTheme.forestGreen
-                                    : MandorTheme.of(sheetContext).bodySecondary,
+                                color: isSelected ? modalAccent : sidebarIcon,
                               ),
                             ),
                             title: Text(
                               block.name,
-                              style: MandorTheme.bodyMediumFor(sheetContext).copyWith(
-                                color: MandorTheme.of(sheetContext).headingColor,
-                                fontWeight: isSelected
-                                    ? FontWeight.w600
-                                    : FontWeight.normal,
-                              ),
+                              style: MandorTheme.bodyMediumFor(sheetContext)
+                                  .copyWith(
+                                    color: sidebarText,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w600
+                                        : FontWeight.normal,
+                                  ),
                             ),
                             subtitle: Text(
                               _buildBlockSubtitle(block),
                               style: MandorTheme.labelSmallFor(sheetContext),
                             ),
                             trailing: isSelected
-                                ? Icon(
-                                    Icons.check_rounded,
-                                    color: MandorTheme.forestGreen,
-                                  )
+                                ? Icon(Icons.check_rounded, color: modalAccent)
                                 : null,
                             onTap: () {
                               setState(() => _selectedBlock = block);
@@ -1200,11 +1266,22 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
       }
 
       setState(() => _capturedImagePath = image.path);
+      final bannerBg = RuntimeThemeSlotResolver.notificationBannerBackground(
+        context,
+        fallback: MandorTheme.forestGreen,
+      );
+      final bannerText = RuntimeThemeSlotResolver.notificationBannerText(
+        context,
+        fallback: Colors.white,
+      );
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Foto berhasil diambil'),
-          backgroundColor: MandorTheme.forestGreen,
+          content: Text(
+            'Foto berhasil diambil',
+            style: TextStyle(color: bannerText),
+          ),
+          backgroundColor: bannerBg,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -1224,33 +1301,43 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
   Future<void> _showCameraPermissionSettingsDialog() async {
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: MandorTheme.of(dialogContext).cardBackground,
-        title: Text(
-          'Izin Kamera Diperlukan',
-          style: TextStyle(color: MandorTheme.of(dialogContext).headingColor),
-        ),
-        content: Text(
-          'Izin kamera ditolak permanen. Aktifkan izin kamera di pengaturan aplikasi.',
-          style: MandorTheme.bodySmallFor(dialogContext),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text('Batal', style: TextStyle(color: MandorTheme.of(dialogContext).bodyColor)),
+      builder: (dialogContext) {
+        final modalBg = RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback: MandorTheme.of(dialogContext).cardBackground,
+        );
+        final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+          dialogContext,
+          fallback: MandorTheme.forestGreen,
+        );
+        return AlertDialog(
+          backgroundColor: modalBg,
+          title: Text(
+            'Izin Kamera Diperlukan',
+            style: TextStyle(color: MandorTheme.of(dialogContext).headingColor),
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(dialogContext).pop();
-              await openAppSettings();
-            },
-            child: Text(
-              'Buka Pengaturan',
-              style: TextStyle(color: MandorTheme.forestGreen),
+          content: Text(
+            'Izin kamera ditolak permanen. Aktifkan izin kamera di pengaturan aplikasi.',
+            style: MandorTheme.bodySmallFor(dialogContext),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text('Batal', style: TextStyle(color: modalAccent)),
             ),
-          ),
-        ],
-      ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                await openAppSettings();
+              },
+              child: Text(
+                'Buka Pengaturan',
+                style: TextStyle(color: modalAccent),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1346,49 +1433,68 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
   void _showSuccessDialog(String message) {
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: MandorTheme.of(dialogContext).cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: MandorTheme.forestGreen.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
+      builder: (dialogContext) {
+        final modalBg = RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback: MandorTheme.of(dialogContext).cardBackground,
+        );
+        final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+          dialogContext,
+          fallback: MandorTheme.forestGreen,
+        );
+        return AlertDialog(
+          backgroundColor: modalBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: modalAccent.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.check_rounded, color: modalAccent, size: 48),
               ),
-              child: Icon(
-                Icons.check_rounded,
-                color: MandorTheme.forestGreen,
-                size: 48,
+              const SizedBox(height: 16),
+              Text(
+                'Berhasil!',
+                style: MandorTheme.headingSmallFor(dialogContext),
               ),
-            ),
-            const SizedBox(height: 16),
-            Text('Berhasil!', style: MandorTheme.headingSmallFor(dialogContext)),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              style: MandorTheme.bodySmallFor(dialogContext),
-              textAlign: TextAlign.center,
+              const SizedBox(height: 8),
+              Text(
+                message,
+                style: MandorTheme.bodySmallFor(dialogContext),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('OK', style: TextStyle(color: modalAccent)),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text('OK', style: TextStyle(color: MandorTheme.forestGreen)),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   void _showErrorSnackBar(String message) {
+    final bannerBg = RuntimeThemeSlotResolver.notificationBannerBackground(
+      context,
+      fallback: MandorTheme.coralRed,
+    );
+    final bannerText = RuntimeThemeSlotResolver.notificationBannerText(
+      context,
+      fallback: Colors.white,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: MandorTheme.coralRed,
+        content: Text(message, style: TextStyle(color: bannerText)),
+        backgroundColor: bannerBg,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

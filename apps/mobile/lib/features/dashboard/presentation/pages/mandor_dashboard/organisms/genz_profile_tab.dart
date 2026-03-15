@@ -5,6 +5,7 @@ import '../../../../../../core/constants/api_constants.dart';
 import '../../../../../../core/database/enhanced_database_service.dart';
 import '../../../../../../core/models/jwt_models.dart';
 import '../../../../../../core/services/unified_secure_storage_service.dart';
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../../../../../core/theme/theme_mode_service.dart';
 import '../../../../../../shared/widgets/current_user_avatar.dart';
 import '../mandor_theme.dart';
@@ -718,40 +719,48 @@ class GenZProfileTab extends StatelessWidget {
   void _confirmLogout(BuildContext context) {
     showDialog(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: MandorTheme.of(dialogContext).cardBackground,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          'Keluar Aplikasi?',
-          style: MandorTheme.headingSmallFor(dialogContext),
-        ),
-        content: Text(
-          'Anda yakin ingin keluar dari aplikasi?',
-          style: MandorTheme.bodyMediumFor(dialogContext),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(
-              'Batal',
-              style: TextStyle(
-                color: MandorTheme.of(dialogContext).bodySecondary,
-              ),
-            ),
+      builder: (dialogContext) {
+        final modalBg = RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback: MandorTheme.of(dialogContext).cardBackground,
+        );
+        final cancelAccent = RuntimeThemeSlotResolver.modalAccent(
+          dialogContext,
+          fallback: MandorTheme.of(dialogContext).bodySecondary,
+        );
+        final actionAccent = RuntimeThemeSlotResolver.modalAccent(
+          dialogContext,
+          fallback: MandorTheme.coralRed,
+        );
+        return AlertDialog(
+          backgroundColor: modalBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              context.read<AuthBloc>().add(AuthLogoutRequested());
-              onLogout?.call();
-            },
-            child: Text(
-              'Keluar',
-              style: TextStyle(color: MandorTheme.coralRed),
-            ),
+          title: Text(
+            'Keluar Aplikasi?',
+            style: MandorTheme.headingSmallFor(dialogContext),
           ),
-        ],
-      ),
+          content: Text(
+            'Anda yakin ingin keluar dari aplikasi?',
+            style: MandorTheme.bodyMediumFor(dialogContext),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Batal', style: TextStyle(color: cancelAccent)),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                context.read<AuthBloc>().add(AuthLogoutRequested());
+                onLogout?.call();
+              },
+              child: Text('Keluar', style: TextStyle(color: actionAccent)),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -762,10 +771,21 @@ class GenZProfileTab extends StatelessWidget {
   }
 
   void _showComingSoon(BuildContext context) {
+    final bannerBg = RuntimeThemeSlotResolver.notificationBannerBackground(
+      context,
+      fallback: MandorTheme.amberOrange,
+    );
+    final bannerText = RuntimeThemeSlotResolver.notificationBannerText(
+      context,
+      fallback: Colors.white,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Fitur ini sedang dalam pengembangan'),
-        backgroundColor: MandorTheme.amberOrange,
+        content: Text(
+          'Fitur ini sedang dalam pengembangan',
+          style: TextStyle(color: bannerText),
+        ),
+        backgroundColor: bannerBg,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),

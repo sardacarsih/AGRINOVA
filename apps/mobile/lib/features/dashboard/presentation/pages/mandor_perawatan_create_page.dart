@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/di/service_locator.dart';
 import '../../../../core/services/mandor_master_sync_service.dart';
 import '../../../../core/services/perawatan_service.dart';
+import '../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../harvest/data/repositories/harvest_repository.dart';
 import '../../../harvest/domain/entities/harvest_entity.dart';
@@ -328,21 +329,34 @@ class _MandorPerawatanCreatePageState extends State<MandorPerawatanCreatePage> {
   }) async {
     await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        icon: const Icon(
-          Icons.check_circle_outline_rounded,
-          color: Color(0xFF047857),
-          size: 44,
-        ),
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+      builder: (dialogContext) {
+        final modalBg = RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback:
+              Theme.of(dialogContext).dialogTheme.backgroundColor ??
+              Theme.of(dialogContext).colorScheme.surface,
+        );
+        final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+          dialogContext,
+          fallback: const Color(0xFF047857),
+        );
+        return AlertDialog(
+          backgroundColor: modalBg,
+          icon: const Icon(
+            Icons.check_circle_outline_rounded,
+            color: Color(0xFF047857),
+            size: 44,
           ),
-        ],
-      ),
+          title: Text(title),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text('OK', style: TextStyle(color: modalAccent)),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -350,27 +364,41 @@ class _MandorPerawatanCreatePageState extends State<MandorPerawatanCreatePage> {
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        icon: const Icon(
-          Icons.check_circle_outline_rounded,
-          color: Color(0xFF047857),
-          size: 44,
-        ),
-        title: const Text('Transaksi berhasil dibuat'),
-        content: const Text(
-          'Record perawatan baru sudah tersimpan. Lanjut tambah material sekarang?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Selesai'),
+      builder: (dialogContext) {
+        final modalBg = RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback:
+              Theme.of(dialogContext).dialogTheme.backgroundColor ??
+              Theme.of(dialogContext).colorScheme.surface,
+        );
+        final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+          dialogContext,
+          fallback: const Color(0xFF047857),
+        );
+        return AlertDialog(
+          backgroundColor: modalBg,
+          icon: const Icon(
+            Icons.check_circle_outline_rounded,
+            color: Color(0xFF047857),
+            size: 44,
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Tambah Material'),
+          title: const Text('Transaksi berhasil dibuat'),
+          content: const Text(
+            'Record perawatan baru sudah tersimpan. Lanjut tambah material sekarang?',
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text('Selesai', style: TextStyle(color: modalAccent)),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: modalAccent),
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Tambah Material'),
+            ),
+          ],
+        );
+      },
     );
 
     return result ?? false;
@@ -379,17 +407,38 @@ class _MandorPerawatanCreatePageState extends State<MandorPerawatanCreatePage> {
   @override
   Widget build(BuildContext context) {
     final authState = context.read<AuthBloc>().state;
-    final hasCompanyAssignment = authState is AuthAuthenticated &&
+    final hasCompanyAssignment =
+        authState is AuthAuthenticated &&
         authState.user.getEffectiveCompanies().isNotEmpty;
-    final hasDivisionAssignment = authState is AuthAuthenticated &&
+    final hasDivisionAssignment =
+        authState is AuthAuthenticated &&
         authState.user.getEffectiveDivisions().isNotEmpty;
     final title = _isEditMode
         ? 'Edit Transaksi Perawatan'
         : 'Transaksi Perawatan Baru';
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback:
+          Theme.of(context).appBarTheme.backgroundColor ??
+          Theme.of(context).colorScheme.primary,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback:
+          Theme.of(context).appBarTheme.foregroundColor ??
+          Theme.of(context).colorScheme.onPrimary,
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: Text(title, style: TextStyle(color: navbarFg)),
+        flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Container(color: navbarBg)
+            : null,
+        backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Colors.transparent
+            : navbarBg,
+        foregroundColor: navbarFg,
       ),
       body: SafeArea(
         child: _isLoadingBlocks
@@ -419,7 +468,9 @@ class _MandorPerawatanCreatePageState extends State<MandorPerawatanCreatePage> {
                                 .map(
                                   (block) => DropdownMenuItem<String>(
                                     value: block.id,
-                                    child: Text('${block.code} - ${block.name}'),
+                                    child: Text(
+                                      '${block.code} - ${block.name}',
+                                    ),
                                   ),
                                 )
                                 .toList(growable: false),
@@ -449,13 +500,9 @@ class _MandorPerawatanCreatePageState extends State<MandorPerawatanCreatePage> {
                             SelectableText.rich(
                               TextSpan(
                                 text: 'Gagal memuat blok:\n',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
+                                style: Theme.of(context).textTheme.bodySmall
                                     ?.copyWith(color: const Color(0xFFB91C1C)),
-                                children: [
-                                  TextSpan(text: _blocksError!),
-                                ],
+                                children: [TextSpan(text: _blocksError!)],
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -639,20 +686,16 @@ class _MandorPerawatanCreatePageState extends State<MandorPerawatanCreatePage> {
                         child: SelectableText.rich(
                           TextSpan(
                             text: 'Gagal menyimpan transaksi:\n',
-                            style:
-                                Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: const Color(0xFFB91C1C),
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  color: const Color(0xFFB91C1C),
+                                  fontWeight: FontWeight.w700,
+                                ),
                             children: [
                               TextSpan(
                                 text: _submitError!,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w400,
-                                    ),
+                                style: Theme.of(context).textTheme.bodyMedium
+                                    ?.copyWith(fontWeight: FontWeight.w400),
                               ),
                             ],
                           ),
@@ -661,9 +704,8 @@ class _MandorPerawatanCreatePageState extends State<MandorPerawatanCreatePage> {
                     ],
                     const SizedBox(height: 16),
                     FilledButton.icon(
-                      onPressed: _isSubmitting ||
-                              _isLoadingBlocks ||
-                              _blocks.isEmpty
+                      onPressed:
+                          _isSubmitting || _isLoadingBlocks || _blocks.isEmpty
                           ? null
                           : _submit,
                       icon: _isSubmitting
@@ -677,8 +719,8 @@ class _MandorPerawatanCreatePageState extends State<MandorPerawatanCreatePage> {
                         _isSubmitting
                             ? 'Menyimpan...'
                             : (_isEditMode
-                                ? 'Simpan Perubahan'
-                                : 'Simpan Transaksi'),
+                                  ? 'Simpan Perubahan'
+                                  : 'Simpan Transaksi'),
                       ),
                     ),
                   ],
@@ -712,10 +754,7 @@ class _SectionTitle extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _SectionTitle({
-    required this.title,
-    required this.subtitle,
-  });
+  const _SectionTitle({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -724,16 +763,16 @@ class _SectionTitle extends StatelessWidget {
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 4),
         Text(
           subtitle,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: const Color(0xFF6B7280),
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: const Color(0xFF6B7280)),
         ),
       ],
     );
@@ -744,28 +783,19 @@ class _JenisPerawatanOption {
   final String value;
   final String label;
 
-  const _JenisPerawatanOption({
-    required this.value,
-    required this.label,
-  });
+  const _JenisPerawatanOption({required this.value, required this.label});
 }
 
-const List<_JenisPerawatanOption> _jenisPerawatanOptions =
-    <_JenisPerawatanOption>[
+const List<_JenisPerawatanOption>
+_jenisPerawatanOptions = <_JenisPerawatanOption>[
   _JenisPerawatanOption(value: 'PEMUPUKAN', label: 'Pemupukan'),
   _JenisPerawatanOption(
     value: 'PENYEMPROTAN_HERBISIDA',
     label: 'Penyemprotan Herbisida',
   ),
   _JenisPerawatanOption(value: 'PEMANGKASAN', label: 'Pemangkasan'),
-  _JenisPerawatanOption(
-    value: 'PEMBERSIHAN_PARIT',
-    label: 'Pembersihan Parit',
-  ),
-  _JenisPerawatanOption(
-    value: 'PEMBERSIHAN_GULMA',
-    label: 'Pembersihan Gulma',
-  ),
+  _JenisPerawatanOption(value: 'PEMBERSIHAN_PARIT', label: 'Pembersihan Parit'),
+  _JenisPerawatanOption(value: 'PEMBERSIHAN_GULMA', label: 'Pembersihan Gulma'),
   _JenisPerawatanOption(value: 'PERAWATAN_JALAN', label: 'Perawatan Jalan'),
   _JenisPerawatanOption(value: 'LAINNYA', label: 'Lainnya'),
 ];

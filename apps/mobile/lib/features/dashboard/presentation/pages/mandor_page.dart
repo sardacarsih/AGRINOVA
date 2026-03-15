@@ -15,6 +15,7 @@ import '../../../../core/di/dependency_injection.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/fcm_service.dart';
 import '../../../../core/theme/theme_mode_service.dart';
+import '../../../../core/theme/runtime_theme_slot_resolver.dart';
 
 // Import Mandor Dashboard Components
 import 'mandor_dashboard/mandor_components.dart';
@@ -475,7 +476,10 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
 
   Widget _buildScaffold(BuildContext context, AuthAuthenticated authState) {
     return Scaffold(
-      backgroundColor: MandorTheme.of(context).scaffoldBackground,
+      backgroundColor: RuntimeThemeSlotResolver.dashboardBackground(
+        context,
+        fallback: MandorTheme.of(context).scaffoldBackground,
+      ),
       appBar: _buildAppBar(context, authState),
       body: _buildBody(context, authState),
       floatingActionButton: _buildFAB(),
@@ -490,13 +494,30 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
     BuildContext blocContext,
     AuthAuthenticated state,
   ) {
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      blocContext,
+      fallback: MandorTheme.darkGreen,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      blocContext,
+      fallback: Colors.white,
+    );
+    final navbarIcon = RuntimeThemeSlotResolver.navbarIcon(
+      blocContext,
+      fallback: Colors.white,
+    );
+
     return AppBar(
       title: Text(
         _getCurrentAppBarTitle(),
-        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 18,
+          color: navbarFg,
+        ),
       ),
-      backgroundColor: MandorTheme.darkGreen,
-      foregroundColor: Colors.white,
+      backgroundColor: navbarBg,
+      foregroundColor: navbarFg,
       elevation: 0,
       actions: [
         AnimatedBuilder(
@@ -509,7 +530,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
               },
               icon: Icon(
                 isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                color: Colors.white,
+                color: navbarIcon,
               ),
               tooltip: isDarkMode ? 'Mode gelap aktif' : 'Mode terang aktif',
             );
@@ -521,6 +542,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
           icon: MandorIconBadge(
             icon: Icons.notifications_outlined,
             badgeCount: _unreadNotificationCount,
+            iconColor: navbarIcon,
           ),
           onPressed: () => _showNotifications(blocContext),
           tooltip: 'Notifikasi',
@@ -782,12 +804,23 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
   }
 
   Widget _buildLoadingScreen() {
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: MandorTheme.darkGreen,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: Colors.white,
+    );
     return Scaffold(
-      backgroundColor: MandorTheme.of(context).scaffoldBackground,
+      backgroundColor: RuntimeThemeSlotResolver.dashboardBackground(
+        context,
+        fallback: MandorTheme.of(context).scaffoldBackground,
+      ),
       appBar: AppBar(
-        title: const Text('Mandor Dashboard'),
-        backgroundColor: MandorTheme.darkGreen,
-        foregroundColor: Colors.white,
+        title: Text('Mandor Dashboard', style: TextStyle(color: navbarFg)),
+        backgroundColor: navbarBg,
+        foregroundColor: navbarFg,
       ),
       body: Center(
         child: Column(
@@ -814,26 +847,39 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
     Color? color,
     bool showProgress = false,
   }) {
+    final fallbackColor = color ?? MandorTheme.of(context).cardBackground;
+    final textColor = RuntimeThemeSlotResolver.notificationBannerText(
+      context,
+      fallback: Colors.white,
+    );
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             if (showProgress) ...[
-              const SizedBox(
+              SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  valueColor: AlwaysStoppedAnimation<Color>(textColor),
                 ),
               ),
               const SizedBox(width: 12),
             ],
-            Expanded(child: Text(message)),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(color: textColor),
+              ),
+            ),
           ],
         ),
-        backgroundColor: color ?? MandorTheme.of(context).cardBackground,
+        backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+          context,
+          fallback: fallbackColor,
+        ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),

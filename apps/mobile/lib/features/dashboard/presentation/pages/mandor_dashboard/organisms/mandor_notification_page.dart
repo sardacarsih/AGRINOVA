@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../../../core/services/notification_storage_service.dart';
 import '../../../../../../core/di/dependency_injection.dart';
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
+import '../../../../../../shared/widgets/themed_empty_state_illustration.dart';
 import '../mandor_theme.dart';
 
 /// Notification page for Mandor role
@@ -267,10 +269,12 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.notifications_none_rounded,
-            size: 80,
-            color: MandorTheme.of(context).borderColor,
+          ThemedEmptyStateIllustration(
+            fallback: Icon(
+              Icons.notifications_none_rounded,
+              size: 80,
+              color: MandorTheme.of(context).borderColor,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -360,8 +364,20 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Semua notifikasi ditandai telah dibaca'),
-              backgroundColor: MandorTheme.forestGreen,
+              content: Text(
+                'Semua notifikasi ditandai telah dibaca',
+                style: TextStyle(
+                  color: RuntimeThemeSlotResolver.notificationBannerText(
+                    context,
+                    fallback: Colors.white,
+                  ),
+                ),
+              ),
+              backgroundColor:
+                  RuntimeThemeSlotResolver.notificationBannerBackground(
+                    context,
+                    fallback: MandorTheme.forestGreen,
+                  ),
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -380,7 +396,10 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: MandorTheme.of(dialogContext).cardBackground,
+        backgroundColor: RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback: MandorTheme.of(dialogContext).cardBackground,
+        ),
         title: Text(
           'Hapus Semua Notifikasi?',
           style: TextStyle(color: MandorTheme.of(dialogContext).headingColor),
@@ -392,7 +411,15 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Batal'),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.modalAccent(
+                  dialogContext,
+                  fallback: MandorTheme.forestGreen,
+                ),
+              ),
+            ),
           ),
           TextButton(
             onPressed: () async {
@@ -402,8 +429,20 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
               Navigator.of(context).pop();
               ScaffoldMessenger.of(this.context).showSnackBar(
                 SnackBar(
-                  content: const Text('Semua notifikasi telah dihapus'),
-                  backgroundColor: MandorTheme.coralRed,
+                  content: Text(
+                    'Semua notifikasi telah dihapus',
+                    style: TextStyle(
+                      color: RuntimeThemeSlotResolver.notificationBannerText(
+                        this.context,
+                        fallback: Colors.white,
+                      ),
+                    ),
+                  ),
+                  backgroundColor:
+                      RuntimeThemeSlotResolver.notificationBannerBackground(
+                        this.context,
+                        fallback: MandorTheme.coralRed,
+                      ),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -411,7 +450,15 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
                 ),
               );
             },
-            child: Text('Hapus', style: TextStyle(color: MandorTheme.coralRed)),
+            child: Text(
+              'Hapus',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.modalAccent(
+                  dialogContext,
+                  fallback: MandorTheme.coralRed,
+                ),
+              ),
+            ),
           ),
         ],
       ),
