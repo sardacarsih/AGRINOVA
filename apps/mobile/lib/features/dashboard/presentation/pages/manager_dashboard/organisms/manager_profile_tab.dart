@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../../core/constants/api_constants.dart';
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../manager_theme.dart';
 import '../../../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../../../../core/services/role_service.dart';
@@ -20,21 +21,39 @@ class ManagerProfileTab extends StatelessWidget {
       child: BlocBuilder<AuthBloc, AuthState>(
         builder: (context, state) {
           if (state is AuthAuthenticated) {
+            final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+              context,
+              fallback: ManagerTheme.primaryPurple,
+            );
+            final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+              context,
+              fallback: Colors.white,
+            );
+            final navbarIcon = RuntimeThemeSlotResolver.navbarIcon(
+              context,
+              fallback: navbarFg,
+            );
             return Scaffold(
               backgroundColor:
                   ManagerTheme.scaffoldBackground, // Light background
               appBar: AppBar(
-                title: const Text(
+                title: Text(
                   'Profil Manager',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: navbarFg,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                backgroundColor: ManagerTheme.primaryPurple,
+                flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+                    ? Container(color: navbarBg)
+                    : null,
+                backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+                    ? Colors.transparent
+                    : navbarBg,
+                foregroundColor: navbarFg,
                 elevation: 0,
                 leading: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  icon: Icon(Icons.arrow_back, color: navbarIcon),
                   onPressed: () => Navigator.pop(context),
                 ),
                 centerTitle: true,
@@ -43,18 +62,32 @@ class ManagerProfileTab extends StatelessWidget {
               bottomNavigationBar: _buildBottomNavigation(context),
             );
           }
-          return _buildLoadingState();
+          return _buildLoadingState(context);
         },
       ),
     );
   }
 
-  Widget _buildLoadingState() {
+  Widget _buildLoadingState(BuildContext context) {
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: ManagerTheme.primaryPurple,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: Colors.white,
+    );
     return Scaffold(
       backgroundColor: ManagerTheme.scaffoldBackground,
       appBar: AppBar(
-        title: const Text('Profil Manager'),
-        backgroundColor: ManagerTheme.primaryPurple,
+        title: Text('Profil Manager', style: TextStyle(color: navbarFg)),
+        flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Container(color: navbarBg)
+            : null,
+        backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Colors.transparent
+            : navbarBg,
+        foregroundColor: navbarFg,
       ),
       body: const Center(
         child: CircularProgressIndicator(
@@ -414,33 +447,60 @@ class ManagerProfileTab extends StatelessWidget {
   void _confirmLogout(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Keluar Aplikasi?'),
-        content: const Text('Anda yakin ingin keluar?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              context.read<AuthBloc>().add(AuthLogoutRequested());
-            },
-            child: const Text(
-              'Keluar',
-              style: TextStyle(color: ManagerTheme.rejectedRed),
+      builder: (dialogContext) {
+        final modalBg = RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback:
+              Theme.of(dialogContext).dialogTheme.backgroundColor ??
+              Theme.of(dialogContext).colorScheme.surface,
+        );
+        final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+          dialogContext,
+          fallback: ManagerTheme.rejectedRed,
+        );
+        return AlertDialog(
+          backgroundColor: modalBg,
+          title: const Text('Keluar Aplikasi?'),
+          content: const Text('Anda yakin ingin keluar?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Batal', style: TextStyle(color: modalAccent)),
             ),
-          ),
-        ],
-      ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                context.read<AuthBloc>().add(AuthLogoutRequested());
+              },
+              child: Text('Keluar', style: TextStyle(color: modalAccent)),
+            ),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildBottomNavigation(BuildContext context) {
+    final footerBg = RuntimeThemeSlotResolver.footerBackground(
+      context,
+      fallback: Colors.white,
+    );
+    final footerSelected = RuntimeThemeSlotResolver.footerSelected(
+      context,
+      fallback: ManagerTheme.primaryPurple,
+    );
+    final footerUnselected = RuntimeThemeSlotResolver.footerUnselected(
+      context,
+      fallback: Colors.grey[600]!,
+    );
+    final footerBorder = RuntimeThemeSlotResolver.footerBorder(
+      context,
+      fallback: Colors.transparent,
+    );
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: footerBg,
+        border: Border(top: BorderSide(color: footerBorder)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
@@ -451,10 +511,10 @@ class ManagerProfileTab extends StatelessWidget {
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+        backgroundColor: footerBg,
         currentIndex: 3, // Profile tab selected
-        selectedItemColor: ManagerTheme.primaryPurple,
-        unselectedItemColor: Colors.grey[600],
+        selectedItemColor: footerSelected,
+        unselectedItemColor: footerUnselected,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_outlined),

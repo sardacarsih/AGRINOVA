@@ -9,6 +9,7 @@ import '../../../../data/repositories/manager_harvest_approval_repository.dart';
 import '../../../../../../core/di/service_locator.dart';
 import '../../../../../../core/network/graphql_client_service.dart';
 import '../../../../../../core/services/fcm_service.dart';
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../../../../../core/utils/sync_error_message_helper.dart';
 import '../../../../../auth/presentation/blocs/auth_bloc.dart';
 import '../manager_theme.dart';
@@ -186,9 +187,20 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Data panen berhasil disetujui'),
-          backgroundColor: ManagerTheme.approvedGreen,
+        SnackBar(
+          content: Text(
+            'Data panen berhasil disetujui',
+            style: TextStyle(
+              color: RuntimeThemeSlotResolver.notificationBannerText(
+                context,
+                fallback: Colors.white,
+              ),
+            ),
+          ),
+          backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+            context,
+            fallback: ManagerTheme.approvedGreen,
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -204,8 +216,17 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
               e,
               action: 'menyetujui data panen',
             ),
+            style: TextStyle(
+              color: RuntimeThemeSlotResolver.notificationBannerText(
+                context,
+                fallback: Colors.white,
+              ),
+            ),
           ),
-          backgroundColor: ManagerTheme.rejectedRed,
+          backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+            context,
+            fallback: ManagerTheme.rejectedRed,
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -230,9 +251,20 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Data panen berhasil ditolak'),
-          backgroundColor: ManagerTheme.pendingOrange,
+        SnackBar(
+          content: Text(
+            'Data panen berhasil ditolak',
+            style: TextStyle(
+              color: RuntimeThemeSlotResolver.notificationBannerText(
+                context,
+                fallback: Colors.white,
+              ),
+            ),
+          ),
+          backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+            context,
+            fallback: ManagerTheme.pendingOrange,
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -248,8 +280,17 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
               e,
               action: 'menolak data panen',
             ),
+            style: TextStyle(
+              color: RuntimeThemeSlotResolver.notificationBannerText(
+                context,
+                fallback: Colors.white,
+              ),
+            ),
           ),
-          backgroundColor: ManagerTheme.rejectedRed,
+          backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+            context,
+            fallback: ManagerTheme.rejectedRed,
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -264,6 +305,10 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback: ManagerTheme.cardBackground,
+        ),
         title: const Text('Setujui Data Panen'),
         content: Text(
           'Setujui data panen dari ${item.mandorName} di blok ${item.blockName}?',
@@ -271,12 +316,23 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Batal'),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.modalAccent(
+                  dialogContext,
+                  fallback: ManagerTheme.primaryPurple,
+                ),
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: ManagerTheme.approvedGreen,
+              backgroundColor: RuntimeThemeSlotResolver.modalAccent(
+                dialogContext,
+                fallback: ManagerTheme.approvedGreen,
+              ),
               foregroundColor: Colors.white,
             ),
             child: const Text('Setujui'),
@@ -295,6 +351,10 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback: ManagerTheme.cardBackground,
+        ),
         title: const Text('Tolak Data Panen'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -315,21 +375,47 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Batal'),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.modalAccent(
+                  dialogContext,
+                  fallback: ManagerTheme.primaryPurple,
+                ),
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
               final reason = reasonController.text.trim();
               if (reason.isEmpty) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Alasan harus diisi')),
+                  SnackBar(
+                    content: Text(
+                      'Alasan harus diisi',
+                      style: TextStyle(
+                        color: RuntimeThemeSlotResolver.notificationBannerText(
+                          dialogContext,
+                          fallback: Colors.white,
+                        ),
+                      ),
+                    ),
+                    backgroundColor:
+                        RuntimeThemeSlotResolver.notificationBannerBackground(
+                      dialogContext,
+                      fallback: ManagerTheme.pendingOrange,
+                    ),
+                  ),
                 );
                 return;
               }
               Navigator.of(dialogContext).pop(true);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: ManagerTheme.rejectedRed,
+              backgroundColor: RuntimeThemeSlotResolver.modalAccent(
+                dialogContext,
+                fallback: ManagerTheme.rejectedRed,
+              ),
               foregroundColor: Colors.white,
             ),
             child: const Text('Tolak'),
@@ -346,25 +432,46 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
 
   @override
   Widget build(BuildContext context) {
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: ManagerTheme.primaryPurple,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: Colors.white,
+    );
+    final navbarIcon = RuntimeThemeSlotResolver.navbarIcon(
+      context,
+      fallback: Colors.white,
+    );
+
     return Scaffold(
-      backgroundColor: ManagerTheme.scaffoldBackground,
+      backgroundColor: RuntimeThemeSlotResolver.dashboardBackground(
+        context,
+        fallback: ManagerTheme.scaffoldBackground,
+      ),
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Approval Panen',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          style: TextStyle(color: navbarFg, fontWeight: FontWeight.w600),
         ),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: ManagerTheme.headerGradient,
-          ),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Container(color: navbarBg)
+            : Container(
+                decoration: const BoxDecoration(
+                  gradient: ManagerTheme.headerGradient,
+                ),
+              ),
+        backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? navbarBg
+            : Colors.transparent,
+        iconTheme: IconThemeData(color: navbarIcon),
         actions: [
           IconButton(
             onPressed: _isProcessing
                 ? null
                 : () => _loadPendingApprovals(showLoader: true),
-            icon: const Icon(Icons.refresh, color: Colors.white),
+            icon: Icon(Icons.refresh, color: navbarIcon),
             tooltip: 'Refresh',
           ),
         ],

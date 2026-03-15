@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../asisten_theme.dart';
 
 /// Organism: Bottom Navigation
@@ -15,9 +16,29 @@ class AsistenBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final footerBg = RuntimeThemeSlotResolver.footerBackground(
+      context,
+      fallback: AsistenTheme.cardBackground,
+    );
+    final footerSelected = RuntimeThemeSlotResolver.footerSelected(
+      context,
+      fallback: AsistenTheme.primaryBlue,
+    );
+    final footerUnselected = RuntimeThemeSlotResolver.footerUnselected(
+      context,
+      fallback: AsistenTheme.textMuted,
+    );
+    final footerBorder = RuntimeThemeSlotResolver.footerBorder(
+      context,
+      fallback: Colors.transparent,
+    );
+
     return Container(
       decoration: BoxDecoration(
-        color: AsistenTheme.cardBackground,
+        color: footerBg,
+        border: RuntimeThemeSlotResolver.hasFooterBorder
+            ? Border(top: BorderSide(color: footerBorder))
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
@@ -28,10 +49,10 @@ class AsistenBottomNav extends StatelessWidget {
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: AsistenTheme.cardBackground,
+        backgroundColor: footerBg,
         currentIndex: currentIndex,
-        selectedItemColor: AsistenTheme.primaryBlue,
-        unselectedItemColor: AsistenTheme.textMuted,
+        selectedItemColor: footerSelected,
+        unselectedItemColor: footerUnselected,
         selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
         unselectedLabelStyle: const TextStyle(fontSize: 12),
         items: const [

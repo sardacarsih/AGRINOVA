@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di/dependency_injection.dart';
 import '../../../../core/services/role_service.dart';
+import '../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../data/models/company_admin_dashboard_models.dart';
 import '../../data/repositories/company_admin_dashboard_repository.dart';
@@ -77,10 +78,20 @@ class _CompanyAdminPageState extends State<CompanyAdminPage> {
     final dataScope = RoleService.getDataAccessScope(role);
 
     return Scaffold(
+      backgroundColor: RuntimeThemeSlotResolver.dashboardBackground(
+        context,
+        fallback: Theme.of(context).scaffoldBackgroundColor,
+      ),
       appBar: AppBar(
         title: Text(RoleService.getRoleDisplayName(role)),
-        backgroundColor: Colors.deepOrange[600],
-        foregroundColor: Colors.white,
+        backgroundColor: RuntimeThemeSlotResolver.navbarBackground(
+          context,
+          fallback: Colors.deepOrange[600],
+        ),
+        foregroundColor: RuntimeThemeSlotResolver.navbarForeground(
+          context,
+          fallback: Colors.white,
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications),
@@ -603,10 +614,25 @@ class _CompanyAdminPageState extends State<CompanyAdminPage> {
   }
 
   Widget _buildBottomNavigation(BuildContext context, List<String> features) {
+    final footerBg = RuntimeThemeSlotResolver.footerBackground(
+      context,
+      fallback: Theme.of(context).bottomNavigationBarTheme.backgroundColor ??
+          Theme.of(context).cardColor,
+    );
+    final footerSelected = RuntimeThemeSlotResolver.footerSelected(
+      context,
+      fallback: Theme.of(context).primaryColor,
+    );
+    final footerUnselected = RuntimeThemeSlotResolver.footerUnselected(
+      context,
+      fallback: Colors.grey,
+    );
+
     return BottomNavigationBar(
       type: BottomNavigationBarType.fixed,
-      selectedItemColor: Theme.of(context).primaryColor,
-      unselectedItemColor: Colors.grey,
+      backgroundColor: footerBg,
+      selectedItemColor: footerSelected,
+      unselectedItemColor: footerUnselected,
       currentIndex: 0,
       items: [
         const BottomNavigationBarItem(
@@ -642,12 +668,24 @@ class _CompanyAdminPageState extends State<CompanyAdminPage> {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: RuntimeThemeSlotResolver.modalBackground(
+          context,
+          fallback: Theme.of(context).dialogTheme.backgroundColor,
+        ),
         title: Text(feature),
         content: Text('$feature feature will be implemented here.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+            child: Text(
+              'OK',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.modalAccent(
+                  context,
+                  fallback: Theme.of(context).colorScheme.secondary,
+                ),
+              ),
+            ),
           ),
         ],
       ),
