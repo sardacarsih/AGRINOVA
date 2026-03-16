@@ -2,6 +2,7 @@
 // 2x2 grid of stat cards for today's summary
 
 import 'package:flutter/material.dart';
+import '../../../../../../core/theme/runtime_mobile_theme.dart';
 import '../mandor_theme.dart';
 import '../atoms/genz_stat_card.dart';
 
@@ -35,7 +36,7 @@ class GenZStatsGrid extends StatelessWidget {
       children: [
         _buildTitle(context),
         const SizedBox(height: 14),
-        _buildGrid(),
+        _buildGrid(context),
       ],
     );
   }
@@ -47,7 +48,8 @@ class GenZStatsGrid extends StatelessWidget {
     );
   }
 
-  Widget _buildGrid() {
+  Widget _buildGrid(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -56,28 +58,32 @@ class GenZStatsGrid extends StatelessWidget {
       crossAxisSpacing: 12,
       mainAxisSpacing: 12,
       children: [
-        GenZStatCard.green(
+        GenZStatCard(
           value: harvestValue,
           label: 'Input Panen',
           icon: Icons.agriculture_rounded,
+          color: runtimeTheme.success,
           onTap: onHarvestTap,
         ),
-        GenZStatCard.orange(
+        GenZStatCard(
           value: pendingValue,
           label: 'Pending Approval',
           icon: Icons.pending_actions_rounded,
+          color: runtimeTheme.warning,
           onTap: onPendingTap,
         ),
-        GenZStatCard.blue(
+        GenZStatCard(
           value: employeeValue,
           label: 'Karyawan Aktif',
           icon: Icons.people_rounded,
+          color: runtimeTheme.info,
           onTap: onEmployeeTap,
         ),
-        GenZStatCard.purple(
+        GenZStatCard(
           value: blockValue,
           label: 'Blok Dikerjakan',
           icon: Icons.location_on_rounded,
+          color: runtimeTheme.primary,
           onTap: onBlockTap,
         ),
       ],
@@ -142,16 +148,17 @@ class GenZQuickStatsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: MandorTheme.filledCardFor(context),
       child: Row(
         children: [
-          _buildStatItem(context, totalLabel, totalValue, MandorTheme.forestGreen),
+          _buildStatItem(context, totalLabel, totalValue, runtimeTheme.success),
           _buildDivider(context),
-          _buildStatItem(context, firstLabel, firstValue, MandorTheme.electricBlue),
+          _buildStatItem(context, firstLabel, firstValue, runtimeTheme.info),
           _buildDivider(context),
-          _buildStatItem(context, secondLabel, secondValue, MandorTheme.amberOrange),
+          _buildStatItem(context, secondLabel, secondValue, runtimeTheme.warning),
         ],
       ),
     );

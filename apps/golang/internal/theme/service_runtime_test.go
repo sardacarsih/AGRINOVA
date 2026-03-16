@@ -177,7 +177,7 @@ func TestResolveRuntimeThemeReturnsBaseThemeWhenNoActiveCampaign(t *testing.T) {
 	}
 }
 
-func TestResolveRuntimeThemeMergesAppUINavbarAndFooterForMobile(t *testing.T) {
+func TestResolveRuntimeThemeKeepsThemeColorsAndAllowsCampaignAppUIAssetOverride(t *testing.T) {
 	service, db := newRuntimeThemeTestService(t)
 
 	var campaignTheme Theme
@@ -225,6 +225,9 @@ func TestResolveRuntimeThemeMergesAppUINavbarAndFooterForMobile(t *testing.T) {
 					"footer": JSONMap{
 						"accentColor": "#34D399",
 					},
+					"empty_state_illustration": JSONMap{
+						"asset": "https://example.com/campaign-empty-state.png",
+					},
 				},
 			},
 		},
@@ -264,6 +267,14 @@ func TestResolveRuntimeThemeMergesAppUINavbarAndFooterForMobile(t *testing.T) {
 	if !ok {
 		t.Fatalf("payload.AppUI footer is not an object")
 	}
+	emptyStateRaw, ok := appUI["empty_state_illustration"]
+	if !ok {
+		t.Fatalf("payload.AppUI missing empty_state_illustration slot")
+	}
+	emptyState, ok := toInterfaceMap(emptyStateRaw)
+	if !ok {
+		t.Fatalf("payload.AppUI empty_state_illustration is not an object")
+	}
 
 	if navbar["backgroundColor"] != "#0F172A" {
 		t.Errorf("payload.AppUI.navbar.backgroundColor = %v, want %q", navbar["backgroundColor"], "#0F172A")
@@ -271,8 +282,8 @@ func TestResolveRuntimeThemeMergesAppUINavbarAndFooterForMobile(t *testing.T) {
 	if navbar["foregroundColor"] != "#FFFFFF" {
 		t.Errorf("payload.AppUI.navbar.foregroundColor = %v, want %q", navbar["foregroundColor"], "#FFFFFF")
 	}
-	if navbar["iconColor"] != "#A7F3D0" {
-		t.Errorf("payload.AppUI.navbar.iconColor = %v, want %q", navbar["iconColor"], "#A7F3D0")
+	if navbar["iconColor"] != "" {
+		t.Errorf("payload.AppUI.navbar.iconColor = %v, want empty (campaign color override disabled)", navbar["iconColor"])
 	}
 
 	if footer["backgroundColor"] != "#111827" {
@@ -284,8 +295,101 @@ func TestResolveRuntimeThemeMergesAppUINavbarAndFooterForMobile(t *testing.T) {
 	if footer["borderColor"] != "#1F2937" {
 		t.Errorf("payload.AppUI.footer.borderColor = %v, want %q", footer["borderColor"], "#1F2937")
 	}
-	if footer["accentColor"] != "#34D399" {
-		t.Errorf("payload.AppUI.footer.accentColor = %v, want %q", footer["accentColor"], "#34D399")
+	if footer["accentColor"] != "" {
+		t.Errorf("payload.AppUI.footer.accentColor = %v, want empty (campaign color override disabled)", footer["accentColor"])
+	}
+	if emptyState["asset"] != "https://example.com/campaign-empty-state.png" {
+		t.Errorf(
+			"payload.AppUI.empty_state_illustration.asset = %v, want %q",
+			emptyState["asset"],
+			"https://example.com/campaign-empty-state.png",
+		)
+	}
+}
+
+func TestResolveRuntimeThemeUsesModeSpecificThemeVariants(t *testing.T) {
+	service, db := newRuntimeThemeTestService(t)
+
+	var campaignTheme Theme
+	if err := db.First(&campaignTheme, "id = ?", testCampaignThemeID).Error; err != nil {
+		t.Fatalf("db.First(campaignTheme) error: %v", err)
+	}
+	campaignTheme.TokenJSON = JSONMap{
+		"accentColor":     "#15803d",
+		"accentSoftColor": "#dcfce7",
+		"loginCardBorder": "#22c55e",
+		"modes": JSONMap{
+			"dark": JSONMap{
+				"accentColor":     "#22c55e",
+				"accentSoftColor": "#14532d",
+				"loginCardBorder": "#4ade80",
+			},
+		},
+	}
+	campaignTheme.AssetManifestJSON = JSONMap{
+		"backgroundImage": "https://example.com/light-bg.png",
+		"illustration":    "https://example.com/light-illustration.png",
+		"iconPack":        "outline-enterprise",
+		"accentAsset":     "none",
+		"modes": JSONMap{
+			"dark": JSONMap{
+				"backgroundImage": "https://example.com/dark-bg.png",
+				"iconPack":        "glyph-ops",
+				"accentAsset":     "diamond-grid",
+			},
+		},
+	}
+	if err := db.Save(&campaignTheme).Error; err != nil {
+		t.Fatalf("db.Save(campaignTheme) error: %v", err)
+	}
+
+	now := time.Now().UTC()
+	startAt := now.Add(-20 * time.Minute)
+	endAt := now.Add(20 * time.Minute)
+
+	campaign := ThemeCampaign{
+		ID:               "00000000-0000-0000-0000-000000000206",
+		ThemeID:          testCampaignThemeID,
+		CampaignGroupKey: "group-mode-aware",
+		CampaignName:     "Mode Aware Campaign",
+		Enabled:          true,
+		StartAt:          &startAt,
+		EndAt:            &endAt,
+		Priority:         180,
+		LightModeEnabled: true,
+		DarkModeEnabled:  true,
+		AssetsJSON:       JSONMap{},
+		UpdatedBy:        "tester",
+	}
+	if err := db.Create(&campaign).Error; err != nil {
+		t.Fatalf("db.Create(campaign) error: %v", err)
+	}
+
+	payload, err := service.ResolveRuntimeTheme(context.Background(), RuntimeThemeContext{
+		Platform: "web",
+		Mode:     "dark",
+	})
+	if err != nil {
+		t.Fatalf("ResolveRuntimeTheme(web,dark) error: %v", err)
+	}
+
+	if payload.Source != "ACTIVE_CAMPAIGN" {
+		t.Fatalf("ResolveRuntimeTheme(web,dark) source = %q, want %q", payload.Source, "ACTIVE_CAMPAIGN")
+	}
+	if payload.Token["accentColor"] != "#22c55e" {
+		t.Fatalf("payload.Token.accentColor = %v, want %q", payload.Token["accentColor"], "#22c55e")
+	}
+	if payload.Token["accentSoftColor"] != "#14532d" {
+		t.Fatalf("payload.Token.accentSoftColor = %v, want %q", payload.Token["accentSoftColor"], "#14532d")
+	}
+	if payload.Assets["backgroundImage"] != "https://example.com/dark-bg.png" {
+		t.Fatalf("payload.Assets.backgroundImage = %v, want dark asset", payload.Assets["backgroundImage"])
+	}
+	if payload.Assets["illustration"] != "https://example.com/light-illustration.png" {
+		t.Fatalf("payload.Assets.illustration = %v, want fallback light asset", payload.Assets["illustration"])
+	}
+	if payload.Assets["iconPack"] != "glyph-ops" {
+		t.Fatalf("payload.Assets.iconPack = %v, want %q", payload.Assets["iconPack"], "glyph-ops")
 	}
 }
 

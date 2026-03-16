@@ -5,7 +5,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../config/app_config.dart';
 import '../constants/api_constants.dart';
 import 'theme_mode_service.dart';
 
@@ -584,7 +583,14 @@ class LoginThemeCampaignService extends ChangeNotifier {
       await refresh(force: true);
       return;
     }
-    if (_isCacheFresh()) return;
+    if (_isCacheFresh()) {
+      // Keep cache-first behavior, but backfill once when cached runtime theme
+      // still misses the login background asset.
+      if (_shouldBackfillBackgroundAsset()) {
+        unawaited(refresh(force: true));
+      }
+      return;
+    }
 
     if (_config != null) {
       // Keep stale cache visible while refresh runs in the background.
@@ -711,6 +717,11 @@ class LoginThemeCampaignService extends ChangeNotifier {
     return _now().difference(_lastFetchedAt!) < _cacheTtl;
   }
 
+  bool _shouldBackfillBackgroundAsset() {
+    if (_isFetching) return false;
+    return effectiveAssets.backgroundImage.trim().isEmpty;
+  }
+
   Future<void> _persistSelection() async {
     _prefs ??= await SharedPreferences.getInstance();
     await _prefs!.setString(
@@ -834,7 +845,16 @@ class LoginThemeCampaignService extends ChangeNotifier {
     final campaignMap = normalized['campaign'] is Map
         ? Map<String, dynamic>.from(normalized['campaign'] as Map)
         : null;
-    final tokenMap = _extractTokenMap(normalized, themeMap);
+    final lightTokenMap = _extractTokenMapForBrightness(
+      normalized,
+      themeMap,
+      brightness: Brightness.light,
+    );
+    final darkTokenMap = _extractTokenMapForBrightness(
+      normalized,
+      themeMap,
+      brightness: Brightness.dark,
+    );
     final runtimeAssets = _extractRuntimeAssetManifest(normalized, themeMap);
     final runtimeAppUi = _extractRuntimeAppUi(
       normalized,
@@ -846,11 +866,11 @@ class LoginThemeCampaignService extends ChangeNotifier {
     final campaignId = campaignMap?['id']?.toString();
 
     final lightTokens = _buildRuntimeTokenSet(
-      tokenMap,
+      lightTokenMap,
       brightness: Brightness.light,
     );
     final darkTokens = _buildRuntimeTokenSet(
-      tokenMap,
+      darkTokenMap,
       brightness: Brightness.dark,
     );
 
@@ -947,17 +967,102 @@ class LoginThemeCampaignService extends ChangeNotifier {
     return raw;
   }
 
-  Map<String, dynamic> _extractTokenMap(
+  String _resolvePreferredRuntimeModeKey() {
+    return _resolveRuntimeModeQueryValue();
+  }
+
+  String _oppositeModeKey(String modeKey) {
+    return modeKey == 'dark' ? 'light' : 'dark';
+  }
+
+  List<String> _runtimeModeKeysForOverrideMerge() {
+    final preferred = _resolvePreferredRuntimeModeKey();
+    return [_oppositeModeKey(preferred), preferred];
+  }
+
+  Map<String, dynamic>? _resolveModeVariant(
+    Map<String, dynamic> source,
+    String modeKey,
+  ) {
+    final modes = _toMap(source['modes']);
+    final fromModes = _toMap(modes?[modeKey]);
+    if (fromModes != null) {
+      return fromModes;
+    }
+    return _toMap(source[modeKey]);
+  }
+
+  bool _looksLikeTokenMap(Map<String, dynamic> raw) {
+    return raw.containsKey('bgGradient') ||
+        raw.containsKey('surface') ||
+        raw.containsKey('surfaceBorder') ||
+        raw.containsKey('textPrimary') ||
+        raw.containsKey('textSecondary') ||
+        raw.containsKey('inputFill') ||
+        raw.containsKey('inputBorder') ||
+        raw.containsKey('buttonGradient') ||
+        raw.containsKey('buttonText') ||
+        raw.containsKey('link') ||
+        raw.containsKey('accentColor') ||
+        raw.containsKey('accentSoftColor') ||
+        raw.containsKey('loginCardBorder') ||
+        raw.containsKey('lightTokens') ||
+        raw.containsKey('darkTokens');
+  }
+
+  Map<String, dynamic>? _extractTokenMapFromModeVariant(
+    Map<String, dynamic>? modeVariant,
+  ) {
+    if (modeVariant == null) {
+      return null;
+    }
+
+    final tokenCandidates = [
+      _toMap(modeVariant['token_json']),
+      _toMap(modeVariant['tokenJson']),
+      _toMap(modeVariant['tokens']),
+    ];
+    for (final candidate in tokenCandidates) {
+      if (candidate != null) {
+        return candidate;
+      }
+    }
+
+    if (_looksLikeTokenMap(modeVariant)) {
+      return modeVariant;
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _extractTokenMapForBrightness(
     Map<String, dynamic> normalized,
     Map<String, dynamic> themeMap,
+    {required Brightness brightness}
   ) {
-    final tokenRaw = normalized['token_json'] ?? themeMap['token_json'];
-    if (tokenRaw is Map<String, dynamic>) {
-      return tokenRaw;
+    final desiredMode = brightness == Brightness.dark ? 'dark' : 'light';
+    final fallbackMode = _oppositeModeKey(desiredMode);
+
+    final candidates = <Map<String, dynamic>?>[
+      _extractTokenMapFromModeVariant(
+        _resolveModeVariant(normalized, desiredMode),
+      ),
+      _extractTokenMapFromModeVariant(_resolveModeVariant(themeMap, desiredMode)),
+      _toMap(normalized['token_json']),
+      _toMap(themeMap['token_json']),
+      _extractTokenMapFromModeVariant(
+        _resolveModeVariant(normalized, fallbackMode),
+      ),
+      _extractTokenMapFromModeVariant(
+        _resolveModeVariant(themeMap, fallbackMode),
+      ),
+    ];
+
+    for (final candidate in candidates) {
+      if (candidate != null) {
+        return candidate;
+      }
     }
-    if (tokenRaw is Map) {
-      return Map<String, dynamic>.from(tokenRaw);
-    }
+
     return <String, dynamic>{};
   }
 
@@ -965,7 +1070,7 @@ class LoginThemeCampaignService extends ChangeNotifier {
     Map<String, dynamic> normalized,
     Map<String, dynamic> themeMap,
   ) {
-    final candidates = [
+    final baseCandidates = [
       _toMap(normalized['asset_manifest_json']),
       _toMap(normalized['assets_json']),
       _toMap(normalized['assets']),
@@ -974,46 +1079,92 @@ class LoginThemeCampaignService extends ChangeNotifier {
       _toMap(themeMap['assets']),
     ];
 
-    for (final candidate in candidates) {
-      if (candidate == null) continue;
+    final modeVariantCandidates = <Map<String, dynamic>?>[];
+    for (final modeKey in _runtimeModeKeysForOverrideMerge()) {
+      final normalizedMode = _resolveModeVariant(normalized, modeKey);
+      final themeMode = _resolveModeVariant(themeMap, modeKey);
+
+      modeVariantCandidates.addAll([
+        _toMap(normalizedMode?['asset_manifest_json']),
+        _toMap(normalizedMode?['assets_json']),
+        _toMap(normalizedMode?['assets']),
+        normalizedMode,
+        _toMap(themeMode?['asset_manifest_json']),
+        _toMap(themeMode?['assets_json']),
+        _toMap(themeMode?['assets']),
+        themeMode,
+      ]);
+    }
+
+    var backgroundImage = '';
+    var illustration = '';
+    var iconPack = '';
+    var accentAsset = '';
+    var hasAnyAssetValue = false;
+
+    void applyCandidate(Map<String, dynamic>? candidate) {
+      if (candidate == null) return;
 
       final platformAssets = _toMap(candidate['mobile']);
       final webAssets = _toMap(candidate['web']);
-      final backgroundImage = _normalizeAssetUrl(
+      final nextBackgroundImage = _normalizeAssetUrl(
         _readString(platformAssets, 'backgroundImage') ??
             _readString(candidate, 'backgroundImage') ??
             _readString(webAssets, 'backgroundImage'),
       );
-      final illustration = _normalizeAssetUrl(
+      final nextIllustration = _normalizeAssetUrl(
         _readString(platformAssets, 'illustration') ??
             _readString(candidate, 'illustration') ??
             _readString(webAssets, 'illustration'),
       );
-      final iconPack =
+      final nextIconPack =
           _readString(platformAssets, 'iconPack') ??
           _readString(candidate, 'iconPack') ??
-          _readString(webAssets, 'iconPack') ??
-          LoginThemeAssetManifest.empty.iconPack;
-      final accentAsset =
+          _readString(webAssets, 'iconPack');
+      final nextAccentAsset =
           _readString(platformAssets, 'accentAsset') ??
           _readString(candidate, 'accentAsset') ??
-          _readString(webAssets, 'accentAsset') ??
-          LoginThemeAssetManifest.empty.accentAsset;
+          _readString(webAssets, 'accentAsset');
 
-      if (backgroundImage.isNotEmpty ||
-          illustration.isNotEmpty ||
-          iconPack.isNotEmpty ||
-          accentAsset.isNotEmpty) {
-        return LoginThemeAssetManifest(
-          backgroundImage: backgroundImage,
-          illustration: illustration,
-          iconPack: iconPack,
-          accentAsset: accentAsset,
-        );
+      if (nextBackgroundImage.isNotEmpty) {
+        backgroundImage = nextBackgroundImage;
+        hasAnyAssetValue = true;
+      }
+      if (nextIllustration.isNotEmpty) {
+        illustration = nextIllustration;
+        hasAnyAssetValue = true;
+      }
+      if (nextIconPack != null && nextIconPack.isNotEmpty) {
+        iconPack = nextIconPack;
+        hasAnyAssetValue = true;
+      }
+      if (nextAccentAsset != null && nextAccentAsset.isNotEmpty) {
+        accentAsset = nextAccentAsset;
+        hasAnyAssetValue = true;
       }
     }
 
-    return LoginThemeAssetManifest.empty;
+    for (final candidate in baseCandidates) {
+      applyCandidate(candidate);
+    }
+    for (final candidate in modeVariantCandidates) {
+      applyCandidate(candidate);
+    }
+
+    if (!hasAnyAssetValue) {
+      return LoginThemeAssetManifest.empty;
+    }
+
+    return LoginThemeAssetManifest(
+      backgroundImage: backgroundImage,
+      illustration: illustration,
+      iconPack: iconPack.isNotEmpty
+          ? iconPack
+          : LoginThemeAssetManifest.empty.iconPack,
+      accentAsset: accentAsset.isNotEmpty
+          ? accentAsset
+          : LoginThemeAssetManifest.empty.accentAsset,
+    );
   }
 
   LoginThemeAppUi _extractRuntimeAppUi(
@@ -1021,7 +1172,7 @@ class LoginThemeCampaignService extends ChangeNotifier {
     Map<String, dynamic> themeMap, {
     required LoginThemeAssetManifest runtimeAssets,
   }) {
-    final candidates = [
+    final baseCandidates = [
       _toMap(normalized['app_ui']),
       _toMap(normalized['asset_manifest_json']),
       _toMap(normalized['assets_json']),
@@ -1032,8 +1183,29 @@ class LoginThemeCampaignService extends ChangeNotifier {
       _toMap(themeMap['assets']),
     ];
 
-    for (final candidate in candidates) {
-      if (candidate == null) continue;
+    final modeVariantCandidates = <Map<String, dynamic>?>[];
+    for (final modeKey in _runtimeModeKeysForOverrideMerge()) {
+      final normalizedMode = _resolveModeVariant(normalized, modeKey);
+      final themeMode = _resolveModeVariant(themeMap, modeKey);
+
+      modeVariantCandidates.addAll([
+        _toMap(normalizedMode?['app_ui']),
+        _toMap(normalizedMode?['asset_manifest_json']),
+        _toMap(normalizedMode?['assets_json']),
+        _toMap(normalizedMode?['assets']),
+        normalizedMode,
+        _toMap(themeMode?['app_ui']),
+        _toMap(themeMode?['asset_manifest_json']),
+        _toMap(themeMode?['assets_json']),
+        _toMap(themeMode?['assets']),
+        themeMode,
+      ]);
+    }
+
+    var mergedAppUi = LoginThemeAppUi.empty;
+
+    void mergeCandidate(Map<String, dynamic>? candidate) {
+      if (candidate == null) return;
 
       final platformAssets = _toMap(candidate['mobile']);
       final webAssets = _toMap(candidate['web']);
@@ -1047,11 +1219,18 @@ class LoginThemeCampaignService extends ChangeNotifier {
       );
 
       if (merged.hasAnyValue) {
-        return _applyLegacyAppUiFallback(merged, runtimeAssets);
+        mergedAppUi = mergedAppUi.merge(merged);
       }
     }
 
-    return _applyLegacyAppUiFallback(LoginThemeAppUi.empty, runtimeAssets);
+    for (final candidate in baseCandidates) {
+      mergeCandidate(candidate);
+    }
+    for (final candidate in modeVariantCandidates) {
+      mergeCandidate(candidate);
+    }
+
+    return _applyLegacyAppUiFallback(mergedAppUi, runtimeAssets);
   }
 
   LoginThemeAppUi _applyLegacyAppUiFallback(
@@ -1173,7 +1352,7 @@ class LoginThemeCampaignService extends ChangeNotifier {
       return value;
     }
     if (lower.startsWith('http://') || lower.startsWith('https://')) {
-      return _rewriteThemeAssetAbsoluteUrl(value) ?? value;
+      return value;
     }
 
     final withoutDotPrefix = value.startsWith('./')
@@ -1193,54 +1372,13 @@ class LoginThemeCampaignService extends ChangeNotifier {
     return '$normalizedBase$withLeadingSlash';
   }
 
-  String? _rewriteThemeAssetAbsoluteUrl(String absoluteUrl) {
-    final uri = Uri.tryParse(absoluteUrl);
-    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
-      return null;
-    }
-
-    final lowerPath = uri.path.toLowerCase();
-    final isThemeAssetPath = lowerPath.startsWith('/uploads/theme-assets/');
-    if (!isThemeAssetPath) {
-      return null;
-    }
-
-    final apiBaseUri = Uri.tryParse(ApiConstants.baseUrl.trim());
-    final webBaseUri = Uri.tryParse(AppConfig.webBaseUrl.trim());
-    if (apiBaseUri == null ||
-        apiBaseUri.host.isEmpty ||
-        webBaseUri == null ||
-        webBaseUri.host.isEmpty) {
-      return null;
-    }
-
-    final isApiHostedUrl =
-        uri.host.toLowerCase() == apiBaseUri.host.toLowerCase();
-    if (!isApiHostedUrl) {
-      return null;
-    }
-
-    return uri
-        .replace(
-          scheme: webBaseUri.scheme.isNotEmpty ? webBaseUri.scheme : uri.scheme,
-          userInfo: webBaseUri.userInfo,
-          host: webBaseUri.host,
-          port: webBaseUri.hasPort ? webBaseUri.port : null,
-        )
-        .toString();
-  }
-
   String _resolveAssetBaseUrl(String normalizedPath) {
     final lowerPath = normalizedPath.toLowerCase();
-    final isThemeAssetPath = lowerPath.startsWith('/uploads/theme-assets/');
-
-    if (isThemeAssetPath) {
-      final webBaseUrl = AppConfig.webBaseUrl.trim();
-      if (webBaseUrl.isNotEmpty) {
-        return webBaseUrl;
-      }
+    // Mobile runtime assets must resolve against API host so emulator/device
+    // does not depend on WEB_BASE_URL reachability (e.g. localhost:3000).
+    if (lowerPath.startsWith('/uploads/theme-assets/')) {
+      return ApiConstants.baseUrl;
     }
-
     return ApiConstants.baseUrl;
   }
 

@@ -181,13 +181,14 @@ func TestNormalizeThemeAssetManifest_MapsLegacyValuesIntoAppUISlots(t *testing.T
 	}
 }
 
-func TestNormalizeCampaignAssets_PreservesTypedAppUISlots(t *testing.T) {
+func TestNormalizeCampaignAssets_StripsAppUIColorOverridesAndKeepsAsset(t *testing.T) {
 	normalized := normalizeCampaignAssets(JSONMap{
 		"mobile": JSONMap{
 			"app_ui": JSONMap{
 				"navbar": JSONMap{
 					"backgroundColor": "#0F172A",
 					"foregroundColor": "#FFFFFF",
+					"asset":           "https://example.com/navbar.svg",
 				},
 			},
 		},
@@ -197,19 +198,23 @@ func TestNormalizeCampaignAssets_PreservesTypedAppUISlots(t *testing.T) {
 	appUI := normalizeAppUISlots(mobile["app_ui"])
 	navbar, _ := appUI["navbar"].(JSONMap)
 
-	if navbar["backgroundColor"] != "#0F172A" {
-		t.Fatalf("expected typed app_ui.navbar.backgroundColor to be preserved")
+	if navbar["backgroundColor"] != "" {
+		t.Fatalf("expected campaign app_ui.navbar.backgroundColor to be stripped")
 	}
-	if navbar["foregroundColor"] != "#FFFFFF" {
-		t.Fatalf("expected typed app_ui.navbar.foregroundColor to be preserved")
+	if navbar["foregroundColor"] != "" {
+		t.Fatalf("expected campaign app_ui.navbar.foregroundColor to be stripped")
+	}
+	if navbar["asset"] != "https://example.com/navbar.svg" {
+		t.Fatalf("expected campaign app_ui.navbar.asset to be preserved")
 	}
 }
 
-func TestMergeThemeAssetsWithCampaign_MergesTypedAppUISlots(t *testing.T) {
+func TestMergeThemeAssetsWithCampaign_OnlyAllowsAppUIAssetOverrideFromCampaign(t *testing.T) {
 	base := JSONMap{
 		"app_ui": JSONMap{
 			"navbar": JSONMap{
 				"backgroundColor": "#14532D",
+				"asset":           "https://example.com/theme-navbar.svg",
 			},
 		},
 	}
@@ -217,6 +222,7 @@ func TestMergeThemeAssetsWithCampaign_MergesTypedAppUISlots(t *testing.T) {
 		"app_ui": JSONMap{
 			"navbar": JSONMap{
 				"foregroundColor": "#FFFFFF",
+				"asset":           "https://example.com/campaign-navbar.svg",
 			},
 		},
 	}
@@ -228,8 +234,71 @@ func TestMergeThemeAssetsWithCampaign_MergesTypedAppUISlots(t *testing.T) {
 	if navbar["backgroundColor"] != "#14532D" {
 		t.Fatalf("expected base app_ui slot value to remain when campaign is blank")
 	}
-	if navbar["foregroundColor"] != "#FFFFFF" {
-		t.Fatalf("expected campaign app_ui slot value to override/add")
+	if navbar["foregroundColor"] != "" {
+		t.Fatalf("expected campaign app_ui color override to be ignored")
+	}
+	if navbar["asset"] != "https://example.com/campaign-navbar.svg" {
+		t.Fatalf("expected campaign app_ui asset to override base asset")
+	}
+}
+
+func TestNormalizeThemeTokens_ExpandsModeVariants(t *testing.T) {
+	normalized := normalizeThemeTokens(JSONMap{
+		"accentColor":     "#15803d",
+		"accentSoftColor": "#dcfce7",
+		"loginCardBorder": "#22c55e",
+		"modes": JSONMap{
+			"dark": JSONMap{
+				"accentColor":     "#22c55e",
+				"accentSoftColor": "#14532d",
+				"loginCardBorder": "#4ade80",
+			},
+		},
+	})
+
+	light := resolveThemeTokensByMode(normalized, "light")
+	dark := resolveThemeTokensByMode(normalized, "dark")
+
+	if light["accentColor"] != "#15803d" {
+		t.Fatalf("expected light accentColor to fallback from top-level tokens")
+	}
+	if dark["accentColor"] != "#22c55e" {
+		t.Fatalf("expected dark accentColor to use mode-specific value")
+	}
+	if dark["accentSoftColor"] != "#14532d" {
+		t.Fatalf("expected dark accentSoftColor to use mode-specific value")
+	}
+}
+
+func TestNormalizeThemeAssetManifest_ExpandsModeVariants(t *testing.T) {
+	normalized := normalizeThemeAssetManifest(JSONMap{
+		"backgroundImage": "https://example.com/light-bg.png",
+		"illustration":    "https://example.com/light-illustration.png",
+		"iconPack":        "outline-enterprise",
+		"accentAsset":     "leaf-ribbon",
+		"modes": JSONMap{
+			"dark": JSONMap{
+				"backgroundImage": "https://example.com/dark-bg.png",
+				"iconPack":        "glyph-ops",
+				"accentAsset":     "diamond-grid",
+			},
+		},
+	})
+
+	light := resolveThemeAssetsByMode(normalized, "light")
+	dark := resolveThemeAssetsByMode(normalized, "dark")
+
+	if light["backgroundImage"] != "https://example.com/light-bg.png" {
+		t.Fatalf("expected light background to fallback from top-level manifest")
+	}
+	if dark["backgroundImage"] != "https://example.com/dark-bg.png" {
+		t.Fatalf("expected dark backgroundImage to use mode-specific value")
+	}
+	if dark["illustration"] != "https://example.com/light-illustration.png" {
+		t.Fatalf("expected dark illustration to fallback from top-level manifest")
+	}
+	if dark["iconPack"] != "glyph-ops" {
+		t.Fatalf("expected dark iconPack to use mode-specific value")
 	}
 }
 
@@ -275,6 +344,56 @@ func TestValidateCampaignInputRejectsNonStringAppUIProperty(t *testing.T) {
 
 	if err == nil {
 		t.Fatalf("expected non-string app_ui property value to fail validation")
+	}
+}
+
+func TestValidateThemeInputRejectsUnsupportedAppUISlotInModeVariant(t *testing.T) {
+	err := validateThemeInput(ThemeInput{
+		Code:     "seasonal-ramadan",
+		Name:     "Seasonal Ramadan",
+		Type:     "seasonal",
+		IsActive: true,
+		AssetManifestJSON: JSONMap{
+			"modes": JSONMap{
+				"dark": JSONMap{
+					"app_ui": JSONMap{
+						"unknown_slot": JSONMap{
+							"backgroundColor": "#0F172A",
+						},
+					},
+				},
+			},
+		},
+	})
+
+	if err == nil {
+		t.Fatalf("expected unsupported app_ui slot in mode variant to fail validation")
+	}
+}
+
+func TestCollectVisualOptions_IncludesModeVariantValues(t *testing.T) {
+	themes := []Theme{
+		{
+			AssetManifestJSON: JSONMap{
+				"iconPack":    "outline-enterprise",
+				"accentAsset": "none",
+				"modes": JSONMap{
+					"dark": JSONMap{
+						"iconPack":    "dark-icons",
+						"accentAsset": "dark-accent",
+					},
+				},
+			},
+		},
+	}
+
+	iconPacks, accentAssets := collectVisualOptions(themes, nil)
+
+	if !containsValue(iconPacks, "dark-icons") {
+		t.Fatalf("expected dark mode iconPack to be included in visual options")
+	}
+	if !containsValue(accentAssets, "dark-accent") {
+		t.Fatalf("expected dark mode accentAsset to be included in visual options")
 	}
 }
 

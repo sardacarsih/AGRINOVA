@@ -2,7 +2,10 @@
 // Welcome section with user info and offline banner
 
 import 'package:flutter/material.dart';
-import '../../../../../../../shared/widgets/current_user_avatar.dart';
+import '../../../../../../shared/widgets/current_user_avatar.dart';
+import '../../../../../../shared/widgets/runtime_network_image.dart';
+import '../../../../../../core/theme/login_theme_campaign_service.dart';
+import '../../../../../../core/theme/runtime_mobile_theme.dart';
 import '../mandor_theme.dart';
 import '../atoms/genz_status_badge.dart';
 
@@ -23,28 +26,54 @@ class GenZWelcomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
+    final asset =
+        LoginThemeCampaignService.instance.effectiveAppUi.dashboard.asset;
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: MandorTheme.primaryGradient,
+        gradient: LinearGradient(
+          colors: [runtimeTheme.primary, runtimeTheme.info],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: MandorTheme.forestGreen.withValues(alpha: 0.3),
+            color: runtimeTheme.primary.withValues(alpha: 0.3),
             blurRadius: 20,
             spreadRadius: -5,
             offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          _buildUserInfo(context),
-          if (isOffline) ...[
-            const SizedBox(height: 14),
-            const GenZOfflineBanner(),
-          ],
+          if (asset.trim().isNotEmpty)
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.25,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: RuntimeNetworkImage(
+                    imageUrl: asset,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildUserInfo(context),
+                if (isOffline) ...[
+                  const SizedBox(height: 14),
+                  const GenZOfflineBanner(),
+                ],
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -159,6 +188,7 @@ class GenZWelcomeHeaderCompact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: MandorTheme.filledCardFor(context),
@@ -167,7 +197,7 @@ class GenZWelcomeHeaderCompact extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration:
-                MandorTheme.iconContainer(color: MandorTheme.forestGreen),
+                MandorTheme.iconContainer(color: runtimeTheme.success),
             child: Icon(
               icon ?? Icons.person_rounded,
               color: Colors.white,

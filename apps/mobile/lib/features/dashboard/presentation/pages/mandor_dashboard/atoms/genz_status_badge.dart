@@ -2,6 +2,7 @@
 // Status indicators for offline, sync, and approval status
 
 import 'package:flutter/material.dart';
+import '../../../../../../core/theme/runtime_mobile_theme.dart';
 import '../mandor_theme.dart';
 
 /// Status badge types
@@ -59,7 +60,7 @@ class GenZStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final config = _getConfig();
+    final config = _getConfig(context);
     
     return Container(
       padding: EdgeInsets.symmetric(
@@ -106,41 +107,42 @@ class GenZStatusBadge extends StatelessWidget {
     );
   }
 
-  _BadgeConfig _getConfig() {
+  _BadgeConfig _getConfig(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     switch (type) {
       case StatusBadgeType.offline:
         return _BadgeConfig(
-          color: MandorTheme.amberOrange,
+          color: runtimeTheme.warning,
           icon: Icons.wifi_off_rounded,
           label: 'Offline',
         );
       case StatusBadgeType.syncing:
         return _BadgeConfig(
-          color: MandorTheme.electricBlue,
+          color: runtimeTheme.info,
           icon: Icons.sync_rounded,
           label: 'Syncing...',
         );
       case StatusBadgeType.synced:
         return _BadgeConfig(
-          color: MandorTheme.forestGreen,
+          color: runtimeTheme.success,
           icon: Icons.cloud_done_rounded,
           label: 'Synced',
         );
       case StatusBadgeType.pending:
         return _BadgeConfig(
-          color: MandorTheme.amberOrange,
+          color: runtimeTheme.warning,
           icon: Icons.pending_rounded,
           label: 'Pending',
         );
       case StatusBadgeType.approved:
         return _BadgeConfig(
-          color: MandorTheme.forestGreen,
+          color: runtimeTheme.success,
           icon: Icons.check_circle_rounded,
           label: 'Approved',
         );
       case StatusBadgeType.rejected:
         return _BadgeConfig(
-          color: MandorTheme.coralRed,
+          color: runtimeTheme.danger,
           icon: Icons.cancel_rounded,
           label: 'Rejected',
         );
@@ -171,13 +173,15 @@ class GenZOfflineBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
+    final warning = runtimeTheme.warning;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: MandorTheme.amberOrange.withValues(alpha: 0.12),
+        color: runtimeTheme.cardTint(warning, lightAlpha: 0.12, darkAlpha: 0.2),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: MandorTheme.amberOrange.withValues(alpha: 0.25),
+          color: runtimeTheme.borderTint(warning, lightAlpha: 0.25, darkAlpha: 0.34),
         ),
       ),
       child: Row(
@@ -185,14 +189,14 @@ class GenZOfflineBanner extends StatelessWidget {
           Icon(
             Icons.wifi_off_rounded,
             size: 18,
-            color: MandorTheme.amberOrange,
+            color: warning,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message ?? 'Mode Offline — Data disinkronkan saat online',
               style: MandorTheme.bodySmallFor(context).copyWith(
-                color: MandorTheme.amberOrange,
+                color: warning,
               ),
             ),
           ),

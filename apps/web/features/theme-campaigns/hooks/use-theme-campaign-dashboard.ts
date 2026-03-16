@@ -188,31 +188,96 @@ const mapCampaign = (item: unknown): ThemeCampaign => {
 };
 
 const mapThemeTokenConfig = (value: unknown): ThemeTokenConfig => {
-  const source = asRecord(value);
-  const result: ThemeTokenConfig = {
-    accentColor: typeof source.accentColor === 'string' ? source.accentColor : '',
-    accentSoftColor: typeof source.accentSoftColor === 'string' ? source.accentSoftColor : '',
-    loginCardBorder: typeof source.loginCardBorder === 'string' ? source.loginCardBorder : '',
+  const mapTokenValues = (raw: unknown, fallback?: ThemeTokenConfig): ThemeTokenConfig => {
+    const source = asRecord(raw);
+    const result: ThemeTokenConfig = {
+      accentColor:
+        typeof source.accentColor === 'string'
+          ? source.accentColor
+          : fallback?.accentColor || '',
+      accentSoftColor:
+        typeof source.accentSoftColor === 'string'
+          ? source.accentSoftColor
+          : fallback?.accentSoftColor || '',
+      loginCardBorder:
+        typeof source.loginCardBorder === 'string'
+          ? source.loginCardBorder
+          : fallback?.loginCardBorder || '',
+    };
+
+    Object.entries(source).forEach(([key, candidate]) => {
+      if (key === 'modes' || key in result) return;
+      if (typeof candidate === 'string') {
+        result[key] = candidate;
+      }
+    });
+
+    return result;
   };
 
-  Object.entries(source).forEach(([key, candidate]) => {
-    if (typeof candidate === 'string' && !(key in result)) {
-      result[key] = candidate;
-    }
-  });
+  const source = asRecord(value);
+  const base = mapTokenValues(source);
+  const modeSource = asRecord(source.modes);
+  const light = mapTokenValues(modeSource.light, base);
+  const dark = mapTokenValues(modeSource.dark, base);
 
-  return result;
+  return {
+    ...base,
+    modes: {
+      light,
+      dark,
+    },
+  };
 };
 
 const mapThemeAssetManifest = (value: unknown): ThemeAssetManifest => {
+  const mapAssetValues = (
+    raw: unknown,
+    fallback?: ThemeAssetManifest
+  ): ThemeAssetManifest => {
+    const source = asRecord(raw);
+    const result: ThemeAssetManifest = {
+      backgroundImage:
+        typeof source.backgroundImage === 'string'
+          ? source.backgroundImage
+          : fallback?.backgroundImage || '',
+      illustration:
+        typeof source.illustration === 'string'
+          ? source.illustration
+          : fallback?.illustration || '',
+      iconPack:
+        typeof source.iconPack === 'string'
+          ? source.iconPack
+          : fallback?.iconPack || 'outline-enterprise',
+      accentAsset:
+        typeof source.accentAsset === 'string'
+          ? source.accentAsset
+          : fallback?.accentAsset || 'none',
+      app_ui: ensureAppUiSlots(source.app_ui ?? fallback?.app_ui),
+    };
+
+    if (source.web || fallback?.web) {
+      result.web = ensurePlatformAssets(source.web ?? fallback?.web);
+    }
+    if (source.mobile || fallback?.mobile) {
+      result.mobile = ensurePlatformAssets(source.mobile ?? fallback?.mobile);
+    }
+
+    return result;
+  };
+
   const source = asRecord(value);
+  const base = mapAssetValues(source);
+  const modeSource = asRecord(source.modes);
+  const light = mapAssetValues(modeSource.light, base);
+  const dark = mapAssetValues(modeSource.dark, base);
+
   return {
-    backgroundImage:
-      typeof source.backgroundImage === 'string' ? source.backgroundImage : '',
-    illustration:
-      typeof source.illustration === 'string' ? source.illustration : '',
-    iconPack: typeof source.iconPack === 'string' ? source.iconPack : 'outline-enterprise',
-    accentAsset: typeof source.accentAsset === 'string' ? source.accentAsset : 'none',
+    ...base,
+    modes: {
+      light,
+      dark,
+    },
   };
 };
 

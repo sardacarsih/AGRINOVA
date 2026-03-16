@@ -36,12 +36,29 @@ export interface ThemeAssetUploadResponse {
   originalName: string;
 }
 
+export interface RuntimeThemeResponseMeta {
+  status: number;
+  etag: string | null;
+  data: any | null;
+}
+
 const parseResponse = async <T>(response: Response): Promise<T> => {
   const body = (await response.json()) as T & { message?: string };
   if (!response.ok) {
     throw new Error(body?.message || 'Request failed');
   }
   return body;
+};
+
+const parseJsonSafely = async (response: Response): Promise<any | null> => {
+  const raw = await response.text();
+  if (!raw.trim()) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { message: raw };
+  }
 };
 
 export class ThemeCampaignApi {
@@ -175,13 +192,17 @@ export class ThemeCampaignApi {
     file: File,
     params: {
       platform: 'web' | 'mobile';
-      assetKey: 'backgroundImage' | 'illustration';
+      assetKey: 'backgroundImage' | 'illustration' | 'appUiAsset';
+      slotKey?: string;
     }
   ) {
     const formData = new FormData();
     formData.set('file', file);
     formData.set('platform', params.platform);
     formData.set('assetKey', params.assetKey);
+    if (typeof params.slotKey === 'string' && params.slotKey.trim()) {
+      formData.set('slotKey', params.slotKey.trim());
+    }
 
     const response = await fetch('/api/theme-campaigns/assets/upload', {
       method: 'POST',
@@ -196,6 +217,14 @@ export class ThemeCampaignApi {
     params: { platform: string; mode?: 'light' | 'dark' },
     options?: { signal?: AbortSignal }
   ) {
+    const result = await ThemeCampaignApi.getRuntimeThemeWithMeta(params, options);
+    return result.data ?? {};
+  }
+
+  static async getRuntimeThemeWithMeta(
+    params: { platform: string; mode?: 'light' | 'dark' },
+    options?: { signal?: AbortSignal; ifNoneMatch?: string }
+  ): Promise<RuntimeThemeResponseMeta> {
     const query = new URLSearchParams({
       platform: params.platform,
     });
@@ -203,13 +232,60 @@ export class ThemeCampaignApi {
       query.set('mode', params.mode);
     }
 
-    const response = await fetch(`/api/theme-campaigns/runtime-theme?${query.toString()}`, {
-      method: 'GET',
-      cache: 'no-store',
-      credentials: 'omit',
-      signal: options?.signal,
-    });
+    const endpointCandidates = [
+      '/api/public/themes/login',
+      '/api/theme-campaigns/runtime-theme',
+    ];
 
-    return parseResponse<any>(response);
+    let lastError: Error | null = null;
+    for (const endpoint of endpointCandidates) {
+      const headers = new Headers();
+      if (options?.ifNoneMatch) {
+        headers.set('If-None-Match', options.ifNoneMatch);
+      }
+
+      try {
+        const response = await fetch(`${endpoint}?${query.toString()}`, {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'omit',
+          signal: options?.signal,
+          headers,
+        });
+
+        if (response.status === 404 && endpoint === '/api/public/themes/login') {
+          continue;
+        }
+
+        const etag = response.headers.get('etag');
+
+        if (response.status === 304) {
+          return {
+            status: 304,
+            etag,
+            data: null,
+          };
+        }
+
+        const body = await parseJsonSafely(response);
+        if (!response.ok) {
+          throw new Error(body?.message || 'Request failed');
+        }
+
+        return {
+          status: response.status,
+          etag,
+          data: body,
+        };
+      } catch (error) {
+        if (error instanceof Error) {
+          lastError = error;
+          continue;
+        }
+        lastError = new Error('Failed to load runtime theme');
+      }
+    }
+
+    throw lastError || new Error('Failed to load runtime theme');
   }
 }

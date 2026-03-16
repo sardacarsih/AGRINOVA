@@ -47,6 +47,7 @@ var supportedThemeAssetMimeTypes = map[string]string{
 var allowedThemeAssetKeys = map[string]struct{}{
 	"backgroundImage": {},
 	"illustration":    {},
+	"appUiAsset":      {},
 }
 
 type themeAssetDimension struct {
@@ -58,10 +59,12 @@ var recommendedThemeAssetDimensions = map[string]map[string]themeAssetDimension{
 	"web": {
 		"backgroundImage": {width: 1920, height: 1080},
 		"illustration":    {width: 1500, height: 600},
+		"appUiAsset":      {width: 1200, height: 1200},
 	},
 	"mobile": {
 		"backgroundImage": {width: 1080, height: 2400},
 		"illustration":    {width: 1200, height: 480},
+		"appUiAsset":      {width: 1200, height: 1200},
 	},
 }
 
@@ -120,8 +123,16 @@ func (h *themeCampaignHandler) uploadAsset(c *gin.Context) {
 
 	assetKey := strings.TrimSpace(c.PostForm("assetKey"))
 	if _, ok := allowedThemeAssetKeys[assetKey]; !ok {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "assetKey must be backgroundImage or illustration"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "assetKey must be backgroundImage, illustration, or appUiAsset"})
 		return
+	}
+
+	slotKey := strings.TrimSpace(c.PostForm("slotKey"))
+	if assetKey == "appUiAsset" && slotKey != "" {
+		if !isValidAppUISlotKey(slotKey) {
+			c.JSON(http.StatusBadRequest, gin.H{"message": "invalid slotKey for appUiAsset"})
+			return
+		}
 	}
 
 	fileHeader, err := c.FormFile("file")
@@ -150,11 +161,6 @@ func (h *themeCampaignHandler) uploadAsset(c *gin.Context) {
 		return
 	}
 
-	if platform == "mobile" && assetKey == "backgroundImage" && contentType != "image/svg+xml" {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "mobile backgroundImage must be SVG"})
-		return
-	}
-
 	if len(content) > themeAssetMaxUploadSize {
 		contentType, content, err = transformThemeAssetForUpload(contentType, content, platform, assetKey)
 		if err != nil {
@@ -180,7 +186,14 @@ func (h *themeCampaignHandler) uploadAsset(c *gin.Context) {
 		}
 	}
 
-	absoluteDir := filepath.Join(h.uploadsDir, themeAssetsDirName, platform, assetKey)
+	dirSegments := []string{h.uploadsDir, themeAssetsDirName, platform, assetKey}
+	urlSegments := []string{themeAssetsDirName, platform, assetKey}
+	if assetKey == "appUiAsset" && slotKey != "" {
+		dirSegments = append(dirSegments, slotKey)
+		urlSegments = append(urlSegments, slotKey)
+	}
+
+	absoluteDir := filepath.Join(dirSegments...)
 	if err := os.MkdirAll(absoluteDir, 0755); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": fmt.Sprintf("failed to create upload directory: %v", err)})
 		return
@@ -194,7 +207,7 @@ func (h *themeCampaignHandler) uploadAsset(c *gin.Context) {
 	}
 	_ = pruneThemeAssetDirectory(absoluteDir, storedFileName)
 
-	filePath := uploadURLPath(themeAssetsDirName, platform, assetKey, storedFileName)
+	filePath := uploadURLPath(append(urlSegments, storedFileName)...)
 	c.JSON(http.StatusOK, gin.H{
 		"success":      true,
 		"path":         filePath,
@@ -518,6 +531,15 @@ func encodeThemeAssetRaster(img image.Image, contentType string, quality int) ([
 	default:
 		return nil, "", fmt.Errorf("unsupported encode content type")
 	}
+}
+
+func isValidAppUISlotKey(key string) bool {
+	for _, valid := range theme.AppUISlotKeys() {
+		if key == valid {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeThemeAssetPlatform(raw string) string {

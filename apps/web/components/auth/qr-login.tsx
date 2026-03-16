@@ -18,13 +18,22 @@ import { Card, CardContent } from '@/components/ui/card';
 import cookieApiClient from '@/lib/api/cookie-client';
 
 interface QRLoginProps {
-  onSuccess: (payload: { user: any; expiresAt: Date }) => Promise<void> | void;
+  onSuccess: (payload: { user: unknown; expiresAt: Date }) => Promise<void> | void;
   onError: (error: string) => void;
 }
 
 type QRStatus = 'generating' | 'pending' | 'approved' | 'expired' | 'error';
 
 const DEFAULT_QR_TTL_SECONDS = 120;
+const QR_CODE_SIZE = 164;
+
+const getStatusToneClass = (status: QRStatus): string => {
+  if (status === 'generating') return 'login-qr-status-icon login-qr-status-generating';
+  if (status === 'pending') return 'login-qr-status-icon login-qr-status-pending';
+  if (status === 'approved') return 'login-qr-status-icon login-qr-status-approved';
+  if (status === 'expired' || status === 'error') return 'login-qr-status-icon login-qr-status-error';
+  return 'login-qr-status-icon';
+};
 
 export function QRLogin({ onSuccess, onError }: QRLoginProps) {
   const [status, setStatus] = React.useState<QRStatus>('generating');
@@ -88,9 +97,9 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
         user: consumeResponse.data.user,
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       setStatus('error');
-      onErrorRef.current(error?.message || 'Gagal menyelesaikan login QR.');
+      onErrorRef.current(error instanceof Error ? error.message : 'Gagal menyelesaikan login QR.');
     } finally {
       isConsumingRef.current = false;
     }
@@ -197,18 +206,19 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
   };
 
   const getStatusIcon = () => {
+    const statusClassName = getStatusToneClass(status);
     switch (status) {
       case 'generating':
-        return <Loader2 className="h-6 w-6 animate-spin text-blue-500" />;
+        return <Loader2 className={`h-5 w-5 animate-spin sm:h-6 sm:w-6 ${statusClassName}`} />;
       case 'pending':
-        return <Clock className="h-6 w-6 text-yellow-500" />;
+        return <Clock className={`h-5 w-5 sm:h-6 sm:w-6 ${statusClassName}`} />;
       case 'approved':
-        return <CheckCircle className="h-6 w-6 text-green-500" />;
+        return <CheckCircle className={`h-5 w-5 sm:h-6 sm:w-6 ${statusClassName}`} />;
       case 'expired':
       case 'error':
-        return <XCircle className="h-6 w-6 text-red-500" />;
+        return <XCircle className={`h-5 w-5 sm:h-6 sm:w-6 ${statusClassName}`} />;
       default:
-        return <QrCode className="h-6 w-6 text-gray-500" />;
+        return <QrCode className={`h-5 w-5 sm:h-6 sm:w-6 ${statusClassName}`} />;
     }
   };
 
@@ -230,14 +240,14 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
   };
 
   return (
-    <Card className="w-full max-w-sm mx-auto">
-      <CardContent className="p-6 space-y-4">
-        <div className="text-center space-y-2">
+    <Card className="login-qr-card w-full max-w-none mx-auto">
+      <CardContent className="login-qr-card-content space-y-3 p-3 sm:p-4">
+        <div className="text-center space-y-1">
           <div className="flex items-center justify-center space-x-2">
             {getStatusIcon()}
-            <h3 className="text-lg font-semibold">QR Code Login</h3>
+            <h3 className="text-base font-semibold">QR Code Login</h3>
           </div>
-          <p className="text-sm text-muted-foreground">{getStatusText()}</p>
+          <p className="text-[11px] text-muted-foreground sm:text-xs" aria-live="polite">{getStatusText()}</p>
         </div>
 
         <AnimatePresence mode="wait">
@@ -247,10 +257,10 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex items-center justify-center h-64"
+              className="flex h-44 items-center justify-center"
             >
-              <div className="text-center space-y-4">
-                <Loader2 className="h-12 w-12 animate-spin text-blue-500 mx-auto" />
+              <div className="space-y-3 text-center">
+                <Loader2 className="mx-auto h-10 w-10 animate-spin text-blue-500" />
                 <p className="text-sm text-muted-foreground">Sedang membuat QR Code...</p>
               </div>
             </motion.div>
@@ -262,42 +272,27 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
-              className="space-y-4"
+              className="space-y-3"
             >
-              <div className="flex justify-center p-4 bg-gray-50 rounded-lg">
+              <div className="login-qr-frame flex justify-center rounded-lg p-2.5">
                 <QRCodeSVG
                   value={qrCodeData}
-                  size={200}
+                  size={QR_CODE_SIZE}
                   level="M"
-                  includeMargin
+                  includeMargin={false}
                   className="border border-gray-200 rounded"
                 />
               </div>
-
-              {status === 'pending' && (
-                <div className="text-center space-y-2">
-                  <div className="flex items-center justify-center space-x-2 text-sm">
-                    <Clock className="h-4 w-4" />
-                    <span>Berlaku selama: {formatTime(timeLeft)}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
-                      style={{ width: `${Math.max(0, (timeLeft / totalDurationSeconds) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-              )}
 
               {status === 'approved' && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-center p-3 bg-green-50 border border-green-200 rounded-lg"
+                  className="login-qr-approved rounded-lg border p-2.5 text-center"
                 >
-                  <CheckCircle className="h-8 w-8 text-green-500 mx-auto mb-2" />
-                  <p className="text-sm font-medium text-green-800">Login berhasil!</p>
-                  <p className="text-xs text-green-600">Mengalihkan ke dashboard...</p>
+                  <CheckCircle className="mx-auto mb-1.5 h-6 w-6 login-qr-status-approved" />
+                  <p className="text-sm font-medium">Login berhasil!</p>
+                  <p className="text-xs opacity-90">Mengalihkan ke dashboard...</p>
                 </motion.div>
               )}
             </motion.div>
@@ -309,11 +304,11 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="text-center space-y-4"
+              className="space-y-3 text-center"
             >
-              <div className="p-8 bg-gray-50 rounded-lg">
-                <XCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
-                <p className="text-sm text-gray-600">
+              <div className="login-qr-error rounded-lg p-4">
+                <XCircle className="mx-auto mb-2 h-10 w-10 login-qr-status-error" />
+                <p className="text-sm">
                   {status === 'expired' ? 'QR Code telah kedaluwarsa' : 'Terjadi kesalahan'}
                 </p>
               </div>
@@ -321,9 +316,9 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
               <Button
                 onClick={handleRefresh}
                 variant="outline"
-                className="w-full"
+                className="login-qr-refresh-btn w-full"
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
+                <RefreshCw className="mr-2 h-4 w-4" />
                 Buat QR Code Baru
               </Button>
             </motion.div>
@@ -331,30 +326,41 @@ export function QRLogin({ onSuccess, onError }: QRLoginProps) {
         </AnimatePresence>
 
         {status === 'pending' && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">QR Code masih berlaku</span>
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between rounded-md">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                Berlaku: <span className="login-qr-timer">{formatTime(timeLeft)}</span>
+              </span>
               <Button
                 onClick={handleRefresh}
                 variant="ghost"
                 size="sm"
-                className="h-8 px-2"
+                className="login-qr-refresh-btn h-8 px-2.5 text-xs"
+                aria-label="Refresh QR code"
               >
-                <RefreshCw className="h-3 w-3" />
+                <RefreshCw className="mr-1 h-3 w-3" />
+                Refresh
               </Button>
             </div>
 
-            <div className="text-xs text-muted-foreground space-y-1 p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="flex items-center space-x-2">
-                <Smartphone className="h-4 w-4 text-blue-600" />
-                <span className="font-medium text-blue-800">Cara menggunakan:</span>
+            <div className="login-qr-progress-track h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+              <div
+                className="login-qr-progress-bar h-full rounded-full transition-all duration-1000"
+                style={{ width: `${Math.max(0, (timeLeft / totalDurationSeconds) * 100)}%` }}
+              />
+            </div>
+
+            <div className="login-qr-instructions space-y-1.5 rounded-lg p-2.5 text-xs text-muted-foreground">
+              <div className="flex items-center space-x-1.5">
+                <Smartphone className="h-4 w-4" />
+                <span className="font-medium">Gunakan aplikasi Agrinova:</span>
               </div>
-              <ul className="space-y-1 text-blue-700">
-                <li>- Buka aplikasi Agrinova di mobile</li>
-                <li>- Pilih menu scan login QR</li>
-                <li>- Scan QR Code ini</li>
-                <li>- Konfirmasi login di aplikasi mobile</li>
-              </ul>
+              <ol className="grid grid-cols-3 gap-2 text-[11px] leading-tight">
+                <li className="login-qr-step rounded px-2 py-1">1. Buka app</li>
+                <li className="login-qr-step rounded px-2 py-1">2. Scan QR</li>
+                <li className="login-qr-step rounded px-2 py-1">3. Konfirmasi</li>
+              </ol>
             </div>
           </div>
         )}

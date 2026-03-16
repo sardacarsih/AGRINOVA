@@ -41,6 +41,11 @@ var appUISlotKeys = []string{
 	"modal_accent",
 }
 
+// AppUISlotKeys returns the list of valid app_ui slot keys.
+func AppUISlotKeys() []string {
+	return appUISlotKeys
+}
+
 var appUISlotPropertyKeys = []string{
 	"backgroundColor",
 	"foregroundColor",
@@ -49,6 +54,11 @@ var appUISlotPropertyKeys = []string{
 	"accentColor",
 	"iconColor",
 	"asset",
+}
+
+var themeModeKeys = []string{
+	"light",
+	"dark",
 }
 
 var defaultIconPackOptions = []string{
@@ -937,13 +947,17 @@ func (s *Service) ResolveRuntimeTheme(ctx context.Context, runtimeCtx RuntimeThe
 	if err != nil {
 		return nil, err
 	}
-	baseAssets := normalizeThemeAssetManifest(theme.AssetManifestJSON)
+	mode := normalizeRuntimeMode(runtimeCtx.Mode)
+	baseThemeTokens := normalizeThemeTokens(theme.TokenJSON)
+	baseTokens := resolveThemeTokensByMode(baseThemeTokens, mode)
+	baseThemeAssets := normalizeThemeAssetManifest(theme.AssetManifestJSON)
+	baseAssets := resolveThemeAssetsByMode(baseThemeAssets, mode)
 	baseAppUI := normalizeAppUISlots(baseAssets["app_ui"])
 
 	payload := &RuntimeThemePayload{
 		Source:            "BASE_THEME",
 		KillSwitchEnabled: settings.GlobalKillSwitch,
-		AppliedMode:       normalizeRuntimeMode(runtimeCtx.Mode),
+		AppliedMode:       mode,
 		ModeAllowed:       true,
 		Theme: ThemeDTO{
 			ID:       theme.ID,
@@ -951,10 +965,10 @@ func (s *Service) ResolveRuntimeTheme(ctx context.Context, runtimeCtx RuntimeThe
 			Name:     theme.Name,
 			Type:     theme.Type,
 			IsActive: theme.IsActive,
-			Tokens:   cloneJSONMap(theme.TokenJSON),
-			Assets:   cloneJSONMap(baseAssets),
+			Tokens:   cloneJSONMap(baseThemeTokens),
+			Assets:   cloneJSONMap(baseThemeAssets),
 		},
-		Token:  cloneJSONMap(theme.TokenJSON),
+		Token:  cloneJSONMap(baseTokens),
 		Assets: cloneJSONMap(baseAssets),
 		AppUI:  cloneJSONMap(baseAppUI),
 	}
@@ -965,7 +979,6 @@ func (s *Service) ResolveRuntimeTheme(ctx context.Context, runtimeCtx RuntimeThe
 	}
 
 	platform := normalizeRuntimePlatform(runtimeCtx.Platform)
-	mode := normalizeRuntimeMode(runtimeCtx.Mode)
 	now := time.Now()
 
 	var candidate ThemeCampaign
@@ -997,8 +1010,11 @@ func (s *Service) ResolveRuntimeTheme(ctx context.Context, runtimeCtx RuntimeThe
 	}
 
 	platformAssets := selectCampaignPlatformAssets(candidate.AssetsJSON, platform)
+	resolvedThemeTokens := normalizeThemeTokens(resolvedTheme.TokenJSON)
+	selectedThemeTokens := resolveThemeTokensByMode(resolvedThemeTokens, mode)
 	resolvedThemeAssets := normalizeThemeAssetManifest(resolvedTheme.AssetManifestJSON)
-	assets := mergeThemeAssetsWithCampaign(resolvedThemeAssets, platformAssets)
+	selectedThemeAssets := resolveThemeAssetsByMode(resolvedThemeAssets, mode)
+	assets := mergeThemeAssetsWithCampaign(selectedThemeAssets, platformAssets)
 
 	payload.Source = "ACTIVE_CAMPAIGN"
 	payload.ModeAllowed = true
@@ -1008,11 +1024,11 @@ func (s *Service) ResolveRuntimeTheme(ctx context.Context, runtimeCtx RuntimeThe
 		Name:     resolvedTheme.Name,
 		Type:     resolvedTheme.Type,
 		IsActive: resolvedTheme.IsActive,
-		Tokens:   cloneJSONMap(resolvedTheme.TokenJSON),
+		Tokens:   cloneJSONMap(resolvedThemeTokens),
 		Assets:   cloneJSONMap(resolvedThemeAssets),
 	}
 	payload.Campaign = &campaignDTO
-	payload.Token = cloneJSONMap(resolvedTheme.TokenJSON)
+	payload.Token = cloneJSONMap(selectedThemeTokens)
 	payload.Assets = assets
 	payload.AppUI = normalizeAppUISlots(assets["app_ui"])
 	return payload, nil
@@ -1118,6 +1134,7 @@ func resolveCampaignStatus(campaign ThemeCampaign, now time.Time) CampaignStatus
 }
 
 func toThemeDTO(theme Theme) ThemeDTO {
+	normalizedTokens := normalizeThemeTokens(theme.TokenJSON)
 	normalizedAssets := normalizeThemeAssetManifest(theme.AssetManifestJSON)
 	return ThemeDTO{
 		ID:       theme.ID,
@@ -1125,7 +1142,7 @@ func toThemeDTO(theme Theme) ThemeDTO {
 		Name:     theme.Name,
 		Type:     theme.Type,
 		IsActive: theme.IsActive,
-		Tokens:   cloneJSONMap(theme.TokenJSON),
+		Tokens:   cloneJSONMap(normalizedTokens),
 		Assets:   cloneJSONMap(normalizedAssets),
 	}
 }
@@ -1319,15 +1336,29 @@ func collectVisualOptions(themes []Theme, campaigns []ThemeCampaign) ([]string, 
 	}
 
 	for _, currentTheme := range themes {
-		addVisualOption(iconSet, toTrimmedString(currentTheme.AssetManifestJSON["iconPack"]))
-		addVisualOption(accentSet, toTrimmedString(currentTheme.AssetManifestJSON["accentAsset"]))
+		normalizedThemeAssets := normalizeThemeAssetManifest(currentTheme.AssetManifestJSON)
+		addVisualOption(iconSet, toTrimmedString(normalizedThemeAssets["iconPack"]))
+		addVisualOption(accentSet, toTrimmedString(normalizedThemeAssets["accentAsset"]))
 
-		webAssets := normalizePlatformAssets(currentTheme.AssetManifestJSON["web"])
-		mobileAssets := normalizePlatformAssets(currentTheme.AssetManifestJSON["mobile"])
+		webAssets := normalizePlatformAssets(normalizedThemeAssets["web"])
+		mobileAssets := normalizePlatformAssets(normalizedThemeAssets["mobile"])
 		addVisualOption(iconSet, toTrimmedString(webAssets["iconPack"]))
 		addVisualOption(accentSet, toTrimmedString(webAssets["accentAsset"]))
 		addVisualOption(iconSet, toTrimmedString(mobileAssets["iconPack"]))
 		addVisualOption(accentSet, toTrimmedString(mobileAssets["accentAsset"]))
+
+		for _, modeKey := range themeModeKeys {
+			modeAssets := resolveThemeAssetsByMode(normalizedThemeAssets, modeKey)
+			addVisualOption(iconSet, toTrimmedString(modeAssets["iconPack"]))
+			addVisualOption(accentSet, toTrimmedString(modeAssets["accentAsset"]))
+
+			webModeAssets := normalizePlatformAssets(modeAssets["web"])
+			mobileModeAssets := normalizePlatformAssets(modeAssets["mobile"])
+			addVisualOption(iconSet, toTrimmedString(webModeAssets["iconPack"]))
+			addVisualOption(accentSet, toTrimmedString(webModeAssets["accentAsset"]))
+			addVisualOption(iconSet, toTrimmedString(mobileModeAssets["iconPack"]))
+			addVisualOption(accentSet, toTrimmedString(mobileModeAssets["accentAsset"]))
+		}
 	}
 
 	for _, campaign := range campaigns {
@@ -1395,23 +1426,63 @@ func normalizeThemeTokens(input JSONMap) JSONMap {
 		input = JSONMap{}
 	}
 
-	result := JSONMap{
-		"accentColor":     strings.TrimSpace(toTrimmedString(input["accentColor"])),
-		"accentSoftColor": strings.TrimSpace(toTrimmedString(input["accentSoftColor"])),
-		"loginCardBorder": strings.TrimSpace(toTrimmedString(input["loginCardBorder"])),
-	}
+	base := normalizeThemeTokenValues(input, JSONMap{})
+	result := cloneJSONMap(base)
 
-	for key, value := range input {
-		if _, exists := result[key]; exists {
-			continue
+	modesRaw, _ := toInterfaceMap(input["modes"])
+	modes := JSONMap{}
+	for _, modeKey := range themeModeKeys {
+		var modeCandidate interface{}
+		if modesRaw != nil {
+			modeCandidate = modesRaw[modeKey]
 		}
-		stringValue, ok := value.(string)
-		if ok {
-			result[key] = strings.TrimSpace(stringValue)
+		modes[modeKey] = normalizeThemeTokenValues(modeCandidate, base)
+	}
+	result["modes"] = modes
+
+	return result
+}
+
+func normalizeThemeTokenValues(raw interface{}, fallback JSONMap) JSONMap {
+	result := JSONMap{}
+	for key, value := range fallback {
+		if key == "modes" {
 			continue
 		}
 		result[key] = value
 	}
+
+	source, _ := toInterfaceMap(raw)
+	accentColor := strings.TrimSpace(toTrimmedString(result["accentColor"]))
+	accentSoftColor := strings.TrimSpace(toTrimmedString(result["accentSoftColor"]))
+	loginCardBorder := strings.TrimSpace(toTrimmedString(result["loginCardBorder"]))
+
+	for key, value := range source {
+		if key == "modes" {
+			continue
+		}
+		stringValue, ok := value.(string)
+		if !ok {
+			result[key] = value
+			continue
+		}
+
+		trimmed := strings.TrimSpace(stringValue)
+		switch key {
+		case "accentColor":
+			accentColor = trimmed
+		case "accentSoftColor":
+			accentSoftColor = trimmed
+		case "loginCardBorder":
+			loginCardBorder = trimmed
+		default:
+			result[key] = trimmed
+		}
+	}
+
+	result["accentColor"] = accentColor
+	result["accentSoftColor"] = accentSoftColor
+	result["loginCardBorder"] = loginCardBorder
 
 	return result
 }
@@ -1421,24 +1492,38 @@ func normalizeThemeAssetManifest(input JSONMap) JSONMap {
 		input = JSONMap{}
 	}
 
+	base := normalizeThemeAssetManifestValues(input, JSONMap{})
+	result := cloneJSONMap(base)
+
+	modesRaw, _ := toInterfaceMap(input["modes"])
+	modes := JSONMap{}
+	for _, modeKey := range themeModeKeys {
+		var modeCandidate interface{}
+		if modesRaw != nil {
+			modeCandidate = modesRaw[modeKey]
+		}
+		modes[modeKey] = normalizeThemeAssetManifestValues(modeCandidate, base)
+	}
+	result["modes"] = modes
+
+	return result
+}
+
+func normalizeThemeAssetManifestValues(raw interface{}, fallback JSONMap) JSONMap {
+	source, _ := toInterfaceMap(raw)
+	sourceJSON := JSONMap(source)
+
 	result := emptyPlatformAssets()
-	result["backgroundImage"] = normalizeThemeAssetReference(toTrimmedString(input["backgroundImage"]))
-	result["illustration"] = normalizeThemeAssetReference(toTrimmedString(input["illustration"]))
-	result["iconPack"] = strings.TrimSpace(toTrimmedString(input["iconPack"]))
-	result["accentAsset"] = strings.TrimSpace(toTrimmedString(input["accentAsset"]))
-	result["app_ui"] = normalizeAppUISlots(input["app_ui"])
+	result["backgroundImage"] = normalizeThemeAssetReference(toTrimmedString(sourceJSON["backgroundImage"]))
+	result["illustration"] = normalizeThemeAssetReference(toTrimmedString(sourceJSON["illustration"]))
+	result["iconPack"] = strings.TrimSpace(toTrimmedString(sourceJSON["iconPack"]))
+	result["accentAsset"] = strings.TrimSpace(toTrimmedString(sourceJSON["accentAsset"]))
+	result["app_ui"] = normalizeAppUISlots(sourceJSON["app_ui"])
 
-	if result["iconPack"] == "" {
-		result["iconPack"] = defaultIconPackOptions[0]
-	}
-	if result["accentAsset"] == "" {
-		result["accentAsset"] = defaultAccentAssetOptions[0]
-	}
-
-	if webRaw, exists := input["web"]; exists {
+	if webRaw, exists := sourceJSON["web"]; exists {
 		result["web"] = normalizePlatformAssets(webRaw)
 	}
-	if mobileRaw, exists := input["mobile"]; exists {
+	if mobileRaw, exists := sourceJSON["mobile"]; exists {
 		result["mobile"] = normalizePlatformAssets(mobileRaw)
 	}
 
@@ -1448,13 +1533,130 @@ func normalizeThemeAssetManifest(input JSONMap) JSONMap {
 		result,
 	)
 
-	for key, value := range input {
+	for key, value := range sourceJSON {
+		if key == "modes" {
+			continue
+		}
 		if _, exists := result[key]; exists {
 			continue
 		}
 		result[key] = value
 	}
 
+	if len(fallback) > 0 {
+		fallbackIconPack := strings.TrimSpace(toTrimmedString(fallback["iconPack"]))
+		fallbackAccentAsset := strings.TrimSpace(toTrimmedString(fallback["accentAsset"]))
+		fallbackBackground := normalizeThemeAssetReference(toTrimmedString(fallback["backgroundImage"]))
+		fallbackIllustration := normalizeThemeAssetReference(toTrimmedString(fallback["illustration"]))
+
+		if strings.TrimSpace(toTrimmedString(result["iconPack"])) == "" && fallbackIconPack != "" {
+			result["iconPack"] = fallbackIconPack
+		}
+		if strings.TrimSpace(toTrimmedString(result["accentAsset"])) == "" && fallbackAccentAsset != "" {
+			result["accentAsset"] = fallbackAccentAsset
+		}
+		if normalizeThemeAssetReference(toTrimmedString(result["backgroundImage"])) == "" && fallbackBackground != "" {
+			result["backgroundImage"] = fallbackBackground
+		}
+		if normalizeThemeAssetReference(toTrimmedString(result["illustration"])) == "" && fallbackIllustration != "" {
+			result["illustration"] = fallbackIllustration
+		}
+
+		result["app_ui"] = mergeAppUISlots(
+			normalizeAppUISlots(fallback["app_ui"]),
+			normalizeAppUISlots(result["app_ui"]),
+		)
+		result["web"] = mergeThemeAssetsWithCampaign(
+			normalizePlatformAssets(fallback["web"]),
+			normalizePlatformAssets(result["web"]),
+		)
+		result["mobile"] = mergeThemeAssetsWithCampaign(
+			normalizePlatformAssets(fallback["mobile"]),
+			normalizePlatformAssets(result["mobile"]),
+		)
+	}
+
+	if strings.TrimSpace(toTrimmedString(result["iconPack"])) == "" {
+		result["iconPack"] = defaultIconPackOptions[0]
+	}
+	if strings.TrimSpace(toTrimmedString(result["accentAsset"])) == "" {
+		result["accentAsset"] = defaultAccentAssetOptions[0]
+	}
+
+	return result
+}
+
+func resolveThemeTokensByMode(normalizedTokens JSONMap, mode string) JSONMap {
+	// Input is already normalized by normalizeThemeTokens — extract base
+	// fields without re-normalizing to avoid redundant work.
+	base := JSONMap{}
+	for key, value := range normalizedTokens {
+		if key == "modes" {
+			continue
+		}
+		base[key] = value
+	}
+
+	if mode == "" {
+		return base
+	}
+
+	modesRaw, ok := toInterfaceMap(normalizedTokens["modes"])
+	if !ok {
+		return base
+	}
+
+	modeValues, ok := toInterfaceMap(modesRaw[mode])
+	if !ok {
+		return base
+	}
+
+	// Mode values were already normalized by normalizeThemeTokens — merge
+	// directly instead of calling normalizeThemeTokenValues again.
+	result := cloneJSONMap(base)
+	for key, value := range modeValues {
+		if key == "modes" {
+			continue
+		}
+		result[key] = value
+	}
+	return result
+}
+
+func resolveThemeAssetsByMode(normalizedAssets JSONMap, mode string) JSONMap {
+	// Input is already normalized by normalizeThemeAssetManifest — extract
+	// base fields without re-normalizing to avoid redundant work.
+	base := JSONMap{}
+	for key, value := range normalizedAssets {
+		if key == "modes" {
+			continue
+		}
+		base[key] = value
+	}
+
+	if mode == "" {
+		return base
+	}
+
+	modesRaw, ok := toInterfaceMap(normalizedAssets["modes"])
+	if !ok {
+		return base
+	}
+
+	modeValues, ok := toInterfaceMap(modesRaw[mode])
+	if !ok {
+		return base
+	}
+
+	// Mode values were already normalized by normalizeThemeAssetManifest —
+	// merge directly, using base as fallback for empty fields.
+	result := cloneJSONMap(base)
+	for key, value := range modeValues {
+		if key == "modes" {
+			continue
+		}
+		result[key] = value
+	}
 	return result
 }
 
@@ -1497,7 +1699,7 @@ func mergeThemeAssetsWithCampaign(baseAssets JSONMap, platformAssets JSONMap) JS
 		}
 	}
 
-	merged["app_ui"] = mergeAppUISlots(
+	merged["app_ui"] = mergeAppUISlotsAssetOnly(
 		normalizeAppUISlots(merged["app_ui"]),
 		normalizeAppUISlots(platformAssets["app_ui"]),
 	)
@@ -1514,16 +1716,22 @@ func normalizeCampaignAssets(input JSONMap) JSONMap {
 	mobileRaw, hasMobile := input["mobile"]
 	if hasWeb || hasMobile {
 		return JSONMap{
-			"web":    normalizePlatformAssets(webRaw),
-			"mobile": normalizePlatformAssets(mobileRaw),
+			"web":    normalizeCampaignPlatformAssets(webRaw),
+			"mobile": normalizeCampaignPlatformAssets(mobileRaw),
 		}
 	}
 
-	legacy := normalizePlatformAssets(input)
+	legacy := normalizeCampaignPlatformAssets(input)
 	return JSONMap{
 		"web":    cloneJSONMap(legacy),
 		"mobile": cloneJSONMap(legacy),
 	}
+}
+
+func normalizeCampaignPlatformAssets(raw interface{}) JSONMap {
+	normalized := normalizePlatformAssets(raw)
+	normalized["app_ui"] = sanitizeAppUISlotsAssetOnly(normalized["app_ui"])
+	return normalized
 }
 
 func normalizePlatformAssets(raw interface{}) JSONMap {
@@ -1602,6 +1810,37 @@ func validateAppUIInAssetContainer(container JSONMap, fieldPrefix string) error 
 	if mobileMap, ok := toInterfaceMap(container["mobile"]); ok {
 		if err := validateSlotObject(mobileMap["app_ui"], fieldPrefix+".mobile.app_ui"); err != nil {
 			return err
+		}
+	}
+
+	modesRaw, hasModes := toInterfaceMap(container["modes"])
+	if !hasModes {
+		return nil
+	}
+
+	for _, modeKey := range themeModeKeys {
+		modeValue, exists := modesRaw[modeKey]
+		if !exists {
+			continue
+		}
+		modeContainer, ok := toInterfaceMap(modeValue)
+		if !ok {
+			return fmt.Errorf("%s.modes.%s must be an object", fieldPrefix, modeKey)
+		}
+
+		if err := validateSlotObject(modeContainer["app_ui"], fieldPrefix+".modes."+modeKey+".app_ui"); err != nil {
+			return err
+		}
+
+		if webMap, ok := toInterfaceMap(modeContainer["web"]); ok {
+			if err := validateSlotObject(webMap["app_ui"], fieldPrefix+".modes."+modeKey+".web.app_ui"); err != nil {
+				return err
+			}
+		}
+		if mobileMap, ok := toInterfaceMap(modeContainer["mobile"]); ok {
+			if err := validateSlotObject(mobileMap["app_ui"], fieldPrefix+".modes."+modeKey+".mobile.app_ui"); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1720,6 +1959,55 @@ func mergeAppUISlots(base JSONMap, override JSONMap) JSONMap {
 	}
 
 	return merged
+}
+
+func mergeAppUISlotsAssetOnly(base JSONMap, override JSONMap) JSONMap {
+	merged := normalizeAppUISlots(base)
+	overrideNormalized := normalizeAppUISlots(override)
+
+	for _, slotKey := range appUISlotKeys {
+		baseSlot, _ := toInterfaceMap(merged[slotKey])
+		overrideSlot, _ := toInterfaceMap(overrideNormalized[slotKey])
+
+		slotMerged := emptyAppUISlotProperties()
+		for _, propertyKey := range appUISlotPropertyKeys {
+			if baseValue, ok := baseSlot[propertyKey].(string); ok {
+				trimmedBase := strings.TrimSpace(baseValue)
+				if trimmedBase == "" {
+					continue
+				}
+				if propertyKey == "asset" {
+					normalized := normalizeThemeAssetReference(trimmedBase)
+					if normalized != "" {
+						slotMerged[propertyKey] = normalized
+					} else {
+						slotMerged[propertyKey] = trimmedBase
+					}
+					continue
+				}
+				slotMerged[propertyKey] = trimmedBase
+			}
+		}
+
+		overrideAsset, _ := overrideSlot["asset"].(string)
+		overrideAsset = strings.TrimSpace(overrideAsset)
+		if overrideAsset != "" {
+			normalized := normalizeThemeAssetReference(overrideAsset)
+			if normalized != "" {
+				slotMerged["asset"] = normalized
+			} else {
+				slotMerged["asset"] = overrideAsset
+			}
+		}
+
+		merged[slotKey] = slotMerged
+	}
+
+	return merged
+}
+
+func sanitizeAppUISlotsAssetOnly(raw interface{}) JSONMap {
+	return mergeAppUISlotsAssetOnly(emptyAppUISlots(), normalizeAppUISlots(raw))
 }
 
 func applyLegacyAssetFallbackToAppUI(appUI JSONMap, manifest JSONMap) JSONMap {

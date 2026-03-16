@@ -27,11 +27,20 @@ export interface ThemeAppUiSlots {
   modal_accent?: ThemeAppUiSlot;
 }
 
+export type ThemeMode = 'light' | 'dark';
+
+export interface ThemeModeVariants<T> {
+  light?: T;
+  dark?: T;
+  [key: string]: unknown;
+}
+
 export interface ThemeTokenConfig {
   accentColor: string;
   accentSoftColor: string;
   loginCardBorder: string;
-  [key: string]: string;
+  modes?: ThemeModeVariants<ThemeTokenConfig>;
+  [key: string]: unknown;
 }
 
 export interface ThemeAssetManifest {
@@ -39,7 +48,11 @@ export interface ThemeAssetManifest {
   illustration: string;
   iconPack: string;
   accentAsset: string;
-  [key: string]: string;
+  app_ui?: ThemeAppUiSlots;
+  web?: ThemePlatformAssets;
+  mobile?: ThemePlatformAssets;
+  modes?: ThemeModeVariants<ThemeAssetManifest>;
+  [key: string]: unknown;
 }
 
 export interface ThemeEntity {

@@ -16,6 +16,7 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/fcm_service.dart';
 import '../../../../core/theme/theme_mode_service.dart';
 import '../../../../core/theme/runtime_theme_slot_resolver.dart';
+import '../../../../core/theme/runtime_mobile_theme.dart';
 
 // Import Mandor Dashboard Components
 import 'mandor_dashboard/mandor_components.dart';
@@ -494,17 +495,18 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
     BuildContext blocContext,
     AuthAuthenticated state,
   ) {
+    final runtimeTheme = RuntimeMobileTheme.of(blocContext);
     final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
       blocContext,
-      fallback: MandorTheme.darkGreen,
+      fallback: runtimeTheme.primary,
     );
     final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
       blocContext,
-      fallback: Colors.white,
+      fallback: runtimeTheme.onPrimary,
     );
     final navbarIcon = RuntimeThemeSlotResolver.navbarIcon(
       blocContext,
-      fallback: Colors.white,
+      fallback: runtimeTheme.onPrimary,
     );
 
     return AppBar(
@@ -641,6 +643,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
     AuthAuthenticated authState,
     MandorDashboardLoaded data,
   ) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     // Convert BLoC data to organism data types
     final pendingItems = data.pendingItems
         .map(
@@ -674,7 +677,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
         // Wait for state change
         await Future.delayed(const Duration(milliseconds: 500));
       },
-      color: MandorTheme.forestGreen,
+      color: runtimeTheme.success,
       child: GenZDashboardContent(
         userName: authState.user.fullName.isNotEmpty
             ? authState.user.fullName
@@ -729,6 +732,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
   }
 
   Widget _buildLoadingContent() {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     return Container(
       decoration: BoxDecoration(
         gradient: MandorTheme.backgroundGradientFor(context),
@@ -739,7 +743,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
           children: [
             CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(
-                MandorTheme.forestGreen,
+                runtimeTheme.success,
               ),
             ),
             const SizedBox(height: 16),
@@ -754,6 +758,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
   }
 
   Widget _buildErrorContent(BuildContext context, String message) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     return Container(
       decoration: BoxDecoration(
         gradient: MandorTheme.backgroundGradientFor(context),
@@ -767,7 +772,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
               Icon(
                 Icons.error_outline_rounded,
                 size: 64,
-                color: MandorTheme.coralRed.withValues(alpha: 0.7),
+                color: runtimeTheme.danger.withValues(alpha: 0.7),
               ),
               const SizedBox(height: 16),
               Text(
@@ -804,13 +809,14 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
   }
 
   Widget _buildLoadingScreen() {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
       context,
-      fallback: MandorTheme.darkGreen,
+      fallback: runtimeTheme.primary,
     );
     final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
       context,
-      fallback: Colors.white,
+      fallback: runtimeTheme.onPrimary,
     );
     return Scaffold(
       backgroundColor: RuntimeThemeSlotResolver.dashboardBackground(
@@ -828,7 +834,7 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
           children: [
             CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(
-                MandorTheme.forestGreen,
+                runtimeTheme.success,
               ),
             ),
             const SizedBox(height: 16),
@@ -983,14 +989,23 @@ class _MandorPageState extends State<MandorPage> with TickerProviderStateMixin {
   }
 
   Future<void> _showProfilePage(BuildContext blocContext) async {
+    final runtimeTheme = RuntimeMobileTheme.of(blocContext);
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      blocContext,
+      fallback: runtimeTheme.primary,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      blocContext,
+      fallback: runtimeTheme.onPrimary,
+    );
     await Navigator.of(blocContext).push(
       MaterialPageRoute(
         builder: (context) => Scaffold(
           backgroundColor: MandorTheme.of(context).scaffoldBackground,
           appBar: AppBar(
             title: const Text('Profil Mandor'),
-            backgroundColor: MandorTheme.darkGreen,
-            foregroundColor: Colors.white,
+            backgroundColor: navbarBg,
+            foregroundColor: navbarFg,
             elevation: 0,
           ),
           body: const GenZProfileTab(),

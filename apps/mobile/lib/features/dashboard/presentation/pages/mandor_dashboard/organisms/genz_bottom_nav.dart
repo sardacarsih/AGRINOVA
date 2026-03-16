@@ -2,6 +2,7 @@
 // Modern bottom navigation bar with animated items
 
 import 'package:flutter/material.dart';
+import '../../../../../../core/theme/runtime_mobile_theme.dart';
 import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../mandor_theme.dart';
 
@@ -124,9 +125,10 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     final selectedColor = RuntimeThemeSlotResolver.footerSelected(
       context,
-      fallback: MandorTheme.forestGreen,
+      fallback: runtimeTheme.primary,
     );
     final unselectedColor = RuntimeThemeSlotResolver.footerUnselected(
       context,
@@ -188,13 +190,18 @@ class GenZFloatingActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     return Container(
       decoration: BoxDecoration(
-        gradient: MandorTheme.primaryGradient,
+        gradient: LinearGradient(
+          colors: [runtimeTheme.primary, runtimeTheme.info],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: MandorTheme.forestGreen.withValues(alpha: 0.4),
+            color: runtimeTheme.primary.withValues(alpha: 0.4),
             blurRadius: 16,
             spreadRadius: -4,
             offset: const Offset(0, 6),
