@@ -9,6 +9,7 @@ import { ArrowLeft, Mail, Sprout, Loader2, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useForgotPasswordMutation } from '@/gql/graphql';
 import {
   Card,
   CardContent,
@@ -21,32 +22,28 @@ type ForgotPasswordStep = 'request' | 'sent';
 function ForgotPasswordPageContent() {
   const router = useRouter();
   const [email, setEmail] = React.useState('');
-  const [loading, setLoading] = React.useState(false);
   const [step, setStep] = React.useState<ForgotPasswordStep>('request');
+  const [forgotPassword, { loading }] = useForgotPasswordMutation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const trimmed = email.trim();
     if (!trimmed) {
-      toast.error('Masukkan username atau email Anda.');
+      toast.error('Masukkan email Anda.');
       return;
     }
 
-    setLoading(true);
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || '/api';
-      await fetch(`${apiBase}/auth/forgot-password`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: trimmed }),
+      await forgotPassword({
+        variables: {
+          email: trimmed,
+        },
       });
       setStep('sent');
     } catch {
       // Always show success to prevent email enumeration
       setStep('sent');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -68,7 +65,7 @@ function ForgotPasswordPageContent() {
             </CardTitle>
             <CardDescription className="text-slate-600 dark:text-slate-400">
               {step === 'request'
-                ? 'Masukkan username atau email yang terdaftar untuk menerima instruksi reset password.'
+                ? 'Masukkan email yang terdaftar untuk menerima instruksi reset password.'
                 : 'Jika akun ditemukan, instruksi reset password telah dikirim ke email Anda.'}
             </CardDescription>
           </CardHeader>
@@ -81,13 +78,13 @@ function ForgotPasswordPageContent() {
                     htmlFor="forgot-email"
                     className="text-sm font-medium text-slate-800 dark:text-slate-200"
                   >
-                    Username atau Email
+                    Email
                   </Label>
                   <Input
                     id="forgot-email"
-                    type="text"
-                    placeholder="Masukkan username atau email"
-                    autoComplete="username"
+                    type="email"
+                    placeholder="Masukkan email"
+                    autoComplete="email"
                     autoCapitalize="none"
                     autoCorrect="off"
                     value={email}

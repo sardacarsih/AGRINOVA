@@ -139,7 +139,7 @@ function stripLocalePrefix(pathname: string): { cleanedPath: string; localeFromP
 
 // Helper function to check if path is public (doesn't require authentication)
 function isPublicPath(pathname: string): boolean {
-  const publicPaths = ['/login', '/register', '/forgot-password'];
+  const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
 
   return publicPaths.includes(pathname) || publicPaths.some(path => pathname.startsWith(path));
 }

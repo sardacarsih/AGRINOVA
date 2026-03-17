@@ -1269,6 +1269,70 @@ export type BlockTariffChangeLogPaginationResponse = {
   pagination: Pagination;
 };
 
+/** BlockTreatmentRequestStatus represents lifecycle status for semester treatment requests. */
+export enum BlockTreatmentRequestStatus {
+  Applied = 'APPLIED',
+  Approved = 'APPROVED',
+  Cancelled = 'CANCELLED',
+  Draft = 'DRAFT',
+  Rejected = 'REJECTED',
+  Submitted = 'SUBMITTED',
+  UnderReview = 'UNDER_REVIEW'
+}
+
+/** BlockTreatmentSemesterRequest represents manager submission for semester block treatment changes. */
+export type BlockTreatmentSemesterRequest = {
+  __typename?: 'BlockTreatmentSemesterRequest';
+  appliedAt?: Maybe<Scalars['Time']['output']>;
+  appliedBy?: Maybe<Scalars['ID']['output']>;
+  appliedByName?: Maybe<Scalars['String']['output']>;
+  approvedAt?: Maybe<Scalars['Time']['output']>;
+  approvedBy?: Maybe<Scalars['ID']['output']>;
+  approvedByName?: Maybe<Scalars['String']['output']>;
+  companyId: Scalars['ID']['output'];
+  companyName?: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['Time']['output'];
+  createdBy: Scalars['ID']['output'];
+  createdByName?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  items: Array<BlockTreatmentSemesterRequestItem>;
+  notes?: Maybe<Scalars['String']['output']>;
+  rejectedReason?: Maybe<Scalars['String']['output']>;
+  reviewedAt?: Maybe<Scalars['Time']['output']>;
+  reviewedBy?: Maybe<Scalars['ID']['output']>;
+  reviewedByName?: Maybe<Scalars['String']['output']>;
+  revisionNo: Scalars['Int']['output'];
+  semester: Scalars['String']['output'];
+  status: BlockTreatmentRequestStatus;
+  submittedAt?: Maybe<Scalars['Time']['output']>;
+  updatedAt: Scalars['Time']['output'];
+};
+
+/** BlockTreatmentSemesterRequestItem stores a block-level proposed treatment change. */
+export type BlockTreatmentSemesterRequestItem = {
+  __typename?: 'BlockTreatmentSemesterRequestItem';
+  blockCode: Scalars['String']['output'];
+  blockId: Scalars['ID']['output'];
+  blockName: Scalars['String']['output'];
+  createdAt: Scalars['Time']['output'];
+  currentPerlakuan?: Maybe<Scalars['String']['output']>;
+  currentTarifBlokId?: Maybe<Scalars['ID']['output']>;
+  divisionName?: Maybe<Scalars['String']['output']>;
+  estateName?: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  impactSummary?: Maybe<Scalars['String']['output']>;
+  proposedPerlakuan?: Maybe<Scalars['String']['output']>;
+  proposedTarifBlokId: Scalars['ID']['output'];
+  requestId: Scalars['ID']['output'];
+  updatedAt: Scalars['Time']['output'];
+};
+
+export type BlockTreatmentSemesterRequestItemInput = {
+  blockId: Scalars['ID']['input'];
+  impactSummary?: InputMaybe<Scalars['String']['input']>;
+  proposedTarifBlokId: Scalars['ID']['input'];
+};
+
 /** ChangePasswordInput represents input for changing user password. */
 export type ChangePasswordInput = {
   /** Confirmation of new password */
@@ -1797,6 +1861,13 @@ export type CreateBlockInput = {
   tarifBlokId?: InputMaybe<Scalars['ID']['input']>;
 };
 
+export type CreateBlockTreatmentSemesterRequestInput = {
+  companyId: Scalars['ID']['input'];
+  items: Array<BlockTreatmentSemesterRequestItemInput>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  semester: Scalars['String']['input'];
+};
+
 /** CreateCompanyAdminInput for creating company. */
 export type CreateCompanyAdminInput = {
   /** Address */
@@ -2069,6 +2140,9 @@ export type CreateTarifBlokInput = {
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
   keterangan?: InputMaybe<Scalars['String']['input']>;
   landTypeId?: InputMaybe<Scalars['ID']['input']>;
+  managementDecisionNo?: InputMaybe<Scalars['String']['input']>;
+  managementDecisionReason?: InputMaybe<Scalars['String']['input']>;
+  managementEffectiveNote?: InputMaybe<Scalars['String']['input']>;
   perlakuan: Scalars['String']['input'];
   premi?: InputMaybe<Scalars['Float']['input']>;
   schemeType?: InputMaybe<Scalars['String']['input']>;
@@ -2908,6 +2982,16 @@ export type ForceLogoutResponse = {
   /** Message describing the result */
   message: Scalars['String']['output'];
   /** Whether the operation was successful */
+  success: Scalars['Boolean']['output'];
+};
+
+/**
+ * ForgotPasswordResponse represents generic response for forgot-password requests.
+ * Always generic to prevent user enumeration.
+ */
+export type ForgotPasswordResponse = {
+  __typename?: 'ForgotPasswordResponse';
+  message: Scalars['String']['output'];
   success: Scalars['Boolean']['output'];
 };
 
@@ -4154,6 +4238,8 @@ export type Mutation = {
   addToWeighingQueue: WeighingQueueItem;
   /** Reset user password (admin) */
   adminResetUserPassword: UserManagementResult;
+  applyBlockTreatmentSemesterRequest: BlockTreatmentSemesterRequest;
+  approveBlockTreatmentSemesterRequest: BlockTreatmentSemesterRequest;
   approveGrading: GradingRecord;
   /** Approve single harvest record */
   approveHarvest: ApproveHarvestResult;
@@ -4192,6 +4278,7 @@ export type Mutation = {
    */
   bulkGrantUserFeatures: Array<UserFeature>;
   calculateBJR: BjrCalculation;
+  cancelBlockTreatmentSemesterRequest: BlockTreatmentSemesterRequest;
   /** Cancel weighing */
   cancelWeighing: WeighingResult;
   /** Change user password with security validation */
@@ -4212,6 +4299,7 @@ export type Mutation = {
   /** Create bridge mapping BKM -> company */
   createBkmCompanyBridge: BkmCompanyBridgeRule;
   createBlock: Block;
+  createBlockTreatmentSemesterRequest: BlockTreatmentSemesterRequest;
   createCompany: Company;
   /** Create new company */
   createCompanyAdmin: CompanyManagementResult;
@@ -4306,6 +4394,8 @@ export type Mutation = {
   forceLogoutAllSessions: ForceLogoutResponse;
   /** Force logout a specific session (Super Admin only) */
   forceLogoutSession: ForceLogoutResponse;
+  /** Request password reset link (always generic response) */
+  forgotPassword: ForgotPasswordResponse;
   /** Generate QR token for guest */
   generateGuestQR: SatpamQrToken;
   /**
@@ -4342,6 +4432,7 @@ export type Mutation = {
   registerFCMToken: Scalars['Boolean']['output'];
   /** Register new guest */
   registerGuest: GuestRegistrationResult;
+  rejectBlockTreatmentSemesterRequest: BlockTreatmentSemesterRequest;
   rejectGrading: GradingRecord;
   /** Reject single harvest record */
   rejectHarvest: ApproveHarvestResult;
@@ -4369,8 +4460,11 @@ export type Mutation = {
   requestCorrection: ApproveHarvestResult;
   /** Request reweighing */
   requestReweighing: WeighingResult;
+  /** Reset password using one-time token */
+  resetPassword: ResetPasswordResponse;
   /** Reset user password (admin only) */
   resetUserPassword: UserMutationResponse;
+  reviewBlockTreatmentSemesterRequest: BlockTreatmentSemesterRequest;
   /** Revoke an existing API key (SUPER_ADMIN only) */
   revokeAPIKey: Scalars['Boolean']['output'];
   /** Revoke one JWT token by token record ID (SUPER_ADMIN only) */
@@ -4388,6 +4482,7 @@ export type Mutation = {
   setFeatureForCompanies: FeatureFlag;
   /** Set maintenance mode */
   setMaintenanceMode: Scalars['Boolean']['output'];
+  submitBlockTreatmentSemesterRequest: BlockTreatmentSemesterRequest;
   /** Suspend company */
   suspendCompany: CompanyManagementResult;
   /** Sync employee access log */
@@ -4504,6 +4599,17 @@ export type MutationAdminResetUserPasswordArgs = {
 };
 
 
+export type MutationApplyBlockTreatmentSemesterRequestArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationApproveBlockTreatmentSemesterRequestArgs = {
+  id: Scalars['ID']['input'];
+  notes?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type MutationApproveGradingArgs = {
   id: Scalars['ID']['input'];
   input: GradingApprovalInput;
@@ -4600,6 +4706,12 @@ export type MutationCalculateBjrArgs = {
 };
 
 
+export type MutationCancelBlockTreatmentSemesterRequestArgs = {
+  id: Scalars['ID']['input'];
+  reason?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type MutationCancelWeighingArgs = {
   id: Scalars['ID']['input'];
   reason: Scalars['String']['input'];
@@ -4648,6 +4760,11 @@ export type MutationCreateBkmCompanyBridgeArgs = {
 
 export type MutationCreateBlockArgs = {
   input: CreateBlockInput;
+};
+
+
+export type MutationCreateBlockTreatmentSemesterRequestArgs = {
+  input: CreateBlockTreatmentSemesterRequestInput;
 };
 
 
@@ -4941,6 +5058,11 @@ export type MutationForceLogoutSessionArgs = {
 };
 
 
+export type MutationForgotPasswordArgs = {
+  email: Scalars['String']['input'];
+};
+
+
 export type MutationGenerateGuestQrArgs = {
   deviceId: Scalars['String']['input'];
   expiryMinutes?: InputMaybe<Scalars['Int']['input']>;
@@ -5009,6 +5131,12 @@ export type MutationRegisterFcmTokenArgs = {
 
 export type MutationRegisterGuestArgs = {
   input: CreateGuestRegistrationInput;
+};
+
+
+export type MutationRejectBlockTreatmentSemesterRequestArgs = {
+  id: Scalars['ID']['input'];
+  reason: Scalars['String']['input'];
 };
 
 
@@ -5087,8 +5215,20 @@ export type MutationRequestReweighingArgs = {
 };
 
 
+export type MutationResetPasswordArgs = {
+  newPassword: Scalars['String']['input'];
+  token: Scalars['String']['input'];
+};
+
+
 export type MutationResetUserPasswordArgs = {
   input: ResetPasswordInput;
+};
+
+
+export type MutationReviewBlockTreatmentSemesterRequestArgs = {
+  id: Scalars['ID']['input'];
+  notes?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -5130,6 +5270,11 @@ export type MutationSetFeatureForCompaniesArgs = {
 export type MutationSetMaintenanceModeArgs = {
   enabled: Scalars['Boolean']['input'];
   message?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type MutationSubmitBlockTreatmentSemesterRequestArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -5872,6 +6017,10 @@ export type Query = {
   blockActivities: Array<BlockActivity>;
   /** Retrieve block tariff change logs with pagination and optional filters */
   blockTariffChangeLogs: BlockTariffChangeLogPaginationResponse;
+  /** Retrieve a single semester block treatment request by ID */
+  blockTreatmentSemesterRequest?: Maybe<BlockTreatmentSemesterRequest>;
+  /** Retrieve semester block treatment requests */
+  blockTreatmentSemesterRequests: Array<BlockTreatmentSemesterRequest>;
   /** Retrieve all plantation blocks */
   blocks: Array<Block>;
   /** Retrieve plantation blocks with pagination and optional filters */
@@ -6175,6 +6324,8 @@ export type Query = {
   systemSettings: SystemSettings;
   /** Retrieve master tariff/treatment data for blocks */
   tarifBloks: Array<TarifBlok>;
+  /** Retrieve management decisions used for direct tariff updates */
+  tariffManagementDecisions: Array<TariffManagementDecision>;
   /** Retrieve tariff rule overrides (NORMAL/HOLIDAY/LEBARAN) with optional period */
   tariffRuleOverrides: Array<TariffRuleOverride>;
   /** Get timbangan dashboard */
@@ -6339,6 +6490,21 @@ export type QueryBlockTariffChangeLogsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   page?: InputMaybe<Scalars['Int']['input']>;
   search?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryBlockTreatmentSemesterRequestArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryBlockTreatmentSemesterRequestsArgs = {
+  companyId?: InputMaybe<Scalars['ID']['input']>;
+  createdBy?: InputMaybe<Scalars['ID']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  semester?: InputMaybe<Scalars['String']['input']>;
+  status?: InputMaybe<BlockTreatmentRequestStatus>;
 };
 
 
@@ -6875,6 +7041,14 @@ export type QuerySystemAlertsArgs = {
 };
 
 
+export type QueryTariffManagementDecisionsArgs = {
+  companyId?: InputMaybe<Scalars['ID']['input']>;
+  entityId?: InputMaybe<Scalars['ID']['input']>;
+  entityType?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
 export type QueryTariffRuleOverridesArgs = {
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
   overrideType?: InputMaybe<TariffOverrideType>;
@@ -7167,6 +7341,13 @@ export type ResetPasswordInput = {
   requirePasswordChange?: InputMaybe<Scalars['Boolean']['input']>;
   /** User ID whose password should be reset */
   userId: Scalars['ID']['input'];
+};
+
+/** ResetPasswordResponse represents the response of reset-password attempts. */
+export type ResetPasswordResponse = {
+  __typename?: 'ResetPasswordResponse';
+  message: Scalars['String']['output'];
+  success: Scalars['Boolean']['output'];
 };
 
 /** RevokeJWTTokenResponse describes revoke operation result. */
@@ -8538,6 +8719,22 @@ export type TarifBlok = {
   updatedAt: Scalars['Time']['output'];
 };
 
+/** TariffManagementDecision stores management-level decisions for direct tariff changes. */
+export type TariffManagementDecision = {
+  __typename?: 'TariffManagementDecision';
+  actionType: Scalars['String']['output'];
+  companyId: Scalars['ID']['output'];
+  decidedAt: Scalars['Time']['output'];
+  decidedBy: Scalars['ID']['output'];
+  decisionNo: Scalars['String']['output'];
+  decisionReason: Scalars['String']['output'];
+  effectiveNote: Scalars['String']['output'];
+  entityId: Scalars['ID']['output'];
+  entityType: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  metadata?: Maybe<Scalars['JSON']['output']>;
+};
+
 /** TariffOverrideType defines override context for tariff rule. */
 export enum TariffOverrideType {
   Holiday = 'HOLIDAY',
@@ -8963,6 +9160,9 @@ export type UpdateTarifBlokInput = {
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
   keterangan?: InputMaybe<Scalars['String']['input']>;
   landTypeId?: InputMaybe<Scalars['ID']['input']>;
+  managementDecisionNo?: InputMaybe<Scalars['String']['input']>;
+  managementDecisionReason?: InputMaybe<Scalars['String']['input']>;
+  managementEffectiveNote?: InputMaybe<Scalars['String']['input']>;
   perlakuan?: InputMaybe<Scalars['String']['input']>;
   premi?: InputMaybe<Scalars['Float']['input']>;
   schemeType?: InputMaybe<Scalars['String']['input']>;
@@ -9926,6 +10126,21 @@ export type RefreshTokenMutationVariables = Exact<{
 
 export type RefreshTokenMutation = { __typename?: 'Mutation', refreshToken: { __typename?: 'AuthPayload', accessToken: string, refreshToken: string, expiresAt: Date, user: { __typename?: 'User', id: string, username: string, email?: string | null, name: string, role: UserRole, effectiveMandorType?: MandorType | null, isActive: boolean, createdAt: Date, updatedAt: Date } } };
 
+export type ForgotPasswordMutationVariables = Exact<{
+  email: Scalars['String']['input'];
+}>;
+
+
+export type ForgotPasswordMutation = { __typename?: 'Mutation', forgotPassword: { __typename?: 'ForgotPasswordResponse', success: boolean, message: string } };
+
+export type ResetPasswordMutationVariables = Exact<{
+  token: Scalars['String']['input'];
+  newPassword: Scalars['String']['input'];
+}>;
+
+
+export type ResetPasswordMutation = { __typename?: 'Mutation', resetPassword: { __typename?: 'ResetPasswordResponse', success: boolean, message: string } };
+
 export type GetHarvestRecordsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
@@ -10476,6 +10691,75 @@ export function useRefreshTokenMutation(baseOptions?: Apollo.MutationHookOptions
 export type RefreshTokenMutationHookResult = ReturnType<typeof useRefreshTokenMutation>;
 export type RefreshTokenMutationResult = Apollo.MutationResult<RefreshTokenMutation>;
 export type RefreshTokenMutationOptions = Apollo.BaseMutationOptions<RefreshTokenMutation, RefreshTokenMutationVariables>;
+export const ForgotPasswordDocument = gql`
+    mutation ForgotPassword($email: String!) {
+  forgotPassword(email: $email) {
+    success
+    message
+  }
+}
+    `;
+export type ForgotPasswordMutationFn = Apollo.MutationFunction<ForgotPasswordMutation, ForgotPasswordMutationVariables>;
+
+/**
+ * __useForgotPasswordMutation__
+ *
+ * To run a mutation, you first call `useForgotPasswordMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useForgotPasswordMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [forgotPasswordMutation, { data, loading, error }] = useForgotPasswordMutation({
+ *   variables: {
+ *      email: // value for 'email'
+ *   },
+ * });
+ */
+export function useForgotPasswordMutation(baseOptions?: Apollo.MutationHookOptions<ForgotPasswordMutation, ForgotPasswordMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<ForgotPasswordMutation, ForgotPasswordMutationVariables>(ForgotPasswordDocument, options);
+      }
+export type ForgotPasswordMutationHookResult = ReturnType<typeof useForgotPasswordMutation>;
+export type ForgotPasswordMutationResult = Apollo.MutationResult<ForgotPasswordMutation>;
+export type ForgotPasswordMutationOptions = Apollo.BaseMutationOptions<ForgotPasswordMutation, ForgotPasswordMutationVariables>;
+export const ResetPasswordDocument = gql`
+    mutation ResetPassword($token: String!, $newPassword: String!) {
+  resetPassword(token: $token, newPassword: $newPassword) {
+    success
+    message
+  }
+}
+    `;
+export type ResetPasswordMutationFn = Apollo.MutationFunction<ResetPasswordMutation, ResetPasswordMutationVariables>;
+
+/**
+ * __useResetPasswordMutation__
+ *
+ * To run a mutation, you first call `useResetPasswordMutation` within a React component and pass it any options that fit your needs.
+ * When your component renders, `useResetPasswordMutation` returns a tuple that includes:
+ * - A mutate function that you can call at any time to execute the mutation
+ * - An object with fields that represent the current status of the mutation's execution
+ *
+ * @param baseOptions options that will be passed into the mutation, supported options are listed on: https://www.apollographql.com/docs/react/api/react-hooks/#options-2;
+ *
+ * @example
+ * const [resetPasswordMutation, { data, loading, error }] = useResetPasswordMutation({
+ *   variables: {
+ *      token: // value for 'token'
+ *      newPassword: // value for 'newPassword'
+ *   },
+ * });
+ */
+export function useResetPasswordMutation(baseOptions?: Apollo.MutationHookOptions<ResetPasswordMutation, ResetPasswordMutationVariables>) {
+        const options = {...defaultOptions, ...baseOptions}
+        return Apollo.useMutation<ResetPasswordMutation, ResetPasswordMutationVariables>(ResetPasswordDocument, options);
+      }
+export type ResetPasswordMutationHookResult = ReturnType<typeof useResetPasswordMutation>;
+export type ResetPasswordMutationResult = Apollo.MutationResult<ResetPasswordMutation>;
+export type ResetPasswordMutationOptions = Apollo.BaseMutationOptions<ResetPasswordMutation, ResetPasswordMutationVariables>;
 export const GetHarvestRecordsDocument = gql`
     query GetHarvestRecords {
   harvestRecords {
