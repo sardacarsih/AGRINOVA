@@ -43,8 +43,8 @@ void main() {
     });
   });
 
-  tearDownAll(() async {
-    await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+  tearDownAll(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(packageInfoChannel, null);
   });
 
