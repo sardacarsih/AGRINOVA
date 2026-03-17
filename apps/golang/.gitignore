@@ -56,3 +56,6 @@ tmp/
 # Test coverage
 coverage.txt
 coverage.html
+
+# Uploaded assets (runtime artifacts, not source)
+uploads/

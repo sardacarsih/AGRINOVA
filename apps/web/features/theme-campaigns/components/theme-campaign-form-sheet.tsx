@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import NextImage from 'next/image';
-import { ImagePlus } from 'lucide-react';
+import { ImagePlus, Moon, Sun } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +16,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Sheet,
   SheetContent,
@@ -29,14 +40,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ThemeCampaignApi } from '@/features/theme-campaigns/api/theme-campaign-api';
 import { MobileAppUiRuntimePreview } from '@/features/theme-campaigns/components/mobile-app-ui-runtime-preview';
 import {
+  ThemeAssetManifest,
   ThemeAppUiSlot,
   ThemeAppUiSlots,
   ThemeCampaign,
   ThemeCampaignFormValues,
   ThemeEntity,
+  ThemeMode,
   ThemePlatform,
   ThemePlatformAssets,
 } from '@/features/theme-campaigns/types/theme-campaign';
+import {
+  APP_UI_SLOT_CONFIG,
+  APP_UI_SLOT_FIELD_CONFIG,
+  isAppUiColorField,
+  normalizeAppUiSlot,
+  mapAppUiSlots,
+  type AppUiSlotKey,
+  type AppUiSlotFieldKey,
+  type AppUiColorFieldKey,
+} from '@/features/theme-campaigns/constants/app-ui-slot-constants';
 
 type FormMode = 'create' | 'edit';
 
@@ -68,10 +91,13 @@ interface FormDraft {
   };
 }
 
+interface PendingThemeSelection {
+  themeID: string;
+  selectedTheme?: ThemeEntity;
+}
+
 type AssetFieldKey = 'backgroundImage' | 'illustration';
 type PlatformAssetEditableKey = Exclude<keyof ThemePlatformAssets, 'app_ui'>;
-type AppUiSlotKey = keyof ThemeAppUiSlots;
-type AppUiSlotFieldKey = keyof ThemeAppUiSlot;
 
 interface AssetFieldFeedback {
   error: string;
@@ -86,41 +112,40 @@ const EMPTY_PLATFORM_ASSETS: ThemePlatformAssets = {
   app_ui: {},
 };
 
-const APP_UI_SLOT_CONFIG: Array<{ key: AppUiSlotKey; label: string; description: string }> = [
-  { key: 'navbar', label: 'Navbar', description: 'AppBar title, icon, and navbar surface' },
-  { key: 'sidebar', label: 'Sidebar', description: 'Drawer, popup menu, and side menu surface' },
-  { key: 'footer', label: 'Footer', description: 'Bottom navigation background and states' },
-  { key: 'dashboard', label: 'Dashboard', description: 'Dashboard background, card surface, and border' },
-  {
-    key: 'notification_banner',
-    label: 'Notification Banner',
-    description: 'Snackbar and notification banner colors',
-  },
-  {
-    key: 'empty_state_illustration',
-    label: 'Empty State Illustration',
-    description: 'Illustration URL/asset for empty state',
-  },
-  {
-    key: 'modal_accent',
-    label: 'Modal Accent',
-    description: 'Dialog background and action accents',
-  },
-];
+const HEX_COLOR_REGEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
-const APP_UI_SLOT_FIELD_CONFIG: Array<{
-  key: AppUiSlotFieldKey;
-  label: string;
-  placeholder: string;
-}> = [
-  { key: 'backgroundColor', label: 'backgroundColor', placeholder: '#0F172A' },
-  { key: 'foregroundColor', label: 'foregroundColor', placeholder: '#FFFFFF' },
-  { key: 'textColor', label: 'textColor', placeholder: '#E2E8F0' },
-  { key: 'borderColor', label: 'borderColor', placeholder: '#1F2937' },
-  { key: 'accentColor', label: 'accentColor', placeholder: '#34D399' },
-  { key: 'iconColor', label: 'iconColor', placeholder: '#93C5FD' },
-  { key: 'asset', label: 'asset', placeholder: 'https://.../asset.svg' },
-];
+const normalizeHexColor = (raw: string): string | null => {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  const withHash = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+  if (!HEX_COLOR_REGEX.test(withHash)) return null;
+
+  if (withHash.length === 4) {
+    const r = withHash[1];
+    const g = withHash[2];
+    const b = withHash[3];
+    return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+  }
+
+  return withHash.toLowerCase();
+};
+
+const normalizeColorForPreview = (value?: string): string => normalizeHexColor(value || '') || '';
+const getColorPickerValue = (value: string | undefined, fallback: string): string =>
+  normalizeHexColor(value || '') || normalizeHexColor(fallback) || '#0f172a';
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+const shouldRetrySlotAssetWithLegacyKey = (message: string): boolean => {
+  const normalized = message.trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized.includes('assetkey must be backgroundimage or illustration') ||
+    normalized.includes('assetkey must be backgroundimage, illustration')
+  );
+};
 
 const MAX_UPLOAD_SIZE_BYTES = 2 * 1024 * 1024;
 const MAX_UPLOAD_SIZE_LABEL = '2MB';
@@ -167,6 +192,22 @@ const EMPTY_ASSET_UPLOAD_STATE: Record<ThemePlatform, Record<AssetFieldKey, bool
   },
 };
 
+const EMPTY_SLOT_ASSET_FEEDBACK = APP_UI_SLOT_CONFIG.reduce<Record<AppUiSlotKey, string>>(
+  (acc, slot) => {
+    acc[slot.key] = '';
+    return acc;
+  },
+  {} as Record<AppUiSlotKey, string>
+);
+
+const EMPTY_SLOT_ASSET_UPLOAD_STATE = APP_UI_SLOT_CONFIG.reduce<Record<AppUiSlotKey, boolean>>(
+  (acc, slot) => {
+    acc[slot.key] = false;
+    return acc;
+  },
+  {} as Record<AppUiSlotKey, boolean>
+);
+
 const EMPTY_FORM: FormDraft = {
   campaign_group_key: '',
   campaign_name: '',
@@ -200,21 +241,6 @@ const toIsoValue = (localValue?: string) => {
   return date.toISOString();
 };
 
-const normalizeAppUiSlot = (slot?: ThemeAppUiSlot): ThemeAppUiSlot => ({
-  backgroundColor: slot?.backgroundColor || '',
-  foregroundColor: slot?.foregroundColor || '',
-  textColor: slot?.textColor || '',
-  borderColor: slot?.borderColor || '',
-  accentColor: slot?.accentColor || '',
-  iconColor: slot?.iconColor || '',
-  asset: slot?.asset || '',
-});
-
-const mapAppUiSlots = (slots?: ThemeAppUiSlots): ThemeAppUiSlots =>
-  APP_UI_SLOT_CONFIG.reduce<ThemeAppUiSlots>((acc, slot) => {
-    acc[slot.key] = normalizeAppUiSlot(slots?.[slot.key]);
-    return acc;
-  }, {});
 
 const mapPlatformAssets = (assets?: ThemePlatformAssets): ThemePlatformAssets => ({
   backgroundImage: assets?.backgroundImage || '',
@@ -223,6 +249,208 @@ const mapPlatformAssets = (assets?: ThemePlatformAssets): ThemePlatformAssets =>
   accentAsset: assets?.accentAsset || 'none',
   app_ui: mapAppUiSlots(assets?.app_ui),
 });
+
+const mergeAppUiSlots = (
+  baseSlots: ThemeAppUiSlots | undefined,
+  overrideSlots: ThemeAppUiSlots | undefined
+): ThemeAppUiSlots => {
+  const merged: ThemeAppUiSlots = {};
+
+  APP_UI_SLOT_CONFIG.forEach((slot) => {
+    const slotKey = slot.key;
+    const baseSlot = asRecord(baseSlots?.[slotKey]);
+    const overrideSlot = asRecord(overrideSlots?.[slotKey]);
+    const slotResult: Record<string, string> = {};
+
+    APP_UI_SLOT_FIELD_CONFIG.forEach(({ key }) => {
+      const overrideValue = overrideSlot[key];
+      const baseValue = baseSlot[key];
+      if (typeof overrideValue === 'string' && overrideValue.trim()) {
+        slotResult[key] = overrideValue.trim();
+        return;
+      }
+      if (typeof baseValue === 'string' && baseValue.trim()) {
+        slotResult[key] = baseValue.trim();
+      }
+    });
+
+    merged[slotKey] = slotResult;
+  });
+
+  return merged;
+};
+
+const mergeAppUiSlotsAssetOnlyOverride = (
+  baseSlots: ThemeAppUiSlots | undefined,
+  overrideSlots: ThemeAppUiSlots | undefined
+): ThemeAppUiSlots => {
+  const merged = mergeAppUiSlots(baseSlots, undefined);
+
+  APP_UI_SLOT_CONFIG.forEach((slot) => {
+    const slotKey = slot.key;
+    const currentSlot = normalizeAppUiSlot(merged[slotKey]);
+    const overrideSlot = normalizeAppUiSlot(overrideSlots?.[slotKey]);
+    merged[slotKey] = {
+      ...currentSlot,
+      asset: overrideSlot.asset?.trim() || currentSlot.asset || '',
+    };
+  });
+
+  return merged;
+};
+
+const stripAppUiColorOverrides = (slot?: ThemeAppUiSlot): ThemeAppUiSlot => {
+  const normalized = normalizeAppUiSlot(slot);
+  return {
+    ...normalized,
+    backgroundColor: '',
+    foregroundColor: '',
+    textColor: '',
+    borderColor: '',
+    accentColor: '',
+    iconColor: '',
+    asset: normalized.asset || '',
+  };
+};
+
+const enforceThemeMasterColorsOnSlots = (slots?: ThemeAppUiSlots): ThemeAppUiSlots =>
+  APP_UI_SLOT_CONFIG.reduce<ThemeAppUiSlots>((acc, slot) => {
+    acc[slot.key] = stripAppUiColorOverrides(slots?.[slot.key]);
+    return acc;
+  }, {});
+
+const enforceThemeMasterColorsOnPlatformAssets = (
+  assets?: ThemePlatformAssets
+): ThemePlatformAssets => {
+  const normalized = mapPlatformAssets(assets);
+  return {
+    ...normalized,
+    app_ui: enforceThemeMasterColorsOnSlots(normalized.app_ui),
+  };
+};
+
+const sanitizeCampaignAssetsForThemeColors = (assets: {
+  web: ThemePlatformAssets;
+  mobile: ThemePlatformAssets;
+}): {
+  web: ThemePlatformAssets;
+  mobile: ThemePlatformAssets;
+} => ({
+  web: enforceThemeMasterColorsOnPlatformAssets(assets.web),
+  mobile: enforceThemeMasterColorsOnPlatformAssets(assets.mobile),
+});
+
+const resolveThemeAssetManifestMode = (
+  manifest: ThemeAssetManifest | undefined,
+  mode: ThemeMode = 'light'
+): ThemeAssetManifest => {
+  if (!manifest) {
+    return {
+      backgroundImage: '',
+      illustration: '',
+      iconPack: 'outline-enterprise',
+      accentAsset: 'none',
+      app_ui: {},
+    };
+  }
+
+  const modeVariant =
+    (manifest.modes?.[mode] as ThemeAssetManifest | undefined) ||
+    undefined;
+
+  return {
+    ...manifest,
+    ...modeVariant,
+    app_ui: {
+      ...(manifest.app_ui || {}),
+      ...(modeVariant?.app_ui || {}),
+    },
+  };
+};
+
+const resolveThemePlatformAssetsMode = (
+  manifest: ThemeAssetManifest | undefined,
+  platform: ThemePlatform,
+  mode: ThemeMode
+): ThemePlatformAssets => {
+  const selectedManifest = resolveThemeAssetManifestMode(manifest, mode);
+  const modePlatformAssets = mapPlatformAssets(
+    (platform === 'web' ? selectedManifest.web : selectedManifest.mobile) as
+      | ThemePlatformAssets
+      | undefined
+  );
+
+  return mapPlatformAssets({
+    backgroundImage:
+      modePlatformAssets.backgroundImage || selectedManifest.backgroundImage || '',
+    illustration: modePlatformAssets.illustration || selectedManifest.illustration || '',
+    iconPack: modePlatformAssets.iconPack || selectedManifest.iconPack || 'outline-enterprise',
+    accentAsset: modePlatformAssets.accentAsset || selectedManifest.accentAsset || 'none',
+    app_ui: mergeAppUiSlots(selectedManifest.app_ui, modePlatformAssets.app_ui),
+  });
+};
+
+const resolveEffectiveMobileAppUiSlotsByMode = (
+  theme: ThemeEntity | undefined,
+  mobileAssets: ThemePlatformAssets
+): Record<ThemeMode, ThemeAppUiSlots> => {
+  const campaignSlots = mapAppUiSlots(mobileAssets.app_ui);
+  return {
+    light: mergeAppUiSlotsAssetOnlyOverride(
+      resolveThemePlatformAssetsMode(theme?.asset_manifest_json, 'mobile', 'light').app_ui,
+      campaignSlots
+    ),
+    dark: mergeAppUiSlotsAssetOnlyOverride(
+      resolveThemePlatformAssetsMode(theme?.asset_manifest_json, 'mobile', 'dark').app_ui,
+      campaignSlots
+    ),
+  };
+};
+
+const resolvePreferredPreviewMode = (
+  lightModeEnabled: boolean,
+  darkModeEnabled: boolean
+): ThemeMode => {
+  if (darkModeEnabled && !lightModeEnabled) {
+    return 'dark';
+  }
+  return 'light';
+};
+
+const mapThemeAssetsToCampaignAssets = (theme?: ThemeEntity): {
+  web: ThemePlatformAssets;
+  mobile: ThemePlatformAssets;
+} => {
+  const selectedManifest = resolveThemeAssetManifestMode(
+    theme?.asset_manifest_json,
+    'light'
+  );
+
+  const webFromTheme = (selectedManifest.web || {}) as ThemePlatformAssets;
+  const mobileFromTheme = (selectedManifest.mobile || {}) as ThemePlatformAssets;
+
+  return {
+    web: mapPlatformAssets({
+      backgroundImage:
+        webFromTheme.backgroundImage || selectedManifest.backgroundImage || '',
+      illustration:
+        webFromTheme.illustration || selectedManifest.illustration || '',
+      iconPack: webFromTheme.iconPack || selectedManifest.iconPack || 'outline-enterprise',
+      accentAsset: webFromTheme.accentAsset || selectedManifest.accentAsset || 'none',
+      app_ui: webFromTheme.app_ui || selectedManifest.app_ui || {},
+    }),
+    mobile: mapPlatformAssets({
+      backgroundImage:
+        mobileFromTheme.backgroundImage || selectedManifest.backgroundImage || '',
+      illustration:
+        mobileFromTheme.illustration || selectedManifest.illustration || '',
+      iconPack:
+        mobileFromTheme.iconPack || selectedManifest.iconPack || 'outline-enterprise',
+      accentAsset: mobileFromTheme.accentAsset || selectedManifest.accentAsset || 'none',
+      app_ui: mobileFromTheme.app_ui || selectedManifest.app_ui || {},
+    }),
+  };
+};
 
 const readImageDimensions = (file: File): Promise<{ width: number; height: number }> =>
   new Promise((resolve, reject) => {
@@ -440,6 +668,9 @@ export function ThemeCampaignFormSheet({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [assetFeedback, setAssetFeedback] = useState(EMPTY_ASSET_FEEDBACK);
   const [isUploadingAssets, setIsUploadingAssets] = useState(EMPTY_ASSET_UPLOAD_STATE);
+  const [slotAssetFeedback, setSlotAssetFeedback] = useState(EMPTY_SLOT_ASSET_FEEDBACK);
+  const [isUploadingSlotAssets, setIsUploadingSlotAssets] = useState(EMPTY_SLOT_ASSET_UPLOAD_STATE);
+  const [pendingThemeSelection, setPendingThemeSelection] = useState<PendingThemeSelection | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -456,15 +687,18 @@ export function ThemeCampaignFormSheet({
         end_at: toLocalDateTimeValue(campaign.end_at),
         light_mode_enabled: campaign.light_mode_enabled,
         dark_mode_enabled: campaign.dark_mode_enabled,
-        assets: {
+        assets: sanitizeCampaignAssetsForThemeColors({
           web: mapPlatformAssets(campaign.assets.web),
           mobile: mapPlatformAssets(campaign.assets.mobile),
-        },
+        }),
       });
       setErrors({});
       setSubmitError(null);
       setAssetFeedback(EMPTY_ASSET_FEEDBACK);
       setIsUploadingAssets(EMPTY_ASSET_UPLOAD_STATE);
+      setSlotAssetFeedback(EMPTY_SLOT_ASSET_FEEDBACK);
+      setIsUploadingSlotAssets(EMPTY_SLOT_ASSET_UPLOAD_STATE);
+      setPendingThemeSelection(null);
       return;
     }
 
@@ -473,6 +707,9 @@ export function ThemeCampaignFormSheet({
     setSubmitError(null);
     setAssetFeedback(EMPTY_ASSET_FEEDBACK);
     setIsUploadingAssets(EMPTY_ASSET_UPLOAD_STATE);
+    setSlotAssetFeedback(EMPTY_SLOT_ASSET_FEEDBACK);
+    setIsUploadingSlotAssets(EMPTY_SLOT_ASSET_UPLOAD_STATE);
+    setPendingThemeSelection(null);
   }, [campaign, mode, open]);
 
   const normalizedIconPackOptions = useMemo(() => {
@@ -486,12 +723,77 @@ export function ThemeCampaignFormSheet({
   const hasAssetUploadInProgress = useMemo(
     () =>
       Object.values(isUploadingAssets.web).some(Boolean) ||
-      Object.values(isUploadingAssets.mobile).some(Boolean),
-    [isUploadingAssets]
+      Object.values(isUploadingAssets.mobile).some(Boolean) ||
+      Object.values(isUploadingSlotAssets).some(Boolean),
+    [isUploadingAssets, isUploadingSlotAssets]
+  );
+  const selectedTheme = useMemo(
+    () => themes.find((candidate) => candidate.id === form.theme_id),
+    [themes, form.theme_id]
+  );
+  const effectiveMobileAppUiSlotsByMode = useMemo(
+    () => resolveEffectiveMobileAppUiSlotsByMode(selectedTheme, form.assets.mobile),
+    [selectedTheme, form.assets.mobile]
+  );
+  const appUiModeAvailability = useMemo(() => {
+    const light = form.light_mode_enabled;
+    const dark = form.dark_mode_enabled;
+    if (!light && !dark) {
+      return { light: true, dark: true };
+    }
+    return { light, dark };
+  }, [form.light_mode_enabled, form.dark_mode_enabled]);
+  const preferredAppUiPreviewMode = useMemo(
+    () => resolvePreferredPreviewMode(form.light_mode_enabled, form.dark_mode_enabled),
+    [form.light_mode_enabled, form.dark_mode_enabled]
   );
 
   const updateField = <K extends keyof FormDraft>(key: K, value: FormDraft[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
+  };
+
+  const applyThemeSelection = (
+    themeID: string,
+    selectedTheme: ThemeEntity | undefined,
+    overwriteAssets: boolean
+  ) => {
+    setForm((current) => ({
+      ...current,
+      theme_id: themeID,
+      assets: sanitizeCampaignAssetsForThemeColors(
+        overwriteAssets ? mapThemeAssetsToCampaignAssets(selectedTheme) : current.assets
+      ),
+    }));
+  };
+
+  const handleThemeSelectionChange = (themeID: string) => {
+    if (themeID === form.theme_id) {
+      return;
+    }
+
+    const selectedTheme = themes.find((candidate) => candidate.id === themeID);
+    if (mode !== 'create') {
+      setPendingThemeSelection({
+        themeID,
+        selectedTheme,
+      });
+      return;
+    }
+
+    applyThemeSelection(themeID, selectedTheme, true);
+  };
+
+  const handleThemeSelectionDialogChoice = (overwriteAssets: boolean) => {
+    if (!pendingThemeSelection) {
+      return;
+    }
+
+    applyThemeSelection(
+      pendingThemeSelection.themeID,
+      pendingThemeSelection.selectedTheme,
+      overwriteAssets
+    );
+    setPendingThemeSelection(null);
   };
 
   const updatePlatformAssetField = (
@@ -516,6 +818,10 @@ export function ThemeCampaignFormSheet({
     fieldKey: AppUiSlotFieldKey,
     value: string
   ) => {
+    if (isAppUiColorField(fieldKey)) {
+      return;
+    }
+
     setForm((current) => ({
       ...current,
       assets: {
@@ -532,6 +838,42 @@ export function ThemeCampaignFormSheet({
         },
       },
     }));
+  };
+
+  const handleAppUiSlotFieldBlur = (
+    slotKey: AppUiSlotKey,
+    fieldKey: AppUiSlotFieldKey
+  ) => {
+    if (!isAppUiColorField(fieldKey)) {
+      return;
+    }
+
+    setForm((current) => {
+      const normalizedSlots = mapAppUiSlots(current.assets.mobile.app_ui);
+      const slotValue = normalizeAppUiSlot(normalizedSlots[slotKey]);
+      const rawValue = slotValue[fieldKey] || '';
+      const normalizedColor = normalizeHexColor(rawValue);
+      if (!normalizedColor || normalizedColor === rawValue) {
+        return current;
+      }
+
+      return {
+        ...current,
+        assets: {
+          ...current.assets,
+          mobile: {
+            ...current.assets.mobile,
+            app_ui: {
+              ...normalizedSlots,
+              [slotKey]: {
+                ...slotValue,
+                [fieldKey]: normalizedColor,
+              },
+            },
+          },
+        },
+      };
+    });
   };
 
   const setAssetFieldFeedback = (
@@ -565,6 +907,20 @@ export function ThemeCampaignFormSheet({
     }));
   };
 
+  const setSlotAssetUploadingState = (slotKey: AppUiSlotKey, value: boolean) => {
+    setIsUploadingSlotAssets((current) => ({
+      ...current,
+      [slotKey]: value,
+    }));
+  };
+
+  const setSlotAssetError = (slotKey: AppUiSlotKey, value: string) => {
+    setSlotAssetFeedback((current) => ({
+      ...current,
+      [slotKey]: value,
+    }));
+  };
+
   const handleFileToPreview = async (
     event: React.ChangeEvent<HTMLInputElement>,
     platform: ThemePlatform,
@@ -581,49 +937,82 @@ export function ThemeCampaignFormSheet({
     try {
       let warningMessage = '';
       if (isMobileBackground) {
-        if (!isSvgFile(file)) {
-          throw new Error('backgroundImage mobile wajib file SVG.');
-        }
+        if (isSvgFile(file)) {
+          if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+            warningMessage = `Ukuran awal ${formatFileSizeMB(
+              file.size
+            )}. File akan dioptimasi otomatis di server jika diperlukan.`;
+          }
 
-        if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-          warningMessage = `Ukuran awal ${formatFileSizeMB(
-            file.size
-          )}. File akan dioptimasi otomatis di server jika diperlukan.`;
-        }
+          const dimensions = await readSvgDimensions(file);
+          if (!dimensions) {
+            throw new Error(
+              'Dimensi SVG tidak dapat dibaca. Pastikan SVG memiliki width/height atau viewBox yang valid.'
+            );
+          }
 
-        const dimensions = await readSvgDimensions(file);
-        if (!dimensions) {
-          throw new Error(
-            'Dimensi SVG tidak dapat dibaca. Pastikan SVG memiliki width/height atau viewBox yang valid.'
-          );
-        }
+          if (dimensions.height <= dimensions.width) {
+            throw new Error(
+              'backgroundImage mobile wajib portrait (tinggi harus lebih besar dari lebar).'
+            );
+          }
 
-        if (dimensions.height <= dimensions.width) {
-          throw new Error('backgroundImage mobile wajib portrait (tinggi harus lebih besar dari lebar).');
-        }
+          if (
+            dimensions.width !== recommendation.width ||
+            dimensions.height !== recommendation.height
+          ) {
+            warningMessage = warningMessage
+              ? `${warningMessage} Ukuran SVG terdeteksi ${dimensions.width}x${dimensions.height}px. Disarankan ${recommendation.width}x${recommendation.height}px.`
+              : `Ukuran SVG terdeteksi ${dimensions.width}x${dimensions.height}px. Disarankan ${recommendation.width}x${recommendation.height}px.`;
+          }
 
-        if (
-          dimensions.width !== recommendation.width ||
-          dimensions.height !== recommendation.height
-        ) {
-          warningMessage = warningMessage
-            ? `${warningMessage} Ukuran SVG terdeteksi ${dimensions.width}x${dimensions.height}px. Disarankan ${recommendation.width}x${recommendation.height}px.`
-            : `Ukuran SVG terdeteksi ${dimensions.width}x${dimensions.height}px. Disarankan ${recommendation.width}x${recommendation.height}px.`;
-        }
+          const uploaded = await ThemeCampaignApi.uploadAsset(file, {
+            platform,
+            assetKey: key,
+          });
+          if (!uploaded.path?.trim()) {
+            throw new Error('Upload gagal: path asset kosong.');
+          }
 
-        const uploaded = await ThemeCampaignApi.uploadAsset(file, {
-          platform,
-          assetKey: key,
-        });
-        if (!uploaded.path?.trim()) {
-          throw new Error('Upload gagal: path asset kosong.');
-        }
+          updatePlatformAssetField(platform, key, uploaded.path.trim());
+          setAssetFieldFeedback(platform, key, {
+            error: '',
+            warning: warningMessage,
+          });
+        } else {
+          const optimized = await optimizeRasterImageForUpload(file, recommendation);
+          const fileToUpload = optimized.file;
+          const dimensions = await readImageDimensions(fileToUpload);
+          if (dimensions.height <= dimensions.width) {
+            throw new Error(
+              'backgroundImage mobile wajib portrait (tinggi harus lebih besar dari lebar).'
+            );
+          }
 
-        updatePlatformAssetField(platform, key, uploaded.path.trim());
-        setAssetFieldFeedback(platform, key, {
-          error: '',
-          warning: warningMessage,
-        });
+          if (
+            dimensions.width !== recommendation.width ||
+            dimensions.height !== recommendation.height
+          ) {
+            warningMessage = `Ukuran terdeteksi ${dimensions.width}x${dimensions.height}px. Disarankan ${recommendation.width}x${recommendation.height}px.`;
+          }
+          if (optimized.note) {
+            warningMessage = warningMessage ? `${optimized.note} ${warningMessage}` : optimized.note;
+          }
+
+          const uploaded = await ThemeCampaignApi.uploadAsset(fileToUpload, {
+            platform,
+            assetKey: key,
+          });
+          if (!uploaded.path?.trim()) {
+            throw new Error('Upload gagal: path asset kosong.');
+          }
+
+          updatePlatformAssetField(platform, key, uploaded.path.trim());
+          setAssetFieldFeedback(platform, key, {
+            error: '',
+            warning: warningMessage,
+          });
+        }
       } else {
         const optimized = await optimizeRasterImageForUpload(file, recommendation);
         const fileToUpload = optimized.file;
@@ -656,6 +1045,43 @@ export function ThemeCampaignFormSheet({
       });
     } finally {
       setAssetUploadingState(platform, key, false);
+      event.target.value = '';
+    }
+  };
+
+  const handleAppUiSlotAssetUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+    slotKey: AppUiSlotKey
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setSlotAssetError(slotKey, '');
+    setSlotAssetUploadingState(slotKey, true);
+    try {
+      const uploaded = await ThemeCampaignApi.uploadAsset(file, {
+        platform: 'mobile',
+        assetKey: 'appUiAsset',
+        slotKey,
+      }).catch(async (error: unknown) => {
+        const message = error instanceof Error ? error.message : '';
+        if (!shouldRetrySlotAssetWithLegacyKey(message)) {
+          throw error;
+        }
+        return ThemeCampaignApi.uploadAsset(file, {
+          platform: 'mobile',
+          assetKey: 'illustration',
+          slotKey,
+        });
+      });
+      if (!uploaded.path?.trim()) {
+        throw new Error('Upload gagal: path asset kosong.');
+      }
+      updateAppUiSlotField(slotKey, 'asset', uploaded.path.trim());
+    } catch (error: unknown) {
+      setSlotAssetError(slotKey, error instanceof Error ? error.message : 'Upload asset slot gagal.');
+    } finally {
+      setSlotAssetUploadingState(slotKey, false);
       event.target.value = '';
     }
   };
@@ -699,10 +1125,10 @@ export function ThemeCampaignFormSheet({
       end_at: toIsoValue(form.end_at),
       light_mode_enabled: form.light_mode_enabled,
       dark_mode_enabled: form.dark_mode_enabled,
-      assets: {
+      assets: sanitizeCampaignAssetsForThemeColors({
         web: { ...form.assets.web },
         mobile: { ...form.assets.mobile },
-      },
+      }),
     };
 
     try {
@@ -718,8 +1144,9 @@ export function ThemeCampaignFormSheet({
   const sectionClassName = 'space-y-3 rounded-xl border bg-muted/20 p-4';
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl">
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl">
         <SheetHeader>
           <SheetTitle>{mode === 'create' ? 'Buat Kampanye' : 'Ubah Kampanye'}</SheetTitle>
           <SheetDescription>
@@ -757,7 +1184,7 @@ export function ThemeCampaignFormSheet({
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="theme_id">theme_id *</Label>
-                  <Select value={form.theme_id} onValueChange={(value) => updateField('theme_id', value)}>
+                  <Select value={form.theme_id} onValueChange={handleThemeSelectionChange}>
                     <SelectTrigger id="theme_id">
                       <SelectValue placeholder="Pilih tema" />
                     </SelectTrigger>
@@ -851,11 +1278,11 @@ export function ThemeCampaignFormSheet({
             </section>
 
             <section className={sectionClassName}>
-                <h3 className="font-medium">Aset Visual per Platform</h3>
+              <h3 className="font-medium">Aset Visual per Platform</h3>
                 <p className="text-xs text-muted-foreground">
                   Upload langsung ke server lokal, target maks {MAX_UPLOAD_SIZE_LABEL} per file. Jika ukuran
                   lebih besar, sistem akan mencoba kompresi otomatis. Untuk mobile `backgroundImage`, file
-                  wajib SVG portrait.
+                  wajib portrait.
                 </p>
               <Tabs defaultValue="web" className="space-y-3">
                 <TabsList className="grid w-full grid-cols-2">
@@ -888,7 +1315,15 @@ export function ThemeCampaignFormSheet({
                   <Separator />
                   <AppUiSlotsEditor
                     slots={mapAppUiSlots(form.assets.mobile.app_ui)}
+                    effectiveSlotsByMode={effectiveMobileAppUiSlotsByMode}
+                    modeAvailability={appUiModeAvailability}
+                    preferredMode={preferredAppUiPreviewMode}
                     onSlotFieldChange={updateAppUiSlotField}
+                    onSlotFieldBlur={handleAppUiSlotFieldBlur}
+                    onSlotAssetFileChange={handleAppUiSlotAssetUpload}
+                    slotAssetFeedback={slotAssetFeedback}
+                    isUploadingSlotAsset={isUploadingSlotAssets}
+                    isThemeColorLocked
                   />
                 </TabsContent>
               </Tabs>
@@ -908,16 +1343,48 @@ export function ThemeCampaignFormSheet({
           </div>
         </ScrollArea>
 
-        <SheetFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-            Batal
-          </Button>
-          <Button onClick={() => void handleSubmit()} disabled={isSubmitting || hasAssetUploadInProgress}>
-            {isSubmitting ? 'Menyimpan...' : mode === 'create' ? 'Buat Kampanye' : 'Simpan Perubahan'}
-          </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+          <SheetFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+              Batal
+            </Button>
+            <Button onClick={() => void handleSubmit()} disabled={isSubmitting || hasAssetUploadInProgress}>
+              {isSubmitting ? 'Menyimpan...' : mode === 'create' ? 'Buat Kampanye' : 'Simpan Perubahan'}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <AlertDialog
+        open={pendingThemeSelection !== null}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) {
+            setPendingThemeSelection(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Terapkan Default Aset Theme?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Theme akan diganti ke{' '}
+              <span className="font-medium text-foreground">
+                {pendingThemeSelection?.selectedTheme?.name || pendingThemeSelection?.themeID || '-'}
+              </span>
+              . Pilih apakah aset campaign saat ini tetap dipertahankan atau di-overwrite dari Theme Master.
+              Warna App UI campaign akan di-reset agar runtime mengikuti Theme Master.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => handleThemeSelectionDialogChoice(false)}>
+              Pertahankan Aset Campaign
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleThemeSelectionDialogChoice(true)}>
+              Overwrite dari Theme Master
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -967,12 +1434,12 @@ function PlatformAssetsEditor({
             `backgroundImage` • maks {MAX_UPLOAD_SIZE_LABEL} • saran{' '}
             {RECOMMENDED_DIMENSIONS[platform].backgroundImage.width}x
             {RECOMMENDED_DIMENSIONS[platform].backgroundImage.height}px
-            {isMobileBackground ? ' • wajib SVG portrait' : ''}
+            {isMobileBackground ? ' • wajib portrait (SVG/raster)' : ''}
           </p>
           <Input
             id={backgroundUploadId}
             type="file"
-            accept={isMobileBackground ? '.svg,image/svg+xml' : 'image/*'}
+            accept={isMobileBackground ? 'image/*,.svg,image/svg+xml' : 'image/*'}
             onChange={(event) => onFileChange(event, platform, 'backgroundImage')}
             disabled={isUploading.backgroundImage}
           />
@@ -1086,15 +1553,66 @@ function PlatformAssetsEditor({
 
 interface AppUiSlotsEditorProps {
   slots: ThemeAppUiSlots;
+  effectiveSlotsByMode: Record<ThemeMode, ThemeAppUiSlots>;
+  modeAvailability: Record<ThemeMode, boolean>;
+  preferredMode: ThemeMode;
   onSlotFieldChange: (
     slotKey: AppUiSlotKey,
     fieldKey: AppUiSlotFieldKey,
     value: string
   ) => void;
+  onSlotFieldBlur: (slotKey: AppUiSlotKey, fieldKey: AppUiSlotFieldKey) => void;
+  onSlotAssetFileChange: (event: React.ChangeEvent<HTMLInputElement>, slotKey: AppUiSlotKey) => void;
+  slotAssetFeedback: Record<AppUiSlotKey, string>;
+  isUploadingSlotAsset: Record<AppUiSlotKey, boolean>;
+  isThemeColorLocked?: boolean;
 }
 
-function AppUiSlotsEditor({ slots, onSlotFieldChange }: AppUiSlotsEditorProps) {
-  const mappedSlots = mapAppUiSlots(slots);
+function AppUiSlotsEditor({
+  slots,
+  effectiveSlotsByMode,
+  modeAvailability,
+  preferredMode,
+  onSlotFieldChange,
+  onSlotFieldBlur,
+  onSlotAssetFileChange,
+  slotAssetFeedback,
+  isUploadingSlotAsset,
+  isThemeColorLocked = false,
+}: AppUiSlotsEditorProps) {
+  const [activeMode, setActiveMode] = useState<ThemeMode>(preferredMode);
+  const mappedSlots = useMemo(() => mapAppUiSlots(slots), [slots]);
+  const mappedEffectiveSlotsByMode = useMemo(
+    () => ({
+      light: mapAppUiSlots(effectiveSlotsByMode.light),
+      dark: mapAppUiSlots(effectiveSlotsByMode.dark),
+    }),
+    [effectiveSlotsByMode]
+  );
+
+  useEffect(() => {
+    const hasSingleActiveMode = modeAvailability.light !== modeAvailability.dark;
+    if (!modeAvailability[activeMode] || hasSingleActiveMode) {
+      setActiveMode(preferredMode);
+    }
+  }, [activeMode, modeAvailability, preferredMode]);
+
+  const effectiveSlotsForMode = mappedEffectiveSlotsByMode[activeMode];
+  const activeModeLabel =
+    modeAvailability.light && modeAvailability.dark ? 'light/dark' : preferredMode;
+  const previewSlots = APP_UI_SLOT_CONFIG.reduce<ThemeAppUiSlots>((acc, slot) => {
+    const source = normalizeAppUiSlot(effectiveSlotsForMode[slot.key]);
+    acc[slot.key] = {
+      ...source,
+      backgroundColor: normalizeColorForPreview(source.backgroundColor),
+      foregroundColor: normalizeColorForPreview(source.foregroundColor),
+      textColor: normalizeColorForPreview(source.textColor),
+      borderColor: normalizeColorForPreview(source.borderColor),
+      accentColor: normalizeColorForPreview(source.accentColor),
+      iconColor: normalizeColorForPreview(source.iconColor),
+    };
+    return acc;
+  }, {});
 
   return (
     <div className="space-y-3">
@@ -1104,41 +1622,164 @@ function AppUiSlotsEditor({ slots, onSlotFieldChange }: AppUiSlotsEditorProps) {
           Mapping slot runtime `assets.mobile.app_ui` untuk navbar, sidebar, footer, dashboard,
           notification banner, empty state illustration, dan modal accent.
         </p>
+        {isThemeColorLocked ? (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Field warna dikunci dan mengikuti Theme Master. Campaign hanya bisa override field
+              `asset`.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Mode aktif campaign: {activeModeLabel}. Preview otomatis mengikuti pilihan mode aktif.
+            </p>
+          </>
+        ) : null}
       </div>
 
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground">Runtime preview</p>
-        <MobileAppUiRuntimePreview slots={mappedSlots} className="mx-auto max-w-[320px]" />
-      </div>
+      <Tabs
+        value={activeMode}
+        onValueChange={(value) => {
+          if (value === 'light' || value === 'dark') {
+            setActiveMode(value);
+          }
+        }}
+        className="space-y-3"
+      >
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="light" disabled={!modeAvailability.light}>
+            <Sun className="mr-2 h-4 w-4" />
+            Light
+          </TabsTrigger>
+          <TabsTrigger value="dark" disabled={!modeAvailability.dark}>
+            <Moon className="mr-2 h-4 w-4" />
+            Dark
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="space-y-3">
-        {APP_UI_SLOT_CONFIG.map((slot) => {
-          const slotValue = normalizeAppUiSlot(mappedSlots[slot.key]);
-          return (
-            <div key={slot.key} className="space-y-2 rounded-lg border bg-card p-3">
-              <div className="space-y-1">
-                <p className="text-sm font-medium">{slot.label}</p>
-                <p className="text-xs text-muted-foreground">{slot.description}</p>
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">
+            Runtime preview ({activeMode})
+          </p>
+          <MobileAppUiRuntimePreview slots={previewSlots} className="mx-auto max-w-[320px]" />
+        </div>
+
+        <div className="space-y-3">
+          {APP_UI_SLOT_CONFIG.map((slot) => {
+            const overrideSlotValue = normalizeAppUiSlot(mappedSlots[slot.key]);
+            const inheritedSlotValue = normalizeAppUiSlot(effectiveSlotsForMode[slot.key]);
+
+            return (
+              <div key={slot.key} className="space-y-2 rounded-lg border bg-card p-3">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">{slot.label}</p>
+                  <p className="text-xs text-muted-foreground">{slot.description}</p>
+                  {isThemeColorLocked ? (
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary" className="text-[10px]">
+                        Colors: Inherited from Theme Master
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        Asset: Campaign override
+                      </Badge>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  {APP_UI_SLOT_FIELD_CONFIG.map((field) => {
+                    const colorValue = isThemeColorLocked
+                      ? inheritedSlotValue[field.key]
+                      : overrideSlotValue[field.key];
+                    const inputValue = isAppUiColorField(field.key)
+                      ? colorValue || ''
+                      : overrideSlotValue[field.key] || '';
+
+                    return (
+                      <div key={`${slot.key}-${field.key}`} className="space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <Label htmlFor={`${slot.key}-${field.key}`}>{field.label}</Label>
+                          {isAppUiColorField(field.key) ? (
+                            <span className="text-[10px] text-muted-foreground">inherited</span>
+                          ) : null}
+                          {field.key === 'asset' ? (
+                            <span className="text-[10px] text-muted-foreground">override</span>
+                          ) : null}
+                        </div>
+                        {isAppUiColorField(field.key) ? (
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-9 w-9 rounded-md border"
+                              style={{
+                                backgroundColor: getColorPickerValue(
+                                  inputValue,
+                                  field.placeholder
+                                ),
+                              }}
+                              aria-hidden="true"
+                            />
+                            <Input
+                              id={`${slot.key}-${field.key}`}
+                              value={inputValue}
+                              onChange={(event) =>
+                                onSlotFieldChange(slot.key, field.key, event.target.value)
+                              }
+                              onBlur={() => onSlotFieldBlur(slot.key, field.key)}
+                              placeholder={field.placeholder}
+                              className="font-mono"
+                              disabled={isThemeColorLocked}
+                            />
+                            <Input
+                              id={`${slot.key}-${field.key}-picker`}
+                              type="color"
+                              value={getColorPickerValue(inputValue, field.placeholder)}
+                              onChange={(event) =>
+                                onSlotFieldChange(slot.key, field.key, event.target.value)
+                              }
+                              className="h-9 w-12 cursor-pointer p-1"
+                              aria-label={`${slot.label} ${field.label} color picker`}
+                              disabled={isThemeColorLocked}
+                            />
+                          </div>
+                        ) : (
+                          <Input
+                            id={`${slot.key}-${field.key}`}
+                            value={inputValue}
+                            onChange={(event) =>
+                              onSlotFieldChange(slot.key, field.key, event.target.value)
+                            }
+                            onBlur={() => onSlotFieldBlur(slot.key, field.key)}
+                            placeholder={field.placeholder}
+                          />
+                        )}
+                        {field.key === 'asset' ? (
+                          <div className="space-y-1 pt-1">
+                            <p className="text-[10px] text-muted-foreground">
+                              Field ini dapat diubah per campaign, tanpa mengubah warna Theme Master.
+                            </p>
+                            <Input
+                              id={`${slot.key}-asset-upload`}
+                              type="file"
+                              accept="image/*,.svg,image/svg+xml"
+                              onChange={(event) => onSlotAssetFileChange(event, slot.key)}
+                              disabled={isUploadingSlotAsset[slot.key]}
+                            />
+                            {isUploadingSlotAsset[slot.key] ? (
+                              <p className="text-xs text-muted-foreground">
+                                Mengunggah asset slot...
+                              </p>
+                            ) : null}
+                            {!isUploadingSlotAsset[slot.key] && slotAssetFeedback[slot.key] ? (
+                              <p className="text-xs text-destructive">{slotAssetFeedback[slot.key]}</p>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-                {APP_UI_SLOT_FIELD_CONFIG.map((field) => (
-                  <div key={`${slot.key}-${field.key}`} className="space-y-1">
-                    <Label htmlFor={`${slot.key}-${field.key}`}>{field.label}</Label>
-                    <Input
-                      id={`${slot.key}-${field.key}`}
-                      value={slotValue[field.key] || ''}
-                      onChange={(event) =>
-                        onSlotFieldChange(slot.key, field.key, event.target.value)
-                      }
-                      placeholder={field.placeholder}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </Tabs>
     </div>
   );
 }

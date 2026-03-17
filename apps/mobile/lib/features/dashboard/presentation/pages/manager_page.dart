@@ -491,16 +491,18 @@ class _ManagerPageState extends State<ManagerPage> {
   void _showComingSoon(BuildContext context, String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$feature dalam pengembangan'),
+        content: Text(
+          '$feature dalam pengembangan',
+          style: TextStyle(
+            color: RuntimeThemeSlotResolver.notificationBannerText(
+              context,
+              fallback: Colors.white,
+            ),
+          ),
+        ),
         backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
           context,
           fallback: ManagerTheme.pendingOrange,
-        ),
-        contentTextStyle: TextStyle(
-          color: RuntimeThemeSlotResolver.notificationBannerText(
-            context,
-            fallback: Colors.white,
-          ),
         ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -17,10 +17,23 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { loginSchema } from '@/lib/auth/validation';
 import type { LoginFormData } from '@/lib/auth/validation';
 import { QRLogin } from '@/components/auth/qr-login';
+import type { User } from '@/types/auth';
+
+type ApiHealthStatus = {
+  endpoints?: {
+    auth?: boolean;
+  };
+} | null;
+
+interface QRLoginPayload {
+  user: User;
+  token?: string;
+  expiresAt: Date;
+}
 
 interface LoginFormProps {
   onSubmit: (data: LoginFormData) => Promise<void>;
-  onQRLogin: (user: any) => Promise<void>;
+  onQRLogin: (user: QRLoginPayload) => Promise<void>;
   loading?: boolean;
   error?: string | null;
   onForgotPassword?: () => void;
@@ -36,8 +49,8 @@ export function LoginForm({
   defaultUsername,
 }: LoginFormProps) {
   const [loginMode, setLoginMode] = React.useState<'form' | 'qr'>('form');
-  const [isApiOnline, setIsApiOnline] = React.useState(true); // Assume online by default
-  const [apiHealthStatus, setApiHealthStatus] = React.useState<any>(null);
+  const [isApiOnline] = React.useState(true); // Assume online by default
+  const [apiHealthStatus] = React.useState<ApiHealthStatus>(null);
   const shouldReduceMotion = useReducedMotion();
 
   const {
@@ -121,16 +134,16 @@ export function LoginForm({
 
       {/* Login Tabs - Mobile optimized */}
       <Tabs value={loginMode} onValueChange={(v) => setLoginMode(v as 'form' | 'qr')} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl h-11 sm:h-10">
+        <TabsList className="login-tab-list grid w-full grid-cols-2 p-1 rounded-xl h-11 sm:h-10">
           <TabsTrigger 
             value="form" 
-            className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm transition-all text-sm py-2.5 sm:py-1.5 touch-manipulation min-h-[44px] sm:min-h-[36px] flex items-center justify-center"
+            className="login-tab-trigger rounded-lg data-[state=active]:shadow-sm transition-all text-sm py-2.5 sm:py-1.5 touch-manipulation min-h-[44px] sm:min-h-[36px] flex items-center justify-center"
           >
             Form Login
           </TabsTrigger>
           <TabsTrigger 
             value="qr"
-            className="rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:shadow-sm transition-all text-sm py-2.5 sm:py-1.5 touch-manipulation min-h-[44px] sm:min-h-[36px] flex items-center justify-center"
+            className="login-tab-trigger rounded-lg data-[state=active]:shadow-sm transition-all text-sm py-2.5 sm:py-1.5 touch-manipulation min-h-[44px] sm:min-h-[36px] flex items-center justify-center"
           >
             <QrCode className="h-4 w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
             <span className="hidden xs:inline">QR Code</span>
@@ -139,11 +152,17 @@ export function LoginForm({
         </TabsList>
 
         <TabsContent value="form" className="space-y-4 mt-5 sm:mt-6">
+          <motion.div
+            key="form-tab"
+            initial={shouldReduceMotion ? {} : { opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.2 }}
+          >
           <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-5 sm:space-y-5">
             {/* Email Field - Mobile optimized */}
             <div className="space-y-2.5 sm:space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium text-slate-700 dark:text-slate-300 block">
-                Username / Email
+              <Label htmlFor="email" className="text-sm font-medium text-slate-800 dark:text-slate-200 block">
+                Username atau Email
               </Label>
               <Input
                 id="email"
@@ -154,8 +173,8 @@ export function LoginForm({
                 autoCorrect="off"
                 inputMode="email"
                 {...register('email')}
-                className={`w-full h-12 sm:h-11 px-4 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl transition-all focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-base sm:text-sm touch-manipulation placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
-                  errors.email ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''
+                className={`login-input-field w-full h-12 sm:h-11 px-4 rounded-xl transition-all text-base sm:text-sm touch-manipulation border-slate-300 bg-slate-50/50 dark:border-slate-600 dark:bg-slate-800/50 ${
+                  errors.email ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'hover:border-slate-400 dark:hover:border-slate-500'
                 }`}
               />
               {errors.email && (
@@ -168,7 +187,7 @@ export function LoginForm({
 
             {/* Password Field - Mobile optimized */}
             <div className="space-y-2.5 sm:space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium text-slate-700 dark:text-slate-300 block">
+              <Label htmlFor="password" className="text-sm font-medium text-slate-800 dark:text-slate-200 block">
                 Password
               </Label>
               <PasswordInput
@@ -176,8 +195,8 @@ export function LoginForm({
                 placeholder="Masukkan password"
                 autoComplete="current-password"
                 {...register('password')}
-                className={`w-full h-12 sm:h-11 px-4 bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl transition-all focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-base sm:text-sm touch-manipulation placeholder:text-slate-400 dark:placeholder:text-slate-500 ${
-                  errors.password ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : ''
+                className={`login-input-field w-full h-12 sm:h-11 px-4 rounded-xl transition-all text-base sm:text-sm touch-manipulation border-slate-300 bg-slate-50/50 dark:border-slate-600 dark:bg-slate-800/50 ${
+                  errors.password ? 'border-red-500 focus:ring-red-500 focus:border-red-500' : 'hover:border-slate-400 dark:hover:border-slate-500'
                 }`}
               />
               {errors.password && (
@@ -218,7 +237,7 @@ export function LoginForm({
             <Button
               type="submit"
               disabled={loading || isSubmitting || !isApiOnline}
-              className="login-submit-btn mt-6 h-12 w-full rounded-xl bg-emerald-600 text-base font-semibold text-white transition-all hover:bg-emerald-700 active:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-emerald-600 dark:hover:bg-emerald-700 dark:active:bg-emerald-800 sm:mt-4 sm:h-11 sm:text-sm touch-manipulation"
+              className="login-submit-btn mt-6 h-12 w-full rounded-xl text-base font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 sm:mt-4 sm:h-11 sm:text-sm touch-manipulation"
             >
               {loading || isSubmitting ? (
                 <>
@@ -259,13 +278,20 @@ export function LoginForm({
               </div>
             )}
           </form>
+          </motion.div>
         </TabsContent>
 
-        <TabsContent value="qr" className="space-y-4 mt-6">
+        <TabsContent value="qr" className="mt-5 space-y-3 sm:mt-5">
+          <motion.div
+            key="qr-tab"
+            initial={shouldReduceMotion ? {} : { opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.2 }}
+          >
           <QRLogin
             onSuccess={async ({ user, expiresAt }) => {
               const loginData = {
-                user,
+                user: user as User,
                 token: '',
                 expiresAt,
               };
@@ -276,11 +302,12 @@ export function LoginForm({
               toast.error(message);
             }}
           />
+          </motion.div>
         </TabsContent>
       </Tabs>
 
       {/* Role Information - Mobile optimized */}
-      <div className="text-center text-xs sm:text-sm text-slate-500 dark:text-slate-400 px-2">
+      <div className="login-form-help px-2 text-center text-xs sm:text-sm text-slate-600 dark:text-slate-400">
         <p>Peran Anda akan ditentukan secara otomatis berdasarkan akun yang terdaftar.</p>
       </div>
     </motion.div>

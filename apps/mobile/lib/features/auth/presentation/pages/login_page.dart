@@ -1,9 +1,7 @@
 import 'dart:async' show unawaited;
 import 'dart:ui';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -15,7 +13,7 @@ import '../../../../core/di/dependency_injection.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/server_status_service.dart';
 import '../../../../core/theme/login_theme_campaign_service.dart';
-import '../../../../core/theme/theme_mode_service.dart';
+import '../../../../shared/widgets/runtime_network_image.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -26,7 +24,15 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  static const String _autoThemeSelectionValue = '__auto__';
+  static const Key _backgroundImageLayerKey = Key(
+    'loginBackgroundImageLayer',
+  );
+  static const Key _backgroundImageFallbackKey = Key(
+    'loginBackgroundImageFallback',
+  );
+  static const Key _backgroundOverlayLayerKey = Key(
+    'loginBackgroundOverlayLayer',
+  );
 
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
@@ -76,8 +82,7 @@ class _LoginPageState extends State<LoginPage>
         );
 
     _usernameController.addListener(_handleUsernameChanged);
-    unawaited(LoginThemeCampaignService.instance.initialize());
-    unawaited(LoginThemeCampaignService.instance.refreshIfStale());
+    unawaited(_initializeRuntimeTheme());
     _initializeLoginState();
     _animationController.forward();
     PackageInfo.fromPlatform().then((info) {
@@ -93,6 +98,19 @@ class _LoginPageState extends State<LoginPage>
     _passwordController.dispose();
     _animationController.dispose();
     super.dispose();
+  }
+
+  Future<void> _initializeRuntimeTheme() async {
+    final themeService = LoginThemeCampaignService.instance;
+    try {
+      await themeService.initialize();
+      if (!themeService.isAutoMode) {
+        await themeService.setAutoMode();
+      }
+      await themeService.refreshIfStale();
+    } catch (_) {
+      // Keep fallback theme when runtime theme initialization fails.
+    }
   }
 
   String _normalizeUsername(String value) => value.trim().toLowerCase();
@@ -265,12 +283,12 @@ class _LoginPageState extends State<LoginPage>
     return AnimatedBuilder(
       animation: themeService,
       builder: (context, _) {
-        final isDark = Theme.of(context).brightness == Brightness.dark;
         final campaignTokens = _campaignTokens(context);
         final runtimeAssets = themeService.effectiveAssets;
         final mediaQuery = MediaQuery.of(context);
-        final topSpacing = (mediaQuery.size.height * 0.08)
-            .clamp(24.0, 72.0)
+        final brightness = Theme.of(context).brightness;
+        final topSpacing = (mediaQuery.size.height * 0.07)
+            .clamp(20.0, 60.0)
             .toDouble();
 
         return Scaffold(
@@ -278,8 +296,12 @@ class _LoginPageState extends State<LoginPage>
             children: [
               _buildBackgroundBase(campaignTokens),
               if (runtimeAssets.backgroundImage.isNotEmpty)
-                _buildBackgroundImage(runtimeAssets.backgroundImage),
-              _buildBackgroundOverlay(campaignTokens),
+                _buildBackgroundImage(
+                  runtimeAssets.backgroundImage,
+                  campaignTokens,
+                  brightness,
+                ),
+              _buildBackgroundOverlay(campaignTokens, brightness),
               _buildBackgroundDecoration(campaignTokens),
 
               // Main content
@@ -336,7 +358,7 @@ class _LoginPageState extends State<LoginPage>
                                   ScrollViewKeyboardDismissBehavior.onDrag,
                               padding: EdgeInsets.fromLTRB(
                                 24,
-                                16,
+                                12,
                                 24,
                                 24 + mediaQuery.viewInsets.bottom,
                               ),
@@ -352,10 +374,10 @@ class _LoginPageState extends State<LoginPage>
                                         campaignTokens,
                                         runtimeAssets,
                                       ),
-                                      const SizedBox(height: 48),
+                                      const SizedBox(height: 36),
                                       _buildGlassCard(state),
-                                      const SizedBox(height: 24),
-                                      _buildVersionBadge(),
+                                      const SizedBox(height: 20),
+                                      _buildStatusAndVersionMeta(),
                                       const SizedBox(height: 12),
                                       _buildLegalLinks(),
                                     ],
@@ -371,30 +393,6 @@ class _LoginPageState extends State<LoginPage>
                 ),
               ),
 
-              Positioned(
-                top: 8,
-                right: 8,
-                child: SafeArea(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (kDebugMode) ...[
-                        _buildCampaignThemeButton(isDark: isDark),
-                        const SizedBox(width: 8),
-                      ],
-                      _buildThemeModeButton(isDark: isDark),
-                    ],
-                  ),
-                ),
-              ),
-              if (kDebugMode)
-                Positioned(
-                  left: 8,
-                  bottom: 8,
-                  child: SafeArea(
-                    child: _buildRuntimeThemeDiagnosticsBadge(isDark: isDark),
-                  ),
-                ),
             ],
           ),
         );
@@ -402,207 +400,20 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  Widget _buildThemeModeButton({required bool isDark}) {
-    final fgColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final bgColor = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.white.withValues(alpha: 0.8);
-    final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.15)
-        : const Color(0xFFCBD5E1);
-
-    return AnimatedBuilder(
-      animation: ThemeModeService.instance,
-      builder: (context, _) {
-        final isDarkMode = ThemeModeService.instance.isDarkMode;
-        return Container(
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor),
-          ),
-          child: IconButton(
-            onPressed: () {
-              unawaited(ThemeModeService.instance.setDarkMode(!isDarkMode));
-              unawaited(LoginThemeCampaignService.instance.refresh(force: true));
-            },
-            icon: Icon(
-              isDarkMode ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-              color: fgColor,
-            ),
-            tooltip: isDarkMode ? 'Mode gelap aktif' : 'Mode terang aktif',
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCampaignThemeButton({required bool isDark}) {
-    final service = LoginThemeCampaignService.instance;
-    final fgColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final bgColor = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : Colors.white.withValues(alpha: 0.8);
-    final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.15)
-        : const Color(0xFFCBD5E1);
-    final selectedValue = service.isAutoMode
-        ? _autoThemeSelectionValue
-        : service.selectedThemeId;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
-      ),
-      child: PopupMenuButton<String>(
-        tooltip: 'Tema login: ${service.effectiveThemeLabel}',
-        initialValue: selectedValue,
-        onSelected: (value) {
-          if (value == _autoThemeSelectionValue) {
-            unawaited(service.setAutoMode());
-            return;
-          }
-          unawaited(service.setManualTheme(value));
-        },
-        icon: Icon(Icons.palette_outlined, color: fgColor),
-        itemBuilder: (context) {
-          final menuItems = <PopupMenuEntry<String>>[
-            PopupMenuItem<String>(
-              value: _autoThemeSelectionValue,
-              child: Row(
-                children: [
-                  Icon(
-                    service.isAutoMode ? Icons.check : Icons.auto_awesome,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Text('Auto (${service.effectiveThemeLabel})'),
-                ],
-              ),
-            ),
-            const PopupMenuDivider(),
-          ];
-
-          for (final theme in service.availableThemes) {
-            final isActive =
-                !service.isAutoMode && service.selectedThemeId == theme.id;
-            menuItems.add(
-              PopupMenuItem<String>(
-                value: theme.id,
-                child: Row(
-                  children: [
-                    Icon(
-                      isActive
-                          ? Icons.check_circle_outline
-                          : Icons.circle_outlined,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text(theme.label)),
-                  ],
-                ),
-              ),
-            );
-          }
-
-          return menuItems;
-        },
-      ),
-    );
-  }
-
-  Widget _buildRuntimeThemeDiagnosticsBadge({required bool isDark}) {
-    final service = LoginThemeCampaignService.instance;
-    final diagnostics = service.runtimeDiagnostics;
-    final metadata = service.runtimeMetadata;
-    final source = metadata.source;
-    final themeLabel = service.effectiveThemeLabel;
-    final campaignName =
-        (metadata.campaignName ?? '').trim().isEmpty
-        ? '-'
-        : metadata.campaignName!.trim();
-
-    final cacheAge = diagnostics.cacheAge;
-    final cacheAgeLabel = cacheAge == null
-        ? '-'
-        : cacheAge.inMinutes >= 1
-        ? '${cacheAge.inMinutes}m'
-        : '${cacheAge.inSeconds}s';
-    final statusLabel = service.isFetching
-        ? 'fetching'
-        : diagnostics.lastError == null
-        ? 'ok'
-        : 'fallback';
-    final errorLabel = diagnostics.lastError == null
-        ? ''
-        : diagnostics.lastError!.split('\n').first;
-
-    final backgroundColor = isDark
-        ? Colors.black.withValues(alpha: 0.58)
-        : Colors.white.withValues(alpha: 0.92);
-    final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.2)
-        : Colors.black.withValues(alpha: 0.08);
-    final textColor = isDark ? Colors.white : const Color(0xFF0F172A);
-    final mutedColor = textColor.withValues(alpha: 0.76);
-
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 320),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
-      ),
-      child: DefaultTextStyle(
-        style: TextStyle(
-          color: textColor,
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          height: 1.25,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Theme: $themeLabel | $source'),
-            Text(
-              'Campaign: $campaignName',
-              overflow: TextOverflow.ellipsis,
-            ),
-            Text(
-              'Status: $statusLabel | Cache: $cacheAgeLabel',
-              style: TextStyle(color: mutedColor),
-            ),
-            if (errorLabel.isNotEmpty)
-              Text(
-                'Error: $errorLabel',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: const Color(0xFFDC2626)),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildBackgroundDecoration(LoginThemeTokenSet campaignTokens) {
     return Stack(
       children: [
         Positioned(
-          top: -100,
-          right: -100,
+          top: -72,
+          right: -72,
           child: Container(
-            width: 300,
-            height: 300,
+            width: 220,
+            height: 220,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  campaignTokens.buttonGradient.first.withValues(alpha: 0.15),
+                  campaignTokens.buttonGradient.first.withValues(alpha: 0.08),
                   Colors.transparent,
                 ],
               ),
@@ -610,16 +421,16 @@ class _LoginPageState extends State<LoginPage>
           ),
         ),
         Positioned(
-          bottom: -150,
-          left: -100,
+          bottom: -120,
+          left: -72,
           child: Container(
-            width: 400,
-            height: 400,
+            width: 300,
+            height: 300,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(
                 colors: [
-                  campaignTokens.buttonGradient.last.withValues(alpha: 0.1),
+                  campaignTokens.buttonGradient.last.withValues(alpha: 0.07),
                   Colors.transparent,
                 ],
               ),
@@ -644,33 +455,84 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  Widget _buildBackgroundImage(String imageUrl) {
+  Widget _buildBackgroundImage(
+    String imageUrl,
+    LoginThemeTokenSet campaignTokens,
+    Brightness brightness,
+  ) {
     return Positioned.fill(
       child: IgnorePointer(
-        child: _buildRuntimeNetworkImage(
-          imageUrl,
-          fit: BoxFit.cover,
-          loadingFallback: const SizedBox.shrink(),
-          errorFallback: const SizedBox.shrink(),
+        child: Opacity(
+          key: _backgroundImageLayerKey,
+          opacity: _backgroundImageOpacity(brightness),
+          child: RuntimeNetworkImage(
+            imageUrl: imageUrl,
+            fit: BoxFit.cover,
+            loadingFallback: const SizedBox.shrink(),
+            errorFallback: _buildBackgroundImageFallback(campaignTokens),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildBackgroundOverlay(LoginThemeTokenSet campaignTokens) {
+  Widget _buildBackgroundOverlay(
+    LoginThemeTokenSet campaignTokens,
+    Brightness brightness,
+  ) {
     return Positioned.fill(
       child: IgnorePointer(
         child: DecoratedBox(
+          key: _backgroundOverlayLayerKey,
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                campaignTokens.bgGradient.first.withValues(alpha: 0.45),
-                campaignTokens.bgGradient.last.withValues(alpha: 0.65),
+                campaignTokens.bgGradient.first.withValues(
+                  alpha: _backgroundOverlayStartAlpha(brightness),
+                ),
+                campaignTokens.bgGradient.last.withValues(
+                  alpha: _backgroundOverlayEndAlpha(brightness),
+                ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  double _backgroundImageOpacity(Brightness brightness) {
+    return brightness == Brightness.dark ? 0.48 : 0.58;
+  }
+
+  double _backgroundOverlayStartAlpha(Brightness brightness) {
+    return brightness == Brightness.dark ? 0.48 : 0.30;
+  }
+
+  double _backgroundOverlayEndAlpha(Brightness brightness) {
+    return brightness == Brightness.dark ? 0.66 : 0.46;
+  }
+
+  Widget _buildBackgroundImageFallback(LoginThemeTokenSet campaignTokens) {
+    return DecoratedBox(
+      key: _backgroundImageFallbackKey,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            campaignTokens.bgGradient.first.withValues(alpha: 0.24),
+            campaignTokens.bgGradient.last.withValues(alpha: 0.18),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.image_not_supported_outlined,
+          size: 28,
+          color: campaignTokens.textSecondary.withValues(alpha: 0.45),
         ),
       ),
     );
@@ -681,25 +543,27 @@ class _LoginPageState extends State<LoginPage>
     LoginThemeAssetManifest runtimeAssets,
   ) {
     final titleColor = campaignTokens.textPrimary;
-    final subtitleColor = campaignTokens.textSecondary;
+    final subtitleColor =
+        Color.lerp(campaignTokens.textSecondary, titleColor, 0.25) ??
+        campaignTokens.textSecondary;
 
     return Column(
       children: [
         if (runtimeAssets.illustration.isNotEmpty) ...[
           _buildHeaderIllustration(runtimeAssets.illustration),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
         ],
 
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
 
         // Welcome text
         Text(
           'Welcome back 👋',
           style: TextStyle(
-            fontSize: 32,
+            fontSize: 28,
             fontWeight: FontWeight.bold,
             color: titleColor,
-            letterSpacing: -1,
+            letterSpacing: -0.5,
           ),
         ),
 
@@ -708,16 +572,11 @@ class _LoginPageState extends State<LoginPage>
         Text(
           'Masuk ke akun Agrinova kamu',
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 15,
             color: subtitleColor,
-            fontWeight: FontWeight.w400,
+            fontWeight: FontWeight.w500,
           ),
         ),
-
-        const SizedBox(height: 16),
-
-        // Connection status pill
-        _buildConnectionPill(),
       ],
     );
   }
@@ -729,8 +588,8 @@ class _LoginPageState extends State<LoginPage>
         borderRadius: BorderRadius.circular(20),
         child: AspectRatio(
           aspectRatio: 2.5,
-          child: _buildRuntimeNetworkImage(
-            imageUrl,
+          child: RuntimeNetworkImage(
+            imageUrl: imageUrl,
             fit: BoxFit.cover,
             loadingFallback: const DecoratedBox(
               decoration: BoxDecoration(color: Colors.transparent),
@@ -751,153 +610,6 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
-  Widget _buildRuntimeNetworkImage(
-    String imageUrl, {
-    required BoxFit fit,
-    required Widget loadingFallback,
-    required Widget errorFallback,
-  }) {
-    final trimmedUrl = imageUrl.trim();
-    if (trimmedUrl.isEmpty) {
-      return errorFallback;
-    }
-
-    if (_isLikelyRasterAssetUrl(trimmedUrl)) {
-      return _buildRasterNetworkImage(
-        trimmedUrl,
-        fit: fit,
-        loadingFallback: loadingFallback,
-        errorFallback: errorFallback,
-        allowSvgFallback: true,
-      );
-    }
-
-    if (_isSvgAssetUrl(trimmedUrl)) {
-      return _buildSvgNetworkImage(
-        trimmedUrl,
-        fit: fit,
-        loadingFallback: loadingFallback,
-        errorFallback: errorFallback,
-        allowRasterFallback: true,
-      );
-    }
-
-    // Unknown extension/format: try SVG first, then fallback to raster.
-    return _buildSvgNetworkImage(
-      trimmedUrl,
-      fit: fit,
-      loadingFallback: loadingFallback,
-      errorFallback: errorFallback,
-      allowRasterFallback: true,
-    );
-  }
-
-  Widget _buildSvgNetworkImage(
-    String imageUrl, {
-    required BoxFit fit,
-    required Widget loadingFallback,
-    required Widget errorFallback,
-    required bool allowRasterFallback,
-  }) {
-    return SvgPicture.network(
-      imageUrl,
-      fit: fit,
-      placeholderBuilder: (context) => loadingFallback,
-      errorBuilder: (context, error, stackTrace) {
-        if (kDebugMode) {
-          debugPrint(
-            'Login campaign SVG asset failed: $imageUrl | error: $error',
-          );
-        }
-        if (!allowRasterFallback) {
-          return errorFallback;
-        }
-        return _buildRasterNetworkImage(
-          imageUrl,
-          fit: fit,
-          loadingFallback: loadingFallback,
-          errorFallback: errorFallback,
-          allowSvgFallback: false,
-        );
-      },
-    );
-  }
-
-  Widget _buildRasterNetworkImage(
-    String imageUrl, {
-    required BoxFit fit,
-    required Widget loadingFallback,
-    required Widget errorFallback,
-    required bool allowSvgFallback,
-  }) {
-    return Image.network(
-      imageUrl,
-      fit: fit,
-      filterQuality: FilterQuality.medium,
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return loadingFallback;
-      },
-      errorBuilder: (context, error, stackTrace) {
-        if (kDebugMode) {
-          debugPrint(
-            'Login campaign raster asset failed: $imageUrl | error: $error',
-          );
-        }
-        if (!allowSvgFallback) {
-          return errorFallback;
-        }
-        return _buildSvgNetworkImage(
-          imageUrl,
-          fit: fit,
-          loadingFallback: loadingFallback,
-          errorFallback: errorFallback,
-          allowRasterFallback: false,
-        );
-      },
-    );
-  }
-
-  bool _isSvgAssetUrl(String imageUrl) {
-    final normalized = imageUrl.trim().toLowerCase();
-    if (normalized.isEmpty) return false;
-    if (normalized.contains('image/svg+xml')) return true;
-
-    final uri = Uri.tryParse(normalized);
-    if (uri != null) {
-      const svgHintKeys = [
-        'format',
-        'mime',
-        'contentType',
-        'content_type',
-        'fileType',
-        'file_type',
-      ];
-      for (final key in svgHintKeys) {
-        final queryValue = uri.queryParameters[key];
-        if (queryValue != null && queryValue.toLowerCase().contains('svg')) {
-          return true;
-        }
-      }
-    }
-    final path = uri?.path ?? normalized;
-    return path.endsWith('.svg');
-  }
-
-  bool _isLikelyRasterAssetUrl(String imageUrl) {
-    final normalized = imageUrl.trim().toLowerCase();
-    if (normalized.isEmpty || normalized.contains('image/svg+xml')) {
-      return false;
-    }
-    final uri = Uri.tryParse(normalized);
-    final path = uri?.path ?? normalized;
-    return path.endsWith('.png') ||
-        path.endsWith('.jpg') ||
-        path.endsWith('.jpeg') ||
-        path.endsWith('.webp') ||
-        path.endsWith('.gif') ||
-        path.endsWith('.bmp');
-  }
 
   Widget _buildConnectionPill() {
     final Color pillColor;
@@ -1007,14 +719,14 @@ class _LoginPageState extends State<LoginPage>
     final borderColor = campaignTokens.surfaceBorder;
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(22),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Container(
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: glassColor,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(color: borderColor, width: 1),
           ),
           child: Form(
@@ -1036,7 +748,7 @@ class _LoginPageState extends State<LoginPage>
                     return null;
                   },
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 _buildTextField(
                   controller: _passwordController,
                   label: 'Password',
@@ -1052,9 +764,9 @@ class _LoginPageState extends State<LoginPage>
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 _buildRememberDevice(),
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
                 _buildLoginButton(isLoading),
                 if (_biometricAvailable && _biometricEnabled) ...[
                   const SizedBox(height: 24),
@@ -1081,9 +793,11 @@ class _LoginPageState extends State<LoginPage>
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final campaignTokens = _campaignTokens(context);
     final textColor = campaignTokens.textPrimary;
-    final secondaryColor = campaignTokens.textSecondary;
+    final secondaryColor =
+        Color.lerp(campaignTokens.textSecondary, textColor, 0.35) ??
+        campaignTokens.textSecondary;
     final tertiaryColor = campaignTokens.textSecondary.withValues(
-      alpha: isDark ? 0.75 : 0.85,
+      alpha: isDark ? 0.68 : 0.72,
     );
     final inputFill = campaignTokens.inputFill;
     final inputBorder = campaignTokens.inputBorder;
@@ -1142,7 +856,7 @@ class _LoginPageState extends State<LoginPage>
   Widget _buildRememberDevice() {
     final campaignTokens = _campaignTokens(context);
     final borderColor = campaignTokens.inputBorder;
-    final textColor = campaignTokens.textSecondary;
+    final textColor = campaignTokens.textSecondary.withValues(alpha: 0.95);
 
     return Row(
       children: [
@@ -1168,7 +882,7 @@ class _LoginPageState extends State<LoginPage>
         const SizedBox(width: 10),
         Text(
           'Ingat perangkat ini',
-          style: TextStyle(color: textColor, fontSize: 14),
+          style: TextStyle(color: textColor, fontSize: 13.5),
         ),
       ],
     );
@@ -1185,9 +899,9 @@ class _LoginPageState extends State<LoginPage>
         gradient: LinearGradient(colors: campaignTokens.buttonGradient),
         boxShadow: [
           BoxShadow(
-            color: campaignTokens.buttonGradient.first.withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: campaignTokens.buttonGradient.first.withValues(alpha: 0.24),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -1308,10 +1022,73 @@ class _LoginPageState extends State<LoginPage>
     );
   }
 
+  Widget _buildStatusAndVersionMeta() {
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 10,
+      runSpacing: 8,
+      children: [
+        _buildConnectionPill(),
+        _buildVersionBadge(),
+      ],
+    );
+  }
+
   Widget _buildLegalLinks() {
     final mutedColor = _campaignTokens(
       context,
     ).textSecondary.withValues(alpha: 0.8);
+    final isMobileLayout = MediaQuery.sizeOf(context).width < 600;
+
+    final legalIntroText = Text(
+      'Dengan masuk, Anda menyetujui',
+      style: TextStyle(
+        color: mutedColor,
+        fontSize: 11,
+        fontWeight: FontWeight.w400,
+      ),
+    );
+
+    final legalActionRow = Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 2,
+      children: [
+        _buildLegalLinkButton(
+          label: 'Syarat Layanan',
+          onTap: () => _launchExternalUrl(
+            'https://agrinova.kskgroup.web.id/terms-of-service',
+          ),
+        ),
+        Text(
+          'dan',
+          style: TextStyle(
+            color: mutedColor,
+            fontSize: 11,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        _buildLegalLinkButton(
+          label: 'Kebijakan Privasi',
+          onTap: () => _launchExternalUrl(
+            'https://agrinova.kskgroup.web.id/privacy-policy',
+          ),
+        ),
+      ],
+    );
+
+    if (isMobileLayout) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          legalIntroText,
+          const SizedBox(height: 2),
+          legalActionRow,
+        ],
+      );
+    }
 
     return Wrap(
       alignment: WrapAlignment.center,
@@ -1319,14 +1096,7 @@ class _LoginPageState extends State<LoginPage>
       spacing: 8,
       runSpacing: 2,
       children: [
-        Text(
-          'Dengan masuk, Anda menyetujui',
-          style: TextStyle(
-            color: mutedColor,
-            fontSize: 11,
-            fontWeight: FontWeight.w400,
-          ),
-        ),
+        legalIntroText,
         _buildLegalLinkButton(
           label: 'Syarat Layanan',
           onTap: () => _launchExternalUrl(

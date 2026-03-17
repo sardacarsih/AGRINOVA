@@ -211,6 +211,107 @@ func TestTransformThemeAssetForUploadJPEG(t *testing.T) {
 	}
 }
 
+func TestTransformThemeAssetForUploadMobileBackgroundJPEG(t *testing.T) {
+	t.Parallel()
+
+	sourceImage := image.NewRGBA(image.Rect(0, 0, 1800, 3600))
+	for y := 0; y < 3600; y++ {
+		for x := 0; x < 1800; x++ {
+			sourceImage.SetRGBA(x, y, color.RGBA{
+				R: uint8((x + y) % 255),
+				G: uint8((x*2 + y) % 255),
+				B: uint8((x + y*3) % 255),
+				A: 255,
+			})
+		}
+	}
+
+	var source bytes.Buffer
+	if err := jpeg.Encode(&source, sourceImage, &jpeg.Options{Quality: 100}); err != nil {
+		t.Fatalf("failed to build source jpeg: %v", err)
+	}
+	if source.Len() <= themeAssetMaxUploadSize {
+		t.Fatalf("test setup invalid: jpeg size %d should be larger than %d", source.Len(), themeAssetMaxUploadSize)
+	}
+
+	contentType, content, err := transformThemeAssetForUpload("image/jpeg", source.Bytes(), "mobile", "backgroundImage")
+	if err != nil {
+		t.Fatalf("transformThemeAssetForUpload() unexpected error: %v", err)
+	}
+	if contentType != "image/jpeg" {
+		t.Fatalf("contentType = %q, want image/jpeg", contentType)
+	}
+	if len(content) > themeAssetMaxUploadSize {
+		t.Fatalf("optimized size = %d, should be <= %d", len(content), themeAssetMaxUploadSize)
+	}
+}
+
+func TestTransformThemeAssetForUploadAppUiAssetJPEG(t *testing.T) {
+	t.Parallel()
+
+	sourceImage := image.NewRGBA(image.Rect(0, 0, 3200, 2200))
+	for y := 0; y < 2200; y++ {
+		for x := 0; x < 3200; x++ {
+			sourceImage.SetRGBA(x, y, color.RGBA{
+				R: uint8((x*y + y) % 255),
+				G: uint8((x + 2*y) % 255),
+				B: uint8((x + y*3) % 255),
+				A: 255,
+			})
+		}
+	}
+
+	var source bytes.Buffer
+	if err := jpeg.Encode(&source, sourceImage, &jpeg.Options{Quality: 100}); err != nil {
+		t.Fatalf("failed to build source jpeg: %v", err)
+	}
+	if source.Len() <= themeAssetMaxUploadSize {
+		t.Fatalf("test setup invalid: jpeg size %d should be larger than %d", source.Len(), themeAssetMaxUploadSize)
+	}
+
+	contentType, content, err := transformThemeAssetForUpload("image/jpeg", source.Bytes(), "mobile", "appUiAsset")
+	if err != nil {
+		t.Fatalf("transformThemeAssetForUpload() unexpected error: %v", err)
+	}
+	if contentType != "image/jpeg" {
+		t.Fatalf("contentType = %q, want image/jpeg", contentType)
+	}
+	if len(content) > themeAssetMaxUploadSize {
+		t.Fatalf("optimized size = %d, should be <= %d", len(content), themeAssetMaxUploadSize)
+	}
+}
+
+func TestIsValidAppUISlotKey(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		key  string
+		want bool
+	}{
+		{"navbar", true},
+		{"sidebar", true},
+		{"footer", true},
+		{"dashboard", true},
+		{"notification_banner", true},
+		{"empty_state_illustration", true},
+		{"modal_accent", true},
+		{"", false},
+		{"unknown_slot", false},
+		{"../etc/passwd", false},
+		{"navbar/../secret", false},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.key, func(t *testing.T) {
+			t.Parallel()
+			if got := isValidAppUISlotKey(tc.key); got != tc.want {
+				t.Fatalf("isValidAppUISlotKey(%q) = %v, want %v", tc.key, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestTransformThemeAssetForUploadUnsupportedServerOptimization(t *testing.T) {
 	t.Parallel()
 

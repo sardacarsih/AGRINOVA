@@ -4,17 +4,40 @@
   --login-accent: #059669;
   --login-accent-soft: #d1fae5;
   --login-card-border: #34d399;
+  --login-color-bg: #4f8b5d;
+  --login-color-surface: #f7faf8;
+  --login-color-surface-strong: #ffffff;
+  --login-color-text: #1d2b24;
+  --login-color-muted: #5f7368;
+  --login-color-primary: #2aa866;
+  --login-color-primary-foreground: #ffffff;
+  --login-color-accent: #d4a63d;
+  --login-color-border: #d6e2da;
+  --login-color-focus: #2aa866;
+  --login-color-danger: #c53a3a;
+  --login-radius-sm: 10px;
+  --login-radius-md: 12px;
+  --login-radius-lg: 14px;
+  --login-font-body: 16px;
+  --login-font-small: 14px;
+  --login-font-legal: 12px;
   --login-bg-image: none;
+  color: var(--login-color-text);
+  font-size: var(--login-font-body);
 }
 
 [data-page="login"].login-theme-runtime,
 [data-page="login-mobile"].login-theme-runtime {
+  background-color: var(--login-color-bg);
   background-image:
-    linear-gradient(135deg, rgba(15, 23, 42, 0.05), rgba(15, 23, 42, 0.02)),
-    var(--login-bg-image),
-    linear-gradient(135deg, #f8fafc, #f0fdf4);
-  background-size: cover, cover, cover;
-  background-position: center, center, center;
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--login-color-bg) 72%, transparent),
+      color-mix(in srgb, var(--login-color-bg) 60%, transparent)
+    ),
+    var(--login-bg-image);
+  background-size: cover, cover;
+  background-position: center, center;
 }
 
 [data-page="login"] .login-accent-text,
@@ -39,13 +62,18 @@
 
 [data-page="login"] .login-runtime-card,
 [data-page="login-mobile"] .login-runtime-card {
-  border-color: var(--login-card-border) !important;
+  border-color: var(--login-color-border) !important;
+  background-color: var(--login-color-surface-strong) !important;
+  border-radius: var(--login-radius-lg) !important;
+  color: var(--login-color-text) !important;
+  box-shadow: 0 20px 48px -30px rgba(15, 23, 42, 0.45);
 }
 
 [data-page="login"] .login-feature-card,
 [data-page="login-mobile"] .login-feature-card {
-  background-color: color-mix(in srgb, var(--login-accent-soft) 50%, white) !important;
-  border-color: color-mix(in srgb, var(--login-accent) 24%, #cbd5e1) !important;
+  background-color: color-mix(in srgb, var(--login-color-surface) 86%, white) !important;
+  border-color: color-mix(in srgb, var(--login-color-border) 72%, #ffffff) !important;
+  border-radius: var(--login-radius-md) !important;
 }
 
 [data-page="login"] .login-illustration-shell,
@@ -58,9 +86,17 @@
   display: block;
 }
 
+[data-page="login"] .login-feature-card:hover,
+[data-page="login-mobile"] .login-feature-card:hover {
+  background-color: color-mix(in srgb, var(--login-color-surface) 92%, var(--login-accent-soft)) !important;
+  border-color: color-mix(in srgb, var(--login-color-border) 50%, var(--login-accent)) !important;
+  box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--login-accent) 18%, transparent);
+}
+
 [data-page="login"] .login-feature-card:focus-visible,
 [data-page="login-mobile"] .login-feature-card:focus-visible {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--login-accent) 40%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--login-color-focus) 45%, transparent);
+  border-color: var(--login-color-focus) !important;
 }
 
 [data-page="login"] .login-feature-icon,
@@ -72,37 +108,290 @@
 [data-page="login-mobile"] .login-download-panel {
   background-image: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--login-accent-soft) 65%, white),
-    color-mix(in srgb, var(--login-accent-soft) 35%, #f8fafc)
+    color-mix(in srgb, var(--login-color-surface) 80%, white),
+    color-mix(in srgb, var(--login-color-surface) 64%, #f8fafc)
   ) !important;
-  border-color: color-mix(in srgb, var(--login-accent) 28%, #cbd5e1) !important;
+  border-color: color-mix(in srgb, var(--login-color-border) 78%, #ffffff) !important;
+  border-radius: var(--login-radius-lg) !important;
+}
+
+[data-page="login"] .login-secondary-panel {
+  opacity: 0.9;
+  filter: saturate(0.92);
 }
 
 [data-page="login"] .login-download-link,
 [data-page="login-mobile"] .login-download-link {
-  background-color: color-mix(in srgb, var(--login-accent-soft) 20%, white) !important;
-  border-color: color-mix(in srgb, var(--login-accent) 18%, #dbe3ef) !important;
+  background-color: color-mix(in srgb, var(--login-color-surface) 58%, white) !important;
+  border-color: color-mix(in srgb, var(--login-color-border) 72%, #ffffff) !important;
+  border-radius: var(--login-radius-md) !important;
 }
 
 [data-page="login"] .login-download-link:hover,
 [data-page="login-mobile"] .login-download-link:hover {
-  background-color: color-mix(in srgb, var(--login-accent-soft) 40%, white) !important;
+  background-color: color-mix(in srgb, var(--login-color-surface) 75%, white) !important;
 }
 
 [data-page="login"] .login-download-badge,
 [data-page="login-mobile"] .login-download-badge {
-  background-color: color-mix(in srgb, var(--login-accent-soft) 70%, white) !important;
+  background-color: color-mix(in srgb, var(--login-color-surface) 80%, white) !important;
 }
 
 [data-page="login"] .login-submit-btn,
 [data-page="login-mobile"] .login-submit-btn {
-  background-color: var(--login-accent) !important;
-  border-color: var(--login-accent) !important;
+  background-color: var(--login-color-primary) !important;
+  border-color: var(--login-color-primary) !important;
+  color: var(--login-color-primary-foreground) !important;
+  border-radius: var(--login-radius-md) !important;
+}
+
+[data-page="login"] .login-form-content [role="tablist"],
+[data-page="login-mobile"] .login-form-content [role="tablist"] {
+  background-color: color-mix(in srgb, var(--login-color-surface) 82%, white) !important;
+  border-radius: var(--login-radius-md) !important;
+  border: 1px solid color-mix(in srgb, var(--login-color-border) 75%, white) !important;
+}
+
+[data-page="login"] .login-form-content [role="tab"],
+[data-page="login-mobile"] .login-form-content [role="tab"] {
+  color: color-mix(in srgb, var(--login-color-text) 72%, var(--login-color-muted)) !important;
+  border-radius: var(--login-radius-sm) !important;
+  font-weight: 600;
+  opacity: 1;
+}
+
+[data-page="login"] .login-form-content [role="tab"][data-state="active"],
+[data-page="login-mobile"] .login-form-content [role="tab"][data-state="active"] {
+  background-color: color-mix(in srgb, var(--login-accent-soft) 75%, white) !important;
+  color: var(--login-color-text) !important;
+  border: 1.5px solid color-mix(in srgb, var(--login-color-focus) 62%, white) !important;
+  box-shadow: 0 6px 16px -11px color-mix(in srgb, var(--login-color-focus) 60%, #0f172a) !important;
+  font-weight: 700;
+}
+
+[data-page="login"] .login-qr-card,
+[data-page="login-mobile"] .login-qr-card {
+  border-color: color-mix(in srgb, var(--login-color-border) 72%, white) !important;
+  background-color: color-mix(in srgb, var(--login-color-surface) 95%, white) !important;
+  border-radius: var(--login-radius-md) !important;
+}
+
+[data-page="login"] .login-qr-card-content,
+[data-page="login-mobile"] .login-qr-card-content {
+  color: var(--login-color-text) !important;
+}
+
+[data-page="login"] .login-qr-frame,
+[data-page="login-mobile"] .login-qr-frame {
+  background-color: color-mix(in srgb, var(--login-color-surface) 85%, white) !important;
+  border: 1px solid color-mix(in srgb, var(--login-color-border) 70%, white) !important;
+}
+
+[data-page="login"] .login-qr-frame svg,
+[data-page="login-mobile"] .login-qr-frame svg {
+  border-color: color-mix(in srgb, var(--login-color-border) 68%, white) !important;
+  border-radius: var(--login-radius-sm) !important;
+}
+
+[data-page="login"] .login-qr-progress-track,
+[data-page="login-mobile"] .login-qr-progress-track {
+  background-color: color-mix(in srgb, var(--login-color-border) 72%, white) !important;
+}
+
+[data-page="login"] .login-qr-progress-bar,
+[data-page="login-mobile"] .login-qr-progress-bar {
+  background-image: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--login-color-primary) 90%, white),
+    color-mix(in srgb, var(--login-color-accent) 35%, var(--login-color-primary))
+  ) !important;
+}
+
+[data-page="login"] .login-qr-status-icon,
+[data-page="login-mobile"] .login-qr-status-icon {
+  color: color-mix(in srgb, var(--login-color-muted) 70%, var(--login-color-text)) !important;
+}
+
+[data-page="login"] .login-qr-status-generating,
+[data-page="login-mobile"] .login-qr-status-generating {
+  color: color-mix(in srgb, var(--login-color-primary) 82%, var(--login-color-text)) !important;
+}
+
+[data-page="login"] .login-qr-status-pending,
+[data-page="login-mobile"] .login-qr-status-pending {
+  color: color-mix(in srgb, var(--login-color-accent) 80%, var(--login-color-text)) !important;
+}
+
+[data-page="login"] .login-qr-status-approved,
+[data-page="login-mobile"] .login-qr-status-approved {
+  color: color-mix(in srgb, var(--login-color-primary) 88%, #0f766e) !important;
+}
+
+[data-page="login"] .login-qr-status-error,
+[data-page="login-mobile"] .login-qr-status-error {
+  color: var(--login-color-danger) !important;
+}
+
+[data-page="login"] .login-qr-approved,
+[data-page="login-mobile"] .login-qr-approved {
+  border-color: color-mix(in srgb, var(--login-color-primary) 36%, var(--login-color-border)) !important;
+  background-color: color-mix(in srgb, var(--login-color-primary) 18%, white) !important;
+  color: color-mix(in srgb, var(--login-color-text) 88%, var(--login-color-primary)) !important;
+}
+
+[data-page="login"] .login-qr-error,
+[data-page="login-mobile"] .login-qr-error {
+  border: 1px solid color-mix(in srgb, var(--login-color-danger) 28%, var(--login-color-border)) !important;
+  background-color: color-mix(in srgb, var(--login-color-danger) 9%, white) !important;
+  color: color-mix(in srgb, var(--login-color-text) 85%, var(--login-color-danger)) !important;
+}
+
+[data-page="login"] .login-qr-instructions,
+[data-page="login-mobile"] .login-qr-instructions {
+  border: 1px solid color-mix(in srgb, var(--login-accent-soft) 72%, var(--login-color-border)) !important;
+  background-color: color-mix(in srgb, var(--login-accent-soft) 62%, white) !important;
+  color: color-mix(in srgb, var(--login-color-text) 86%, var(--login-color-muted)) !important;
+}
+
+[data-page="login"] .login-qr-instructions svg,
+[data-page="login-mobile"] .login-qr-instructions svg {
+  color: color-mix(in srgb, var(--login-color-primary) 75%, var(--login-color-text)) !important;
+}
+
+[data-page="login"] .login-qr-step,
+[data-page="login-mobile"] .login-qr-step {
+  background-color: color-mix(in srgb, var(--login-color-surface-strong) 78%, var(--login-accent-soft)) !important;
+  border: 1px solid color-mix(in srgb, var(--login-color-border) 75%, white) !important;
+  text-align: center;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+[data-page="login"] .login-qr-timer,
+[data-page="login-mobile"] .login-qr-timer {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--login-color-text) 88%, var(--login-color-primary)) !important;
+}
+
+[data-page="login"] .login-qr-refresh-btn,
+[data-page="login-mobile"] .login-qr-refresh-btn {
+  color: color-mix(in srgb, var(--login-color-text) 72%, var(--login-color-primary)) !important;
+}
+
+[data-page="login"] .login-qr-refresh-btn:hover,
+[data-page="login-mobile"] .login-qr-refresh-btn:hover {
+  background-color: color-mix(in srgb, var(--login-accent-soft) 42%, white) !important;
+}
+
+[data-page="login"] .login-form-content label,
+[data-page="login-mobile"] .login-form-content label {
+  color: var(--login-color-text) !important;
+  font-size: var(--login-font-small) !important;
+}
+
+[data-page="login"] .login-form-content input[type="text"],
+[data-page="login"] .login-form-content input[type="email"],
+[data-page="login"] .login-form-content input[type="password"],
+[data-page="login-mobile"] .login-form-content input[type="text"],
+[data-page="login-mobile"] .login-form-content input[type="email"],
+[data-page="login-mobile"] .login-form-content input[type="password"] {
+  background-color: var(--login-color-surface) !important;
+  border: 1.5px solid color-mix(in srgb, var(--login-color-border) 60%, var(--login-color-muted)) !important;
+  color: var(--login-color-text) !important;
+  border-radius: var(--login-radius-md) !important;
+}
+
+[data-page="login"] .login-form-content input::placeholder,
+[data-page="login-mobile"] .login-form-content input::placeholder {
+  color: color-mix(in srgb, var(--login-color-muted) 88%, var(--login-color-text)) !important;
+}
+
+[data-page="login"] .login-input-field:focus-visible,
+[data-page="login-mobile"] .login-input-field:focus-visible {
+  border-color: var(--login-color-focus) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--login-color-focus) 22%, white) !important;
+}
+
+[data-page="login"] .login-form-content a,
+[data-page="login-mobile"] .login-form-content a {
+  color: var(--login-color-accent) !important;
+}
+
+[data-page="login"] .login-form-content :focus-visible,
+[data-page="login-mobile"] .login-form-content :focus-visible {
+  outline: 2px solid var(--login-color-focus) !important;
+  outline-offset: 2px !important;
+}
+
+[data-page="login"] .login-runtime-card footer,
+[data-page="login-mobile"] .login-runtime-card footer {
+  color: color-mix(in srgb, var(--login-color-text) 62%, white) !important;
+  font-size: calc(var(--login-font-legal) + 1px) !important;
+}
+
+[data-page="login"] .login-footer-link,
+[data-page="login-mobile"] .login-footer-link {
+  color: color-mix(in srgb, var(--login-color-text) 58%, white) !important;
+  font-weight: 500;
+}
+
+[data-page="login"] .login-form-help,
+[data-page="login-mobile"] .login-form-help {
+  color: color-mix(in srgb, var(--login-color-text) 68%, white) !important;
+}
+
+@media (min-width: 1024px) {
+  [data-page="login"] .login-main {
+    padding-block: 20px;
+  }
+
+  [data-page="login"] .login-desktop-panel {
+    max-width: 760px;
+  }
+
+  [data-page="login"] .login-form-section {
+    align-self: start;
+    padding-top: 230px;
+  }
+
+  [data-page="login"] .login-form-wrapper {
+    margin-left: auto;
+  }
+
+  [data-page="login"] .login-card {
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
+  }
+
+  [data-page="login"] .login-download-link {
+    min-height: 38px;
+  }
+}
+
+@media (min-width: 1024px) and (max-height: 860px) {
+  [data-page="login"] .login-secondary-panel {
+    display: none;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1400px) {
+  [data-page="login"] .login-secondary-panel {
+    opacity: 0.82;
+  }
 }
 
 [data-page="login"] .login-submit-btn:hover,
 [data-page="login-mobile"] .login-submit-btn:hover {
-  filter: brightness(0.95);
+  filter: brightness(0.92);
+  box-shadow: 0 4px 14px -4px color-mix(in srgb, var(--login-color-primary) 50%, transparent);
+}
+
+[data-page="login"] .login-submit-btn:active,
+[data-page="login-mobile"] .login-submit-btn:active {
+  filter: brightness(0.88);
+  transform: translateY(1px);
 }
 
 @media (max-width: 480px) {
@@ -202,5 +491,93 @@
   [data-page="login"] .login-layout,
   [data-page="login"] .login-form-shell {
     min-height: auto;
+  }
+
+  [data-page="login"] .login-illustration-shell {
+    max-height: 220px;
+  }
+
+  [data-page="login"] .login-feature-card {
+    padding: 14px;
+  }
+}
+
+/* ── Dark mode refinements ── */
+@media (prefers-color-scheme: dark) {
+  [data-page="login"].login-theme-runtime,
+  [data-page="login-mobile"].login-theme-runtime {
+    background-image:
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--login-color-bg) 78%, transparent),
+        color-mix(in srgb, var(--login-color-bg) 68%, transparent)
+      ),
+      var(--login-bg-image);
+  }
+
+  [data-page="login"] .login-runtime-card,
+  [data-page="login-mobile"] .login-runtime-card {
+    box-shadow: 0 20px 48px -30px rgba(0, 0, 0, 0.7);
+  }
+
+  [data-page="login"] .login-feature-card,
+  [data-page="login-mobile"] .login-feature-card {
+    background-color: color-mix(in srgb, var(--login-color-surface) 20%, #0f172a) !important;
+    border-color: color-mix(in srgb, var(--login-color-border) 30%, #1e293b) !important;
+  }
+
+  [data-page="login"] .login-feature-card:hover,
+  [data-page="login-mobile"] .login-feature-card:hover {
+    background-color: color-mix(in srgb, var(--login-color-surface) 28%, #0f172a) !important;
+    border-color: color-mix(in srgb, var(--login-accent) 30%, #1e293b) !important;
+  }
+
+  [data-page="login"] .login-download-panel,
+  [data-page="login-mobile"] .login-download-panel {
+    background-image: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--login-color-surface) 18%, #0f172a),
+      color-mix(in srgb, var(--login-color-surface) 14%, #020617)
+    ) !important;
+    border-color: color-mix(in srgb, var(--login-color-border) 28%, #1e293b) !important;
+  }
+
+  [data-page="login"] .login-download-link,
+  [data-page="login-mobile"] .login-download-link {
+    background-color: color-mix(in srgb, var(--login-color-surface) 16%, #0f172a) !important;
+    border-color: color-mix(in srgb, var(--login-color-border) 26%, #1e293b) !important;
+  }
+
+  [data-page="login"] .login-download-link:hover,
+  [data-page="login-mobile"] .login-download-link:hover {
+    background-color: color-mix(in srgb, var(--login-color-surface) 24%, #0f172a) !important;
+  }
+
+  [data-page="login"] .login-form-content [role="tablist"],
+  [data-page="login-mobile"] .login-form-content [role="tablist"] {
+    background-color: color-mix(in srgb, var(--login-color-surface) 18%, #0f172a) !important;
+    border-color: color-mix(in srgb, var(--login-color-border) 22%, #1e293b) !important;
+  }
+
+  [data-page="login"] .login-form-content [role="tab"][data-state="active"],
+  [data-page="login-mobile"] .login-form-content [role="tab"][data-state="active"] {
+    background-color: color-mix(in srgb, var(--login-accent-soft) 16%, #1e293b) !important;
+    border-color: color-mix(in srgb, var(--login-color-focus) 32%, #1e293b) !important;
+  }
+
+  [data-page="login"] .login-qr-card,
+  [data-page="login-mobile"] .login-qr-card {
+    background-color: color-mix(in srgb, var(--login-color-surface) 16%, #0f172a) !important;
+    border-color: color-mix(in srgb, var(--login-color-border) 24%, #1e293b) !important;
+  }
+
+  [data-page="login"] .login-form-content input[type="text"],
+  [data-page="login"] .login-form-content input[type="email"],
+  [data-page="login"] .login-form-content input[type="password"],
+  [data-page="login-mobile"] .login-form-content input[type="text"],
+  [data-page="login-mobile"] .login-form-content input[type="email"],
+  [data-page="login-mobile"] .login-form-content input[type="password"] {
+    background-color: color-mix(in srgb, var(--login-color-surface) 14%, #0f172a) !important;
+    border-color: color-mix(in srgb, var(--login-color-border) 32%, #334155) !important;
   }
 }
