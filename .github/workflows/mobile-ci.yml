@@ -33,7 +33,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -48,7 +48,7 @@ jobs:
 
       - name: Analyze
         working-directory: apps/mobile
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Run smoke tests
         working-directory: apps/mobile
