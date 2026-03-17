@@ -179,14 +179,14 @@ func Load() (*Config, error) {
 		config.UploadsDir = "./uploads"
 	}
 
-	// Validate configuration
-	if err := validateConfig(&config); err != nil {
-		return nil, fmt.Errorf("config validation failed: %w", err)
-	}
-
 	// Generate secure secrets if needed
 	if err := ensureSecureSecrets(&config); err != nil {
 		return nil, fmt.Errorf("failed to ensure secure secrets: %w", err)
+	}
+
+	// Validate configuration
+	if err := validateConfig(&config); err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
 	}
 
 	return &config, nil
@@ -195,20 +195,20 @@ func Load() (*Config, error) {
 func loadRuntimeEnv() error {
 	customEnvPath := strings.TrimSpace(os.Getenv("AGRINOVA_ENV_FILE"))
 	if customEnvPath != "" {
-		if err := godotenv.Load(customEnvPath); err != nil {
+		if err := godotenv.Overload(customEnvPath); err != nil {
 			return fmt.Errorf("failed to load AGRINOVA_ENV_FILE '%s': %w", customEnvPath, err)
 		}
 		return nil
 	}
 
 	if isProductionRuntime() {
-		if err := godotenv.Load(productionBackendEnvPath); err != nil {
+		if err := godotenv.Overload(productionBackendEnvPath); err != nil {
 			return fmt.Errorf("production env file is required at '%s': %w", productionBackendEnvPath, err)
 		}
 		return nil
 	}
 
-	_ = godotenv.Load()
+	_ = godotenv.Overload()
 	return nil
 }
 
