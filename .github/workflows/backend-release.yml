@@ -1,9 +1,9 @@
 name: Backend Release
 
 on:
-  release:
-    types:
-      - published
+  push:
+    tags:
+      - "backend/v*"
   workflow_dispatch:
     inputs:
       version:

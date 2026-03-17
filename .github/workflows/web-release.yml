@@ -1,9 +1,9 @@
 name: Web Release
 
 on:
-  release:
-    types:
-      - published
+  push:
+    tags:
+      - "web/v*"
   workflow_dispatch:
     inputs:
       version:
