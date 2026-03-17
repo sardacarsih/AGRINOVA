@@ -247,6 +247,10 @@ models:
     model: agrinovagraphql/server/internal/graphql/domain/auth.WebLoginInput
   WebLoginPayload:
     model: agrinovagraphql/server/internal/graphql/domain/auth.WebLoginPayload
+  ForgotPasswordResponse:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.ForgotPasswordResponse
+  ResetPasswordResponse:
+    model: agrinovagraphql/server/internal/graphql/domain/auth.ResetPasswordResponse
   WebQRSessionStatus:
     model: agrinovagraphql/server/internal/graphql/domain/auth.WebQRSessionStatus
   WebQRLoginSessionPayload:

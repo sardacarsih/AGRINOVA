@@ -160,6 +160,18 @@ type WebLoginPayload struct {
 	Assignments *UserAssignments `json:"assignments,omitempty"`
 }
 
+// ForgotPasswordResponse is generic response for forgot-password flow.
+type ForgotPasswordResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+// ResetPasswordResponse is response for reset-password flow.
+type ResetPasswordResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
 type WebQRSessionStatus string
 
 const (
@@ -219,18 +231,18 @@ type WebQRConsumeInput struct {
 
 // CreateUserInput for creating new users.
 type CreateUserInput struct {
-	Username    string   `json:"username"`
-	Name        string   `json:"name"`
-	Email       *string  `json:"email,omitempty"`
-	PhoneNumber *string  `json:"phoneNumber,omitempty"`
-	Role        UserRole `json:"role"`
+	Username    string      `json:"username"`
+	Name        string      `json:"name"`
+	Email       *string     `json:"email,omitempty"`
+	PhoneNumber *string     `json:"phoneNumber,omitempty"`
+	Role        UserRole    `json:"role"`
 	MandorType  *MandorType `json:"mandorType,omitempty"`
-	CompanyIDs  []string `json:"companyIds"`
-	EstateIDs   []string `json:"estateIds,omitempty"`
-	DivisionIDs []string `json:"divisionIds,omitempty"`
-	ManagerID   *string  `json:"managerId,omitempty"`
-	Password    string   `json:"password"`
-	IsActive    *bool    `json:"isActive,omitempty"`
+	CompanyIDs  []string    `json:"companyIds"`
+	EstateIDs   []string    `json:"estateIds,omitempty"`
+	DivisionIDs []string    `json:"divisionIds,omitempty"`
+	ManagerID   *string     `json:"managerId,omitempty"`
+	Password    string      `json:"password"`
+	IsActive    *bool       `json:"isActive,omitempty"`
 }
 
 // ChangePasswordInput for password changes.
@@ -251,20 +263,20 @@ type ResetPasswordInput struct {
 
 // UpdateUserInput for updating users.
 type UpdateUserInput struct {
-	ID          string    `json:"id"`
-	Username    *string   `json:"username,omitempty"`
-	Name        *string   `json:"name,omitempty"`
-	Email       *string   `json:"email,omitempty"`
-	PhoneNumber *string   `json:"phoneNumber,omitempty"`
-	Avatar      *string   `json:"avatar,omitempty"`
-	Role        *UserRole `json:"role,omitempty"`
+	ID          string      `json:"id"`
+	Username    *string     `json:"username,omitempty"`
+	Name        *string     `json:"name,omitempty"`
+	Email       *string     `json:"email,omitempty"`
+	PhoneNumber *string     `json:"phoneNumber,omitempty"`
+	Avatar      *string     `json:"avatar,omitempty"`
+	Role        *UserRole   `json:"role,omitempty"`
 	MandorType  *MandorType `json:"mandorType,omitempty"`
-	CompanyIDs  []string  `json:"companyIds,omitempty"`
-	EstateIDs   []string  `json:"estateIds,omitempty"`
-	DivisionIDs []string  `json:"divisionIds,omitempty"`
-	ManagerID   *string   `json:"managerId,omitempty"`
-	Password    *string   `json:"password,omitempty"`
-	IsActive    *bool     `json:"isActive,omitempty"`
+	CompanyIDs  []string    `json:"companyIds,omitempty"`
+	EstateIDs   []string    `json:"estateIds,omitempty"`
+	DivisionIDs []string    `json:"divisionIds,omitempty"`
+	ManagerID   *string     `json:"managerId,omitempty"`
+	Password    *string     `json:"password,omitempty"`
+	IsActive    *bool       `json:"isActive,omitempty"`
 }
 
 // UserMutationResponse for mutations returning User.

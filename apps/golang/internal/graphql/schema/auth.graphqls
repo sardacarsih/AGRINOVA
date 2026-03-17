@@ -47,6 +47,23 @@ type WebLoginPayload {
 }
 
 """
+ForgotPasswordResponse represents generic response for forgot-password requests.
+Always generic to prevent user enumeration.
+"""
+type ForgotPasswordResponse {
+  success: Boolean!
+  message: String!
+}
+
+"""
+ResetPasswordResponse represents the response of reset-password attempts.
+"""
+type ResetPasswordResponse {
+  success: Boolean!
+  message: String!
+}
+
+"""
 WebQRSessionStatus represents QR login lifecycle state.
 """
 enum WebQRSessionStatus {
@@ -452,6 +469,10 @@ extend type Query {
 # Auth-specific mutations
 extend type Mutation {
   # Authentication mutations
+  "Request password reset link (always generic response)"
+  forgotPassword(email: String!): ForgotPasswordResponse!
+  "Reset password using one-time token"
+  resetPassword(token: String!, newPassword: String!): ResetPasswordResponse!
   "Web authentication with cookie-based session management"
   webLogin(input: WebLoginInput!): WebLoginPayload!
   "Create short-lived QR session for web login"

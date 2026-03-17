@@ -164,6 +164,16 @@ func (r *mutationResolver) ChangePassword(ctx context.Context, input auth.Change
 	return r.AuthResolver.ChangePassword(ctx, input)
 }
 
+// ForgotPassword is the resolver for the forgotPassword field.
+func (r *mutationResolver) ForgotPassword(ctx context.Context, email string) (*auth.ForgotPasswordResponse, error) {
+	return r.AuthResolver.ForgotPassword(ctx, email)
+}
+
+// ResetPassword is the resolver for the resetPassword field.
+func (r *mutationResolver) ResetPassword(ctx context.Context, token string, newPassword string) (*auth.ResetPasswordResponse, error) {
+	return r.AuthResolver.ResetPassword(ctx, token, newPassword)
+}
+
 // BindDevice is the resolver for the bindDevice field.
 func (r *mutationResolver) BindDevice(ctx context.Context, input auth.DeviceBindInput) (*auth.DeviceResponse, error) {
 	return r.AuthResolver.BindDevice(ctx, input)

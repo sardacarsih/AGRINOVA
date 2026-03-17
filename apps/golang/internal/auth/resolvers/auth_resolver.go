@@ -13,6 +13,7 @@ import (
 	sharedDomain "agrinovagraphql/server/internal/auth/features/shared/domain"
 	webApp "agrinovagraphql/server/internal/auth/features/web/application"
 	webGraphQL "agrinovagraphql/server/internal/auth/features/web/interfaces/graphql"
+	authServices "agrinovagraphql/server/internal/auth/services"
 
 	"agrinovagraphql/server/internal/graphql/domain/auth"
 	"agrinovagraphql/server/internal/graphql/domain/master"
@@ -29,6 +30,7 @@ type AuthResolver struct {
 	// Service Integrations
 	sharedAuthService     *sharedApp.SharedAuthService
 	userManagementService *webApp.UserManagementService
+	forgotPasswordService *authServices.ForgotPasswordService
 }
 
 // NewAuthResolver creates a new auth resolver with optional features resolvers
@@ -45,6 +47,11 @@ func (r *AuthResolver) SetSharedAuthService(s *sharedApp.SharedAuthService) {
 // SetUserManagementService sets user management service
 func (r *AuthResolver) SetUserManagementService(s *webApp.UserManagementService) {
 	r.userManagementService = s
+}
+
+// SetForgotPasswordService sets forgot/reset password service.
+func (r *AuthResolver) SetForgotPasswordService(s *authServices.ForgotPasswordService) {
+	r.forgotPasswordService = s
 }
 
 // SetWebResolver sets the web features resolver (for dependency injection)
@@ -239,6 +246,38 @@ func (r *AuthResolver) UnbindDevice(ctx context.Context, deviceID string) (bool,
 		return success, err
 	}
 	return false, fmt.Errorf("mobile service unavailable")
+}
+
+// ForgotPassword handles forgot-password flow without leaking email existence.
+func (r *AuthResolver) ForgotPassword(ctx context.Context, email string) (*auth.ForgotPasswordResponse, error) {
+	if r.forgotPasswordService == nil {
+		return &auth.ForgotPasswordResponse{
+			Success: true,
+			Message: "Jika email terdaftar, link reset password akan dikirim.",
+		}, nil
+	}
+
+	success, message := r.forgotPasswordService.ForgotPassword(ctx, email)
+	return &auth.ForgotPasswordResponse{
+		Success: success,
+		Message: message,
+	}, nil
+}
+
+// ResetPassword handles reset-password flow by one-time reset token.
+func (r *AuthResolver) ResetPassword(ctx context.Context, token string, newPassword string) (*auth.ResetPasswordResponse, error) {
+	if r.forgotPasswordService == nil {
+		return &auth.ResetPasswordResponse{
+			Success: false,
+			Message: "Token tidak valid atau sudah kedaluwarsa.",
+		}, nil
+	}
+
+	success, message := r.forgotPasswordService.ResetPassword(ctx, token, newPassword)
+	return &auth.ResetPasswordResponse{
+		Success: success,
+		Message: message,
+	}, nil
 }
 
 // Me returns current authenticated user
