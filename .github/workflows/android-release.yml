@@ -43,6 +43,8 @@ env:
   FLUTTER_VERSION: '3.38.9'
   JAVA_VERSION: '17'
   ANDROID_MAX_VERSION_CODE: '2100000000'
+  # Keep Android release validation aligned with Mobile CI strictness rollout.
+  MOBILE_ANALYZE_FLAGS: '--no-fatal-infos'
 
 jobs:
   plan:
@@ -323,7 +325,7 @@ jobs:
 
       - name: Analyze
         working-directory: apps/mobile
-        run: flutter analyze
+        run: flutter analyze $MOBILE_ANALYZE_FLAGS
 
       - name: Run smoke tests
         working-directory: apps/mobile
