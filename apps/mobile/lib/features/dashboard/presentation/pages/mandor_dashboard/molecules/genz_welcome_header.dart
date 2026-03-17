@@ -89,7 +89,7 @@ class GenZWelcomeHeader extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           userName,
-          style: MandorTheme.headingMedium,
+          style: MandorTheme.headingMediumFor(context),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),

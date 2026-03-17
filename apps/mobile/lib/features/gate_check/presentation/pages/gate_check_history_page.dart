@@ -336,7 +336,7 @@ class _GateCheckHistoryPageState extends State<GateCheckHistoryPage> {
     return Column(
       children: [
         // Standard filters from widgets
-        SatpamDashboardWidgets.buildHistoryFilters(),
+        SatpamDashboardWidgets.buildHistoryFilters(context),
         const SizedBox(height: 12),
         
         // Additional advanced filters
