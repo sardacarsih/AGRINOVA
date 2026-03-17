@@ -47,3 +47,17 @@ mutation RefreshToken($input: RefreshTokenInput!) {
     }
   }
 }
+
+mutation ForgotPassword($email: String!) {
+  forgotPassword(email: $email) {
+    success
+    message
+  }
+}
+
+mutation ResetPassword($token: String!, $newPassword: String!) {
+  resetPassword(token: $token, newPassword: $newPassword) {
+    success
+    message
+  }
+}

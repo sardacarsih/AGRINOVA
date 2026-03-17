@@ -1,5 +1,7 @@
 import cookieApiClient, { ApiResponse, CookieLoginResponse } from '@/lib/api/cookie-client';
 import { LoginFormData, User, AuthSession, LoginResponse, UserRole } from '@/types/auth';
+import { apolloClient } from '@/lib/apollo/client';
+import { ForgotPasswordDocument, ResetPasswordDocument } from '@/gql/graphql';
 
 export interface CookieAuthSession {
   user: User;
@@ -624,16 +626,21 @@ class CookieAuthService {
   // Forgot password
   async forgotPassword(email: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await cookieApiClient.post<void>('/auth/forgot-password', { email });
-      
+      const { data } = await apolloClient.mutate({
+        mutation: ForgotPasswordDocument,
+        variables: { email: email.trim() },
+        errorPolicy: 'all',
+        fetchPolicy: 'no-cache',
+      });
+
       return {
-        success: response.success,
-        message: response.message || 'Link reset password telah dikirim ke email Anda.',
+        success: data?.forgotPassword?.success ?? true,
+        message: data?.forgotPassword?.message || 'Jika email terdaftar, link reset password akan dikirim.',
       };
     } catch (error: any) {
       return {
-        success: false,
-        message: error.message || 'Gagal mengirim link reset password.',
+        success: true,
+        message: 'Jika email terdaftar, link reset password akan dikirim.',
       };
     }
   }
@@ -644,20 +651,31 @@ class CookieAuthService {
     message: string;
   }> {
     try {
-      const response = await cookieApiClient.post<void>('/auth/reset-password', {
-        token,
-        password,
-        passwordConfirmation,
+      if (password !== passwordConfirmation) {
+        return {
+          success: false,
+          message: 'Konfirmasi password tidak cocok.',
+        };
+      }
+
+      const { data } = await apolloClient.mutate({
+        mutation: ResetPasswordDocument,
+        variables: {
+          token,
+          newPassword: password,
+        },
+        errorPolicy: 'all',
+        fetchPolicy: 'no-cache',
       });
 
       return {
-        success: response.success,
-        message: response.message || 'Password berhasil direset.',
+        success: data?.resetPassword?.success ?? false,
+        message: data?.resetPassword?.message || 'Token tidak valid atau sudah kedaluwarsa.',
       };
     } catch (error: any) {
       return {
         success: false,
-        message: error.message || 'Gagal reset password.',
+        message: 'Token tidak valid atau sudah kedaluwarsa.',
       };
     }
   }
