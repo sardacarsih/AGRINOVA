@@ -154,15 +154,20 @@ jobs:
           fi
           printf "%s\n" "$body" > gh_release_body.md
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2.6.1
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: "Web v${{ steps.version.outputs.name }}"
-          body_path: gh_release_body.md
-          files: agrinova-web-standalone-${{ steps.version.outputs.name }}.zip
-          draft: false
-          prerelease: false
+      - name: Create or update GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          title="Web v${{ steps.version.outputs.name }}"
+          asset="agrinova-web-standalone-${{ steps.version.outputs.name }}.zip"
+          if gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release edit "$tag" --repo "${{ github.repository }}" --title "$title" --notes-file gh_release_body.md
+            gh release upload "$tag" --repo "${{ github.repository }}" "$asset" --clobber
+          else
+            gh release create "$tag" --repo "${{ github.repository }}" "$asset" --title "$title" --notes-file gh_release_body.md
+          fi
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v7
