@@ -636,7 +636,7 @@ function LoginPageContent() {
                         Digital Plantation Intelligence
                       </p>
                     </div>
-                    {runtimeThemeLabel ? (
+                    {process.env.NODE_ENV === 'development' && runtimeThemeLabel ? (
                       <p className="mt-2 text-xs text-slate-600 dark:text-slate-400">
                         Theme aktif: {runtimeThemeLabel}
                       </p>
