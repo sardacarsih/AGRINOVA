@@ -931,7 +931,7 @@ class _AsistenPageState extends State<AsistenPage> {
     try {
       await _approvalRepository.approveHarvest(id);
       await _notificationStorage.markHarvestApprovalNotificationsAsRead(id);
-      if (mounted) {
+      if (context.mounted && mounted) {
         messenger.showSnackBar(
           SnackBar(
             content: Text(
@@ -960,7 +960,7 @@ class _AsistenPageState extends State<AsistenPage> {
         e,
         action: 'menyetujui data panen',
       );
-      if (mounted) {
+      if (context.mounted && mounted) {
         messenger.showSnackBar(
           SnackBar(
             content: Text(
@@ -1003,7 +1003,7 @@ class _AsistenPageState extends State<AsistenPage> {
     try {
       await _approvalRepository.rejectHarvest(id, reason);
       await _notificationStorage.markHarvestApprovalNotificationsAsRead(id);
-      if (mounted) {
+      if (context.mounted && mounted) {
         messenger.showSnackBar(
           SnackBar(
             content: Text(
@@ -1032,7 +1032,7 @@ class _AsistenPageState extends State<AsistenPage> {
         e,
         action: 'menolak data panen',
       );
-      if (mounted) {
+      if (context.mounted && mounted) {
         messenger.showSnackBar(
           SnackBar(
             content: Text(

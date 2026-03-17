@@ -48,7 +48,7 @@ Mobile analyze strictness is configured in `.github/workflows/mobile-ci.yml` via
 `MOBILE_ANALYZE_FLAGS`.
 
 - Phase 1: `--no-fatal-infos --no-fatal-warnings`
-- Phase 2 (current): `--no-fatal-infos`
-- Phase 3: empty flags (full strict)
+- Phase 2: `--no-fatal-infos`
+- Phase 3 (current): empty flags (full strict)
 
 To tighten gradually, update only `MOBILE_ANALYZE_FLAGS` and monitor failed runs.
