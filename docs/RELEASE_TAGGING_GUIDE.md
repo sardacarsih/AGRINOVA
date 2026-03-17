@@ -41,3 +41,14 @@ Expected result:
 
 - Avoid creating backend and web tags in the same command batch when debugging.
 - If a release run fails, open the failed step log in Actions and rerun only after fixing root cause.
+
+## 5) Mobile CI strictness rollout
+
+Mobile analyze strictness is configured in `.github/workflows/mobile-ci.yml` via
+`MOBILE_ANALYZE_FLAGS`.
+
+- Phase 1 (current): `--no-fatal-infos --no-fatal-warnings`
+- Phase 2: `--no-fatal-infos`
+- Phase 3: empty flags (full strict)
+
+To tighten gradually, update only `MOBILE_ANALYZE_FLAGS` and monitor failed runs.

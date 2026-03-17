@@ -20,6 +20,10 @@ permissions:
 
 env:
   FLUTTER_VERSION: "3.38.9"
+  # Phase 1 (current): non-fatal infos/warnings
+  # Phase 2: --no-fatal-infos
+  # Phase 3: (empty) full strict analyze
+  MOBILE_ANALYZE_FLAGS: "--no-fatal-infos --no-fatal-warnings"
 
 concurrency:
   group: mobile-ci-${{ github.workflow }}-${{ github.ref }}
@@ -36,7 +40,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@v2.21.0
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           channel: stable
@@ -48,7 +52,7 @@ jobs:
 
       - name: Analyze
         working-directory: apps/mobile
-        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+        run: flutter analyze $MOBILE_ANALYZE_FLAGS
 
       - name: Run smoke tests
         working-directory: apps/mobile
