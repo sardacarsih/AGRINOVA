@@ -23,6 +23,8 @@ const normalizeRole = (role: unknown): SupportedRole | null => {
 function StrukturOrganisasiContent() {
   const { user, isLoading } = useAuth();
   const role = React.useMemo(() => normalizeRole(user?.role), [user?.role]);
+  const contentMaxWidthClass = 'max-w-none';
+  const contentPaddingClass = 'px-2 sm:px-3 lg:px-4 py-4 sm:py-5 lg:py-6';
 
   if (isLoading || !user) {
     return <PageLoading />;
@@ -42,6 +44,8 @@ function StrukturOrganisasiContent() {
         title="Struktur Organisasi"
         description="Relasi pelaporan berdasarkan manager_id, termasuk Mandor Panen dan Mandor Perawatan"
         showBreadcrumb={false}
+        contentMaxWidthClass={contentMaxWidthClass}
+        contentPaddingClass={contentPaddingClass}
       >
         {content}
       </AreaManagerDashboardLayout>
@@ -54,6 +58,8 @@ function StrukturOrganisasiContent() {
         title="Struktur Organisasi"
         description="Relasi pelaporan berdasarkan manager_id, termasuk Mandor Panen dan Mandor Perawatan"
         showBreadcrumb={false}
+        contentMaxWidthClass={contentMaxWidthClass}
+        contentPaddingClass={contentPaddingClass}
       >
         {content}
       </ManagerDashboardLayout>
@@ -65,6 +71,8 @@ function StrukturOrganisasiContent() {
       title="Struktur Organisasi"
       description="Relasi pelaporan berdasarkan manager_id, termasuk Mandor Panen dan Mandor Perawatan"
       showBreadcrumb={false}
+      contentMaxWidthClass={contentMaxWidthClass}
+      contentPaddingClass={contentPaddingClass}
     >
       {content}
     </AsistenDashboardLayout>
