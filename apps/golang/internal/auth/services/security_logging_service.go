@@ -30,6 +30,10 @@ const (
 	EventInputValidationFailure   SecurityEventType = "input_validation_failure"
 	EventRateLimitExceeded        SecurityEventType = "rate_limit_exceeded"
 	EventDeviceFingerprintAnomaly SecurityEventType = "device_fingerprint_anomaly"
+	EventPasswordResetRequested   SecurityEventType = "password_reset_requested"
+	EventPasswordResetEmailFailed SecurityEventType = "password_reset_email_failed"
+	EventPasswordResetSuccess     SecurityEventType = "password_reset_success"
+	EventPasswordResetFailed      SecurityEventType = "password_reset_failed"
 )
 
 // SecurityEventSeverity levels
