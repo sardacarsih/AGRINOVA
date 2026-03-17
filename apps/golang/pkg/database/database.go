@@ -90,6 +90,24 @@ func envEnabled(key string) bool {
 	return value == "1" || value == "true" || value == "yes" || value == "on"
 }
 
+func isProductionRuntime() bool {
+	productionEnvKeys := []string{
+		"APP_ENV",
+		"ENVIRONMENT",
+		"ENV",
+		"GO_ENV",
+		"NODE_ENV",
+	}
+
+	for _, key := range productionEnvKeys {
+		if strings.EqualFold(strings.TrimSpace(os.Getenv(key)), "production") {
+			return true
+		}
+	}
+
+	return strings.EqualFold(strings.TrimSpace(os.Getenv("GIN_MODE")), "release")
+}
+
 // Close closes the database connection
 func (ds *DatabaseService) Close() error {
 	sqlDB, err := ds.db.DB()
@@ -120,7 +138,10 @@ func (ds *DatabaseService) Initialize(ctx context.Context) error {
 
 	// Run legacy migrations for backward compatibility
 	if err := AutoMigrate(ds.db); err != nil {
-		log.Printf("Warning: Legacy migrations failed: %v", err)
+		if isProductionRuntime() {
+			return fmt.Errorf("legacy migrations failed in production runtime: %w", err)
+		}
+		log.Printf("Warning: Legacy migrations failed (non-production runtime): %v", err)
 	}
 
 	// Validate and fix relationships
