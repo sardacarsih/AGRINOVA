@@ -20,10 +20,10 @@ permissions:
 
 env:
   FLUTTER_VERSION: "3.38.9"
-  # Phase 1 (current): non-fatal infos/warnings
-  # Phase 2: --no-fatal-infos
+  # Phase 1: non-fatal infos/warnings
+  # Phase 2 (current): --no-fatal-infos
   # Phase 3: (empty) full strict analyze
-  MOBILE_ANALYZE_FLAGS: "--no-fatal-infos --no-fatal-warnings"
+  MOBILE_ANALYZE_FLAGS: "--no-fatal-infos"
 
 concurrency:
   group: mobile-ci-${{ github.workflow }}-${{ github.ref }}
