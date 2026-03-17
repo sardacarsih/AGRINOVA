@@ -427,20 +427,20 @@ class _MandorNotificationPageState extends State<MandorNotificationPage> {
               await _loadNotifications();
               if (!context.mounted || !mounted) return;
               Navigator.of(context).pop();
-              ScaffoldMessenger.of(this.context).showSnackBar(
+              ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
                     'Semua notifikasi telah dihapus',
                     style: TextStyle(
                       color: RuntimeThemeSlotResolver.notificationBannerText(
-                        this.context,
+                        context,
                         fallback: Colors.white,
                       ),
                     ),
                   ),
                   backgroundColor:
                       RuntimeThemeSlotResolver.notificationBannerBackground(
-                        this.context,
+                        context,
                         fallback: MandorTheme.coralRed,
                       ),
                   behavior: SnackBarBehavior.floating,

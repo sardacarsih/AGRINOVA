@@ -78,8 +78,8 @@ Map<String, dynamic> _runtimePayload({
     },
     if (campaignId != null || campaignName != null)
       'campaign': {
-        if (campaignId != null) 'id': campaignId,
-        if (campaignName != null) 'campaign_name': campaignName,
+        'id': ?campaignId,
+        'campaign_name': ?campaignName,
         'updated_at': '2026-03-15T10:00:00Z',
       },
     'token_json': {
@@ -87,8 +87,8 @@ Map<String, dynamic> _runtimePayload({
       'accentSoftColor': '#CCFBF1',
       'loginCardBorder': '#2DD4BF',
     },
-    if (assetManifestJson != null) 'asset_manifest_json': assetManifestJson,
-    if (appUi != null) 'app_ui': appUi,
+    'asset_manifest_json': ?assetManifestJson,
+    'app_ui': ?appUi,
   };
 }
 
