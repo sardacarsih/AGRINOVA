@@ -2,6 +2,8 @@
 // Modern bottom navigation bar with animated items
 
 import 'package:flutter/material.dart';
+import '../../../../../../core/theme/runtime_mobile_theme.dart';
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../mandor_theme.dart';
 
 /// Bottom navigation item data
@@ -65,8 +67,24 @@ class GenZBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final footerBg = RuntimeThemeSlotResolver.footerBackground(
+      context,
+      fallback: MandorTheme.of(context).navBackground,
+    );
+    final footerBorder = RuntimeThemeSlotResolver.footerBorder(
+      context,
+      fallback: Colors.transparent,
+    );
+
     return Container(
-      decoration: MandorTheme.bottomNavDecorationFor(context),
+      decoration: MandorTheme.bottomNavDecorationFor(context).copyWith(
+        color: footerBg,
+        border: RuntimeThemeSlotResolver.hasFooterBorder
+            ? Border(
+                top: BorderSide(color: footerBorder),
+              )
+            : null,
+      ),
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -107,6 +125,16 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
+    final selectedColor = RuntimeThemeSlotResolver.footerSelected(
+      context,
+      fallback: runtimeTheme.primary,
+    );
+    final unselectedColor = RuntimeThemeSlotResolver.footerUnselected(
+      context,
+      fallback: MandorTheme.gray500,
+    );
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -114,8 +142,8 @@ class _NavItem extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected 
-              ? MandorTheme.forestGreen.withValues(alpha: 0.15) 
+          color: isSelected
+              ? selectedColor.withValues(alpha: 0.15)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
@@ -128,9 +156,7 @@ class _NavItem extends StatelessWidget {
               child: Icon(
                 icon,
                 size: 24,
-                color: isSelected 
-                    ? MandorTheme.forestGreen 
-                    : MandorTheme.gray500,
+                color: isSelected ? selectedColor : unselectedColor,
               ),
             ),
             const SizedBox(height: 4),
@@ -139,9 +165,7 @@ class _NavItem extends StatelessWidget {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected 
-                    ? MandorTheme.forestGreen 
-                    : MandorTheme.gray500,
+                color: isSelected ? selectedColor : unselectedColor,
               ),
             ),
           ],
@@ -166,13 +190,18 @@ class GenZFloatingActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     return Container(
       decoration: BoxDecoration(
-        gradient: MandorTheme.primaryGradient,
+        gradient: LinearGradient(
+          colors: [runtimeTheme.primary, runtimeTheme.info],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: MandorTheme.forestGreen.withValues(alpha: 0.4),
+            color: runtimeTheme.primary.withValues(alpha: 0.4),
             blurRadius: 16,
             spreadRadius: -4,
             offset: const Offset(0, 6),

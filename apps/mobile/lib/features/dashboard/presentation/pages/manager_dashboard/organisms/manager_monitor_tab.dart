@@ -11,7 +11,9 @@ import '../../../../../../core/di/service_locator.dart';
 import '../../../../../../core/network/graphql_client_service.dart';
 import '../../../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../../../../core/services/fcm_service.dart';
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../../../../../core/utils/sync_error_message_helper.dart';
+import '../../../../../../shared/widgets/themed_empty_state_illustration.dart';
 import '../../../blocs/manager_dashboard_bloc.dart';
 import '../manager_theme.dart';
 import '../molecules/manager_monitor_components.dart';
@@ -224,29 +226,50 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
     final formattedEfficiency = double.parse(
       _snapshot.efficiency.toStringAsFixed(1),
     );
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: ManagerTheme.primaryPurple,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: Colors.white,
+    );
+    final navbarIcon = RuntimeThemeSlotResolver.navbarIcon(
+      context,
+      fallback: navbarFg,
+    );
 
     return Scaffold(
       backgroundColor: ManagerTheme.scaffoldBackground,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Tim Estate',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: navbarFg, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
+            icon: Icon(Icons.search, color: navbarIcon),
             onPressed: () => _showComingSoon(context, 'Pencarian'),
           ),
           IconButton(
-            icon: const Icon(Icons.filter_list, color: Colors.white),
+            icon: Icon(Icons.filter_list, color: navbarIcon),
             onPressed: _selectDateRange,
           ),
         ],
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: ManagerTheme.headerGradient,
+          decoration: BoxDecoration(
+            color: RuntimeThemeSlotResolver.hasNavbarBackground
+                ? navbarBg
+                : null,
+            gradient: RuntimeThemeSlotResolver.hasNavbarBackground
+                ? null
+                : ManagerTheme.headerGradient,
           ),
         ),
+        backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Colors.transparent
+            : navbarBg,
+        foregroundColor: navbarFg,
         elevation: 0,
       ),
       body: RefreshIndicator(
@@ -376,8 +399,13 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
   }
 
   void _showMemberDetail(BuildContext context, ManagerMonitorMember member) {
+    final modalBg = RuntimeThemeSlotResolver.modalBackground(
+      context,
+      fallback: ManagerTheme.cardBackground,
+    );
     showModalBottomSheet<void>(
       context: context,
+      backgroundColor: modalBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -508,9 +536,21 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
   }
 
   void _showComingSoon(BuildContext context, String message) {
+    final bannerBg = RuntimeThemeSlotResolver.notificationBannerBackground(
+      context,
+      fallback: ManagerTheme.primaryPurple,
+    );
+    final bannerText = RuntimeThemeSlotResolver.notificationBannerText(
+      context,
+      fallback: Colors.white,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$message dalam pengembangan'),
+        content: Text(
+          '$message dalam pengembangan',
+          style: TextStyle(color: bannerText),
+        ),
+        backgroundColor: bannerBg,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -598,9 +638,26 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
   }
 
   Widget _buildBottomNavigation(BuildContext context) {
+    final footerBg = RuntimeThemeSlotResolver.footerBackground(
+      context,
+      fallback: ManagerTheme.cardBackground,
+    );
+    final footerSelected = RuntimeThemeSlotResolver.footerSelected(
+      context,
+      fallback: ManagerTheme.primaryPurple,
+    );
+    final footerUnselected = RuntimeThemeSlotResolver.footerUnselected(
+      context,
+      fallback: ManagerTheme.textMuted,
+    );
+    final footerBorder = RuntimeThemeSlotResolver.footerBorder(
+      context,
+      fallback: Colors.transparent,
+    );
     return Container(
       decoration: BoxDecoration(
-        color: ManagerTheme.cardBackground,
+        color: footerBg,
+        border: Border(top: BorderSide(color: footerBorder)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
@@ -611,10 +668,10 @@ class _ManagerMonitorTabState extends State<ManagerMonitorTab> {
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: ManagerTheme.cardBackground,
+        backgroundColor: footerBg,
         currentIndex: 1, // Monitor is index 1
-        selectedItemColor: ManagerTheme.primaryPurple,
-        unselectedItemColor: ManagerTheme.textMuted,
+        selectedItemColor: footerSelected,
+        unselectedItemColor: footerUnselected,
         selectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.w600,
           fontSize: 12,
@@ -696,10 +753,14 @@ class _MonitorEmptyState extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.groups_2_outlined,
-                size: 56,
-                color: ManagerTheme.textMuted,
+              const ThemedEmptyStateIllustration(
+                height: 120,
+                width: 140,
+                fallback: Icon(
+                  Icons.groups_2_outlined,
+                  size: 56,
+                  color: ManagerTheme.textMuted,
+                ),
               ),
               const SizedBox(height: 10),
               Text(

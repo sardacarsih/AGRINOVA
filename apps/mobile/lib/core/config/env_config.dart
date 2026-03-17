@@ -12,10 +12,7 @@ class EnvConfig {
   EnvConfig._();
 
   // ── Core identifiers ──────────────────────────────────────────────
-  static const String env = String.fromEnvironment(
-    'ENV',
-    defaultValue: 'dev',
-  );
+  static const String env = String.fromEnvironment('ENV', defaultValue: 'dev');
 
   static const String appName = String.fromEnvironment(
     'APP_NAME',
@@ -31,6 +28,11 @@ class EnvConfig {
   static const String wsUrl = String.fromEnvironment(
     'WS_URL',
     defaultValue: 'ws://localhost:8080',
+  );
+
+  static const String webBaseUrl = String.fromEnvironment(
+    'WEB_BASE_URL',
+    defaultValue: '',
   );
 
   static const String graphqlPath = String.fromEnvironment(
@@ -101,6 +103,7 @@ class EnvConfig {
       'ENV': env,
       'APP_NAME': appName,
       'BASE_URL': baseUrl,
+      'WEB_BASE_URL': webBaseUrl,
       'WS_URL': wsUrl,
       'GRAPHQL_PATH': graphqlPath,
       'WS_PATH': wsPath,

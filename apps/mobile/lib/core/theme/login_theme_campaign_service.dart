@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/api_constants.dart';
+import 'theme_mode_service.dart';
 
 typedef LoginThemeCampaignFetcher = Future<Map<String, dynamic>> Function();
 
@@ -87,12 +88,149 @@ class LoginThemeAssetManifest {
   }
 }
 
+class LoginThemeAppUiSlot {
+  final String backgroundColor;
+  final String foregroundColor;
+  final String textColor;
+  final String borderColor;
+  final String accentColor;
+  final String iconColor;
+  final String asset;
+
+  const LoginThemeAppUiSlot({
+    required this.backgroundColor,
+    required this.foregroundColor,
+    required this.textColor,
+    required this.borderColor,
+    required this.accentColor,
+    required this.iconColor,
+    required this.asset,
+  });
+
+  static const LoginThemeAppUiSlot empty = LoginThemeAppUiSlot(
+    backgroundColor: '',
+    foregroundColor: '',
+    textColor: '',
+    borderColor: '',
+    accentColor: '',
+    iconColor: '',
+    asset: '',
+  );
+
+  bool get hasAnyValue =>
+      backgroundColor.isNotEmpty ||
+      foregroundColor.isNotEmpty ||
+      textColor.isNotEmpty ||
+      borderColor.isNotEmpty ||
+      accentColor.isNotEmpty ||
+      iconColor.isNotEmpty ||
+      asset.isNotEmpty;
+
+  LoginThemeAppUiSlot merge(LoginThemeAppUiSlot override) {
+    return LoginThemeAppUiSlot(
+      backgroundColor: override.backgroundColor.isNotEmpty
+          ? override.backgroundColor
+          : backgroundColor,
+      foregroundColor: override.foregroundColor.isNotEmpty
+          ? override.foregroundColor
+          : foregroundColor,
+      textColor: override.textColor.isNotEmpty ? override.textColor : textColor,
+      borderColor: override.borderColor.isNotEmpty
+          ? override.borderColor
+          : borderColor,
+      accentColor: override.accentColor.isNotEmpty
+          ? override.accentColor
+          : accentColor,
+      iconColor: override.iconColor.isNotEmpty ? override.iconColor : iconColor,
+      asset: override.asset.isNotEmpty ? override.asset : asset,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'backgroundColor': backgroundColor,
+      'foregroundColor': foregroundColor,
+      'textColor': textColor,
+      'borderColor': borderColor,
+      'accentColor': accentColor,
+      'iconColor': iconColor,
+      'asset': asset,
+    };
+  }
+}
+
+class LoginThemeAppUi {
+  final LoginThemeAppUiSlot navbar;
+  final LoginThemeAppUiSlot sidebar;
+  final LoginThemeAppUiSlot footer;
+  final LoginThemeAppUiSlot dashboard;
+  final LoginThemeAppUiSlot notificationBanner;
+  final LoginThemeAppUiSlot emptyStateIllustration;
+  final LoginThemeAppUiSlot modalAccent;
+
+  const LoginThemeAppUi({
+    required this.navbar,
+    required this.sidebar,
+    required this.footer,
+    required this.dashboard,
+    required this.notificationBanner,
+    required this.emptyStateIllustration,
+    required this.modalAccent,
+  });
+
+  static const LoginThemeAppUi empty = LoginThemeAppUi(
+    navbar: LoginThemeAppUiSlot.empty,
+    sidebar: LoginThemeAppUiSlot.empty,
+    footer: LoginThemeAppUiSlot.empty,
+    dashboard: LoginThemeAppUiSlot.empty,
+    notificationBanner: LoginThemeAppUiSlot.empty,
+    emptyStateIllustration: LoginThemeAppUiSlot.empty,
+    modalAccent: LoginThemeAppUiSlot.empty,
+  );
+
+  bool get hasAnyValue =>
+      navbar.hasAnyValue ||
+      sidebar.hasAnyValue ||
+      footer.hasAnyValue ||
+      dashboard.hasAnyValue ||
+      notificationBanner.hasAnyValue ||
+      emptyStateIllustration.hasAnyValue ||
+      modalAccent.hasAnyValue;
+
+  LoginThemeAppUi merge(LoginThemeAppUi override) {
+    return LoginThemeAppUi(
+      navbar: navbar.merge(override.navbar),
+      sidebar: sidebar.merge(override.sidebar),
+      footer: footer.merge(override.footer),
+      dashboard: dashboard.merge(override.dashboard),
+      notificationBanner: notificationBanner.merge(override.notificationBanner),
+      emptyStateIllustration: emptyStateIllustration.merge(
+        override.emptyStateIllustration,
+      ),
+      modalAccent: modalAccent.merge(override.modalAccent),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'navbar': navbar.toJson(),
+      'sidebar': sidebar.toJson(),
+      'footer': footer.toJson(),
+      'dashboard': dashboard.toJson(),
+      'notification_banner': notificationBanner.toJson(),
+      'empty_state_illustration': emptyStateIllustration.toJson(),
+      'modal_accent': modalAccent.toJson(),
+    };
+  }
+}
+
 class LoginThemeCampaignTheme {
   final String id;
   final String label;
   final LoginThemeTokenSet lightTokens;
   final LoginThemeTokenSet? darkTokens;
   final LoginThemeAssetManifest assets;
+  final LoginThemeAppUi appUi;
 
   const LoginThemeCampaignTheme({
     required this.id,
@@ -100,6 +238,7 @@ class LoginThemeCampaignTheme {
     required this.lightTokens,
     this.darkTokens,
     this.assets = LoginThemeAssetManifest.empty,
+    this.appUi = LoginThemeAppUi.empty,
   });
 
   Map<String, dynamic> toJson() {
@@ -109,6 +248,7 @@ class LoginThemeCampaignTheme {
       'lightTokens': lightTokens.toJson(),
       'darkTokens': darkTokens?.toJson(),
       'assets': assets.toJson(),
+      'appUi': appUi.toJson(),
     };
   }
 }
@@ -262,9 +402,6 @@ class LoginThemeCampaignService extends ChangeNotifier {
       'login_theme_runtime_metadata_cache';
   static const String _autoModeValue = 'auto';
   static const String _manualModeValue = 'manual';
-  static const Map<String, dynamic> _defaultRuntimeQueryParameters = {
-    'platform': 'mobile',
-  };
 
   final LoginThemeCampaignFetcher? _fetcher;
   final DateTime Function() _now;
@@ -374,6 +511,52 @@ class LoginThemeCampaignService extends ChangeNotifier {
     return theme?.assets ?? LoginThemeAssetManifest.empty;
   }
 
+  LoginThemeAppUi get effectiveAppUi {
+    final theme = _themesById()[effectiveThemeId];
+    final appUi = theme?.appUi ?? LoginThemeAppUi.empty;
+    if (appUi.hasAnyValue) {
+      return appUi;
+    }
+
+    // Backward-compatible fallback from legacy assets.
+    final assets = theme?.assets ?? LoginThemeAssetManifest.empty;
+    return LoginThemeAppUi.empty.merge(
+      LoginThemeAppUi(
+        navbar: LoginThemeAppUiSlot.empty,
+        sidebar: LoginThemeAppUiSlot.empty,
+        footer: LoginThemeAppUiSlot.empty,
+        dashboard: LoginThemeAppUiSlot(
+          backgroundColor: '',
+          foregroundColor: '',
+          textColor: '',
+          borderColor: '',
+          accentColor: '',
+          iconColor: '',
+          asset: assets.backgroundImage,
+        ),
+        notificationBanner: LoginThemeAppUiSlot.empty,
+        emptyStateIllustration: LoginThemeAppUiSlot(
+          backgroundColor: '',
+          foregroundColor: '',
+          textColor: '',
+          borderColor: '',
+          accentColor: '',
+          iconColor: '',
+          asset: assets.illustration,
+        ),
+        modalAccent: LoginThemeAppUiSlot(
+          backgroundColor: '',
+          foregroundColor: '',
+          textColor: '',
+          borderColor: '',
+          accentColor: assets.accentAsset,
+          iconColor: '',
+          asset: '',
+        ),
+      ),
+    );
+  }
+
   Future<void> initialize() async {
     if (_initialized) return;
 
@@ -400,7 +583,14 @@ class LoginThemeCampaignService extends ChangeNotifier {
       await refresh(force: true);
       return;
     }
-    if (_isCacheFresh()) return;
+    if (_isCacheFresh()) {
+      // Keep cache-first behavior, but backfill once when cached runtime theme
+      // still misses the login background asset.
+      if (_shouldBackfillBackgroundAsset()) {
+        unawaited(refresh(force: true));
+      }
+      return;
+    }
 
     if (_config != null) {
       // Keep stale cache visible while refresh runs in the background.
@@ -423,6 +613,10 @@ class LoginThemeCampaignService extends ChangeNotifier {
       final parsedPayload = _parseRemotePayload(payloadMap);
       if (parsedPayload == null) {
         _lastFetchError = 'runtime theme payload rejected';
+        debugPrint(
+          'LoginThemeCampaignService refresh rejected payload '
+          'from ${ApiConstants.baseUrl}$endpointPath',
+        );
         return;
       }
 
@@ -435,6 +629,10 @@ class LoginThemeCampaignService extends ChangeNotifier {
       notifyListeners();
     } catch (error) {
       _lastFetchError = error.toString();
+      debugPrint(
+        'LoginThemeCampaignService refresh failed: $error '
+        '(baseUrl: ${ApiConstants.baseUrl})',
+      );
       // Keep existing cache/fallback on all remote errors.
     } finally {
       _isFetching = false;
@@ -481,9 +679,26 @@ class LoginThemeCampaignService extends ChangeNotifier {
     );
     final response = await client.get(
       endpointPath,
-      queryParameters: _defaultRuntimeQueryParameters,
+      queryParameters: <String, dynamic>{
+        'platform': 'mobile',
+        'mode': _resolveRuntimeModeQueryValue(),
+      },
     );
     return _RuntimeThemeHttpPayload.fromDynamic(response.data).data;
+  }
+
+  String _resolveRuntimeModeQueryValue() {
+    switch (ThemeModeService.instance.themeMode) {
+      case ThemeMode.dark:
+        return 'dark';
+      case ThemeMode.light:
+        return 'light';
+      case ThemeMode.system:
+        return WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+                Brightness.dark
+            ? 'dark'
+            : 'light';
+    }
   }
 
   Map<String, LoginThemeCampaignTheme> _themesById() {
@@ -500,6 +715,11 @@ class LoginThemeCampaignService extends ChangeNotifier {
   bool _isCacheFresh() {
     if (_config == null || _lastFetchedAt == null) return false;
     return _now().difference(_lastFetchedAt!) < _cacheTtl;
+  }
+
+  bool _shouldBackfillBackgroundAsset() {
+    if (_isFetching) return false;
+    return effectiveAssets.backgroundImage.trim().isEmpty;
   }
 
   Future<void> _persistSelection() async {
@@ -625,18 +845,32 @@ class LoginThemeCampaignService extends ChangeNotifier {
     final campaignMap = normalized['campaign'] is Map
         ? Map<String, dynamic>.from(normalized['campaign'] as Map)
         : null;
-    final tokenMap = _extractTokenMap(normalized, themeMap);
+    final lightTokenMap = _extractTokenMapForBrightness(
+      normalized,
+      themeMap,
+      brightness: Brightness.light,
+    );
+    final darkTokenMap = _extractTokenMapForBrightness(
+      normalized,
+      themeMap,
+      brightness: Brightness.dark,
+    );
     final runtimeAssets = _extractRuntimeAssetManifest(normalized, themeMap);
+    final runtimeAppUi = _extractRuntimeAppUi(
+      normalized,
+      themeMap,
+      runtimeAssets: runtimeAssets,
+    );
     final themeLabel = _resolveRuntimeThemeLabel(themeMap, campaignMap);
     final updatedAt = _resolveRuntimeUpdatedAt(themeMap, campaignMap);
     final campaignId = campaignMap?['id']?.toString();
 
     final lightTokens = _buildRuntimeTokenSet(
-      tokenMap,
+      lightTokenMap,
       brightness: Brightness.light,
     );
     final darkTokens = _buildRuntimeTokenSet(
-      tokenMap,
+      darkTokenMap,
       brightness: Brightness.dark,
     );
 
@@ -646,6 +880,7 @@ class LoginThemeCampaignService extends ChangeNotifier {
       lightTokens: lightTokens,
       darkTokens: darkTokens,
       assets: runtimeAssets,
+      appUi: runtimeAppUi,
     );
     final config = LoginThemeCampaignConfig(
       version: _buildRuntimeVersion(
@@ -732,17 +967,102 @@ class LoginThemeCampaignService extends ChangeNotifier {
     return raw;
   }
 
-  Map<String, dynamic> _extractTokenMap(
+  String _resolvePreferredRuntimeModeKey() {
+    return _resolveRuntimeModeQueryValue();
+  }
+
+  String _oppositeModeKey(String modeKey) {
+    return modeKey == 'dark' ? 'light' : 'dark';
+  }
+
+  List<String> _runtimeModeKeysForOverrideMerge() {
+    final preferred = _resolvePreferredRuntimeModeKey();
+    return [_oppositeModeKey(preferred), preferred];
+  }
+
+  Map<String, dynamic>? _resolveModeVariant(
+    Map<String, dynamic> source,
+    String modeKey,
+  ) {
+    final modes = _toMap(source['modes']);
+    final fromModes = _toMap(modes?[modeKey]);
+    if (fromModes != null) {
+      return fromModes;
+    }
+    return _toMap(source[modeKey]);
+  }
+
+  bool _looksLikeTokenMap(Map<String, dynamic> raw) {
+    return raw.containsKey('bgGradient') ||
+        raw.containsKey('surface') ||
+        raw.containsKey('surfaceBorder') ||
+        raw.containsKey('textPrimary') ||
+        raw.containsKey('textSecondary') ||
+        raw.containsKey('inputFill') ||
+        raw.containsKey('inputBorder') ||
+        raw.containsKey('buttonGradient') ||
+        raw.containsKey('buttonText') ||
+        raw.containsKey('link') ||
+        raw.containsKey('accentColor') ||
+        raw.containsKey('accentSoftColor') ||
+        raw.containsKey('loginCardBorder') ||
+        raw.containsKey('lightTokens') ||
+        raw.containsKey('darkTokens');
+  }
+
+  Map<String, dynamic>? _extractTokenMapFromModeVariant(
+    Map<String, dynamic>? modeVariant,
+  ) {
+    if (modeVariant == null) {
+      return null;
+    }
+
+    final tokenCandidates = [
+      _toMap(modeVariant['token_json']),
+      _toMap(modeVariant['tokenJson']),
+      _toMap(modeVariant['tokens']),
+    ];
+    for (final candidate in tokenCandidates) {
+      if (candidate != null) {
+        return candidate;
+      }
+    }
+
+    if (_looksLikeTokenMap(modeVariant)) {
+      return modeVariant;
+    }
+    return null;
+  }
+
+  Map<String, dynamic> _extractTokenMapForBrightness(
     Map<String, dynamic> normalized,
     Map<String, dynamic> themeMap,
+    {required Brightness brightness}
   ) {
-    final tokenRaw = normalized['token_json'] ?? themeMap['token_json'];
-    if (tokenRaw is Map<String, dynamic>) {
-      return tokenRaw;
+    final desiredMode = brightness == Brightness.dark ? 'dark' : 'light';
+    final fallbackMode = _oppositeModeKey(desiredMode);
+
+    final candidates = <Map<String, dynamic>?>[
+      _extractTokenMapFromModeVariant(
+        _resolveModeVariant(normalized, desiredMode),
+      ),
+      _extractTokenMapFromModeVariant(_resolveModeVariant(themeMap, desiredMode)),
+      _toMap(normalized['token_json']),
+      _toMap(themeMap['token_json']),
+      _extractTokenMapFromModeVariant(
+        _resolveModeVariant(normalized, fallbackMode),
+      ),
+      _extractTokenMapFromModeVariant(
+        _resolveModeVariant(themeMap, fallbackMode),
+      ),
+    ];
+
+    for (final candidate in candidates) {
+      if (candidate != null) {
+        return candidate;
+      }
     }
-    if (tokenRaw is Map) {
-      return Map<String, dynamic>.from(tokenRaw);
-    }
+
     return <String, dynamic>{};
   }
 
@@ -750,7 +1070,7 @@ class LoginThemeCampaignService extends ChangeNotifier {
     Map<String, dynamic> normalized,
     Map<String, dynamic> themeMap,
   ) {
-    final candidates = [
+    final baseCandidates = [
       _toMap(normalized['asset_manifest_json']),
       _toMap(normalized['assets_json']),
       _toMap(normalized['assets']),
@@ -759,46 +1079,249 @@ class LoginThemeCampaignService extends ChangeNotifier {
       _toMap(themeMap['assets']),
     ];
 
-    for (final candidate in candidates) {
-      if (candidate == null) continue;
+    final modeVariantCandidates = <Map<String, dynamic>?>[];
+    for (final modeKey in _runtimeModeKeysForOverrideMerge()) {
+      final normalizedMode = _resolveModeVariant(normalized, modeKey);
+      final themeMode = _resolveModeVariant(themeMap, modeKey);
+
+      modeVariantCandidates.addAll([
+        _toMap(normalizedMode?['asset_manifest_json']),
+        _toMap(normalizedMode?['assets_json']),
+        _toMap(normalizedMode?['assets']),
+        normalizedMode,
+        _toMap(themeMode?['asset_manifest_json']),
+        _toMap(themeMode?['assets_json']),
+        _toMap(themeMode?['assets']),
+        themeMode,
+      ]);
+    }
+
+    var backgroundImage = '';
+    var illustration = '';
+    var iconPack = '';
+    var accentAsset = '';
+    var hasAnyAssetValue = false;
+
+    void applyCandidate(Map<String, dynamic>? candidate) {
+      if (candidate == null) return;
 
       final platformAssets = _toMap(candidate['mobile']);
       final webAssets = _toMap(candidate['web']);
-      final backgroundImage = _normalizeAssetUrl(
+      final nextBackgroundImage = _normalizeAssetUrl(
         _readString(platformAssets, 'backgroundImage') ??
             _readString(candidate, 'backgroundImage') ??
             _readString(webAssets, 'backgroundImage'),
       );
-      final illustration = _normalizeAssetUrl(
+      final nextIllustration = _normalizeAssetUrl(
         _readString(platformAssets, 'illustration') ??
             _readString(candidate, 'illustration') ??
             _readString(webAssets, 'illustration'),
       );
-      final iconPack =
+      final nextIconPack =
           _readString(platformAssets, 'iconPack') ??
           _readString(candidate, 'iconPack') ??
-          _readString(webAssets, 'iconPack') ??
-          LoginThemeAssetManifest.empty.iconPack;
-      final accentAsset =
+          _readString(webAssets, 'iconPack');
+      final nextAccentAsset =
           _readString(platformAssets, 'accentAsset') ??
           _readString(candidate, 'accentAsset') ??
-          _readString(webAssets, 'accentAsset') ??
-          LoginThemeAssetManifest.empty.accentAsset;
+          _readString(webAssets, 'accentAsset');
 
-      if (backgroundImage.isNotEmpty ||
-          illustration.isNotEmpty ||
-          iconPack.isNotEmpty ||
-          accentAsset.isNotEmpty) {
-        return LoginThemeAssetManifest(
-          backgroundImage: backgroundImage,
-          illustration: illustration,
-          iconPack: iconPack,
-          accentAsset: accentAsset,
-        );
+      if (nextBackgroundImage.isNotEmpty) {
+        backgroundImage = nextBackgroundImage;
+        hasAnyAssetValue = true;
+      }
+      if (nextIllustration.isNotEmpty) {
+        illustration = nextIllustration;
+        hasAnyAssetValue = true;
+      }
+      if (nextIconPack != null && nextIconPack.isNotEmpty) {
+        iconPack = nextIconPack;
+        hasAnyAssetValue = true;
+      }
+      if (nextAccentAsset != null && nextAccentAsset.isNotEmpty) {
+        accentAsset = nextAccentAsset;
+        hasAnyAssetValue = true;
       }
     }
 
-    return LoginThemeAssetManifest.empty;
+    for (final candidate in baseCandidates) {
+      applyCandidate(candidate);
+    }
+    for (final candidate in modeVariantCandidates) {
+      applyCandidate(candidate);
+    }
+
+    if (!hasAnyAssetValue) {
+      return LoginThemeAssetManifest.empty;
+    }
+
+    return LoginThemeAssetManifest(
+      backgroundImage: backgroundImage,
+      illustration: illustration,
+      iconPack: iconPack.isNotEmpty
+          ? iconPack
+          : LoginThemeAssetManifest.empty.iconPack,
+      accentAsset: accentAsset.isNotEmpty
+          ? accentAsset
+          : LoginThemeAssetManifest.empty.accentAsset,
+    );
+  }
+
+  LoginThemeAppUi _extractRuntimeAppUi(
+    Map<String, dynamic> normalized,
+    Map<String, dynamic> themeMap, {
+    required LoginThemeAssetManifest runtimeAssets,
+  }) {
+    final baseCandidates = [
+      _toMap(normalized['app_ui']),
+      _toMap(normalized['asset_manifest_json']),
+      _toMap(normalized['assets_json']),
+      _toMap(normalized['assets']),
+      _toMap(themeMap['app_ui']),
+      _toMap(themeMap['asset_manifest_json']),
+      _toMap(themeMap['assets_json']),
+      _toMap(themeMap['assets']),
+    ];
+
+    final modeVariantCandidates = <Map<String, dynamic>?>[];
+    for (final modeKey in _runtimeModeKeysForOverrideMerge()) {
+      final normalizedMode = _resolveModeVariant(normalized, modeKey);
+      final themeMode = _resolveModeVariant(themeMap, modeKey);
+
+      modeVariantCandidates.addAll([
+        _toMap(normalizedMode?['app_ui']),
+        _toMap(normalizedMode?['asset_manifest_json']),
+        _toMap(normalizedMode?['assets_json']),
+        _toMap(normalizedMode?['assets']),
+        normalizedMode,
+        _toMap(themeMode?['app_ui']),
+        _toMap(themeMode?['asset_manifest_json']),
+        _toMap(themeMode?['assets_json']),
+        _toMap(themeMode?['assets']),
+        themeMode,
+      ]);
+    }
+
+    var mergedAppUi = LoginThemeAppUi.empty;
+
+    void mergeCandidate(Map<String, dynamic>? candidate) {
+      if (candidate == null) return;
+
+      final platformAssets = _toMap(candidate['mobile']);
+      final webAssets = _toMap(candidate['web']);
+
+      final merged = _parseAppUi(candidate).merge(
+        _parseAppUi(webAssets?['app_ui'] ?? webAssets?['appUi']),
+      ).merge(
+        _parseAppUi(
+          platformAssets?['app_ui'] ?? platformAssets?['appUi'],
+        ),
+      );
+
+      if (merged.hasAnyValue) {
+        mergedAppUi = mergedAppUi.merge(merged);
+      }
+    }
+
+    for (final candidate in baseCandidates) {
+      mergeCandidate(candidate);
+    }
+    for (final candidate in modeVariantCandidates) {
+      mergeCandidate(candidate);
+    }
+
+    return _applyLegacyAppUiFallback(mergedAppUi, runtimeAssets);
+  }
+
+  LoginThemeAppUi _applyLegacyAppUiFallback(
+    LoginThemeAppUi current,
+    LoginThemeAssetManifest runtimeAssets,
+  ) {
+    final fallback = LoginThemeAppUi(
+      navbar: LoginThemeAppUiSlot.empty,
+      sidebar: LoginThemeAppUiSlot.empty,
+      footer: LoginThemeAppUiSlot.empty,
+      dashboard: LoginThemeAppUiSlot(
+        backgroundColor: '',
+        foregroundColor: '',
+        textColor: '',
+        borderColor: '',
+        accentColor: '',
+        iconColor: '',
+        asset: runtimeAssets.backgroundImage,
+      ),
+      notificationBanner: LoginThemeAppUiSlot(
+        backgroundColor: '',
+        foregroundColor: '',
+        textColor: '',
+        borderColor: '',
+        accentColor: runtimeAssets.accentAsset,
+        iconColor: '',
+        asset: '',
+      ),
+      emptyStateIllustration: LoginThemeAppUiSlot(
+        backgroundColor: '',
+        foregroundColor: '',
+        textColor: '',
+        borderColor: '',
+        accentColor: '',
+        iconColor: '',
+        asset: runtimeAssets.illustration,
+      ),
+      modalAccent: LoginThemeAppUiSlot(
+        backgroundColor: '',
+        foregroundColor: '',
+        textColor: '',
+        borderColor: '',
+        accentColor: runtimeAssets.accentAsset,
+        iconColor: '',
+        asset: '',
+      ),
+    );
+
+    return fallback.merge(current);
+  }
+
+  LoginThemeAppUi _parseAppUi(dynamic rawAppUi) {
+    final map = _toMap(rawAppUi);
+    if (map == null) {
+      return LoginThemeAppUi.empty;
+    }
+
+    return LoginThemeAppUi(
+      navbar: _parseAppUiSlot(map['navbar']),
+      sidebar: _parseAppUiSlot(map['sidebar']),
+      footer: _parseAppUiSlot(map['footer']),
+      dashboard: _parseAppUiSlot(map['dashboard']),
+      notificationBanner: _parseAppUiSlot(
+        map['notification_banner'] ?? map['notificationBanner'],
+      ),
+      emptyStateIllustration: _parseAppUiSlot(
+        map['empty_state_illustration'] ?? map['emptyStateIllustration'],
+      ),
+      modalAccent: _parseAppUiSlot(map['modal_accent'] ?? map['modalAccent']),
+    );
+  }
+
+  LoginThemeAppUiSlot _parseAppUiSlot(dynamic rawSlot) {
+    final map = _toMap(rawSlot);
+    if (map == null) {
+      return LoginThemeAppUiSlot.empty;
+    }
+
+    final asset = _normalizeAssetUrl(
+      _readString(map, 'asset') ?? _readString(map, 'illustration'),
+    );
+
+    return LoginThemeAppUiSlot(
+      backgroundColor: _readString(map, 'backgroundColor') ?? '',
+      foregroundColor: _readString(map, 'foregroundColor') ?? '',
+      textColor: _readString(map, 'textColor') ?? '',
+      borderColor: _readString(map, 'borderColor') ?? '',
+      accentColor: _readString(map, 'accentColor') ?? '',
+      iconColor: _readString(map, 'iconColor') ?? '',
+      asset: asset,
+    );
   }
 
   Map<String, dynamic>? _toMap(dynamic raw) {
@@ -825,10 +1348,10 @@ class LoginThemeCampaignService extends ChangeNotifier {
     final value = rawValue.trim();
     if (value.isEmpty) return '';
     final lower = value.toLowerCase();
-    if (lower.startsWith('http://') ||
-        lower.startsWith('https://') ||
-        lower.startsWith('data:') ||
-        lower.startsWith('blob:')) {
+    if (lower.startsWith('data:') || lower.startsWith('blob:')) {
+      return value;
+    }
+    if (lower.startsWith('http://') || lower.startsWith('https://')) {
       return value;
     }
 
@@ -838,7 +1361,7 @@ class LoginThemeCampaignService extends ChangeNotifier {
     final withLeadingSlash = withoutDotPrefix.startsWith('/')
         ? withoutDotPrefix
         : '/$withoutDotPrefix';
-    final baseUrl = ApiConstants.baseUrl.trim();
+    final baseUrl = _resolveAssetBaseUrl(withLeadingSlash).trim();
     if (baseUrl.isEmpty) {
       return withLeadingSlash;
     }
@@ -847,6 +1370,16 @@ class LoginThemeCampaignService extends ChangeNotifier {
         ? baseUrl.substring(0, baseUrl.length - 1)
         : baseUrl;
     return '$normalizedBase$withLeadingSlash';
+  }
+
+  String _resolveAssetBaseUrl(String normalizedPath) {
+    final lowerPath = normalizedPath.toLowerCase();
+    // Mobile runtime assets must resolve against API host so emulator/device
+    // does not depend on WEB_BASE_URL reachability (e.g. localhost:3000).
+    if (lowerPath.startsWith('/uploads/theme-assets/')) {
+      return ApiConstants.baseUrl;
+    }
+    return ApiConstants.baseUrl;
   }
 
   String _resolveRuntimeThemeLabel(
@@ -994,6 +1527,15 @@ class LoginThemeCampaignService extends ChangeNotifier {
         _parseThemeAssets(rawTheme['assets']) ??
         _parseThemeAssets(rawTheme['asset_manifest_json']) ??
         LoginThemeAssetManifest.empty;
+    final assetManifestMap = _toMap(rawTheme['asset_manifest_json']);
+    final assetsMap = _toMap(rawTheme['assets']);
+    final appUi =
+        _parseAppUi(rawTheme['app_ui'])
+            .merge(_parseAppUi(rawTheme['appUi']))
+            .merge(_parseAppUi(assetManifestMap?['app_ui']))
+            .merge(_parseAppUi(assetManifestMap?['appUi']))
+            .merge(_parseAppUi(assetsMap?['app_ui']))
+            .merge(_parseAppUi(assetsMap?['appUi']));
 
     return LoginThemeCampaignTheme(
       id: id,
@@ -1001,6 +1543,7 @@ class LoginThemeCampaignService extends ChangeNotifier {
       lightTokens: lightTokens,
       darkTokens: darkTokens,
       assets: assets,
+      appUi: _applyLegacyAppUiFallback(appUi, assets),
     );
   }
 

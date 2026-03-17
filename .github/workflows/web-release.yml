@@ -1,9 +1,9 @@
 name: Web Release
 
 on:
-  release:
-    types:
-      - published
+  push:
+    tags:
+      - "web/v*"
   workflow_dispatch:
     inputs:
       version:
@@ -30,10 +30,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -44,7 +44,7 @@ jobs:
         run: npm ci
 
       - name: Restore Next.js build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: apps/web/.next/cache
           key: ${{ runner.os }}-web-nextjs-${{ hashFiles('apps/web/package-lock.json') }}-${{ hashFiles('apps/web/**/*.ts', 'apps/web/**/*.tsx', 'apps/web/**/*.js', 'apps/web/**/*.jsx', 'apps/web/**/*.mjs', 'apps/web/**/*.css', 'apps/web/next.config.js', 'apps/web/next.config.mjs') }}
@@ -68,7 +68,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -102,14 +102,14 @@ jobs:
           echo "tag=$tag_name" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
 
       - name: Restore Next.js build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: apps/web/.next/cache
           key: ${{ runner.os }}-web-nextjs-${{ hashFiles('apps/web/package-lock.json') }}-${{ hashFiles('apps/web/**/*.ts', 'apps/web/**/*.tsx', 'apps/web/**/*.js', 'apps/web/**/*.jsx', 'apps/web/**/*.mjs', 'apps/web/**/*.css', 'apps/web/next.config.js', 'apps/web/next.config.mjs') }}
@@ -154,18 +154,23 @@ jobs:
           fi
           printf "%s\n" "$body" > gh_release_body.md
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: "Web v${{ steps.version.outputs.name }}"
-          body_path: gh_release_body.md
-          files: agrinova-web-standalone-${{ steps.version.outputs.name }}.zip
-          draft: false
-          prerelease: false
+      - name: Create or update GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          title="Web v${{ steps.version.outputs.name }}"
+          asset="agrinova-web-standalone-${{ steps.version.outputs.name }}.zip"
+          if gh release view "$tag" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release edit "$tag" --repo "${{ github.repository }}" --title "$title" --notes-file gh_release_body.md
+            gh release upload "$tag" --repo "${{ github.repository }}" "$asset" --clobber
+          else
+            gh release create "$tag" --repo "${{ github.repository }}" "$asset" --title "$title" --notes-file gh_release_body.md
+          fi
 
       - name: Upload workflow artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-release-${{ steps.version.outputs.name }}-${{ github.run_number }}
           path: agrinova-web-standalone-${{ steps.version.outputs.name }}.zip

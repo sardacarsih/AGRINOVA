@@ -2,6 +2,7 @@
 // Pending approvals section with empty state and list
 
 import 'package:flutter/material.dart';
+import '../../../../../../core/theme/runtime_mobile_theme.dart';
 import '../mandor_theme.dart';
 
 /// Pending item data model
@@ -49,6 +50,7 @@ class GenZPendingSection extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -56,7 +58,7 @@ class GenZPendingSection extends StatelessWidget {
         TextButton(
           onPressed: onViewAll,
           style: TextButton.styleFrom(
-            foregroundColor: MandorTheme.forestGreen,
+            foregroundColor: runtimeTheme.success,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -66,14 +68,14 @@ class GenZPendingSection extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: MandorTheme.forestGreen,
+                  color: runtimeTheme.success,
                 ),
               ),
               const SizedBox(width: 4),
               Icon(
                 Icons.arrow_forward_ios,
                 size: 12,
-                color: MandorTheme.forestGreen,
+                color: runtimeTheme.success,
               ),
             ],
           ),
@@ -83,26 +85,30 @@ class GenZPendingSection extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
+    final warning = runtimeTheme.warning;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: MandorTheme.amberOrange.withValues(alpha: 0.08),
+        color: runtimeTheme.cardTint(warning, lightAlpha: 0.08, darkAlpha: 0.18),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: MandorTheme.amberOrange.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: runtimeTheme.borderTint(warning, lightAlpha: 0.2, darkAlpha: 0.34),
+        ),
       ),
       child: Column(
         children: [
           Icon(
             Icons.pending_actions_rounded,
             size: 48,
-            color: MandorTheme.amberOrange.withValues(alpha: 0.5),
+            color: warning.withValues(alpha: 0.6),
           ),
           const SizedBox(height: 12),
           Text(
             'Tidak ada data menunggu persetujuan',
             style: MandorTheme.bodyLargeFor(context).copyWith(
-              color: MandorTheme.amberOrange,
+              color: warning,
             ),
             textAlign: TextAlign.center,
           ),
@@ -110,7 +116,7 @@ class GenZPendingSection extends StatelessWidget {
           Text(
             'Data yang Anda input akan muncul di sini',
             style: MandorTheme.bodySmallFor(context).copyWith(
-              color: MandorTheme.amberOrange.withValues(alpha: 0.7),
+              color: warning.withValues(alpha: 0.75),
             ),
             textAlign: TextAlign.center,
           ),
@@ -142,36 +148,48 @@ class _PendingItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = MandorTheme.of(context);
+    final runtimeTheme = RuntimeMobileTheme.of(context);
+    final warning = runtimeTheme.warning;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: theme.cardBackground.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: MandorTheme.amberOrange.withValues(alpha: 0.2),
+          color: runtimeTheme.borderTint(
+            warning,
+            lightAlpha: 0.2,
+            darkAlpha: 0.34,
+          ),
         ),
       ),
       child: Row(
         children: [
-          _buildIcon(),
+          _buildIcon(context),
           const SizedBox(width: 14),
           Expanded(child: _buildContent(context)),
-          _buildStatusBadge(),
+          _buildStatusBadge(context),
         ],
       ),
     );
   }
 
-  Widget _buildIcon() {
+  Widget _buildIcon(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
+    final warning = runtimeTheme.warning;
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: MandorTheme.amberOrange.withValues(alpha: 0.15),
+        color: runtimeTheme.iconTint(
+          warning,
+          lightAlpha: 0.16,
+          darkAlpha: 0.24,
+        ),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(
         item.icon ?? Icons.pending_rounded,
-        color: MandorTheme.amberOrange,
+        color: warning,
         size: 22,
       ),
     );
@@ -198,11 +216,17 @@ class _PendingItemCard extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusBadge() {
+  Widget _buildStatusBadge(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
+    final warning = runtimeTheme.warning;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: MandorTheme.amberOrange.withValues(alpha: 0.15),
+        color: runtimeTheme.iconTint(
+          warning,
+          lightAlpha: 0.16,
+          darkAlpha: 0.24,
+        ),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
@@ -210,7 +234,7 @@ class _PendingItemCard extends StatelessWidget {
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w700,
-          color: MandorTheme.amberOrange,
+          color: warning,
           letterSpacing: 0.5,
         ),
       ),

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -67,6 +68,11 @@ func main() {
 	uploadsDir, err := resolveUploadsDir(cfg.UploadsDir)
 	if err != nil {
 		log.Fatal("Failed to initialize uploads directory: %v", err)
+	}
+	if copied, copyErr := seedBundledThemeAssets(uploadsDir); copyErr != nil {
+		log.Warn("Theme asset seed skipped: %v", copyErr)
+	} else if copied > 0 {
+		log.Info("Seeded %d bundled theme asset(s) into uploads directory", copied)
 	}
 
 	// Set Gin mode
@@ -284,9 +290,10 @@ func main() {
 		resolver.HandleProfileAvatarUpload,
 	)
 
-	// Static file serving for uploads
-	// This allows access to uploaded photos (e.g., http://localhost:8080/uploads/satpam_photos/file.jpg)
-	router.Static("/uploads", uploadsDir)
+	// Static file serving for uploads with tighter headers.
+	uploadsGroup := router.Group("/uploads")
+	uploadsGroup.Use(uploadStaticHeadersMiddleware())
+	uploadsGroup.StaticFS("/", gin.Dir(uploadsDir, false))
 
 	// ============================
 	// External Integration Routes (API Key auth)
@@ -309,7 +316,7 @@ func main() {
 		webAuthMiddleware.WebSessionMiddleware(),
 		webAuthMiddleware.GraphQLContextMiddleware(),
 	)
-	routes.SetupThemeCampaignRoutes(themeGroup, database.GetDB())
+	routes.SetupThemeCampaignRoutes(themeGroup, database.GetDB(), uploadsDir)
 
 	publicThemeGroup := router.Group("/api/public")
 	routes.SetupPublicThemeCampaignRoutes(publicThemeGroup, database.GetDB())
@@ -625,4 +632,135 @@ func securityHeadersMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func uploadStaticHeadersMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		c.Header("Content-Security-Policy", "default-src 'none'; img-src 'self' data:; script-src 'none'; style-src 'none'; object-src 'none'; frame-ancestors 'none'")
+		c.Header("Cross-Origin-Resource-Policy", "same-origin")
+		c.Next()
+	}
+}
+
+func seedBundledThemeAssets(uploadsDir string) (int, error) {
+	sourceDir, err := findBundledThemeAssetSourceDir()
+	if err != nil {
+		return 0, err
+	}
+
+	targetRoot := filepath.Join(uploadsDir, "theme-assets")
+	if err := os.MkdirAll(targetRoot, 0755); err != nil {
+		return 0, fmt.Errorf("create theme asset target directory: %w", err)
+	}
+
+	copied := 0
+	err = filepath.Walk(sourceDir, func(currentPath string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+
+		relativePath, err := filepath.Rel(sourceDir, currentPath)
+		if err != nil {
+			return err
+		}
+		if relativePath == "." {
+			return nil
+		}
+		if strings.HasPrefix(relativePath, "..") {
+			return fmt.Errorf("invalid relative path in theme assets: %s", relativePath)
+		}
+
+		destinationPath := filepath.Join(targetRoot, relativePath)
+		if info.IsDir() {
+			return os.MkdirAll(destinationPath, 0755)
+		}
+		if !info.Mode().IsRegular() {
+			return nil
+		}
+
+		if _, err := os.Stat(destinationPath); err == nil {
+			return nil
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+
+		if err := copyFile(currentPath, destinationPath, info.Mode().Perm()); err != nil {
+			return err
+		}
+		copied++
+		return nil
+	})
+	if err != nil {
+		return copied, fmt.Errorf("seed theme assets: %w", err)
+	}
+
+	return copied, nil
+}
+
+func findBundledThemeAssetSourceDir() (string, error) {
+	candidates := []string{
+		filepath.Join("apps", "web", "public", "theme-assets"),
+		filepath.Join("..", "web", "public", "theme-assets"),
+		filepath.Join("..", "..", "apps", "web", "public", "theme-assets"),
+	}
+
+	if executablePath, err := os.Executable(); err == nil {
+		executableDir := filepath.Dir(executablePath)
+		candidates = append(
+			candidates,
+			filepath.Join(executableDir, "apps", "web", "public", "theme-assets"),
+			filepath.Join(executableDir, "..", "web", "public", "theme-assets"),
+		)
+	}
+
+	seen := make(map[string]struct{}, len(candidates))
+	for _, candidate := range candidates {
+		absolutePath, err := filepath.Abs(candidate)
+		if err != nil {
+			continue
+		}
+		if _, exists := seen[absolutePath]; exists {
+			continue
+		}
+		seen[absolutePath] = struct{}{}
+
+		info, err := os.Stat(absolutePath)
+		if err != nil || !info.IsDir() {
+			continue
+		}
+		return absolutePath, nil
+	}
+
+	return "", fmt.Errorf("bundled theme asset source directory not found")
+}
+
+func copyFile(sourcePath string, destinationPath string, mode os.FileMode) error {
+	sourceFile, err := os.Open(sourcePath)
+	if err != nil {
+		return fmt.Errorf("open source file: %w", err)
+	}
+	defer sourceFile.Close()
+
+	destinationDir := filepath.Dir(destinationPath)
+	if err := os.MkdirAll(destinationDir, 0755); err != nil {
+		return fmt.Errorf("create destination directory: %w", err)
+	}
+
+	destinationFile, err := os.OpenFile(destinationPath, os.O_CREATE|os.O_WRONLY|os.O_EXCL, mode)
+	if err != nil {
+		if os.IsExist(err) {
+			return nil
+		}
+		return fmt.Errorf("open destination file: %w", err)
+	}
+	defer destinationFile.Close()
+
+	if _, err := io.Copy(destinationFile, sourceFile); err != nil {
+		return fmt.Errorf("copy file content: %w", err)
+	}
+
+	return nil
 }

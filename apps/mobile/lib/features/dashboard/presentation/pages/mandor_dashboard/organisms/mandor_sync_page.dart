@@ -7,6 +7,7 @@ import '../../../../../../core/di/dependency_injection.dart';
 import '../../../../../../core/services/connectivity_service.dart';
 import '../../../../../../core/services/mandor_master_sync_service.dart';
 import '../../../../../../core/services/harvest_sync_service.dart';
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../../../../../core/utils/sync_error_message_helper.dart';
 import '../mandor_components.dart';
 
@@ -116,6 +117,14 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
   @override
   Widget build(BuildContext context) {
     final themeColors = MandorTheme.of(context);
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: themeColors.cardBackground,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: themeColors.headingColor,
+    );
 
     final content = Container(
       decoration: BoxDecoration(
@@ -208,8 +217,13 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
           'Sinkronisasi Data',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
-        backgroundColor: themeColors.cardBackground,
-        foregroundColor: themeColors.headingColor,
+        flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Container(decoration: BoxDecoration(color: navbarBg))
+            : null,
+        backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Colors.transparent
+            : navbarBg,
+        foregroundColor: navbarFg,
         elevation: 0,
       ),
       body: content,
@@ -887,6 +901,14 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
   }
 
   void _showSnackBar(String message, {required bool isSuccess}) {
+    final bannerBg = RuntimeThemeSlotResolver.notificationBannerBackground(
+      context,
+      fallback: isSuccess ? MandorTheme.forestGreen : MandorTheme.coralRed,
+    );
+    final bannerText = RuntimeThemeSlotResolver.notificationBannerText(
+      context,
+      fallback: Colors.white,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -895,16 +917,16 @@ class _MandorSyncPageState extends State<MandorSyncPage> {
               isSuccess
                   ? Icons.check_circle_rounded
                   : Icons.error_outline_rounded,
-              color: Colors.white,
+              color: bannerText,
               size: 20,
             ),
             const SizedBox(width: 10),
-            Expanded(child: Text(message)),
+            Expanded(
+              child: Text(message, style: TextStyle(color: bannerText)),
+            ),
           ],
         ),
-        backgroundColor: isSuccess
-            ? MandorTheme.forestGreen
-            : MandorTheme.coralRed,
+        backgroundColor: bannerBg,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),

@@ -177,6 +177,222 @@ func TestResolveRuntimeThemeReturnsBaseThemeWhenNoActiveCampaign(t *testing.T) {
 	}
 }
 
+func TestResolveRuntimeThemeKeepsThemeColorsAndAllowsCampaignAppUIAssetOverride(t *testing.T) {
+	service, db := newRuntimeThemeTestService(t)
+
+	var campaignTheme Theme
+	if err := db.First(&campaignTheme, "id = ?", testCampaignThemeID).Error; err != nil {
+		t.Fatalf("db.First(campaignTheme) error: %v", err)
+	}
+	campaignTheme.AssetManifestJSON = JSONMap{
+		"app_ui": JSONMap{
+			"navbar": JSONMap{
+				"backgroundColor": "#0F172A",
+				"foregroundColor": "#FFFFFF",
+			},
+			"footer": JSONMap{
+				"backgroundColor": "#111827",
+				"foregroundColor": "#9CA3AF",
+				"borderColor":     "#1F2937",
+			},
+		},
+	}
+	if err := db.Save(&campaignTheme).Error; err != nil {
+		t.Fatalf("db.Save(campaignTheme) error: %v", err)
+	}
+
+	now := time.Now().UTC()
+	startAt := now.Add(-30 * time.Minute)
+	endAt := now.Add(30 * time.Minute)
+
+	campaign := ThemeCampaign{
+		ID:               "00000000-0000-0000-0000-000000000205",
+		ThemeID:          testCampaignThemeID,
+		CampaignGroupKey: "group-mobile-app-ui",
+		CampaignName:     "Mobile App UI Campaign",
+		Enabled:          true,
+		StartAt:          &startAt,
+		EndAt:            &endAt,
+		Priority:         150,
+		LightModeEnabled: true,
+		DarkModeEnabled:  true,
+		AssetsJSON: JSONMap{
+			"mobile": JSONMap{
+				"app_ui": JSONMap{
+					"navbar": JSONMap{
+						"iconColor": "#A7F3D0",
+					},
+					"footer": JSONMap{
+						"accentColor": "#34D399",
+					},
+					"empty_state_illustration": JSONMap{
+						"asset": "https://example.com/campaign-empty-state.png",
+					},
+				},
+			},
+		},
+		UpdatedBy: "tester",
+	}
+	if err := db.Create(&campaign).Error; err != nil {
+		t.Fatalf("db.Create(campaign) error: %v", err)
+	}
+
+	payload, err := service.ResolveRuntimeTheme(context.Background(), RuntimeThemeContext{
+		Platform: "mobile",
+		Mode:     "light",
+	})
+	if err != nil {
+		t.Fatalf("ResolveRuntimeTheme(mobile,light) error: %v", err)
+	}
+
+	if payload.Source != "ACTIVE_CAMPAIGN" {
+		t.Fatalf("ResolveRuntimeTheme(mobile,light) source = %q, want %q", payload.Source, "ACTIVE_CAMPAIGN")
+	}
+
+	appUI := normalizeAppUISlots(payload.AppUI)
+	navbarRaw, ok := appUI["navbar"]
+	if !ok {
+		t.Fatalf("payload.AppUI missing navbar slot")
+	}
+	navbar, ok := toInterfaceMap(navbarRaw)
+	if !ok {
+		t.Fatalf("payload.AppUI navbar is not an object")
+	}
+
+	footerRaw, ok := appUI["footer"]
+	if !ok {
+		t.Fatalf("payload.AppUI missing footer slot")
+	}
+	footer, ok := toInterfaceMap(footerRaw)
+	if !ok {
+		t.Fatalf("payload.AppUI footer is not an object")
+	}
+	emptyStateRaw, ok := appUI["empty_state_illustration"]
+	if !ok {
+		t.Fatalf("payload.AppUI missing empty_state_illustration slot")
+	}
+	emptyState, ok := toInterfaceMap(emptyStateRaw)
+	if !ok {
+		t.Fatalf("payload.AppUI empty_state_illustration is not an object")
+	}
+
+	if navbar["backgroundColor"] != "#0F172A" {
+		t.Errorf("payload.AppUI.navbar.backgroundColor = %v, want %q", navbar["backgroundColor"], "#0F172A")
+	}
+	if navbar["foregroundColor"] != "#FFFFFF" {
+		t.Errorf("payload.AppUI.navbar.foregroundColor = %v, want %q", navbar["foregroundColor"], "#FFFFFF")
+	}
+	if navbar["iconColor"] != "" {
+		t.Errorf("payload.AppUI.navbar.iconColor = %v, want empty (campaign color override disabled)", navbar["iconColor"])
+	}
+
+	if footer["backgroundColor"] != "#111827" {
+		t.Errorf("payload.AppUI.footer.backgroundColor = %v, want %q", footer["backgroundColor"], "#111827")
+	}
+	if footer["foregroundColor"] != "#9CA3AF" {
+		t.Errorf("payload.AppUI.footer.foregroundColor = %v, want %q", footer["foregroundColor"], "#9CA3AF")
+	}
+	if footer["borderColor"] != "#1F2937" {
+		t.Errorf("payload.AppUI.footer.borderColor = %v, want %q", footer["borderColor"], "#1F2937")
+	}
+	if footer["accentColor"] != "" {
+		t.Errorf("payload.AppUI.footer.accentColor = %v, want empty (campaign color override disabled)", footer["accentColor"])
+	}
+	if emptyState["asset"] != "https://example.com/campaign-empty-state.png" {
+		t.Errorf(
+			"payload.AppUI.empty_state_illustration.asset = %v, want %q",
+			emptyState["asset"],
+			"https://example.com/campaign-empty-state.png",
+		)
+	}
+}
+
+func TestResolveRuntimeThemeUsesModeSpecificThemeVariants(t *testing.T) {
+	service, db := newRuntimeThemeTestService(t)
+
+	var campaignTheme Theme
+	if err := db.First(&campaignTheme, "id = ?", testCampaignThemeID).Error; err != nil {
+		t.Fatalf("db.First(campaignTheme) error: %v", err)
+	}
+	campaignTheme.TokenJSON = JSONMap{
+		"accentColor":     "#15803d",
+		"accentSoftColor": "#dcfce7",
+		"loginCardBorder": "#22c55e",
+		"modes": JSONMap{
+			"dark": JSONMap{
+				"accentColor":     "#22c55e",
+				"accentSoftColor": "#14532d",
+				"loginCardBorder": "#4ade80",
+			},
+		},
+	}
+	campaignTheme.AssetManifestJSON = JSONMap{
+		"backgroundImage": "https://example.com/light-bg.png",
+		"illustration":    "https://example.com/light-illustration.png",
+		"iconPack":        "outline-enterprise",
+		"accentAsset":     "none",
+		"modes": JSONMap{
+			"dark": JSONMap{
+				"backgroundImage": "https://example.com/dark-bg.png",
+				"iconPack":        "glyph-ops",
+				"accentAsset":     "diamond-grid",
+			},
+		},
+	}
+	if err := db.Save(&campaignTheme).Error; err != nil {
+		t.Fatalf("db.Save(campaignTheme) error: %v", err)
+	}
+
+	now := time.Now().UTC()
+	startAt := now.Add(-20 * time.Minute)
+	endAt := now.Add(20 * time.Minute)
+
+	campaign := ThemeCampaign{
+		ID:               "00000000-0000-0000-0000-000000000206",
+		ThemeID:          testCampaignThemeID,
+		CampaignGroupKey: "group-mode-aware",
+		CampaignName:     "Mode Aware Campaign",
+		Enabled:          true,
+		StartAt:          &startAt,
+		EndAt:            &endAt,
+		Priority:         180,
+		LightModeEnabled: true,
+		DarkModeEnabled:  true,
+		AssetsJSON:       JSONMap{},
+		UpdatedBy:        "tester",
+	}
+	if err := db.Create(&campaign).Error; err != nil {
+		t.Fatalf("db.Create(campaign) error: %v", err)
+	}
+
+	payload, err := service.ResolveRuntimeTheme(context.Background(), RuntimeThemeContext{
+		Platform: "web",
+		Mode:     "dark",
+	})
+	if err != nil {
+		t.Fatalf("ResolveRuntimeTheme(web,dark) error: %v", err)
+	}
+
+	if payload.Source != "ACTIVE_CAMPAIGN" {
+		t.Fatalf("ResolveRuntimeTheme(web,dark) source = %q, want %q", payload.Source, "ACTIVE_CAMPAIGN")
+	}
+	if payload.Token["accentColor"] != "#22c55e" {
+		t.Fatalf("payload.Token.accentColor = %v, want %q", payload.Token["accentColor"], "#22c55e")
+	}
+	if payload.Token["accentSoftColor"] != "#14532d" {
+		t.Fatalf("payload.Token.accentSoftColor = %v, want %q", payload.Token["accentSoftColor"], "#14532d")
+	}
+	if payload.Assets["backgroundImage"] != "https://example.com/dark-bg.png" {
+		t.Fatalf("payload.Assets.backgroundImage = %v, want dark asset", payload.Assets["backgroundImage"])
+	}
+	if payload.Assets["illustration"] != "https://example.com/light-illustration.png" {
+		t.Fatalf("payload.Assets.illustration = %v, want fallback light asset", payload.Assets["illustration"])
+	}
+	if payload.Assets["iconPack"] != "glyph-ops" {
+		t.Fatalf("payload.Assets.iconPack = %v, want %q", payload.Assets["iconPack"], "glyph-ops")
+	}
+}
+
 func newRuntimeThemeTestService(t *testing.T) (*Service, *gorm.DB) {
 	t.Helper()
 

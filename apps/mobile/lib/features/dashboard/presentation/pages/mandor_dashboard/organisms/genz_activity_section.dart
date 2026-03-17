@@ -2,6 +2,7 @@
 // Recent activity section with empty state and list
 
 import 'package:flutter/material.dart';
+import '../../../../../../core/theme/runtime_mobile_theme.dart';
 import '../mandor_theme.dart';
 
 /// Activity type enum
@@ -52,12 +53,13 @@ class GenZActivitySection extends StatelessWidget {
       children: [
         _buildHeader(context),
         const SizedBox(height: 14),
-        items.isEmpty ? _buildEmptyState(context) : _buildItemsList(),
+        items.isEmpty ? _buildEmptyState(context) : _buildItemsList(context),
       ],
     );
   }
 
   Widget _buildHeader(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -66,7 +68,7 @@ class GenZActivitySection extends StatelessWidget {
           TextButton(
             onPressed: onViewAll,
             style: TextButton.styleFrom(
-              foregroundColor: MandorTheme.forestGreen,
+              foregroundColor: runtimeTheme.success,
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -76,14 +78,14 @@ class GenZActivitySection extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: MandorTheme.forestGreen,
+                    color: runtimeTheme.success,
                   ),
                 ),
                 const SizedBox(width: 4),
                 Icon(
                   Icons.arrow_forward_ios,
                   size: 12,
-                  color: MandorTheme.forestGreen,
+                  color: runtimeTheme.success,
                 ),
               ],
             ),
@@ -130,7 +132,7 @@ class GenZActivitySection extends StatelessWidget {
     );
   }
 
-  Widget _buildItemsList() {
+  Widget _buildItemsList(BuildContext context) {
     final displayItems = items.take(maxItems).toList();
 
     return Column(
@@ -152,7 +154,8 @@ class _ActivityItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final config = _getConfig();
+    final runtimeTheme = RuntimeMobileTheme.of(context);
+    final config = _getConfig(context);
     final theme = MandorTheme.of(context);
 
     return Container(
@@ -161,12 +164,16 @@ class _ActivityItemCard extends StatelessWidget {
         color: theme.cardBackground.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: theme.borderColor.withValues(alpha: 0.5),
+          color: runtimeTheme.borderTint(
+            config.color,
+            lightAlpha: 0.22,
+            darkAlpha: 0.32,
+          ),
         ),
       ),
       child: Row(
         children: [
-          _buildIcon(config),
+          _buildIcon(context, config),
           const SizedBox(width: 14),
           Expanded(child: _buildContent(context)),
           _buildTimeBadge(context),
@@ -175,11 +182,16 @@ class _ActivityItemCard extends StatelessWidget {
     );
   }
 
-  Widget _buildIcon(_ActivityConfig config) {
+  Widget _buildIcon(BuildContext context, _ActivityConfig config) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: config.color.withValues(alpha: 0.15),
+        color: runtimeTheme.iconTint(
+          config.color,
+          lightAlpha: 0.16,
+          darkAlpha: 0.24,
+        ),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Icon(
@@ -220,31 +232,32 @@ class _ActivityItemCard extends StatelessWidget {
     );
   }
 
-  _ActivityConfig _getConfig() {
+  _ActivityConfig _getConfig(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     switch (item.type) {
       case ActivityType.harvest:
         return _ActivityConfig(
-          color: MandorTheme.forestGreen,
+          color: runtimeTheme.success,
           icon: Icons.agriculture_rounded,
         );
       case ActivityType.approval:
         return _ActivityConfig(
-          color: item.isSuccess ? MandorTheme.forestGreen : MandorTheme.coralRed,
+          color: item.isSuccess ? runtimeTheme.success : runtimeTheme.danger,
           icon: item.isSuccess ? Icons.check_circle_rounded : Icons.cancel_rounded,
         );
       case ActivityType.sync:
         return _ActivityConfig(
-          color: MandorTheme.electricBlue,
+          color: runtimeTheme.info,
           icon: Icons.sync_rounded,
         );
       case ActivityType.employee:
         return _ActivityConfig(
-          color: MandorTheme.electricBlue,
+          color: runtimeTheme.info,
           icon: Icons.people_rounded,
         );
       case ActivityType.block:
         return _ActivityConfig(
-          color: MandorTheme.purpleAccent,
+          color: runtimeTheme.primary,
           icon: Icons.location_on_rounded,
         );
     }

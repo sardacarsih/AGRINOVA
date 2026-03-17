@@ -28,6 +28,7 @@
     "release:mobile:aab": "powershell -ExecutionPolicy Bypass -File ./apps/mobile/scripts/release-production-runtime.ps1 -AabOnly",
     "release:mobile:skip-build": "powershell -ExecutionPolicy Bypass -File ./apps/mobile/scripts/release-production-runtime.ps1 -SkipBuild",
     "mobile:sync-whatsnew": "node scripts/sync-mobile-whatsnew.mjs",
+    "mobile:sync-git": "powershell -ExecutionPolicy Bypass -File ./scripts/sync-mobile.ps1",
     "hooks:install": "git config core.hooksPath .githooks",
     "build:api": "cd apps/golang && go build ./cmd/server",
     "build:web": "cd apps/web && npm run build",

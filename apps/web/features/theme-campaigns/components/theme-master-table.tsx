@@ -31,6 +31,96 @@ interface ThemeMasterTableProps {
   onSetDefault: (theme: ThemeEntity) => void;
 }
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const readModeString = (
+  source: unknown,
+  key: string,
+  mode: 'light' | 'dark',
+  fallback = '-'
+): string => {
+  const root = asRecord(source);
+  const topLevel = typeof root[key] === 'string' ? String(root[key]).trim() : '';
+  const modes = asRecord(root.modes);
+  const modeEntry = asRecord(modes[mode]);
+  const modeValue =
+    typeof modeEntry[key] === 'string' ? String(modeEntry[key]).trim() : '';
+
+  return modeValue || topLevel || fallback;
+};
+
+const readModeAccentColor = (
+  theme: ThemeEntity,
+  mode: 'light' | 'dark'
+): string => readModeString(theme.token_json, 'accentColor', mode, '#999999');
+
+function ModePairValue({
+  light,
+  dark,
+}: {
+  light: string;
+  dark: string;
+}) {
+  if (light === dark) {
+    return <span>{light || '-'}</span>;
+  }
+
+  return (
+    <div className="space-y-1 text-xs">
+      <div>
+        <span className="font-medium text-muted-foreground">L:</span> {light || '-'}
+      </div>
+      <div>
+        <span className="font-medium text-muted-foreground">D:</span> {dark || '-'}
+      </div>
+    </div>
+  );
+}
+
+function AccentModePair({ theme }: { theme: ThemeEntity }) {
+  const lightAccent = readModeAccentColor(theme, 'light');
+  const darkAccent = readModeAccentColor(theme, 'dark');
+
+  if (lightAccent === darkAccent) {
+    return (
+      <div className="flex items-center gap-2">
+        <span
+          className="h-3 w-3 rounded-full border"
+          style={{ backgroundColor: lightAccent }}
+          aria-hidden="true"
+        />
+        <span>{lightAccent}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1 text-xs">
+      <div className="flex items-center gap-2">
+        <span className="font-medium text-muted-foreground">L:</span>
+        <span
+          className="h-3 w-3 rounded-full border"
+          style={{ backgroundColor: lightAccent }}
+          aria-hidden="true"
+        />
+        <span>{lightAccent}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="font-medium text-muted-foreground">D:</span>
+        <span
+          className="h-3 w-3 rounded-full border"
+          style={{ backgroundColor: darkAccent }}
+          aria-hidden="true"
+        />
+        <span>{darkAccent}</span>
+      </div>
+    </div>
+  );
+}
+
 export function ThemeMasterTable({
   themes,
   defaultThemeID,
@@ -80,6 +170,26 @@ export function ThemeMasterTable({
               )}
               {themes.map((theme) => {
                 const isDefault = theme.id === defaultThemeID;
+                const iconPackLight = readModeString(
+                  theme.asset_manifest_json,
+                  'iconPack',
+                  'light'
+                );
+                const iconPackDark = readModeString(
+                  theme.asset_manifest_json,
+                  'iconPack',
+                  'dark'
+                );
+                const accentAssetLight = readModeString(
+                  theme.asset_manifest_json,
+                  'accentAsset',
+                  'light'
+                );
+                const accentAssetDark = readModeString(
+                  theme.asset_manifest_json,
+                  'accentAsset',
+                  'dark'
+                );
                 return (
                   <TableRow key={theme.id}>
                     <TableCell className="min-w-48 font-medium">{theme.name}</TableCell>
@@ -99,8 +209,15 @@ export function ThemeMasterTable({
                     <TableCell>
                       {isDefault ? <Badge variant="outline">Default Aktif</Badge> : '-'}
                     </TableCell>
-                    <TableCell>{theme.asset_manifest_json.iconPack || '-'}</TableCell>
-                    <TableCell>{theme.asset_manifest_json.accentAsset || '-'}</TableCell>
+                    <TableCell>
+                      <ModePairValue light={iconPackLight} dark={iconPackDark} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-2">
+                        <ModePairValue light={accentAssetLight} dark={accentAssetDark} />
+                        <AccentModePair theme={theme} />
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

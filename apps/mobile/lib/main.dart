@@ -41,13 +41,18 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
   bool _isInitialized = false;
   bool _isUpdateManagerInitialized = false;
   bool _isUpdateManagerInitializing = false;
+  bool _shouldInitUpdateManagerAfterInit = false;
   DateTime? _lastUpdateManagerInitFailure;
   String? _initError;
   AuthBloc? _authBloc;
+  late final _StartupNavigationObserver _startupNavigationObserver;
 
   @override
   void initState() {
     super.initState();
+    _startupNavigationObserver = _StartupNavigationObserver(
+      onPostSplashRouteSettled: _onPostSplashRouteSettled,
+    );
     _initialize();
   }
 
@@ -56,6 +61,13 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
       await AppInitializer.initialize();
       await ThemeModeService.instance.initialize();
       await LoginThemeCampaignService.instance.initialize();
+      try {
+        await LoginThemeCampaignService.instance
+            .refresh(force: true)
+            .timeout(const Duration(seconds: 2));
+      } catch (error) {
+        debugPrint('LoginThemeCampaignService startup refresh skipped: $error');
+      }
 
       if (mounted) {
         final authBloc = ServiceLocator.get<AuthBloc>()
@@ -64,6 +76,13 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
           _isInitialized = true;
           _authBloc = authBloc;
         });
+
+        if (_shouldInitUpdateManagerAfterInit) {
+          _shouldInitUpdateManagerAfterInit = false;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _initializeAppUpdateManagerFromNavigatorContext();
+          });
+        }
       }
     } catch (e) {
       debugPrint('❌ Failed to initialize: $e');
@@ -73,6 +92,23 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
         });
       }
     }
+  }
+
+  void _onPostSplashRouteSettled() {
+    if (!mounted) return;
+    if (!_isInitialized) {
+      _shouldInitUpdateManagerAfterInit = true;
+      return;
+    }
+    _initializeAppUpdateManagerFromNavigatorContext();
+  }
+
+  void _initializeAppUpdateManagerFromNavigatorContext() {
+    final appContext = AppRoutes.navigatorKey.currentContext;
+    if (appContext == null) {
+      return;
+    }
+    _initializeAppUpdateManager(appContext);
   }
 
   void _initializeAppUpdateManager(BuildContext appContext) {
@@ -118,11 +154,15 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
   }
 
   void _retry() {
-    AppUpdateManager().dispose();
+    if (_isUpdateManagerInitialized || _isUpdateManagerInitializing) {
+      AppUpdateManager().dispose();
+    }
+    _startupNavigationObserver.resetPostSplashTracking();
     setState(() {
       _isInitialized = false;
       _isUpdateManagerInitialized = false;
       _isUpdateManagerInitializing = false;
+      _shouldInitUpdateManagerAfterInit = false;
       _initError = null;
       _authBloc = null;
     });
@@ -131,20 +171,25 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
 
   @override
   void dispose() {
-    AppUpdateManager().dispose();
+    if (_isUpdateManagerInitialized || _isUpdateManagerInitializing) {
+      AppUpdateManager().dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: ThemeModeService.instance,
+      animation: Listenable.merge([
+        ThemeModeService.instance,
+        LoginThemeCampaignService.instance,
+      ]),
       builder: (context, child) => MaterialApp(
         navigatorKey: AppRoutes.navigatorKey,
         title: AppConfig.appName,
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
+        theme: _buildRuntimeAwareTheme(Brightness.light),
+        darkTheme: _buildRuntimeAwareTheme(Brightness.dark),
         themeMode: ThemeModeService.instance.themeMode,
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
@@ -160,12 +205,8 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
           }
           return _generateGuardedRoute(settings);
         },
+        navigatorObservers: [_startupNavigationObserver],
         builder: (context, child) {
-          if (_isInitialized) {
-            _initializeAppUpdateManager(context);
-            AppUpdateManager().updateContext(context);
-          }
-
           Widget result = MediaQuery(
             data: MediaQuery.of(
               context,
@@ -233,5 +274,213 @@ class _AgrinovaAppState extends State<AgrinovaApp> {
     }
 
     return AppRoutes.generateRoute(settings);
+  }
+
+  ThemeData _buildRuntimeAwareTheme(Brightness brightness) {
+    final baseTheme = brightness == Brightness.dark
+        ? AppTheme.darkTheme
+        : AppTheme.lightTheme;
+    return _applyRuntimeAppUiTheme(
+      baseTheme,
+      LoginThemeCampaignService.instance.effectiveAppUi,
+    );
+  }
+
+  ThemeData _applyRuntimeAppUiTheme(
+    ThemeData baseTheme,
+    LoginThemeAppUi appUi,
+  ) {
+    final navbarBackground = _parseThemeColor(
+      appUi.navbar.backgroundColor,
+      fallback: baseTheme.appBarTheme.backgroundColor,
+    );
+    final navbarForeground = _parseThemeColor(
+      appUi.navbar.foregroundColor,
+      fallback: baseTheme.appBarTheme.foregroundColor,
+    );
+    final sidebarBackground = _parseThemeColor(
+      appUi.sidebar.backgroundColor,
+      fallback: baseTheme.drawerTheme.backgroundColor,
+    );
+    final sidebarForeground = _parseThemeColor(
+      appUi.sidebar.foregroundColor,
+      fallback:
+          baseTheme.popupMenuTheme.textStyle?.color ??
+          baseTheme.colorScheme.onSurface,
+    );
+    final sidebarBorder = _parseThemeColor(appUi.sidebar.borderColor);
+    final footerBackground = _parseThemeColor(
+      appUi.footer.backgroundColor,
+      fallback: baseTheme.bottomNavigationBarTheme.backgroundColor,
+    );
+    final footerSelected = _parseThemeColor(
+      appUi.footer.accentColor,
+      fallback: baseTheme.bottomNavigationBarTheme.selectedItemColor,
+    );
+    final footerUnselected = _parseThemeColor(
+      appUi.footer.foregroundColor,
+      fallback: baseTheme.bottomNavigationBarTheme.unselectedItemColor,
+    );
+    final dashboardBackground = _parseThemeColor(
+      appUi.dashboard.backgroundColor,
+      fallback: baseTheme.scaffoldBackgroundColor,
+    );
+    final dashboardSurface = _parseThemeColor(
+      appUi.dashboard.foregroundColor,
+      fallback: baseTheme.cardTheme.color,
+    );
+    final notificationBackground = _parseThemeColor(
+      appUi.notificationBanner.backgroundColor,
+      fallback: baseTheme.snackBarTheme.backgroundColor,
+    );
+    final notificationText = _parseThemeColor(
+      appUi.notificationBanner.textColor,
+      fallback: baseTheme.snackBarTheme.contentTextStyle?.color,
+    );
+    final modalBackground = _parseThemeColor(
+      appUi.modalAccent.backgroundColor,
+      fallback: baseTheme.dialogTheme.backgroundColor,
+    );
+    final modalAccent = _parseThemeColor(
+      appUi.modalAccent.accentColor,
+      fallback: baseTheme.colorScheme.secondary,
+    );
+
+    return baseTheme.copyWith(
+      appBarTheme: baseTheme.appBarTheme.copyWith(
+        backgroundColor: navbarBackground,
+        foregroundColor: navbarForeground,
+        iconTheme: baseTheme.appBarTheme.iconTheme?.copyWith(
+          color: _parseThemeColor(
+            appUi.navbar.iconColor,
+            fallback: navbarForeground,
+          ),
+        ),
+      ),
+      drawerTheme: baseTheme.drawerTheme.copyWith(
+        backgroundColor: sidebarBackground,
+      ),
+      popupMenuTheme: baseTheme.popupMenuTheme.copyWith(
+        color: sidebarBackground,
+        textStyle:
+            (baseTheme.popupMenuTheme.textStyle ??
+                    baseTheme.textTheme.bodyMedium)
+                ?.copyWith(color: sidebarForeground),
+        shape: sidebarBorder == null
+            ? baseTheme.popupMenuTheme.shape
+            : RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: sidebarBorder),
+              ),
+      ),
+      bottomNavigationBarTheme: baseTheme.bottomNavigationBarTheme.copyWith(
+        backgroundColor: footerBackground,
+        selectedItemColor: footerSelected,
+        unselectedItemColor: footerUnselected,
+      ),
+      navigationBarTheme: baseTheme.navigationBarTheme.copyWith(
+        backgroundColor: footerBackground,
+        indicatorColor: _parseThemeColor(
+          appUi.footer.borderColor,
+          fallback: baseTheme.navigationBarTheme.indicatorColor,
+        ),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return IconThemeData(color: footerSelected);
+          }
+          return IconThemeData(color: footerUnselected);
+        }),
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return TextStyle(color: footerSelected);
+          }
+          return TextStyle(color: footerUnselected);
+        }),
+      ),
+      scaffoldBackgroundColor: dashboardBackground ?? baseTheme.scaffoldBackgroundColor,
+      cardTheme: baseTheme.cardTheme.copyWith(color: dashboardSurface),
+      snackBarTheme: baseTheme.snackBarTheme.copyWith(
+        backgroundColor: notificationBackground,
+        contentTextStyle: baseTheme.snackBarTheme.contentTextStyle?.copyWith(
+          color: notificationText,
+        ),
+      ),
+      dialogTheme: baseTheme.dialogTheme.copyWith(
+        backgroundColor: modalBackground,
+      ),
+      bottomSheetTheme: baseTheme.bottomSheetTheme.copyWith(
+        backgroundColor: modalBackground,
+      ),
+      colorScheme: baseTheme.colorScheme.copyWith(
+        secondary: modalAccent ?? baseTheme.colorScheme.secondary,
+      ),
+    );
+  }
+
+  Color? _parseThemeColor(String raw, {Color? fallback}) {
+    final normalized = raw.trim();
+    if (normalized.isEmpty) return fallback;
+
+    var hex = normalized.toLowerCase();
+    if (hex.startsWith('#')) {
+      hex = hex.substring(1);
+    } else if (hex.startsWith('0x')) {
+      hex = hex.substring(2);
+    } else {
+      return fallback;
+    }
+
+    if (hex.length == 6) {
+      hex = 'ff$hex';
+    }
+    if (hex.length != 8) {
+      return fallback;
+    }
+
+    final value = int.tryParse(hex, radix: 16);
+    if (value == null) {
+      return fallback;
+    }
+    return Color(value);
+  }
+}
+
+class _StartupNavigationObserver extends NavigatorObserver {
+  _StartupNavigationObserver({required this.onPostSplashRouteSettled});
+
+  final VoidCallback onPostSplashRouteSettled;
+  bool _hasSeenInitialRoute = false;
+  bool _hasNotifiedPostSplashRoute = false;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (!_hasSeenInitialRoute) {
+      _hasSeenInitialRoute = true;
+      return;
+    }
+
+    _notifyPostSplashRouteOnce();
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    _hasSeenInitialRoute = true;
+    if (oldRoute != null) {
+      _notifyPostSplashRouteOnce();
+    }
+  }
+
+  void _notifyPostSplashRouteOnce() {
+    if (_hasNotifiedPostSplashRoute) return;
+    _hasNotifiedPostSplashRoute = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      onPostSplashRouteSettled();
+    });
+  }
+
+  void resetPostSplashTracking() {
+    _hasSeenInitialRoute = false;
+    _hasNotifiedPostSplashRoute = false;
   }
 }

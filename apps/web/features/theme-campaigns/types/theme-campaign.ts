@@ -7,11 +7,40 @@ export type ThemeCampaignStatus =
 
 export type ThemePlatform = 'web' | 'mobile';
 
+export interface ThemeAppUiSlot {
+  backgroundColor?: string;
+  foregroundColor?: string;
+  textColor?: string;
+  borderColor?: string;
+  accentColor?: string;
+  iconColor?: string;
+  asset?: string;
+}
+
+export interface ThemeAppUiSlots {
+  navbar?: ThemeAppUiSlot;
+  sidebar?: ThemeAppUiSlot;
+  footer?: ThemeAppUiSlot;
+  dashboard?: ThemeAppUiSlot;
+  notification_banner?: ThemeAppUiSlot;
+  empty_state_illustration?: ThemeAppUiSlot;
+  modal_accent?: ThemeAppUiSlot;
+}
+
+export type ThemeMode = 'light' | 'dark';
+
+export interface ThemeModeVariants<T> {
+  light?: T;
+  dark?: T;
+  [key: string]: unknown;
+}
+
 export interface ThemeTokenConfig {
   accentColor: string;
   accentSoftColor: string;
   loginCardBorder: string;
-  [key: string]: string;
+  modes?: ThemeModeVariants<ThemeTokenConfig>;
+  [key: string]: unknown;
 }
 
 export interface ThemeAssetManifest {
@@ -19,7 +48,11 @@ export interface ThemeAssetManifest {
   illustration: string;
   iconPack: string;
   accentAsset: string;
-  [key: string]: string;
+  app_ui?: ThemeAppUiSlots;
+  web?: ThemePlatformAssets;
+  mobile?: ThemePlatformAssets;
+  modes?: ThemeModeVariants<ThemeAssetManifest>;
+  [key: string]: unknown;
 }
 
 export interface ThemeEntity {
@@ -37,6 +70,7 @@ export interface ThemePlatformAssets {
   illustration?: string;
   iconPack: string;
   accentAsset: string;
+  app_ui?: ThemeAppUiSlots;
 }
 
 export interface ThemeCampaignAssets {
@@ -128,6 +162,7 @@ export const EMPTY_PLATFORM_ASSETS: ThemePlatformAssets = {
   illustration: '',
   iconPack: '',
   accentAsset: '',
+  app_ui: {},
 };
 
 export const EMPTY_THEME_CAMPAIGN_ASSETS: ThemeCampaignAssets = {

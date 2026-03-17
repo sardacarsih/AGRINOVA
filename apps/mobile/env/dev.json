@@ -2,6 +2,7 @@
   "ENV": "dev",
   "APP_NAME": "Agrinova Dev",
   "BASE_URL": "http://localhost:8080",
+  "WEB_BASE_URL": "http://localhost:3000",
   "WS_URL": "ws://localhost:8080",
   "GRAPHQL_PATH": "/graphql",
   "WS_PATH": "/ws",

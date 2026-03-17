@@ -2,7 +2,7 @@
 // Main dashboard tab content combining all molecules
 
 import 'package:flutter/material.dart';
-import '../mandor_theme.dart';
+import '../../../../../../core/theme/runtime_mobile_theme.dart';
 import '../molecules/genz_welcome_header.dart';
 import '../molecules/genz_stats_grid.dart';
 import '../molecules/genz_actions_grid.dart';
@@ -61,9 +61,10 @@ class GenZDashboardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     return Container(
       decoration: BoxDecoration(
-        gradient: MandorTheme.backgroundGradientFor(context),
+        gradient: _buildBackgroundGradient(context, runtimeTheme),
       ),
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -111,6 +112,21 @@ class GenZDashboardContent extends StatelessWidget {
       ),
     );
   }
+
+  LinearGradient _buildBackgroundGradient(
+    BuildContext context,
+    RuntimeMobileTheme runtimeTheme,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return LinearGradient(
+      colors: [
+        runtimeTheme.scaffoldBackground,
+        runtimeTheme.info.withValues(alpha: isDark ? 0.14 : 0.06),
+      ],
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+    );
+  }
 }
 
 /// Compact dashboard content for tablets/landscape
@@ -152,9 +168,21 @@ class GenZDashboardContentCompact extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final runtimeTheme = RuntimeMobileTheme.of(context);
     return Container(
       decoration: BoxDecoration(
-        gradient: MandorTheme.backgroundGradientFor(context),
+        gradient: LinearGradient(
+          colors: [
+            runtimeTheme.scaffoldBackground,
+            runtimeTheme.info.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.14
+                  : 0.06,
+            ),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

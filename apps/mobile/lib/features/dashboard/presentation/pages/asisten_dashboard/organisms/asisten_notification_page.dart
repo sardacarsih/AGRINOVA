@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../../../../core/services/notification_storage_service.dart';
 import '../../../../../../core/di/dependency_injection.dart';
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
+import '../../../../../../shared/widgets/themed_empty_state_illustration.dart';
 import '../asisten_theme.dart';
 
 /// Notification page for Asisten role
@@ -284,10 +286,12 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.notifications_none_rounded,
-            size: 80,
-            color: AsistenTheme.textSecondary.withValues(alpha: 0.3),
+          ThemedEmptyStateIllustration(
+            fallback: Icon(
+              Icons.notifications_none_rounded,
+              size: 80,
+              color: AsistenTheme.textSecondary.withValues(alpha: 0.3),
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -376,8 +380,20 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Semua notifikasi ditandai telah dibaca'),
-              backgroundColor: AsistenTheme.approvedGreen,
+              content: Text(
+                'Semua notifikasi ditandai telah dibaca',
+                style: TextStyle(
+                  color: RuntimeThemeSlotResolver.notificationBannerText(
+                    context,
+                    fallback: Colors.white,
+                  ),
+                ),
+              ),
+              backgroundColor:
+                  RuntimeThemeSlotResolver.notificationBannerBackground(
+                    context,
+                    fallback: AsistenTheme.approvedGreen,
+                  ),
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -396,12 +412,24 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        backgroundColor: RuntimeThemeSlotResolver.modalBackground(
+          context,
+          fallback: Theme.of(context).dialogTheme.backgroundColor,
+        ),
         title: const Text('Hapus Semua Notifikasi?'),
         content: const Text('Semua notifikasi akan dihapus secara permanen.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Batal'),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.modalAccent(
+                  context,
+                  fallback: AsistenTheme.primaryBlue,
+                ),
+              ),
+            ),
           ),
           TextButton(
             onPressed: () async {
@@ -411,8 +439,20 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
               Navigator.of(context).pop();
               ScaffoldMessenger.of(this.context).showSnackBar(
                 SnackBar(
-                  content: const Text('Semua notifikasi telah dihapus'),
-                  backgroundColor: AsistenTheme.rejectedRed,
+                  content: Text(
+                    'Semua notifikasi telah dihapus',
+                    style: TextStyle(
+                      color: RuntimeThemeSlotResolver.notificationBannerText(
+                        this.context,
+                        fallback: Colors.white,
+                      ),
+                    ),
+                  ),
+                  backgroundColor:
+                      RuntimeThemeSlotResolver.notificationBannerBackground(
+                        this.context,
+                        fallback: AsistenTheme.rejectedRed,
+                      ),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -422,7 +462,12 @@ class _AsistenNotificationPageState extends State<AsistenNotificationPage> {
             },
             child: Text(
               'Hapus',
-              style: TextStyle(color: AsistenTheme.rejectedRed),
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.modalAccent(
+                  context,
+                  fallback: AsistenTheme.rejectedRed,
+                ),
+              ),
             ),
           ),
         ],

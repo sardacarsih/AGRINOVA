@@ -5,6 +5,7 @@ import 'package:logger/logger.dart';
 import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/role_service.dart';
+import '../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../../../shared/widgets/server_profile_page.dart';
 
 class DashboardPage extends StatelessWidget {
@@ -20,20 +21,37 @@ class DashboardPage extends StatelessWidget {
           _logger.i(
             'Loading dashboard for user: ${state.user.username} (${state.user.role})',
           );
+          final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+            context,
+            fallback: Theme.of(context).primaryColor,
+          );
+          final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+            context,
+            fallback: Colors.white,
+          );
+          final navbarIcon = RuntimeThemeSlotResolver.navbarIcon(
+            context,
+            fallback: navbarFg,
+          );
 
           return Scaffold(
             appBar: AppBar(
               title: Text('Agrinova Dashboard'),
-              backgroundColor: Theme.of(context).primaryColor,
-              foregroundColor: Colors.white,
+              flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+                  ? Container(color: navbarBg)
+                  : null,
+              backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+                  ? Colors.transparent
+                  : navbarBg,
+              foregroundColor: navbarFg,
               actions: [
                 IconButton(
-                  icon: Icon(Icons.sync),
+                  icon: Icon(Icons.sync, color: navbarIcon),
                   onPressed: () => _handleSync(context),
                   tooltip: 'Sync Data',
                 ),
                 IconButton(
-                  icon: Icon(Icons.notifications),
+                  icon: Icon(Icons.notifications, color: navbarIcon),
                   onPressed: () => _showNotifications(context),
                   tooltip: 'Notifications',
                 ),
@@ -88,8 +106,25 @@ class DashboardPage extends StatelessWidget {
           );
         }
 
+        final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+          context,
+          fallback: Theme.of(context).primaryColor,
+        );
+        final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+          context,
+          fallback: Colors.white,
+        );
         return Scaffold(
-          appBar: AppBar(title: Text('Dashboard')),
+          appBar: AppBar(
+            title: Text('Dashboard', style: TextStyle(color: navbarFg)),
+            flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+                ? Container(color: navbarBg)
+                : null,
+            backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+                ? Colors.transparent
+                : navbarBg,
+            foregroundColor: navbarFg,
+          ),
           body: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -382,6 +417,18 @@ class DashboardPage extends StatelessWidget {
   }
 
   void _handleSync(BuildContext context) {
+    final bannerBg = RuntimeThemeSlotResolver.notificationBannerBackground(
+      context,
+      fallback:
+          Theme.of(context).snackBarTheme.backgroundColor ??
+          Theme.of(context).colorScheme.inverseSurface,
+    );
+    final bannerText = RuntimeThemeSlotResolver.notificationBannerText(
+      context,
+      fallback:
+          Theme.of(context).snackBarTheme.contentTextStyle?.color ??
+          Theme.of(context).colorScheme.onInverseSurface,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -391,13 +438,14 @@ class DashboardPage extends StatelessWidget {
               height: 16,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                valueColor: AlwaysStoppedAnimation<Color>(bannerText),
               ),
             ),
             SizedBox(width: 12),
-            Text('Syncing data...'),
+            Text('Syncing data...', style: TextStyle(color: bannerText)),
           ],
         ),
+        backgroundColor: bannerBg,
         duration: Duration(seconds: 2),
       ),
     );
@@ -406,26 +454,39 @@ class DashboardPage extends StatelessWidget {
   void _showNotifications(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Notifications'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.notifications_off, size: 48, color: Colors.grey[400]),
-            SizedBox(height: 16),
-            Text(
-              'No new notifications',
-              style: TextStyle(color: Colors.grey[600], fontSize: 16),
+      builder: (dialogContext) {
+        final modalBg = RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback:
+              Theme.of(dialogContext).dialogTheme.backgroundColor ??
+              Theme.of(dialogContext).colorScheme.surface,
+        );
+        final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+          dialogContext,
+          fallback: Theme.of(dialogContext).colorScheme.primary,
+        );
+        return AlertDialog(
+          backgroundColor: modalBg,
+          title: Text('Notifications'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.notifications_off, size: 48, color: Colors.grey[400]),
+              SizedBox(height: 16),
+              Text(
+                'No new notifications',
+                style: TextStyle(color: Colors.grey[600], fontSize: 16),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Close', style: TextStyle(color: modalAccent)),
             ),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Close'),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -454,27 +515,40 @@ class DashboardPage extends StatelessWidget {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Logout'),
-        content: Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              BlocProvider.of<AuthBloc>(context).add(AuthLogoutRequested());
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+      builder: (dialogContext) {
+        final modalBg = RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback:
+              Theme.of(dialogContext).dialogTheme.backgroundColor ??
+              Theme.of(dialogContext).colorScheme.surface,
+        );
+        final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+          dialogContext,
+          fallback: Colors.red,
+        );
+        return AlertDialog(
+          backgroundColor: modalBg,
+          title: Text('Logout'),
+          content: Text('Are you sure you want to logout?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text('Cancel', style: TextStyle(color: modalAccent)),
             ),
-            child: Text('Logout'),
-          ),
-        ],
-      ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                BlocProvider.of<AuthBloc>(context).add(AuthLogoutRequested());
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: modalAccent,
+                foregroundColor: Colors.white,
+              ),
+              child: Text('Logout'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

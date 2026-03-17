@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../../shared/widgets/auth_listener_wrapper.dart';
 import '../../../../../../core/di/dependency_injection.dart';
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../../../data/models/manager_dashboard_models.dart';
 import '../../../blocs/manager_dashboard_bloc.dart';
 import '../manager_theme.dart';
@@ -88,9 +89,13 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
           final efficiencyScore = analytics.efficiencyMetrics.overallScore;
           final totalMandor = dashboard.teamSummary.totalMandors;
           final totalAsisten = dashboard.teamSummary.totalAsistens;
+          final dashboardBg = RuntimeThemeSlotResolver.dashboardBackground(
+            context,
+            fallback: Colors.grey[100]!,
+          );
 
           return Scaffold(
-            backgroundColor: Colors.grey[100],
+            backgroundColor: dashboardBg,
             body: CustomScrollView(
               slivers: [
                 _buildSliverAppBar(),
@@ -141,36 +146,55 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
   }
 
   Widget _buildSliverAppBar() {
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: ManagerTheme.primaryPurple,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: Colors.white,
+    );
+    final navbarIcon = RuntimeThemeSlotResolver.navbarIcon(
+      context,
+      fallback: navbarFg,
+    );
     return SliverAppBar(
       expandedHeight: 120,
       pinned: true,
-      backgroundColor: ManagerTheme.primaryPurple,
-      foregroundColor: Colors.white,
+      backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+          ? Colors.transparent
+          : navbarBg,
+      foregroundColor: navbarFg,
       flexibleSpace: FlexibleSpaceBar(
-        title: const Text(
+        title: Text(
           'Analytics Estate',
           style: TextStyle(
-            color: Colors.white,
+            color: navbarFg,
             fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
         ),
         background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                ManagerTheme.primaryPurple,
-                ManagerTheme.primaryPurpleDark,
-              ],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
+          decoration: BoxDecoration(
+            color: RuntimeThemeSlotResolver.hasNavbarBackground
+                ? navbarBg
+                : null,
+            gradient: RuntimeThemeSlotResolver.hasNavbarBackground
+                ? null
+                : const LinearGradient(
+                    colors: [
+                      ManagerTheme.primaryPurple,
+                      ManagerTheme.primaryPurpleDark,
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
           ),
         ),
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.close, color: Colors.white),
+          icon: Icon(Icons.close, color: navbarIcon),
           onPressed: () => Navigator.pop(context),
         ),
       ],
@@ -847,9 +871,26 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
   }
 
   Widget _buildBottomNavigation() {
+    final footerBg = RuntimeThemeSlotResolver.footerBackground(
+      context,
+      fallback: Colors.white,
+    );
+    final footerSelected = RuntimeThemeSlotResolver.footerSelected(
+      context,
+      fallback: ManagerTheme.primaryPurple,
+    );
+    final footerUnselected = RuntimeThemeSlotResolver.footerUnselected(
+      context,
+      fallback: Colors.grey[600]!,
+    );
+    final footerBorder = RuntimeThemeSlotResolver.footerBorder(
+      context,
+      fallback: Colors.transparent,
+    );
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: footerBg,
+        border: Border(top: BorderSide(color: footerBorder)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.1),
@@ -860,10 +901,10 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
+        backgroundColor: footerBg,
         currentIndex: 2,
-        selectedItemColor: ManagerTheme.primaryPurple,
-        unselectedItemColor: Colors.grey[600],
+        selectedItemColor: footerSelected,
+        unselectedItemColor: footerUnselected,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.dashboard_outlined),
@@ -888,24 +929,56 @@ class _ManagerAnalyticsTabState extends State<ManagerAnalyticsTab> {
   }
 
   Widget _buildLoadingScaffold() {
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: ManagerTheme.primaryPurple,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: Colors.white,
+    );
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: RuntimeThemeSlotResolver.dashboardBackground(
+        context,
+        fallback: Colors.grey[100]!,
+      ),
       appBar: AppBar(
-        backgroundColor: ManagerTheme.primaryPurple,
-        foregroundColor: Colors.white,
-        title: const Text('Analytics Estate'),
+        flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Container(color: navbarBg)
+            : null,
+        backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Colors.transparent
+            : navbarBg,
+        foregroundColor: navbarFg,
+        title: Text('Analytics Estate', style: TextStyle(color: navbarFg)),
       ),
       body: const Center(child: CircularProgressIndicator()),
     );
   }
 
   Widget _buildErrorScaffold(String message) {
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: ManagerTheme.primaryPurple,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: Colors.white,
+    );
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: RuntimeThemeSlotResolver.dashboardBackground(
+        context,
+        fallback: Colors.grey[100]!,
+      ),
       appBar: AppBar(
-        backgroundColor: ManagerTheme.primaryPurple,
-        foregroundColor: Colors.white,
-        title: const Text('Analytics Estate'),
+        flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Container(color: navbarBg)
+            : null,
+        backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Colors.transparent
+            : navbarBg,
+        foregroundColor: navbarFg,
+        title: Text('Analytics Estate', style: TextStyle(color: navbarFg)),
       ),
       body: Center(
         child: Padding(

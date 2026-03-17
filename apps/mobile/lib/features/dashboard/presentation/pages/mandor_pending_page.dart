@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../../auth/presentation/blocs/auth_bloc.dart';
 import 'mandor_dashboard/mandor_theme.dart';
 import 'mandor_dashboard/organisms/genz_riwayat_tab.dart';
@@ -28,12 +29,35 @@ class MandorPendingPage extends StatelessWidget {
         return Scaffold(
           backgroundColor: MandorTheme.of(context).scaffoldBackground,
           appBar: AppBar(
-            title: const Text(
+            title: Text(
               'Pending Persetujuan',
-              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18),
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
+                color: RuntimeThemeSlotResolver.navbarForeground(
+                  context,
+                  fallback: Colors.white,
+                ),
+              ),
             ),
-            backgroundColor: MandorTheme.darkGreen,
-            foregroundColor: Colors.white,
+            flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+                ? Container(
+                    color: RuntimeThemeSlotResolver.navbarBackground(
+                      context,
+                      fallback: MandorTheme.darkGreen,
+                    ),
+                  )
+                : null,
+            backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+                ? Colors.transparent
+                : RuntimeThemeSlotResolver.navbarBackground(
+                    context,
+                    fallback: MandorTheme.darkGreen,
+                  ),
+            foregroundColor: RuntimeThemeSlotResolver.navbarForeground(
+              context,
+              fallback: Colors.white,
+            ),
             elevation: 0,
           ),
           body: _buildBody(

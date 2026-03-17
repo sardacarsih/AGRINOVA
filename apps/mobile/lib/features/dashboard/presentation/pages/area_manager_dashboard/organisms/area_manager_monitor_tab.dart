@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../area_manager_theme.dart';
 import '../molecules/area_manager_monitor_components.dart';
 import '../../../../data/models/area_manager_dashboard_models.dart';
@@ -36,7 +37,10 @@ class _AreaManagerMonitorTabState extends State<AreaManagerMonitorTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AreaManagerTheme.scaffoldBackground,
+      backgroundColor: RuntimeThemeSlotResolver.dashboardBackground(
+        context,
+        fallback: AreaManagerTheme.scaffoldBackground,
+      ),
       appBar: _buildAppBar(),
       body: BlocBuilder<AreaManagerDashboardBloc, AreaManagerDashboardState>(
         builder: (context, state) {
@@ -82,30 +86,48 @@ class _AreaManagerMonitorTabState extends State<AreaManagerMonitorTab> {
   }
 
   PreferredSizeWidget _buildAppBar() {
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: AreaManagerTheme.primaryTeal,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: Colors.white,
+    );
+    final navbarIcon = RuntimeThemeSlotResolver.navbarIcon(
+      context,
+      fallback: Colors.white,
+    );
+
     return AppBar(
       elevation: 0,
       automaticallyImplyLeading: false,
-      flexibleSpace: Container(
-        decoration: const BoxDecoration(
-          gradient: AreaManagerTheme.headerGradient,
-        ),
-      ),
-      title: const Text(
+      flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+          ? Container(color: navbarBg)
+          : Container(
+              decoration: const BoxDecoration(
+                gradient: AreaManagerTheme.headerGradient,
+              ),
+            ),
+      backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+          ? navbarBg
+          : Colors.transparent,
+      title: Text(
         'Multi-Estate Monitoring',
         style: TextStyle(
-          color: Colors.white,
+          color: navbarFg,
           fontWeight: FontWeight.bold,
           fontSize: 18,
         ),
       ),
       centerTitle: true,
       leading: IconButton(
-        icon: const Icon(Icons.filter_alt_outlined, color: Colors.white),
+        icon: Icon(Icons.filter_alt_outlined, color: navbarIcon),
         onPressed: () => _showFilterDialog(context),
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.refresh, color: Colors.white),
+          icon: Icon(Icons.refresh, color: navbarIcon),
           onPressed: () => _refreshData(context),
         ),
       ],
@@ -439,9 +461,29 @@ class _AreaManagerMonitorTabState extends State<AreaManagerMonitorTab> {
   }
 
   Widget _buildBottomNavigation(BuildContext context) {
+    final footerBg = RuntimeThemeSlotResolver.footerBackground(
+      context,
+      fallback: Colors.white,
+    );
+    final footerSelected = RuntimeThemeSlotResolver.footerSelected(
+      context,
+      fallback: AreaManagerTheme.primaryTeal,
+    );
+    final footerUnselected = RuntimeThemeSlotResolver.footerUnselected(
+      context,
+      fallback: AreaManagerTheme.textMuted,
+    );
+    final footerBorder = RuntimeThemeSlotResolver.footerBorder(
+      context,
+      fallback: Colors.transparent,
+    );
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: footerBg,
+        border: RuntimeThemeSlotResolver.hasFooterBorder
+            ? Border(top: BorderSide(color: footerBorder))
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
@@ -452,9 +494,9 @@ class _AreaManagerMonitorTabState extends State<AreaManagerMonitorTab> {
       ),
       child: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: AreaManagerTheme.primaryTeal,
-        unselectedItemColor: AreaManagerTheme.textMuted,
+        backgroundColor: footerBg,
+        selectedItemColor: footerSelected,
+        unselectedItemColor: footerUnselected,
         currentIndex: 1, // Monitoring is index 1
         selectedFontSize: 12,
         unselectedFontSize: 12,
@@ -525,8 +567,19 @@ class _AreaManagerMonitorTabState extends State<AreaManagerMonitorTab> {
         .add(const AreaManagerDashboardRefreshRequested());
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Memperbarui data...'),
-        backgroundColor: AreaManagerTheme.primaryTeal,
+        content: Text(
+          'Memperbarui data...',
+          style: TextStyle(
+            color: RuntimeThemeSlotResolver.notificationBannerText(
+              context,
+              fallback: Colors.white,
+            ),
+          ),
+        ),
+        backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+          context,
+          fallback: AreaManagerTheme.primaryTeal,
+        ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         duration: const Duration(seconds: 1),
@@ -535,12 +588,31 @@ class _AreaManagerMonitorTabState extends State<AreaManagerMonitorTab> {
   }
 
   void _showFilterDialog(BuildContext context) {
+    final modalBg = RuntimeThemeSlotResolver.modalBackground(
+      context,
+      fallback: Colors.white,
+    );
+    final modalAccent = RuntimeThemeSlotResolver.modalAccent(
+      context,
+      fallback: AreaManagerTheme.primaryTeal,
+    );
+    final sidebarIcon = RuntimeThemeSlotResolver.sidebarIcon(
+      context,
+      fallback: AreaManagerTheme.textPrimary,
+    );
+    final sidebarText = RuntimeThemeSlotResolver.sidebarForeground(
+      context,
+      fallback: AreaManagerTheme.textPrimary,
+    );
+
     showModalBottomSheet(
       context: context,
+      backgroundColor: modalBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => Container(
+        color: modalBg,
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -566,21 +638,21 @@ class _AreaManagerMonitorTabState extends State<AreaManagerMonitorTab> {
             ),
             const SizedBox(height: 16),
             ListTile(
-              leading: const Icon(Icons.location_on_outlined),
-              title: const Text('By Region'),
-              trailing: const Icon(Icons.chevron_right),
+              leading: Icon(Icons.location_on_outlined, color: sidebarIcon),
+              title: Text('By Region', style: TextStyle(color: sidebarText)),
+              trailing: Icon(Icons.chevron_right, color: modalAccent),
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
-              leading: const Icon(Icons.bar_chart_outlined),
-              title: const Text('By Performance'),
-              trailing: const Icon(Icons.chevron_right),
+              leading: Icon(Icons.bar_chart_outlined, color: sidebarIcon),
+              title: Text('By Performance', style: TextStyle(color: sidebarText)),
+              trailing: Icon(Icons.chevron_right, color: modalAccent),
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: const Text('By Manager'),
-              trailing: const Icon(Icons.chevron_right),
+              leading: Icon(Icons.person_outline, color: sidebarIcon),
+              title: Text('By Manager', style: TextStyle(color: sidebarText)),
+              trailing: Icon(Icons.chevron_right, color: modalAccent),
               onTap: () => Navigator.pop(context),
             ),
             const SizedBox(height: 16),
@@ -593,8 +665,19 @@ class _AreaManagerMonitorTabState extends State<AreaManagerMonitorTab> {
   void _showEstateDetail(String name) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('View detail for $name'),
-        backgroundColor: AreaManagerTheme.primaryTeal,
+        content: Text(
+          'View detail for $name',
+          style: TextStyle(
+            color: RuntimeThemeSlotResolver.notificationBannerText(
+              context,
+              fallback: Colors.white,
+            ),
+          ),
+        ),
+        backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+          context,
+          fallback: AreaManagerTheme.primaryTeal,
+        ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         duration: const Duration(seconds: 2),
@@ -605,8 +688,19 @@ class _AreaManagerMonitorTabState extends State<AreaManagerMonitorTab> {
   void _showComingSoon(String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$feature coming soon'),
-        backgroundColor: AreaManagerTheme.primaryTeal,
+        content: Text(
+          '$feature coming soon',
+          style: TextStyle(
+            color: RuntimeThemeSlotResolver.notificationBannerText(
+              context,
+              fallback: Colors.white,
+            ),
+          ),
+        ),
+        backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+          context,
+          fallback: AreaManagerTheme.primaryTeal,
+        ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         duration: const Duration(seconds: 2),

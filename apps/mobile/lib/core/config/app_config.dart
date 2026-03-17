@@ -13,9 +13,16 @@ class AppConfig {
 
   // API Configuration - injected via --dart-define-from-file
   static const String baseUrl = EnvConfig.baseUrl;
-  static const String webBaseUrl = EnvConfig.baseUrl;
   static const String graphqlEndpoint = EnvConfig.graphqlPath;
   static const String wsEndpoint = EnvConfig.wsPath;
+
+  static String get webBaseUrl {
+    final configured = EnvConfig.webBaseUrl.trim();
+    if (configured.isNotEmpty) {
+      return configured;
+    }
+    return EnvConfig.baseUrl;
+  }
 
   // GraphQL URLs
   static String get graphqlUrl =>

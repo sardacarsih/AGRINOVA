@@ -4,6 +4,7 @@ import 'package:logger/logger.dart';
 
 import '../../../auth/presentation/blocs/auth_bloc.dart';
 import '../../../../core/services/role_service.dart';
+import '../../../../core/theme/runtime_theme_slot_resolver.dart';
 import '../../../../shared/widgets/logout_menu_widget.dart';
 import '../../../../shared/widgets/auth_listener_wrapper.dart';
 
@@ -16,49 +17,68 @@ class TimbangPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return AuthListenerWrapper(
       child: BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-        if (state is AuthAuthenticated) {
-          _logger.i('Loading Timbangan dashboard for user: ${state.user.username}');
-          
-          return Scaffold(
-            appBar: AppBar(
-              title: Text('Dashboard Timbangan'),
-              backgroundColor: Colors.teal[600],
-              foregroundColor: Colors.white,
-              actions: [
-                IconButton(
-                  icon: Icon(Icons.sync),
-                  onPressed: () => _handleSync(context, state.isOfflineMode),
-                  tooltip: 'Sync Data',
-                ),
-                if (state.isOfflineMode)
-                  Container(
-                    margin: EdgeInsets.only(right: 8),
-                    child: Chip(
-                      label: Text('Offline', style: TextStyle(fontSize: 12)),
-                      backgroundColor: Colors.orange[100],
-                      labelStyle: TextStyle(color: Colors.orange[800]),
-                    ),
-                  ),
-                LogoutMenuWidget(
-                  username: state.user.username,
-                  role: RoleService.getRoleDisplayName(state.user.role),
-                ),
-              ],
-            ),
-            body: _buildTimbangDashboard(context, state),
-            floatingActionButton: FloatingActionButton.extended(
-              onPressed: () => _navigateToWeighing(context),
-              icon: Icon(Icons.scale),
-              label: Text('Timbang Baru'),
-              backgroundColor: Colors.teal[600],
-              foregroundColor: Colors.white,
-            ),
-          );
-        }
+        builder: (context, state) {
+          if (state is AuthAuthenticated) {
+            _logger.i(
+              'Loading Timbangan dashboard for user: ${state.user.username}',
+            );
+            final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+              context,
+              fallback: Colors.teal[600]!,
+            );
+            final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+              context,
+              fallback: Colors.white,
+            );
+            final navbarIcon = RuntimeThemeSlotResolver.navbarIcon(
+              context,
+              fallback: navbarFg,
+            );
 
-        return _buildLoadingScreen();
-      },
+            return Scaffold(
+              appBar: AppBar(
+                title: Text('Dashboard Timbangan'),
+                flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+                    ? Container(color: navbarBg)
+                    : null,
+                backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+                    ? Colors.transparent
+                    : navbarBg,
+                foregroundColor: navbarFg,
+                actions: [
+                  IconButton(
+                    icon: Icon(Icons.sync, color: navbarIcon),
+                    onPressed: () => _handleSync(context, state.isOfflineMode),
+                    tooltip: 'Sync Data',
+                  ),
+                  if (state.isOfflineMode)
+                    Container(
+                      margin: EdgeInsets.only(right: 8),
+                      child: Chip(
+                        label: Text('Offline', style: TextStyle(fontSize: 12)),
+                        backgroundColor: Colors.orange[100],
+                        labelStyle: TextStyle(color: Colors.orange[800]),
+                      ),
+                    ),
+                  LogoutMenuWidget(
+                    username: state.user.username,
+                    role: RoleService.getRoleDisplayName(state.user.role),
+                  ),
+                ],
+              ),
+              body: _buildTimbangDashboard(context, state),
+              floatingActionButton: FloatingActionButton.extended(
+                onPressed: () => _navigateToWeighing(context),
+                icon: Icon(Icons.scale),
+                label: Text('Timbang Baru'),
+                backgroundColor: Colors.teal[600],
+                foregroundColor: Colors.white,
+              ),
+            );
+          }
+
+          return _buildLoadingScreen(context);
+        },
       ),
     );
   }
@@ -104,10 +124,11 @@ class TimbangPage extends StatelessWidget {
                   children: [
                     Text(
                       'Selamat Datang, ${state.user.fullName}!',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
                     Text(
                       'Timbangan - ${state.user.estate ?? 'Estate'}',
@@ -131,9 +152,9 @@ class TimbangPage extends StatelessWidget {
       children: [
         Text(
           'Ringkasan Hari Ini',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         SizedBox(height: 12),
         GridView.count(
@@ -229,9 +250,9 @@ class TimbangPage extends StatelessWidget {
       children: [
         Text(
           'Riwayat Timbang Terkini',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         SizedBox(height: 12),
         Container(
@@ -244,24 +265,20 @@ class TimbangPage extends StatelessWidget {
           ),
           child: Column(
             children: [
-              Icon(
-                Icons.history,
-                size: 48,
-                color: Colors.grey[400],
-              ),
+              Icon(Icons.history, size: 48, color: Colors.grey[400]),
               SizedBox(height: 12),
               Text(
                 'Belum ada data penimbangan',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.grey[600],
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
               ),
               SizedBox(height: 8),
               Text(
                 'Mulai timbang TBS untuk melihat riwayat',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.grey[500],
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.grey[500]),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -271,9 +288,26 @@ class TimbangPage extends StatelessWidget {
     );
   }
 
-  Widget _buildLoadingScreen() {
+  Widget _buildLoadingScreen(BuildContext context) {
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: Colors.teal[600]!,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: Colors.white,
+    );
     return Scaffold(
-      appBar: AppBar(title: Text('Dashboard Timbangan')),
+      appBar: AppBar(
+        title: Text('Dashboard Timbangan', style: TextStyle(color: navbarFg)),
+        flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Container(color: navbarBg)
+            : null,
+        backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+            ? Colors.transparent
+            : navbarBg,
+        foregroundColor: navbarFg,
+      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -288,11 +322,24 @@ class TimbangPage extends StatelessWidget {
   }
 
   void _handleSync(BuildContext context, bool isOffline) {
+    final bannerBg = RuntimeThemeSlotResolver.notificationBannerBackground(
+      context,
+      fallback: isOffline
+          ? Colors.orange
+          : Theme.of(context).colorScheme.inverseSurface,
+    );
+    final bannerText = RuntimeThemeSlotResolver.notificationBannerText(
+      context,
+      fallback: Colors.white,
+    );
     if (isOffline) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Mode offline - Data akan disinkronkan saat online'),
-          backgroundColor: Colors.orange,
+          content: Text(
+            'Mode offline - Data akan disinkronkan saat online',
+            style: TextStyle(color: bannerText),
+          ),
+          backgroundColor: bannerBg,
         ),
       );
     } else {
@@ -305,13 +352,17 @@ class TimbangPage extends StatelessWidget {
                 height: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  valueColor: AlwaysStoppedAnimation<Color>(bannerText),
                 ),
               ),
               SizedBox(width: 12),
-              Text('Menyinkronkan data...'),
+              Text(
+                'Menyinkronkan data...',
+                style: TextStyle(color: bannerText),
+              ),
             ],
           ),
+          backgroundColor: bannerBg,
         ),
       );
     }
@@ -321,4 +372,3 @@ class TimbangPage extends StatelessWidget {
     Navigator.pushNamed(context, '/weighing/input');
   }
 }
-

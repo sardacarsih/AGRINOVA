@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:agrinova_mobile/core/constants/api_constants.dart';
 import 'package:agrinova_mobile/core/theme/login_theme_campaign_service.dart';
+import 'package:agrinova_mobile/core/theme/theme_mode_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -57,6 +59,7 @@ Map<String, dynamic> _runtimePayload({
   String? campaignId = 'cmp-ramadan-1',
   String? campaignName = 'Ramadan Core',
   Map<String, dynamic>? assetManifestJson,
+  Map<String, dynamic>? appUi,
 }) {
   return {
     'source': source,
@@ -85,6 +88,7 @@ Map<String, dynamic> _runtimePayload({
       'loginCardBorder': '#2DD4BF',
     },
     'asset_manifest_json': ?assetManifestJson,
+    'app_ui': ?appUi,
   };
 }
 
@@ -101,9 +105,10 @@ Future<void> _waitUntilIdle(LoginThemeCampaignService service) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() {
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
     ApiConstants.setBaseUrl('http://localhost:8080');
+    await ThemeModeService.instance.setThemeMode(ThemeMode.light);
   });
 
   test('parses valid payload and resolves active theme in auto mode', () async {
@@ -230,8 +235,8 @@ void main() {
         assetManifestJson: {
           'mobile': {
             'backgroundImage':
-                '/theme-dummy/ramadan-core/mobile-background.svg',
-            'illustration': 'theme-dummy/ramadan-core/mobile-illustration.svg',
+                '/uploads/theme-assets/ramadan-core/mobile-background.svg',
+            'illustration': 'uploads/theme-assets/ramadan-core/mobile-illustration.svg',
             'iconPack': 'rounded-enterprise',
             'accentAsset': 'diamond-grid',
           },
@@ -246,13 +251,13 @@ void main() {
     expect(
       assets.backgroundImage,
       equals(
-        'http://localhost:8080/theme-dummy/ramadan-core/mobile-background.svg',
+        'http://localhost:8080/uploads/theme-assets/ramadan-core/mobile-background.svg',
       ),
     );
     expect(
       assets.illustration,
       equals(
-        'http://localhost:8080/theme-dummy/ramadan-core/mobile-illustration.svg',
+        'http://localhost:8080/uploads/theme-assets/ramadan-core/mobile-illustration.svg',
       ),
     );
     expect(assets.iconPack, equals('rounded-enterprise'));
@@ -265,8 +270,8 @@ void main() {
         assetManifestJson: {
           'mobile': {'backgroundImage': '', 'illustration': ''},
           'web': {
-            'backgroundImage': '/theme-dummy/harvest-week/web-background.svg',
-            'illustration': '/theme-dummy/harvest-week/web-illustration.svg',
+            'backgroundImage': '/uploads/theme-assets/harvest-week/web-background.svg',
+            'illustration': '/uploads/theme-assets/harvest-week/web-illustration.svg',
             'iconPack': 'glyph-ops',
             'accentAsset': 'wave-bars',
           },
@@ -281,17 +286,60 @@ void main() {
     expect(
       assets.backgroundImage,
       equals(
-        'http://localhost:8080/theme-dummy/harvest-week/web-background.svg',
+        'http://localhost:8080/uploads/theme-assets/harvest-week/web-background.svg',
       ),
     );
     expect(
       assets.illustration,
       equals(
-        'http://localhost:8080/theme-dummy/harvest-week/web-illustration.svg',
+        'http://localhost:8080/uploads/theme-assets/harvest-week/web-illustration.svg',
       ),
     );
     expect(assets.iconPack, equals('glyph-ops'));
     expect(assets.accentAsset, equals('wave-bars'));
+  });
+
+  test('uses root backgroundImage when mobile and web entries are empty', () async {
+    final service = LoginThemeCampaignService.test(
+      fetcher: () async => _runtimePayload(
+        assetManifestJson: {
+          'backgroundImage': '/uploads/theme-assets/ramadan-core/root-background.svg',
+          'mobile': {'backgroundImage': ''},
+          'web': {'backgroundImage': ''},
+        },
+      ),
+    );
+
+    await service.initialize();
+    await service.refresh(force: true);
+
+    final assets = service.effectiveAssets;
+    expect(
+      assets.backgroundImage,
+      equals(
+        'http://localhost:8080/uploads/theme-assets/ramadan-core/root-background.svg',
+      ),
+    );
+  });
+
+  test('keeps absolute non-theme asset URLs unchanged', () async {
+    const externalUrl =
+        'https://images.unsplash.com/photo-1519817650390-64a93db511aa?auto=format&fit=crop&w=1600&q=80';
+    final service = LoginThemeCampaignService.test(
+      fetcher: () async => _runtimePayload(
+        assetManifestJson: {
+          'mobile': {
+            'backgroundImage': externalUrl,
+          },
+        },
+      ),
+    );
+
+    await service.initialize();
+    await service.refresh(force: true);
+
+    final assets = service.effectiveAssets;
+    expect(assets.backgroundImage, equals(externalUrl));
   });
 
   test('persists cached runtime assets across service instances', () async {
@@ -300,7 +348,7 @@ void main() {
         assetManifestJson: {
           'mobile': {
             'backgroundImage':
-                '/theme-dummy/ramadan-core/mobile-background.svg',
+                '/uploads/theme-assets/ramadan-core/mobile-background.svg',
           },
         },
       ),
@@ -318,11 +366,166 @@ void main() {
     expect(
       secondService.effectiveAssets.backgroundImage,
       equals(
-        'http://localhost:8080/theme-dummy/ramadan-core/mobile-background.svg',
+        'http://localhost:8080/uploads/theme-assets/ramadan-core/mobile-background.svg',
       ),
     );
     expect(secondService.runtimeMetadata.source, equals('ACTIVE_CAMPAIGN'));
   });
+
+  test('parses typed app_ui slots from runtime payload', () async {
+    final service = LoginThemeCampaignService.test(
+      fetcher: () async => _runtimePayload(
+        appUi: {
+          'navbar': {
+            'backgroundColor': '#0F172A',
+            'foregroundColor': '#FFFFFF',
+          },
+          'sidebar': {
+            'backgroundColor': '#0B1220',
+            'foregroundColor': '#E2E8F0',
+            'iconColor': '#93C5FD',
+            'borderColor': '#1E293B',
+          },
+          'footer': {
+            'backgroundColor': '#111827',
+            'foregroundColor': '#9CA3AF',
+            'accentColor': '#34D399',
+            'borderColor': '#1F2937',
+          },
+          'notification_banner': {
+            'backgroundColor': '#1E3A8A',
+            'textColor': '#FFFFFF',
+          },
+          'empty_state_illustration': {
+            'asset': '/uploads/theme-assets/mobile/illustration/theme-empty.svg',
+          },
+        },
+      ),
+    );
+
+    await service.initialize();
+    await service.refresh(force: true);
+
+    final appUi = service.effectiveAppUi;
+    expect(appUi.navbar.backgroundColor, equals('#0F172A'));
+    expect(appUi.navbar.foregroundColor, equals('#FFFFFF'));
+    expect(appUi.sidebar.backgroundColor, equals('#0B1220'));
+    expect(appUi.sidebar.foregroundColor, equals('#E2E8F0'));
+    expect(appUi.sidebar.iconColor, equals('#93C5FD'));
+    expect(appUi.sidebar.borderColor, equals('#1E293B'));
+    expect(appUi.footer.backgroundColor, equals('#111827'));
+    expect(appUi.footer.foregroundColor, equals('#9CA3AF'));
+    expect(appUi.footer.accentColor, equals('#34D399'));
+    expect(appUi.footer.borderColor, equals('#1F2937'));
+    expect(appUi.notificationBanner.backgroundColor, equals('#1E3A8A'));
+    expect(appUi.notificationBanner.textColor, equals('#FFFFFF'));
+    expect(
+      appUi.emptyStateIllustration.asset,
+      equals(
+        'http://localhost:8080/uploads/theme-assets/mobile/illustration/theme-empty.svg',
+      ),
+    );
+  });
+
+  test(
+    'parses token_json from runtime modes and resolves light/dark tokens independently',
+    () async {
+      final service = LoginThemeCampaignService.test(
+        fetcher: () async => {
+          'source': 'ACTIVE_CAMPAIGN',
+          'theme': {
+            'id': 'theme-mode-aware',
+            'modes': {
+              'light': {
+                'token_json': {
+                  'accentColor': '#0EA5E9',
+                  'accentSoftColor': '#BAE6FD',
+                  'loginCardBorder': '#7DD3FC',
+                },
+              },
+              'dark': {
+                'token_json': {
+                  'accentColor': '#22D3EE',
+                  'accentSoftColor': '#155E75',
+                  'loginCardBorder': '#0E7490',
+                },
+              },
+            },
+          },
+        },
+      );
+
+      await service.initialize();
+      await service.refresh(force: true);
+
+      final lightTokens = service.resolveTokens(brightness: Brightness.light);
+      final darkTokens = service.resolveTokens(brightness: Brightness.dark);
+
+      expect(lightTokens.link, equals(const Color(0xFF0EA5E9)));
+      expect(darkTokens.link, equals(const Color(0xFF22D3EE)));
+      expect(lightTokens.link, isNot(equals(darkTokens.link)));
+    },
+  );
+
+  test(
+    'prefers active runtime mode variants for assets and app_ui, with fallback for missing fields',
+    () async {
+      await ThemeModeService.instance.setThemeMode(ThemeMode.dark);
+
+      final service = LoginThemeCampaignService.test(
+        fetcher: () async => {
+          'source': 'ACTIVE_CAMPAIGN',
+          'theme': {
+            'id': 'theme-mode-assets',
+            'modes': {
+              'light': {
+                'asset_manifest_json': {
+                  'mobile': {
+                    'illustration': '/uploads/theme-assets/light/illustration.svg',
+                    'iconPack': 'light-pack',
+                  },
+                },
+                'app_ui': {
+                  'sidebar': {'backgroundColor': '#E2E8F0'},
+                },
+              },
+              'dark': {
+                'asset_manifest_json': {
+                  'mobile': {
+                    'backgroundImage':
+                        '/uploads/theme-assets/dark/background.svg',
+                    'accentAsset': 'dark-accent',
+                  },
+                },
+                'app_ui': {
+                  'navbar': {'backgroundColor': '#0B1120'},
+                },
+              },
+            },
+          },
+        },
+      );
+
+      await service.initialize();
+      await service.refresh(force: true);
+
+      final assets = service.effectiveAssets;
+      final appUi = service.effectiveAppUi;
+
+      expect(
+        assets.backgroundImage,
+        equals('http://localhost:8080/uploads/theme-assets/dark/background.svg'),
+      );
+      expect(
+        assets.illustration,
+        equals('http://localhost:8080/uploads/theme-assets/light/illustration.svg'),
+      );
+      expect(assets.iconPack, equals('light-pack'));
+      expect(assets.accentAsset, equals('dark-accent'));
+      expect(appUi.navbar.backgroundColor, equals('#0B1120'));
+      expect(appUi.sidebar.backgroundColor, equals('#E2E8F0'));
+    },
+  );
 
   test(
     'refreshIfStale returns immediately with stale cache and refreshes in background',
@@ -364,6 +567,49 @@ void main() {
   );
 
   test(
+    'initialize backfills runtime background when cache is fresh but asset is empty',
+    () async {
+      final now = DateTime.utc(2026, 3, 15, 12, 30);
+      SharedPreferences.setMockInitialValues({
+        'login_theme_selection_mode': 'auto',
+        'login_theme_payload_cache': jsonEncode(_validPayload()),
+        'login_theme_payload_fetched_at':
+            DateTime.utc(2026, 3, 15, 12).toIso8601String(),
+      });
+      final prefs = await SharedPreferences.getInstance();
+
+      var callCount = 0;
+      final service = LoginThemeCampaignService.test(
+        now: () => now,
+        prefs: prefs,
+        fetcher: () async {
+          callCount++;
+          return _runtimePayload(
+            assetManifestJson: {
+              'mobile': {
+                'backgroundImage':
+                    '/uploads/theme-assets/refresh/mobile-background.svg',
+              },
+            },
+          );
+        },
+      );
+
+      await service.initialize();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await _waitUntilIdle(service);
+
+      expect(callCount, equals(1));
+      expect(
+        service.effectiveAssets.backgroundImage,
+        equals(
+          'http://localhost:8080/uploads/theme-assets/refresh/mobile-background.svg',
+        ),
+      );
+    },
+  );
+
+  test(
     'exposes runtime diagnostics for source, cache age, and fetch errors',
     () async {
       var now = DateTime.utc(2026, 3, 15, 9);
@@ -401,3 +647,4 @@ void main() {
     },
   );
 }
+

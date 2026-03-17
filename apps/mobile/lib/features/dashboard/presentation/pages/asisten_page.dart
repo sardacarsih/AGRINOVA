@@ -29,6 +29,7 @@ import '../../../../core/di/service_locator.dart';
 import '../../../../core/services/notification_storage_service.dart';
 import '../../../../core/services/fcm_service.dart';
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/theme/runtime_theme_slot_resolver.dart';
 
 /// Asisten Page with Light Mode Design
 ///
@@ -150,9 +151,20 @@ class _AsistenPageState extends State<AsistenPage> {
       if (panenId != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Membuka transaksi panen: $panenId'),
+            content: Text(
+              'Membuka transaksi panen: $panenId',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.notificationBannerText(
+                  context,
+                  fallback: Colors.white,
+                ),
+              ),
+            ),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: AsistenTheme.primaryBlue,
+            backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+              context,
+              fallback: AsistenTheme.primaryBlue,
+            ),
           ),
         );
       }
@@ -261,7 +273,10 @@ class _AsistenPageState extends State<AsistenPage> {
 
   Widget _buildScaffold(BuildContext context, AuthAuthenticated authState) {
     return Scaffold(
-      backgroundColor: AsistenTheme.scaffoldBackground,
+      backgroundColor: RuntimeThemeSlotResolver.dashboardBackground(
+        context,
+        fallback: AsistenTheme.scaffoldBackground,
+      ),
       appBar: _buildAppBar(authState),
       body: _buildBody(context, authState),
       bottomNavigationBar: AsistenBottomNav(
@@ -280,34 +295,65 @@ class _AsistenPageState extends State<AsistenPage> {
   }
 
   PreferredSizeWidget _buildAppBar(AuthAuthenticated state) {
+    final navbarBg = RuntimeThemeSlotResolver.navbarBackground(
+      context,
+      fallback: AsistenTheme.primaryBlue,
+    );
+    final navbarFg = RuntimeThemeSlotResolver.navbarForeground(
+      context,
+      fallback: Colors.white,
+    );
+    final navbarIcon = RuntimeThemeSlotResolver.navbarIcon(
+      context,
+      fallback: Colors.white,
+    );
+    final sidebarBg = RuntimeThemeSlotResolver.sidebarBackground(
+      context,
+      fallback: AsistenTheme.cardBackground,
+    );
+    final sidebarText = RuntimeThemeSlotResolver.sidebarForeground(
+      context,
+      fallback: AsistenTheme.textSecondary,
+    );
+    final sidebarIcon = RuntimeThemeSlotResolver.sidebarIcon(
+      context,
+      fallback: AsistenTheme.textSecondary,
+    );
+
     return AppBar(
-      title: const Text(
+      title: Text(
         'Asisten Dashboard',
         style: TextStyle(
-          color: Colors.white,
+          color: navbarFg,
           fontWeight: FontWeight.w600,
           fontSize: 18,
         ),
       ),
-      flexibleSpace: Container(
-        decoration: const BoxDecoration(
-          gradient: AsistenTheme.headerGradient,
-        ),
-      ),
-      backgroundColor: Colors.transparent,
+      flexibleSpace: RuntimeThemeSlotResolver.hasNavbarBackground
+          ? Container(color: navbarBg)
+          : Container(
+              decoration: const BoxDecoration(
+                gradient: AsistenTheme.headerGradient,
+              ),
+            ),
+      backgroundColor: RuntimeThemeSlotResolver.hasNavbarBackground
+          ? navbarBg
+          : Colors.transparent,
       elevation: 0,
-      iconTheme: const IconThemeData(color: Colors.white),
+      iconTheme: IconThemeData(color: navbarIcon),
       actions: [
         IconButton(
           icon: AsistenIconBadge(
             icon: Icons.notifications_outlined,
             badgeCount: _unreadNotificationCount,
+            iconColor: navbarIcon,
           ),
           onPressed: () => _showNotifications(context),
           tooltip: 'Notifications',
         ),
         PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, color: Colors.white),
+          icon: Icon(Icons.more_vert, color: navbarIcon),
+          color: sidebarBg,
           onSelected: (value) {
             if (value == 'profile') {
               setState(() => _currentNavIndex = 3);
@@ -326,9 +372,9 @@ class _AsistenPageState extends State<AsistenPage> {
               value: 'profile',
               child: Row(
                 children: [
-                  Icon(Icons.person_outline, color: AsistenTheme.textSecondary),
+                  Icon(Icons.person_outline, color: sidebarIcon),
                   const SizedBox(width: 12),
-                  const Text('Profile'),
+                  Text('Profile', style: TextStyle(color: sidebarText)),
                 ],
               ),
             ),
@@ -336,10 +382,9 @@ class _AsistenPageState extends State<AsistenPage> {
               value: 'web_qr_login',
               child: Row(
                 children: [
-                  Icon(Icons.qr_code_scanner_outlined,
-                      color: AsistenTheme.textSecondary),
+                  Icon(Icons.qr_code_scanner_outlined, color: sidebarIcon),
                   const SizedBox(width: 12),
-                  const Text('QR Login Web'),
+                  Text('QR Login Web', style: TextStyle(color: sidebarText)),
                 ],
               ),
             ),
@@ -347,10 +392,9 @@ class _AsistenPageState extends State<AsistenPage> {
               value: 'settings',
               child: Row(
                 children: [
-                  Icon(Icons.settings_outlined,
-                      color: AsistenTheme.textSecondary),
+                  Icon(Icons.settings_outlined, color: sidebarIcon),
                   const SizedBox(width: 12),
-                  const Text('Settings'),
+                  Text('Settings', style: TextStyle(color: sidebarText)),
                 ],
               ),
             ),
@@ -516,17 +560,29 @@ class _AsistenPageState extends State<AsistenPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AsistenTheme.pendingOrange.withValues(alpha: 0.12),
+        color: RuntimeThemeSlotResolver.dashboardAccent(
+          context,
+          fallback: AsistenTheme.pendingOrange,
+        ).withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: AsistenTheme.pendingOrange.withValues(alpha: 0.3),
+          color: RuntimeThemeSlotResolver.dashboardBorder(
+            context,
+            fallback: AsistenTheme.pendingOrange.withValues(alpha: 0.3),
+          ),
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.warning_amber_rounded,
-              size: 18, color: AsistenTheme.pendingOrange),
+          Icon(
+            Icons.warning_amber_rounded,
+            size: 18,
+            color: RuntimeThemeSlotResolver.dashboardAccent(
+              context,
+              fallback: AsistenTheme.pendingOrange,
+            ),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -541,7 +597,10 @@ class _AsistenPageState extends State<AsistenPage> {
 
   Widget _buildLoadingScreen() {
     return Scaffold(
-      backgroundColor: AsistenTheme.scaffoldBackground,
+      backgroundColor: RuntimeThemeSlotResolver.dashboardBackground(
+        context,
+        fallback: AsistenTheme.scaffoldBackground,
+      ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -587,8 +646,19 @@ class _AsistenPageState extends State<AsistenPage> {
   void _showComingSoon(BuildContext context, String feature) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$feature dalam pengembangan'),
-        backgroundColor: AsistenTheme.pendingOrange,
+        content: Text(
+          '$feature dalam pengembangan',
+          style: TextStyle(
+            color: RuntimeThemeSlotResolver.notificationBannerText(
+              context,
+              fallback: Colors.white,
+            ),
+          ),
+        ),
+        backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+          context,
+          fallback: AsistenTheme.pendingOrange,
+        ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -724,6 +794,10 @@ class _AsistenPageState extends State<AsistenPage> {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback: AsistenTheme.cardBackground,
+        ),
         title: const Text('Setujui Panen?'),
         content: Text(
           'Anda akan menyetujui data panen dari ${approval.mandorName}.',
@@ -731,7 +805,15 @@ class _AsistenPageState extends State<AsistenPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.modalAccent(
+                  dialogContext,
+                  fallback: AsistenTheme.primaryBlue,
+                ),
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
@@ -739,7 +821,10 @@ class _AsistenPageState extends State<AsistenPage> {
               _approvePendingItem(context, approvalId);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AsistenTheme.approvedGreen,
+              backgroundColor: RuntimeThemeSlotResolver.modalAccent(
+                dialogContext,
+                fallback: AsistenTheme.approvedGreen,
+              ),
               foregroundColor: Colors.white,
             ),
             child: const Text('Setuju'),
@@ -759,6 +844,10 @@ class _AsistenPageState extends State<AsistenPage> {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback: AsistenTheme.cardBackground,
+        ),
         title: const Text('Tolak Panen'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -779,14 +868,37 @@ class _AsistenPageState extends State<AsistenPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Batal'),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.modalAccent(
+                  dialogContext,
+                  fallback: AsistenTheme.primaryBlue,
+                ),
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
               final reason = reasonController.text.trim();
               if (reason.isEmpty) {
                 ScaffoldMessenger.of(dialogContext).showSnackBar(
-                  const SnackBar(content: Text('Alasan harus diisi')),
+                  SnackBar(
+                    content: Text(
+                      'Alasan harus diisi',
+                      style: TextStyle(
+                        color: RuntimeThemeSlotResolver.notificationBannerText(
+                          dialogContext,
+                          fallback: Colors.white,
+                        ),
+                      ),
+                    ),
+                    backgroundColor:
+                        RuntimeThemeSlotResolver.notificationBannerBackground(
+                      dialogContext,
+                      fallback: AsistenTheme.pendingOrange,
+                    ),
+                  ),
                 );
                 return;
               }
@@ -794,7 +906,10 @@ class _AsistenPageState extends State<AsistenPage> {
               _rejectPendingItem(context, approvalId, reason);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AsistenTheme.rejectedRed,
+              backgroundColor: RuntimeThemeSlotResolver.modalAccent(
+                dialogContext,
+                fallback: AsistenTheme.rejectedRed,
+              ),
               foregroundColor: Colors.white,
             ),
             child: const Text('Tolak'),
@@ -816,11 +931,22 @@ class _AsistenPageState extends State<AsistenPage> {
     try {
       await _approvalRepository.approveHarvest(id);
       await _notificationStorage.markHarvestApprovalNotificationsAsRead(id);
-      if (mounted) {
+      if (context.mounted && mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: const Text('Data berhasil disetujui'),
-            backgroundColor: AsistenTheme.approvedGreen,
+            content: Text(
+              'Data berhasil disetujui',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.notificationBannerText(
+                  context,
+                  fallback: Colors.white,
+                ),
+              ),
+            ),
+            backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+              context,
+              fallback: AsistenTheme.approvedGreen,
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -834,11 +960,22 @@ class _AsistenPageState extends State<AsistenPage> {
         e,
         action: 'menyetujui data panen',
       );
-      if (mounted) {
+      if (context.mounted && mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text(friendlyMessage),
-            backgroundColor: AsistenTheme.rejectedRed,
+            content: Text(
+              friendlyMessage,
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.notificationBannerText(
+                  context,
+                  fallback: Colors.white,
+                ),
+              ),
+            ),
+            backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+              context,
+              fallback: AsistenTheme.rejectedRed,
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -866,11 +1003,22 @@ class _AsistenPageState extends State<AsistenPage> {
     try {
       await _approvalRepository.rejectHarvest(id, reason);
       await _notificationStorage.markHarvestApprovalNotificationsAsRead(id);
-      if (mounted) {
+      if (context.mounted && mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: const Text('Data berhasil ditolak'),
-            backgroundColor: AsistenTheme.pendingOrange,
+            content: Text(
+              'Data berhasil ditolak',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.notificationBannerText(
+                  context,
+                  fallback: Colors.white,
+                ),
+              ),
+            ),
+            backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+              context,
+              fallback: AsistenTheme.pendingOrange,
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -884,11 +1032,22 @@ class _AsistenPageState extends State<AsistenPage> {
         e,
         action: 'menolak data panen',
       );
-      if (mounted) {
+      if (context.mounted && mounted) {
         messenger.showSnackBar(
           SnackBar(
-            content: Text(friendlyMessage),
-            backgroundColor: AsistenTheme.rejectedRed,
+            content: Text(
+              friendlyMessage,
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.notificationBannerText(
+                  context,
+                  fallback: Colors.white,
+                ),
+              ),
+            ),
+            backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+              context,
+              fallback: AsistenTheme.rejectedRed,
+            ),
             behavior: SnackBarBehavior.floating,
           ),
         );

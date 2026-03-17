@@ -4,16 +4,19 @@ import { locales, defaultLocale } from './src/i18n/settings';
 
 // Complete redirect mapping for all existing role-prefixed routes to clean URLs
 const ROLE_REDIRECTS: Record<string, string> = {
+  // Legacy dashboard path now lives at root.
+  '/dashboard': '/',
+
   // Dashboard redirects - role prefixes removed
-  '/dashboard/super-admin': '/dashboard',
-  '/dashboard/company-admin': '/dashboard',
-  '/dashboard/area-manager': '/dashboard',
-  '/dashboard/manager': '/dashboard',
-  '/dashboard/asisten': '/dashboard',
-  '/dashboard/mandor': '/dashboard',
-  '/dashboard/satpam': '/dashboard',
-  '/dashboard/timbangan': '/dashboard',
-  '/dashboard/grading': '/dashboard',
+  '/dashboard/super-admin': '/',
+  '/dashboard/company-admin': '/',
+  '/dashboard/area-manager': '/',
+  '/dashboard/manager': '/',
+  '/dashboard/asisten': '/',
+  '/dashboard/mandor': '/',
+  '/dashboard/satpam': '/',
+  '/dashboard/timbangan': '/',
+  '/dashboard/grading': '/',
 
   // Super Admin redirects
   '/dashboard/super-admin/companies': '/companies',
@@ -45,7 +48,7 @@ const ROLE_REDIRECTS: Record<string, string> = {
   '/dashboard/company-admin/reports': '/reports',
 
   // Manager redirects
-  '/dashboard/manager/overview': '/dashboard',
+  '/dashboard/manager/overview': '/',
   '/dashboard/manager/harvest-reports': '/reports',
   '/dashboard/manager/analytics': '/reports',
   '/dashboard/manager/users': '/budget-divisi',
@@ -59,7 +62,7 @@ const ROLE_REDIRECTS: Record<string, string> = {
 
   // Asisten redirects
   '/dashboard/asisten/approval': '/harvest',
-  '/dashboard/asisten/monitoring': '/dashboard',
+  '/dashboard/asisten/monitoring': '/',
   '/dashboard/asisten/gate-check': '/gate-check',
   '/dashboard/asisten/reports': '/reports',
   '/dashboard/asisten/notifications': '/notifications',
@@ -112,8 +115,12 @@ function getLocaleFromRequest(request: NextRequest): string {
 function getRedirectPath(pathname: string): string | null {
   // No locale removal needed - just check direct path
   const normalizedPath = pathname.startsWith('/') ? pathname : `/${pathname}`;
+  const canonicalPath =
+    normalizedPath.length > 1 && normalizedPath.endsWith('/')
+      ? normalizedPath.slice(0, -1)
+      : normalizedPath;
 
-  return ROLE_REDIRECTS[normalizedPath] || null;
+  return ROLE_REDIRECTS[canonicalPath] || null;
 }
 
 function stripLocalePrefix(pathname: string): { cleanedPath: string; localeFromPath: string | null } {

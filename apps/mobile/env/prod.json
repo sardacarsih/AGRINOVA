@@ -2,6 +2,7 @@
   "ENV": "prod",
   "APP_NAME": "Agrinova",
   "BASE_URL": "https://api.kskgroup.web.id",
+  "WEB_BASE_URL": "https://kskgroup.web.id",
   "WS_URL": "wss://api.kskgroup.web.id",
   "GRAPHQL_PATH": "/graphql",
   "WS_PATH": "/ws",

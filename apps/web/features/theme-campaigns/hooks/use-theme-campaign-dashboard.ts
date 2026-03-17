@@ -5,6 +5,8 @@ import { ThemeCampaignApi } from '@/features/theme-campaigns/api/theme-campaign-
 import {
   SortDirection,
   ThemeAuditLog,
+  ThemeAppUiSlot,
+  ThemeAppUiSlots,
   ThemeCampaign,
   ThemeCampaignAssets,
   ThemeCampaignFilters,
@@ -69,8 +71,71 @@ const DEFAULT_SETTINGS: ThemeSettings = {
   global_kill_switch: false,
 };
 
+const APP_UI_SLOT_KEYS = [
+  'navbar',
+  'sidebar',
+  'footer',
+  'dashboard',
+  'notification_banner',
+  'empty_state_illustration',
+  'modal_accent',
+] as const;
+
+const THEME_CAMPAIGN_STATUS_VALUES: ThemeCampaignStatus[] = [
+  'DRAFT',
+  'SCHEDULED',
+  'ACTIVE',
+  'EXPIRED',
+  'DISABLED',
+];
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+
+const asString = (value: unknown, fallback = ''): string =>
+  typeof value === 'string' ? value : fallback;
+
+const asOptionalString = (value: unknown): string | undefined =>
+  typeof value === 'string' && value.length > 0 ? value : undefined;
+
+const asNumber = (value: unknown, fallback = 0): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const asBoolean = (value: unknown, fallback = false): boolean =>
+  typeof value === 'boolean' ? value : fallback;
+
+const asThemeCampaignStatus = (value: unknown): ThemeCampaignStatus | undefined =>
+  typeof value === 'string' && THEME_CAMPAIGN_STATUS_VALUES.includes(value as ThemeCampaignStatus)
+    ? (value as ThemeCampaignStatus)
+    : undefined;
+
+const ensureAppUiSlot = (value: unknown): ThemeAppUiSlot => {
+  const source = asRecord(value);
+  return {
+    backgroundColor:
+      typeof source.backgroundColor === 'string' ? source.backgroundColor : '',
+    foregroundColor:
+      typeof source.foregroundColor === 'string' ? source.foregroundColor : '',
+    textColor: typeof source.textColor === 'string' ? source.textColor : '',
+    borderColor: typeof source.borderColor === 'string' ? source.borderColor : '',
+    accentColor: typeof source.accentColor === 'string' ? source.accentColor : '',
+    iconColor: typeof source.iconColor === 'string' ? source.iconColor : '',
+    asset: typeof source.asset === 'string' ? source.asset : '',
+  };
+};
+
+const ensureAppUiSlots = (value: unknown): ThemeAppUiSlots => {
+  const source = asRecord(value);
+  return APP_UI_SLOT_KEYS.reduce<ThemeAppUiSlots>((acc, slotKey) => {
+    acc[slotKey] = ensureAppUiSlot(source[slotKey]);
+    return acc;
+  }, {});
+};
+
 const ensurePlatformAssets = (value: unknown) => {
-  const source = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  const source = asRecord(value);
   return {
     backgroundImage:
       typeof source.backgroundImage === 'string' ? source.backgroundImage : '',
@@ -78,11 +143,12 @@ const ensurePlatformAssets = (value: unknown) => {
       typeof source.illustration === 'string' ? source.illustration : '',
     iconPack: typeof source.iconPack === 'string' ? source.iconPack : '',
     accentAsset: typeof source.accentAsset === 'string' ? source.accentAsset : '',
+    app_ui: ensureAppUiSlots(source.app_ui),
   };
 };
 
 const mapCampaignAssets = (assets: unknown): ThemeCampaignAssets => {
-  const source = assets && typeof assets === 'object' ? (assets as Record<string, unknown>) : {};
+  const source = asRecord(assets);
   const web = ensurePlatformAssets(source.web);
   const mobile = ensurePlatformAssets(source.mobile);
 
@@ -100,72 +166,146 @@ const mapCampaignAssets = (assets: unknown): ThemeCampaignAssets => {
   };
 };
 
-const mapCampaign = (item: any): ThemeCampaign => ({
-  id: item?.id || '',
-  theme_id: item?.theme_id || '',
-  campaign_group_key: item?.campaign_group_key || '',
-  campaign_name: item?.campaign_name || '',
-  description: item?.description || '',
-  enabled: Boolean(item?.enabled),
-  start_at: item?.start_at || undefined,
-  end_at: item?.end_at || undefined,
-  priority: Number(item?.priority || 0),
-  light_mode_enabled: item?.light_mode_enabled !== false,
-  dark_mode_enabled: item?.dark_mode_enabled !== false,
-  assets: mapCampaignAssets(item?.assets),
-  updated_by: item?.updated_by || '-',
-  updated_at: item?.updated_at || new Date().toISOString(),
-  status: item?.status,
-});
+const mapCampaign = (item: unknown): ThemeCampaign => {
+  const source = asRecord(item);
+  return {
+    id: asString(source.id),
+    theme_id: asString(source.theme_id),
+    campaign_group_key: asString(source.campaign_group_key),
+    campaign_name: asString(source.campaign_name),
+    description: asString(source.description),
+    enabled: asBoolean(source.enabled),
+    start_at: asOptionalString(source.start_at),
+    end_at: asOptionalString(source.end_at),
+    priority: asNumber(source.priority),
+    light_mode_enabled: source.light_mode_enabled !== false,
+    dark_mode_enabled: source.dark_mode_enabled !== false,
+    assets: mapCampaignAssets(source.assets),
+    updated_by: asString(source.updated_by, '-'),
+    updated_at: asString(source.updated_at, new Date().toISOString()),
+    status: asThemeCampaignStatus(source.status),
+  };
+};
 
 const mapThemeTokenConfig = (value: unknown): ThemeTokenConfig => {
-  const source = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
-  const result: ThemeTokenConfig = {
-    accentColor: typeof source.accentColor === 'string' ? source.accentColor : '',
-    accentSoftColor: typeof source.accentSoftColor === 'string' ? source.accentSoftColor : '',
-    loginCardBorder: typeof source.loginCardBorder === 'string' ? source.loginCardBorder : '',
+  const mapTokenValues = (raw: unknown, fallback?: ThemeTokenConfig): ThemeTokenConfig => {
+    const source = asRecord(raw);
+    const result: ThemeTokenConfig = {
+      accentColor:
+        typeof source.accentColor === 'string'
+          ? source.accentColor
+          : fallback?.accentColor || '',
+      accentSoftColor:
+        typeof source.accentSoftColor === 'string'
+          ? source.accentSoftColor
+          : fallback?.accentSoftColor || '',
+      loginCardBorder:
+        typeof source.loginCardBorder === 'string'
+          ? source.loginCardBorder
+          : fallback?.loginCardBorder || '',
+    };
+
+    Object.entries(source).forEach(([key, candidate]) => {
+      if (key === 'modes' || key in result) return;
+      if (typeof candidate === 'string') {
+        result[key] = candidate;
+      }
+    });
+
+    return result;
   };
 
-  Object.entries(source).forEach(([key, candidate]) => {
-    if (typeof candidate === 'string' && !(key in result)) {
-      result[key] = candidate;
-    }
-  });
+  const source = asRecord(value);
+  const base = mapTokenValues(source);
+  const modeSource = asRecord(source.modes);
+  const light = mapTokenValues(modeSource.light, base);
+  const dark = mapTokenValues(modeSource.dark, base);
 
-  return result;
+  return {
+    ...base,
+    modes: {
+      light,
+      dark,
+    },
+  };
 };
 
 const mapThemeAssetManifest = (value: unknown): ThemeAssetManifest => {
-  const source = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  const mapAssetValues = (
+    raw: unknown,
+    fallback?: ThemeAssetManifest
+  ): ThemeAssetManifest => {
+    const source = asRecord(raw);
+    const result: ThemeAssetManifest = {
+      backgroundImage:
+        typeof source.backgroundImage === 'string'
+          ? source.backgroundImage
+          : fallback?.backgroundImage || '',
+      illustration:
+        typeof source.illustration === 'string'
+          ? source.illustration
+          : fallback?.illustration || '',
+      iconPack:
+        typeof source.iconPack === 'string'
+          ? source.iconPack
+          : fallback?.iconPack || 'outline-enterprise',
+      accentAsset:
+        typeof source.accentAsset === 'string'
+          ? source.accentAsset
+          : fallback?.accentAsset || 'none',
+      app_ui: ensureAppUiSlots(source.app_ui ?? fallback?.app_ui),
+    };
+
+    if (source.web || fallback?.web) {
+      result.web = ensurePlatformAssets(source.web ?? fallback?.web);
+    }
+    if (source.mobile || fallback?.mobile) {
+      result.mobile = ensurePlatformAssets(source.mobile ?? fallback?.mobile);
+    }
+
+    return result;
+  };
+
+  const source = asRecord(value);
+  const base = mapAssetValues(source);
+  const modeSource = asRecord(source.modes);
+  const light = mapAssetValues(modeSource.light, base);
+  const dark = mapAssetValues(modeSource.dark, base);
+
   return {
-    backgroundImage:
-      typeof source.backgroundImage === 'string' ? source.backgroundImage : '',
-    illustration:
-      typeof source.illustration === 'string' ? source.illustration : '',
-    iconPack: typeof source.iconPack === 'string' ? source.iconPack : 'outline-enterprise',
-    accentAsset: typeof source.accentAsset === 'string' ? source.accentAsset : 'none',
+    ...base,
+    modes: {
+      light,
+      dark,
+    },
   };
 };
 
-const mapTheme = (item: any): ThemeEntity => ({
-  id: item?.id || '',
-  code: item?.code || '',
-  name: item?.name || '',
-  type: item?.type === 'base' ? 'base' : 'seasonal',
-  is_active: Boolean(item?.is_active),
-  token_json: mapThemeTokenConfig(item?.token_json),
-  asset_manifest_json: mapThemeAssetManifest(item?.asset_manifest_json),
-});
+const mapTheme = (item: unknown): ThemeEntity => {
+  const source = asRecord(item);
+  return {
+    id: asString(source.id),
+    code: asString(source.code),
+    name: asString(source.name),
+    type: source.type === 'base' ? 'base' : 'seasonal',
+    is_active: asBoolean(source.is_active),
+    token_json: mapThemeTokenConfig(source.token_json),
+    asset_manifest_json: mapThemeAssetManifest(source.asset_manifest_json),
+  };
+};
 
-const mapAudit = (item: any): ThemeAuditLog => ({
-  id: item?.id || '',
-  actor: item?.actor || '-',
-  action: item?.action || '-',
-  target_entity: item?.target_entity || '-',
-  timestamp: item?.timestamp || new Date().toISOString(),
-  before_summary: item?.before_summary || '-',
-  after_summary: item?.after_summary || '-',
-});
+const mapAudit = (item: unknown): ThemeAuditLog => {
+  const source = asRecord(item);
+  return {
+    id: asString(source.id),
+    actor: asString(source.actor, '-'),
+    action: asString(source.action, '-'),
+    target_entity: asString(source.target_entity, '-'),
+    timestamp: asString(source.timestamp, new Date().toISOString()),
+    before_summary: asString(source.before_summary, '-'),
+    after_summary: asString(source.after_summary, '-'),
+  };
+};
 
 export function useThemeCampaignDashboard(): UseThemeCampaignDashboardResult {
   const [isLoading, setIsLoading] = useState(true);
