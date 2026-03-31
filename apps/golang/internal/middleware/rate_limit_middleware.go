@@ -400,7 +400,9 @@ func (s *InMemoryRateLimitStore) cleanup() {
 		}
 		// Remove old sliding window counters
 		for key, sw := range s.slidingWindows {
-			if sw.Count() == 0 && time.Since(sw.requests[0]) > 10*time.Minute {
+			if sw.Count() == 0 && len(sw.requests) > 0 && time.Since(sw.requests[0]) > 10*time.Minute {
+				delete(s.slidingWindows, key)
+			} else if sw.Count() == 0 && len(sw.requests) == 0 {
 				delete(s.slidingWindows, key)
 			}
 		}
