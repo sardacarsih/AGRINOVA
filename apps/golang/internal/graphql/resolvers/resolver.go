@@ -183,6 +183,13 @@ func NewResolver(
 	// 5. Inject into Global AuthResolver
 	// We update the Global Resolvers to use the New Module's resolvers for Logic
 	globalAuthResolver := authResolvers.NewAuthResolver()
+	forgotPasswordService := authServices.NewForgotPasswordService(
+		db,
+		passwordService,
+		securityLoggingService,
+		nil,
+	)
+	globalAuthResolver.SetForgotPasswordService(forgotPasswordService)
 
 	if authModuleV2 != nil {
 		globalAuthResolver.SetMobileResolver(authModuleV2.MobileResolver)

@@ -49,6 +49,7 @@ func AutoMigrateWithGORM(db *gorm.DB) error {
 		&authmodels.UserSession{},
 		&authmodels.DeviceBinding{},
 		&authmodels.JWTToken{},
+		&authmodels.PasswordReset{},
 		&authmodels.SecurityEvent{},
 		&authmodels.LoginAttempt{},
 		&authmodels.UserDeviceToken{}, // FCM device tokens

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -36,13 +37,17 @@ func (r *mutationResolver) RegisterGuest(ctx context.Context, input satpam.Creat
 
 	result, err := r.GateCheckService.RegisterGuest(ctx, input)
 	if err != nil {
-		return nil, err
+		log.Printf("RegisterGuest error: %v", err)
+		return &satpam.GuestRegistrationResult{
+			Success: false,
+			Message: "Gagal memproses pendaftaran tamu",
+		}, nil
 	}
 
 	if result != nil && result.Success && result.GuestLog != nil {
 		publishSatpamVehicleEntry(result.GuestLog)
 		if err := r.persistSatpamVehicleEntryNotification(ctx, result.GuestLog); err != nil {
-			fmt.Printf("failed to persist satpam vehicle entry notification: %v\n", err)
+			log.Printf("failed to persist satpam vehicle entry notification: %v", err)
 		}
 		r.emitSatpamSyncUpdate(ctx, input.DeviceID)
 	}
@@ -55,7 +60,12 @@ func (r *mutationResolver) GenerateGuestQR(ctx context.Context, guestLogID strin
 	if r.GateCheckService == nil {
 		return nil, errors.New("gate check service not initialized")
 	}
-	return r.GateCheckService.GenerateGuestQR(ctx, guestLogID, intent, deviceID, expiryMinutes)
+	result, err := r.GateCheckService.GenerateGuestQR(ctx, guestLogID, intent, deviceID, expiryMinutes)
+	if err != nil {
+		log.Printf("GenerateGuestQR error for guestLogID=%s: %v", guestLogID, err)
+		return nil, errors.New("gagal membuat QR code")
+	}
+	return result, nil
 }
 
 // ProcessGuestExit is the resolver for the processGuestExit field.
@@ -70,18 +80,23 @@ func (r *mutationResolver) ProcessGuestExit(ctx context.Context, input satpam.Pr
 
 	result, err := r.GateCheckService.ProcessGuestExit(ctx, input)
 	if err != nil {
-		return nil, err
+		log.Printf("ProcessGuestExit error: %v", err)
+		return &satpam.ProcessExitResult{
+			Success:     false,
+			Message:     "Gagal memproses data keluar",
+			WasOverstay: false,
+		}, nil
 	}
 
 	if result != nil && result.Success && result.GuestLog != nil {
 		publishSatpamVehicleExit(result.GuestLog)
 		if err := r.persistSatpamVehicleExitNotification(ctx, result.GuestLog); err != nil {
-			fmt.Printf("failed to persist satpam vehicle exit notification: %v\n", err)
+			log.Printf("failed to persist satpam vehicle exit notification: %v", err)
 		}
 		if result.WasOverstay {
 			publishSatpamOverstayAlert(buildSatpamOverstayAlert(result.GuestLog))
 			if err := r.persistSatpamOverstayNotification(ctx, result.GuestLog); err != nil {
-				fmt.Printf("failed to persist satpam overstay notification: %v\n", err)
+				log.Printf("failed to persist satpam overstay notification: %v", err)
 			}
 		}
 		r.emitSatpamSyncUpdate(ctx, input.DeviceID)
@@ -96,32 +111,15 @@ func (r *mutationResolver) MarkOverstay(ctx context.Context, guestLogID string, 
 		return nil, errors.New("gate check service not initialized")
 	}
 
-	// Get user from context
-	userID := middleware.GetUserFromContext(ctx)
-	if userID == "" {
-		return nil, errors.New("user tidak terautentikasi")
-	}
-	companyID := middleware.GetCompanyFromContext(ctx)
-
-	// Find guest log
-	var guestLog services.GuestLog
-	if err := r.db.Where("id = ? AND company_id = ?", guestLogID, companyID).First(&guestLog).Error; err != nil {
-		return nil, errors.New("data tamu tidak ditemukan")
+	result, err := r.GateCheckService.MarkOverstay(ctx, guestLogID, notes)
+	if err != nil {
+		log.Printf("MarkOverstay error for guestLogID=%s: %v", guestLogID, err)
+		return nil, errors.New("gagal menyimpan status overstay")
 	}
 
-	// Mark overstay notes (overstay is time-based, derived from entry_time)
-	if notes != nil {
-		guestLog.Notes = notes
-	}
-
-	if err := r.db.Save(&guestLog).Error; err != nil {
-		return nil, fmt.Errorf("gagal menyimpan status overstay: %w", err)
-	}
-
-	result := r.GateCheckService.ConvertToSatpamGuestLog(&guestLog)
 	publishSatpamOverstayAlert(buildSatpamOverstayAlert(result))
 	if err := r.persistSatpamOverstayNotification(ctx, result); err != nil {
-		fmt.Printf("failed to persist satpam overstay notification: %v\n", err)
+		log.Printf("failed to persist satpam overstay notification: %v", err)
 	}
 	return result, nil
 }
@@ -137,7 +135,11 @@ func (r *mutationResolver) SyncSatpamRecords(ctx context.Context, input satpam.S
 
 	result, err := r.GateCheckService.SyncSatpamRecords(ctx, input)
 	if err != nil {
-		return nil, err
+		log.Printf("SyncSatpamRecords error: %v", err)
+		return &satpam.SatpamSyncResult{
+			Success: false,
+			Message: "Gagal menyinkronkan data",
+		}, nil
 	}
 
 	if result != nil {
@@ -154,7 +156,6 @@ func (r *mutationResolver) SyncSatpamRecords(ctx context.Context, input satpam.S
 }
 
 // SyncSatpamPhotos is the resolver for the syncSatpamPhotos field.
-// SyncSatpamPhotos is the resolver for the syncSatpamPhotos field.
 func (r *mutationResolver) SyncSatpamPhotos(ctx context.Context, input generated.SatpamPhotoSyncInput) (*generated.SatpamPhotoSyncResult, error) {
 	if r.GateCheckService == nil {
 		return &generated.SatpamPhotoSyncResult{
@@ -167,7 +168,14 @@ func (r *mutationResolver) SyncSatpamPhotos(ctx context.Context, input generated
 	}
 	result, err := r.GateCheckService.SyncSatpamPhotos(ctx, input)
 	if err != nil {
-		return nil, err
+		log.Printf("SyncSatpamPhotos error: %v", err)
+		return &generated.SatpamPhotoSyncResult{
+			PhotosProcessed: 0,
+			Errors: []*commonDomain.PhotoUploadError{{
+				PhotoID: "general",
+				Error:   "Gagal menyinkronkan foto",
+			}},
+		}, nil
 	}
 
 	if result != nil {
@@ -188,7 +196,12 @@ func (r *mutationResolver) SyncEmployeeLog(ctx context.Context, input generated.
 	}
 	result, err := r.GateCheckService.SyncEmployeeLog(ctx, input)
 	if err != nil {
-		return nil, err
+		log.Printf("SyncEmployeeLog error: %v", err)
+		return &generated.EmployeeLogSyncResult{
+			Success:         false,
+			Message:         "Gagal menyinkronkan log karyawan",
+			ServerTimestamp: time.Now(),
+		}, nil
 	}
 
 	if result != nil && result.Success {
@@ -200,19 +213,25 @@ func (r *mutationResolver) SyncEmployeeLog(ctx context.Context, input generated.
 
 // MarkSatpamSyncCompleted is the resolver for the markSatpamSyncCompleted field.
 func (r *mutationResolver) MarkSatpamSyncCompleted(ctx context.Context, deviceID string, transactionID string) (bool, error) {
-	// Mark sync completed - update sync status in database
 	userID := middleware.GetUserFromContext(ctx)
 	if userID == "" {
 		return false, errors.New("user tidak terautentikasi")
 	}
 
-	// Update all pending sync items for this device/transaction
-	result := r.db.Model(&services.GuestLog{}).
-		Where("device_id = ? AND created_by = ? AND sync_status = ?", deviceID, userID, "PENDING").
-		Update("sync_status", "SYNCED")
+	// Wrap in transaction to ensure atomic update
+	txErr := r.db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&services.GuestLog{}).
+			Where("device_id = ? AND created_by = ? AND sync_status = ?", deviceID, userID, "PENDING").
+			Update("sync_status", "SYNCED")
+		if result.Error != nil {
+			return result.Error
+		}
+		return nil
+	})
 
-	if result.Error != nil {
-		return false, result.Error
+	if txErr != nil {
+		log.Printf("MarkSatpamSyncCompleted error for device=%s: %v", deviceID, txErr)
+		return false, errors.New("gagal menandai sinkronisasi selesai")
 	}
 
 	r.emitSatpamSyncUpdate(ctx, deviceID)
@@ -247,7 +266,8 @@ func (r *queryResolver) SatpamDashboard(ctx context.Context) (*satpam.SatpamDash
 	// Get stats
 	stats, err := r.GateCheckService.GetDashboardStats(ctx, []string{companyID})
 	if err != nil {
-		return nil, err
+		log.Printf("GetDashboardStats error: %v", err)
+		return nil, errors.New("gagal memuat statistik dashboard")
 	}
 
 	// Get vehicles inside
@@ -488,7 +508,8 @@ func (r *queryResolver) SearchGuest(ctx context.Context, query string) ([]*satpa
 		Order("created_at DESC").
 		Limit(50).
 		Find(&guestLogs).Error; err != nil {
-		return nil, err
+		log.Printf("SearchGuest query error: %v", err)
+		return nil, errors.New("gagal mencari data tamu")
 	}
 
 	result := make([]*satpam.SatpamGuestLog, len(guestLogs))
@@ -550,7 +571,8 @@ func (r *queryResolver) SatpamHistory(ctx context.Context, filter *satpam.Satpam
 		Limit(int(pageSize)).
 		Offset(int(offset)).
 		Find(&guestLogs).Error; err != nil {
-		return nil, err
+		log.Printf("SatpamHistory query error: %v", err)
+		return nil, errors.New("gagal memuat riwayat")
 	}
 
 	items := make([]*satpam.SatpamGuestLog, len(guestLogs))
@@ -635,7 +657,8 @@ func (r *queryResolver) resolveGateCheckCompanyIDs(ctx context.Context) ([]strin
 			Where("user_id = ? AND is_active = ?", userID, true).
 			Distinct("company_id").
 			Pluck("company_id", &companyIDs).Error; err != nil {
-			return nil, fmt.Errorf("gagal mengambil assignment company: %w", err)
+			log.Printf("resolveGateCheckCompanyIDs query error: %v", err)
+			return nil, errors.New("gagal mengambil data perusahaan")
 		}
 
 		if len(companyIDs) == 0 {
@@ -656,7 +679,8 @@ func (r *queryResolver) resolveGateCheckCompanyIDs(ctx context.Context) ([]strin
 		Where("user_id = ? AND is_active = ?", userID, true).
 		Distinct("company_id").
 		Pluck("company_id", &companyIDs).Error; err != nil {
-		return nil, fmt.Errorf("gagal mengambil assignment company: %w", err)
+		log.Printf("resolveGateCheckCompanyIDs query error: %v", err)
+		return nil, errors.New("gagal mengambil data perusahaan")
 	}
 
 	if len(companyIDs) == 0 {

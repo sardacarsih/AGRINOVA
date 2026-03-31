@@ -88,6 +88,7 @@ func Migration000071EnsureHarvestWeekCampaignVisualAssetsComplete(db *gorm.DB) e
 						OR id = '00000000-0000-0000-0000-000000000202'
 						OR campaign_name = 'Harvest Week'
 					)
+					AND updated_by = 'system-seed'
 					AND (
 						COALESCE(assets_json->'web'->>'backgroundImageUrl', '') = ''
 						OR COALESCE(assets_json->'web'->>'illustrationUrl', '') = ''

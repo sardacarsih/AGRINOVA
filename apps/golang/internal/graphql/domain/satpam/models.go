@@ -248,6 +248,78 @@ type CreateGuestRegistrationInput struct {
 	RegistrationSource  *RegistrationSource `json:"registrationSource,omitempty"`
 }
 
+// Validate checks required fields and enforces length/range constraints.
+func (i *CreateGuestRegistrationInput) Validate() error {
+	if len(i.DriverName) == 0 || len(i.DriverName) > 100 {
+		return fmt.Errorf("nama sopir harus 1-100 karakter")
+	}
+	if len(i.VehiclePlate) == 0 || len(i.VehiclePlate) > 20 {
+		return fmt.Errorf("nomor plat harus 1-20 karakter")
+	}
+	if !i.VehicleType.IsValid() {
+		return fmt.Errorf("tipe kendaraan tidak valid")
+	}
+	if i.Destination != nil && len(*i.Destination) > 200 {
+		return fmt.Errorf("tujuan maksimal 200 karakter")
+	}
+	if i.Notes != nil && len(*i.Notes) > 500 {
+		return fmt.Errorf("catatan maksimal 500 karakter")
+	}
+	if i.IDCardNumber != nil && len(*i.IDCardNumber) > 30 {
+		return fmt.Errorf("nomor KTP maksimal 30 karakter")
+	}
+	if i.EstimatedWeight != nil && (*i.EstimatedWeight < 0 || *i.EstimatedWeight > 100000) {
+		return fmt.Errorf("estimasi berat harus 0-100000 kg")
+	}
+	if i.Latitude != nil && (*i.Latitude < -90 || *i.Latitude > 90) {
+		return fmt.Errorf("latitude tidak valid")
+	}
+	if i.Longitude != nil && (*i.Longitude < -180 || *i.Longitude > 180) {
+		return fmt.Errorf("longitude tidak valid")
+	}
+	if i.LoadType != nil && len(*i.LoadType) > 100 {
+		return fmt.Errorf("tipe muatan maksimal 100 karakter")
+	}
+	if i.CargoOwner != nil && len(*i.CargoOwner) > 100 {
+		return fmt.Errorf("pemilik muatan maksimal 100 karakter")
+	}
+	if i.DeliveryOrderNumber != nil && len(*i.DeliveryOrderNumber) > 50 {
+		return fmt.Errorf("nomor DO maksimal 50 karakter")
+	}
+	if len(i.LocalID) == 0 || len(i.LocalID) > 50 {
+		return fmt.Errorf("localId harus 1-50 karakter")
+	}
+	return nil
+}
+
+// Validate checks constraints on exit processing input.
+func (i *ProcessExitInput) Validate() error {
+	if len(i.Identifier) == 0 || len(i.Identifier) > 2048 {
+		return fmt.Errorf("identifier tidak valid")
+	}
+	if !i.IdentifierType.IsValid() {
+		return fmt.Errorf("tipe identifier tidak valid")
+	}
+	if i.Notes != nil && len(*i.Notes) > 500 {
+		return fmt.Errorf("catatan maksimal 500 karakter")
+	}
+	return nil
+}
+
+// MaxSyncBatchSize is the maximum number of guest logs per sync request.
+const MaxSyncBatchSize = 100
+
+// Validate checks constraints on sync input.
+func (i *SatpamSyncInput) Validate() error {
+	if len(i.GuestLogs) > MaxSyncBatchSize {
+		return fmt.Errorf("batch size %d melebihi maksimal %d record per request", len(i.GuestLogs), MaxSyncBatchSize)
+	}
+	if len(i.DeviceID) == 0 {
+		return fmt.Errorf("deviceId wajib diisi")
+	}
+	return nil
+}
+
 // GuestRegistrationResult for registration result.
 type GuestRegistrationResult struct {
 	Success  bool            `json:"success"`

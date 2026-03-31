@@ -274,6 +274,14 @@ func deriveExitGate(exitGate *string, gatePosition string, intent satpam.GateInt
 
 // RegisterGuest registers a new guest and returns the guest log with QR token
 func (s *GateCheckService) RegisterGuest(ctx context.Context, input satpam.CreateGuestRegistrationInput) (*satpam.GuestRegistrationResult, error) {
+	// Validate input constraints
+	if err := input.Validate(); err != nil {
+		return &satpam.GuestRegistrationResult{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
 	user, err := getUserContext(ctx)
 	if err != nil {
 		return &satpam.GuestRegistrationResult{
@@ -360,9 +368,16 @@ func (s *GateCheckService) GenerateGuestQR(ctx context.Context, guestLogID strin
 		return nil, errors.New("data tamu tidak ditemukan")
 	}
 
+	// Clamp expiry to safe range [1, 120] minutes (server-enforced)
 	minutes := int32(60)
 	if expiryMinutes != nil {
 		minutes = *expiryMinutes
+	}
+	if minutes < 1 {
+		minutes = 1
+	}
+	if minutes > 120 {
+		minutes = 120
 	}
 
 	return s.generateQRToken(ctx, guestLogID, intent, deviceID, int(minutes), user.ID, user.CompanyID)
@@ -370,6 +385,15 @@ func (s *GateCheckService) GenerateGuestQR(ctx context.Context, guestLogID strin
 
 // ProcessGuestExit processes a guest exit
 func (s *GateCheckService) ProcessGuestExit(ctx context.Context, input satpam.ProcessExitInput) (*satpam.ProcessExitResult, error) {
+	// Validate input constraints
+	if err := input.Validate(); err != nil {
+		return &satpam.ProcessExitResult{
+			Success:     false,
+			Message:     err.Error(),
+			WasOverstay: false,
+		}, nil
+	}
+
 	user, err := getUserContext(ctx)
 	if err != nil {
 		return &satpam.ProcessExitResult{
@@ -411,7 +435,9 @@ func (s *GateCheckService) ProcessGuestExit(ctx context.Context, input satpam.Pr
 
 		// STATELESS FALLBACK: If token not found in DB (because of device isolation),
 		// try to parse JWT directly and trust it if signature is valid.
+		// WARNING: This bypasses DB-based token revocation. Logged for audit.
 		if !tokenFound {
+			log.Printf("QR stateless fallback triggered for device=%s, identifier length=%d", input.DeviceID, len(input.Identifier))
 			// Extract JWT from input (Identifier is the QR data/Token)
 			tokenString := input.Identifier
 			// If it's a raw JTI or not a JWT, we can't do stateless validation without the DB record
@@ -508,9 +534,10 @@ func (s *GateCheckService) ProcessGuestExit(ctx context.Context, input satpam.Pr
 						}
 
 						if err := s.db.Create(newGuestLog).Error; err != nil {
+							log.Printf("Stateless exit record creation failed: %v", err)
 							return &satpam.ProcessExitResult{
 								Success: false,
-								Message: "Gagal membuat record exit stateless: " + err.Error(),
+								Message: "Gagal membuat record keluar",
 							}, nil
 						}
 
@@ -1127,6 +1154,14 @@ func (s *GateCheckService) ConvertToVehicleCompletedInfo(gl *GuestLog) *satpam.V
 
 // SyncSatpamRecords syncs satpam records from mobile device
 func (s *GateCheckService) SyncSatpamRecords(ctx context.Context, input satpam.SatpamSyncInput) (*satpam.SatpamSyncResult, error) {
+	// Validate input constraints (batch size limit)
+	if err := input.Validate(); err != nil {
+		return &satpam.SatpamSyncResult{
+			Success: false,
+			Message: err.Error(),
+		}, nil
+	}
+
 	user, err := getUserContext(ctx)
 	if err != nil {
 		return &satpam.SatpamSyncResult{
@@ -1309,12 +1344,55 @@ func (s *GateCheckService) SyncSatpamRecords(ctx context.Context, input satpam.S
 	writeErrorsByRowID := make(map[string]string)
 	if len(uniqueRows) > 0 {
 		writeStartedAt := time.Now()
-		if err := s.upsertSatpamGuestLogs(uniqueRows); err != nil {
-			log.Printf("SyncSatpamRecords batch upsert failed, falling back to per-row writes: %v", err)
-			for _, row := range uniqueRows {
-				if rowErr := s.upsertSatpamGuestLog(row); rowErr != nil {
-					writeErrorsByRowID[row.ID] = rowErr.Error()
+		// Wrap all writes in a single transaction for atomicity
+		txErr := s.db.Transaction(func(tx *gorm.DB) error {
+			// Try batch upsert first
+			batchErr := tx.
+				Omit("Photos").
+				Clauses(clause.OnConflict{
+					Columns: []clause.Column{{Name: "id"}},
+					DoUpdates: clause.AssignmentColumns([]string{
+						"local_id", "id_card_number", "driver_name", "vehicle_plate",
+						"vehicle_type", "destination", "gate_position", "entry_time",
+						"exit_time", "entry_gate", "exit_gate", "generation_intent",
+						"notes", "qr_code_data", "load_type", "cargo_volume",
+						"cargo_owner", "estimated_weight", "delivery_order_number",
+						"second_cargo", "authorized_user_id", "company_id",
+						"created_by", "created_user_id", "device_id", "latitude",
+						"longitude", "registration_source", "sync_status", "updated_at",
+					}),
+				}).
+				Create(uniqueRows).Error
+			if batchErr != nil {
+				log.Printf("SyncSatpamRecords batch upsert failed, falling back to per-row writes: %v", batchErr)
+				// Fallback: per-row writes within same transaction
+				for _, row := range uniqueRows {
+					if rowErr := tx.Omit("Photos").
+						Clauses(clause.OnConflict{
+							Columns: []clause.Column{{Name: "id"}},
+							DoUpdates: clause.AssignmentColumns([]string{
+								"local_id", "id_card_number", "driver_name", "vehicle_plate",
+								"vehicle_type", "destination", "gate_position", "entry_time",
+								"exit_time", "entry_gate", "exit_gate", "generation_intent",
+								"notes", "qr_code_data", "load_type", "cargo_volume",
+								"cargo_owner", "estimated_weight", "delivery_order_number",
+								"second_cargo", "authorized_user_id", "company_id",
+								"created_by", "created_user_id", "device_id", "latitude",
+								"longitude", "registration_source", "sync_status", "updated_at",
+							}),
+						}).
+						Create(row).Error; rowErr != nil {
+						writeErrorsByRowID[row.ID] = rowErr.Error()
+					}
 				}
+			}
+			return nil // Always commit - individual row errors tracked in writeErrorsByRowID
+		})
+		if txErr != nil {
+			log.Printf("SyncSatpamRecords transaction error: %v", txErr)
+			// Mark all rows as failed if transaction itself fails
+			for _, row := range uniqueRows {
+				writeErrorsByRowID[row.ID] = "sync transaction failed"
 			}
 		}
 		writeDuration += time.Since(writeStartedAt)
@@ -1339,8 +1417,8 @@ func (s *GateCheckService) SyncSatpamRecords(ctx context.Context, input satpam.S
 
 	if profileEnabled {
 		totalDuration := time.Since(requestStartedAt)
-		fmt.Printf(
-			"[satpam-sync-profile] transactionID=%s recordCount=%d totalMs=%.2f lookupMs=%.2f writeMs=%.2f otherMs=%.2f\n",
+		log.Printf(
+			"[satpam-sync-profile] transactionID=%s recordCount=%d totalMs=%.2f lookupMs=%.2f writeMs=%.2f otherMs=%.2f",
 			transactionID,
 			len(input.GuestLogs),
 			float64(totalDuration)/float64(time.Millisecond),
@@ -1542,6 +1620,30 @@ func (s *GateCheckService) convertToSatpamGuestLog(gl *GuestLog) *satpam.SatpamG
 		PhotoURL:            photoURL,
 		Photos:              photos,
 	}
+}
+
+// MarkOverstay adds overstay notes to a guest log record.
+// This moves DB logic out of the resolver into the service layer for consistency.
+func (s *GateCheckService) MarkOverstay(ctx context.Context, guestLogID string, notes *string) (*satpam.SatpamGuestLog, error) {
+	user, err := getUserContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("user tidak terautentikasi")
+	}
+
+	var guestLog GuestLog
+	if err := s.db.Where("id = ? AND company_id = ?", guestLogID, user.CompanyID).First(&guestLog).Error; err != nil {
+		return nil, fmt.Errorf("data tamu tidak ditemukan")
+	}
+
+	if notes != nil {
+		guestLog.Notes = notes
+	}
+
+	if err := s.db.Save(&guestLog).Error; err != nil {
+		return nil, fmt.Errorf("gagal menyimpan status overstay: %w", err)
+	}
+
+	return s.convertToSatpamGuestLog(&guestLog), nil
 }
 
 // ConvertToSatpamGuestLog is a public wrapper for the conversion method
@@ -1834,9 +1936,10 @@ func (s *GateCheckService) ScanMultiPOSQR(ctx context.Context, input *models.Sca
 	}
 
 	if err := s.db.Save(&qrToken).Error; err != nil {
+		log.Printf("Failed to update QR token: %v", err)
 		return &models.MultiPOSScanResult{
 			IsValid: false,
-			Message: fmt.Sprintf("Gagal update token: %v", err),
+			Message: "Gagal memperbarui token",
 		}, nil
 	}
 
@@ -2281,20 +2384,57 @@ func (s *GateCheckService) SyncEmployeeLog(ctx context.Context, input generated.
 	}, nil
 }
 
-// SyncSatpamPhotos syncs photos from mobile
+// maxPhotoFileSize is the maximum allowed photo size (5MB).
+const maxPhotoFileSize = 5 * 1024 * 1024
+
+// maxPhotoBatchSize is the maximum photos allowed per sync request.
+const maxPhotoBatchSize = 20
+
+// validateImageMagicBytes checks that data starts with a valid JPEG or PNG header.
+func validateImageMagicBytes(data []byte) (mimeType string, ext string, ok bool) {
+	if len(data) < 8 {
+		return "", "", false
+	}
+	// JPEG: FF D8 FF
+	if data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF {
+		return "image/jpeg", ".jpg", true
+	}
+	// PNG: 89 50 4E 47 0D 0A 1A 0A
+	if data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47 &&
+		data[4] == 0x0D && data[5] == 0x0A && data[6] == 0x1A && data[7] == 0x0A {
+		return "image/png", ".png", true
+	}
+	return "", "", false
+}
+
+// sanitizePhotoID removes path separators and traversal sequences from a photo ID.
+func sanitizePhotoID(id string) string {
+	id = strings.ReplaceAll(id, "..", "")
+	id = strings.ReplaceAll(id, "/", "")
+	id = strings.ReplaceAll(id, "\\", "")
+	id = strings.ReplaceAll(id, string(os.PathSeparator), "")
+	return id
+}
+
 // SyncSatpamPhotos syncs photos from mobile
 func (s *GateCheckService) SyncSatpamPhotos(ctx context.Context, input generated.SatpamPhotoSyncInput) (*generated.SatpamPhotoSyncResult, error) {
-	fmt.Printf("SyncSatpamPhotos: Received %d photos\n", len(input.Photos))
+	log.Printf("SyncSatpamPhotos: Received %d photos", len(input.Photos))
+
+	// Enforce batch size limit
+	if len(input.Photos) > maxPhotoBatchSize {
+		return nil, fmt.Errorf("batch size %d exceeds maximum of %d photos per request", len(input.Photos), maxPhotoBatchSize)
+	}
 
 	// Get User Context
 	user, err := getUserContext(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("authentication required: %v", err)
+		return nil, fmt.Errorf("authentication required")
 	}
 
 	uploadDir := s.satpamPhotoUploadDir()
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create upload directory: %v", err)
+		log.Printf("SyncSatpamPhotos: failed to create upload directory: %v", err)
+		return nil, fmt.Errorf("failed to prepare storage")
 	}
 
 	successful := 0
@@ -2303,32 +2443,102 @@ func (s *GateCheckService) SyncSatpamPhotos(ctx context.Context, input generated
 	var errorsList []*common.PhotoUploadError
 
 	for _, photo := range input.Photos {
-		// Decode base64
-		data, err := base64.StdEncoding.DecodeString(photo.PhotoData)
-		if err != nil {
-			msg := fmt.Sprintf("Failed to decode base64: %v", err)
-			code := "DECODE_ERROR"
+		// Sanitize PhotoID to prevent path traversal
+		safePhotoID := sanitizePhotoID(photo.PhotoID)
+		if safePhotoID == "" {
+			code := "INVALID_ID"
 			errorsList = append(errorsList, &common.PhotoUploadError{
 				PhotoID: photo.PhotoID,
-				Error:   msg,
+				Error:   "Invalid photo ID",
 				Code:    &code,
 			})
 			failed++
 			continue
 		}
 
-		// Generate file name
-		ext := ".jpg" // Default to jpg
-		filename := fmt.Sprintf("%s_%d%s", photo.PhotoID, photo.TakenAt.Unix(), ext)
-		filepath := filepath.Join(uploadDir, filename)
+		// Estimate decoded size before full decode (base64 ratio ~4:3)
+		estimatedSize := len(photo.PhotoData) * 3 / 4
+		if estimatedSize > maxPhotoFileSize {
+			code := "FILE_TOO_LARGE"
+			errorsList = append(errorsList, &common.PhotoUploadError{
+				PhotoID: photo.PhotoID,
+				Error:   fmt.Sprintf("Photo exceeds maximum size of %d bytes", maxPhotoFileSize),
+				Code:    &code,
+			})
+			failed++
+			continue
+		}
+
+		// Decode base64
+		data, err := base64.StdEncoding.DecodeString(photo.PhotoData)
+		if err != nil {
+			code := "DECODE_ERROR"
+			errorsList = append(errorsList, &common.PhotoUploadError{
+				PhotoID: photo.PhotoID,
+				Error:   "Failed to decode photo data",
+				Code:    &code,
+			})
+			failed++
+			continue
+		}
+
+		// Enforce exact file size limit after decode
+		if len(data) > maxPhotoFileSize {
+			code := "FILE_TOO_LARGE"
+			errorsList = append(errorsList, &common.PhotoUploadError{
+				PhotoID: photo.PhotoID,
+				Error:   fmt.Sprintf("Photo size %d bytes exceeds maximum of %d bytes", len(data), maxPhotoFileSize),
+				Code:    &code,
+			})
+			failed++
+			continue
+		}
+
+		// Validate image magic bytes (JPEG or PNG only)
+		detectedMime, detectedExt, validImage := validateImageMagicBytes(data)
+		if !validImage {
+			code := "INVALID_FORMAT"
+			errorsList = append(errorsList, &common.PhotoUploadError{
+				PhotoID: photo.PhotoID,
+				Error:   "Invalid image format: only JPEG and PNG are accepted",
+				Code:    &code,
+			})
+			failed++
+			continue
+		}
+
+		// Validate guest log exists BEFORE saving file to disk
+		var guestLog models.GuestLog
+		var relatedID string
+
+		if photo.GuestLogID != "" {
+			if err := s.db.Where("local_id = ? OR id = ?", photo.GuestLogID, photo.GuestLogID).First(&guestLog).Error; err == nil {
+				relatedID = guestLog.ID
+				log.Printf("SyncSatpamPhotos: Linked photo to GuestLog %s", guestLog.ID)
+			} else {
+				// Reject photo if guest log doesn't exist - prevents orphans
+				code := "GUEST_NOT_FOUND"
+				errorsList = append(errorsList, &common.PhotoUploadError{
+					PhotoID: photo.PhotoID,
+					Error:   "Guest log not found, cannot link photo",
+					Code:    &code,
+				})
+				failed++
+				continue
+			}
+		}
+
+		// Generate safe file name using sanitized ID
+		filename := fmt.Sprintf("%s_%d%s", safePhotoID, photo.TakenAt.Unix(), detectedExt)
+		savePath := filepath.Join(uploadDir, filename)
 
 		// Save to file
-		if err := os.WriteFile(filepath, data, 0644); err != nil {
-			msg := fmt.Sprintf("Failed to save file: %v", err)
+		if err := os.WriteFile(savePath, data, 0644); err != nil {
+			log.Printf("SyncSatpamPhotos: failed to save file %s: %v", filename, err)
 			code := "SAVE_ERROR"
 			errorsList = append(errorsList, &common.PhotoUploadError{
 				PhotoID: photo.PhotoID,
-				Error:   msg,
+				Error:   "Failed to save photo file",
 				Code:    &code,
 			})
 			failed++
@@ -2339,37 +2549,16 @@ func (s *GateCheckService) SyncSatpamPhotos(ctx context.Context, input generated
 		totalBytes += len(data)
 		relativePath := satpamPhotoURLPath(filename)
 
-		// 1. Look up GuestLog FIRST to get the correct Server ID for linking
-		var guestLog models.GuestLog
-		var relatedID string
-		var found bool
-
-		// If GuestLogID is provided, try to find it
-		if photo.GuestLogID != "" {
-			// Try finding by LocalID first (common in sync) or ID
-			if err := s.db.Where("local_id = ? OR id = ?", photo.GuestLogID, photo.GuestLogID).First(&guestLog).Error; err == nil {
-				found = true
-				relatedID = guestLog.ID
-				// Link photo to GuestLog
-				fmt.Printf("SyncSatpamPhotos: Found GuestLog %s (LocalID: %v) for photo\n", guestLog.ID, guestLog.LocalID)
-			} else {
-				fmt.Printf("SyncSatpamPhotos: GuestLog not found for ID: %s. Error: %v\n", photo.GuestLogID, err)
-				// Use the provided ID as fallback, even if it might fail FK check
-				relatedID = photo.GuestLogID
-			}
-		}
-
-		// 2. Insert into gate_check_photos table (Populate ALL fields)
+		// Insert into gate_check_photos table
 		photoRecord := models.GateCheckPhoto{
-			// ID: Generated by DB (default: uuid)
-			PhotoID:            photo.PhotoID,
+			PhotoID:            safePhotoID,
 			RelatedRecordType:  models.RecordTypeGuestLog,
-			RelatedRecordID:    relatedID, // Server ID (if found) or Mobile ID (if not)
+			RelatedRecordID:    relatedID,
 			FilePath:           relativePath,
 			FileName:           filename,
 			FileSize:           int64(len(data)),
-			FileExtension:      ext,
-			MimeType:           "image/jpeg",
+			FileExtension:      detectedExt,
+			MimeType:           detectedMime,
 			PhotoType:          models.PhotoType(photo.PhotoType),
 			PhotoQuality:       models.PhotoQualityMedium,
 			CompressionApplied: false,
@@ -2385,17 +2574,15 @@ func (s *GateCheckService) SyncSatpamPhotos(ctx context.Context, input generated
 		}
 
 		if err := s.db.Create(&photoRecord).Error; err != nil {
-			fmt.Printf("SyncSatpamPhotos: Failed to insert gate_check_photos record: %v\n", err)
-			// Don't fail the whole sync, but log it
-		}
-
-		// Add error if orphan (for mobile feedback)
-		if photo.GuestLogID != "" && !found {
-			msg := fmt.Sprintf("Photo uploaded but GuestLog %s not found", photo.GuestLogID)
-			code := "ORPHAN_PHOTO"
+			log.Printf("SyncSatpamPhotos: failed to insert photo record for %s: %v", safePhotoID, err)
+			// Clean up the saved file since DB insert failed
+			_ = os.Remove(savePath)
+			successful--
+			failed++
+			code := "DB_INSERT_ERROR"
 			errorsList = append(errorsList, &common.PhotoUploadError{
 				PhotoID: photo.PhotoID,
-				Error:   msg,
+				Error:   "Failed to save photo record",
 				Code:    &code,
 			})
 		}

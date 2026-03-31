@@ -420,16 +420,21 @@ func (m *AuthMiddleware) RequireCompanyAccess(companyID string) gin.HandlerFunc 
 	})
 }
 
-// RoleBasedRateLimit applies different rate limits based on user role
+// roleRateLimitStore is a shared rate limiter for role-based limiting on mutations.
+var roleRateLimitStore = NewInMemoryRateLimitStore(DefaultRateLimitConfig())
+
+// RoleBasedRateLimit applies different rate limits based on user role.
+// Uses a sliding window counter keyed by userID:role to enforce per-minute limits.
 func (m *AuthMiddleware) RoleBasedRateLimit() gin.HandlerFunc {
 	return gin.HandlerFunc(func(c *gin.Context) {
 		userRole := GetUserRoleFromContext(c.Request.Context())
+		userID := GetUserFromContext(c.Request.Context())
 
-		// Apply different rate limits based on role
+		// Determine rate limit based on role
 		var rateLimit int
 		switch userRole {
 		case auth.UserRoleSuperAdmin:
-			rateLimit = 1000 // High limit for admin
+			rateLimit = 1000
 		case auth.UserRoleCompanyAdmin:
 			rateLimit = 500
 		case auth.UserRoleAreaManager:
@@ -439,13 +444,26 @@ func (m *AuthMiddleware) RoleBasedRateLimit() gin.HandlerFunc {
 		case auth.UserRoleAsisten, auth.UserRoleMandor:
 			rateLimit = 100
 		case auth.UserRoleSatpam:
-			rateLimit = 150 // Higher for gate check operations
+			rateLimit = 200 // Gate check operations
 		default:
-			rateLimit = 50 // Default conservative limit
+			rateLimit = 50
 		}
 
-		// TODO: Implement actual rate limiting logic based on rateLimit
-		// For now, just add to context for downstream use
+		// Enforce rate limit using sliding window (1-minute window)
+		key := fmt.Sprintf("role_rl:%s:%s", userID, string(userRole))
+		allowed := roleRateLimitStore.AllowSlidingWindow(key, rateLimit, time.Minute)
+
+		if !allowed {
+			roleRateLimitStore.metrics.RecordBlocked("user")
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"error":   "Rate limit exceeded",
+				"message": "Terlalu banyak permintaan, silakan coba lagi nanti",
+			})
+			c.Abort()
+			return
+		}
+
+		// Add rate limit info to context for downstream use
 		ctx := context.WithValue(c.Request.Context(), "rate_limit", rateLimit)
 		c.Request = c.Request.WithContext(ctx)
 

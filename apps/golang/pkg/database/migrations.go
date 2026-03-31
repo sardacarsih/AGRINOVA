@@ -52,6 +52,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&authmodels.UserSession{},
 		&authmodels.DeviceBinding{},
 		&authmodels.JWTToken{},
+		&authmodels.PasswordReset{},
 		&authmodels.SecurityEvent{},
 		&authmodels.LoginAttempt{},
 		&authmodels.APIKey{},
@@ -1129,6 +1130,11 @@ func AutoMigrate(db *gorm.DB) error {
 	// Remove legacy theme asset URL prefixes and standardize to /uploads/theme-assets/*.
 	if err := migrations.Migration000074RemoveThemeDummyAssetPaths(db); err != nil {
 		return fmt.Errorf("failed migration 000074 remove legacy theme asset paths: %w", err)
+	}
+
+	// Add forgot-password schema (users.email_verified + password_resets table + email unique partial index).
+	if err := migrations.Migration000075AddForgotPasswordSupport(db); err != nil {
+		return fmt.Errorf("failed migration 000075 add forgot password support: %w", err)
 	}
 
 	legacyMasterColumns, err := hasLegacyMasterColumns(db)
