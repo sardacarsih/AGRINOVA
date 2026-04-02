@@ -232,7 +232,9 @@ func (m *WebAuthMiddleware) RequireRole(allowedRoles ...string) gin.HandlerFunc 
 	}
 }
 
-// CSRFProtection middleware validates CSRF tokens for state-changing operations
+// CSRFProtection middleware validates CSRF tokens for state-changing operations.
+// CSRF is only relevant for cookie-based (browser) sessions. Requests authenticated
+// via Bearer token (mobile/API clients) are not vulnerable to CSRF and are skipped.
 func (m *WebAuthMiddleware) CSRFProtection() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Only protect state-changing operations
@@ -243,6 +245,14 @@ func (m *WebAuthMiddleware) CSRFProtection() gin.HandlerFunc {
 
 		// Skip for certain paths
 		if m.shouldSkipCSRF(c.Request.URL.Path) {
+			c.Next()
+			return
+		}
+
+		// Skip CSRF for Bearer token auth (mobile/API clients).
+		// CSRF attacks exploit automatic cookie sending by browsers;
+		// Bearer tokens must be explicitly attached, so they are not vulnerable.
+		if authHeader := c.Request.Header.Get("Authorization"); strings.HasPrefix(authHeader, "Bearer ") {
 			c.Next()
 			return
 		}

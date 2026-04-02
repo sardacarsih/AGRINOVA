@@ -92,11 +92,18 @@ func main() {
 		log.Fatal("Failed to connect to database: %v", err)
 	}
 
-	// Service startup must not run migrations.
-	// Execute migrations explicitly via the dedicated migration entrypoint:
+	// By default the server does NOT run migrations on startup.
+	// Use AGRINOVA_AUTO_MIGRATE=true for local development convenience.
+	// In production, execute migrations explicitly:
 	//   go run ./cmd/migrate/main.go
-	if err := dbService.Health(context.Background()); err != nil {
-		log.Fatal("Database health check failed. Run migrations first with `go run ./cmd/migrate/main.go`: %v", err)
+	if envFlagEnabled("AGRINOVA_AUTO_MIGRATE") {
+		log.Info("AGRINOVA_AUTO_MIGRATE enabled — running database migrations...")
+		if err := dbService.Initialize(context.Background()); err != nil {
+			log.Fatal("Auto-migration failed: %v", err)
+		}
+		log.Info("Auto-migration completed successfully")
+	} else if err := dbService.Health(context.Background()); err != nil {
+		log.Fatal("Database health check failed. Run migrations first with `go run ./cmd/migrate/main.go` or set AGRINOVA_AUTO_MIGRATE=true: %v", err)
 	}
 
 	// GraphQL schema will be loaded automatically by gqlgen
@@ -146,14 +153,9 @@ func main() {
 	router.Use(corsMiddleware(cfg.CORS.AllowedOrigins))
 	router.Use(securityHeadersMiddleware())
 
-	// CSRF Protection middleware (TODO: Implement CSRF middleware)
-	// csrfConfig := middleware.DefaultCSRFConfig(
-	// 	[]byte(cfg.Auth.CSRFSecret),
-	// 	cfg.Auth.CookieDomain,
-	// 	cfg.Auth.SecureCookies,
-	// )
-	// csrfMiddleware := middleware.NewCSRFMiddleware(csrfConfig)
-	// router.Use(csrfMiddleware.GraphQLMiddleware())
+	// CSRF Protection is applied per-route on state-changing endpoints (see below).
+	// It skips requests using Bearer token auth (mobile/API) and only validates
+	// CSRF tokens for cookie-based web sessions.
 
 	// Health check endpoint
 	router.GET("/health", func(c *gin.Context) {
@@ -256,12 +258,14 @@ func main() {
 	// 1. authMiddleware.GraphQLAuth() - Validates JWT token (Bearer) and adds user to context
 	// 2. webAuthMiddleware.WebSessionMiddleware() - Validates web session and adds user to context
 	// 3. webAuthMiddleware.GraphQLContextMiddleware() - Adds HTTP context
-	// 4. rlsMiddleware.Middleware(srv) - Sets PostgreSQL RLS context + user assignments
-	// 5. srv - GraphQL handler with RLS-enforced database queries
+	// 4. webAuthMiddleware.CSRFProtection() - Validates CSRF token for cookie-based sessions (POST only)
+	// 5. rlsMiddleware.Middleware(srv) - Sets PostgreSQL RLS context + user assignments
+	// 6. srv - GraphQL handler with RLS-enforced database queries
 	router.POST(cfg.Server.GraphQLEndpoint,
 		authMiddleware.GraphQLAuth(),
 		webAuthMiddleware.WebSessionMiddleware(),
 		webAuthMiddleware.GraphQLContextMiddleware(),
+		webAuthMiddleware.CSRFProtection(),
 		gin.WrapH(rlsMiddleware.Middleware(srv)),
 	)
 	router.GET(cfg.Server.GraphQLEndpoint,
@@ -279,6 +283,7 @@ func main() {
 		authMiddleware.GraphQLAuth(),
 		webAuthMiddleware.WebSessionMiddleware(),
 		webAuthMiddleware.GraphQLContextMiddleware(),
+		webAuthMiddleware.CSRFProtection(),
 		resolver.HandleVehicleTaxDocumentUpload,
 	)
 
@@ -287,6 +292,7 @@ func main() {
 		authMiddleware.GraphQLAuth(),
 		webAuthMiddleware.WebSessionMiddleware(),
 		webAuthMiddleware.GraphQLContextMiddleware(),
+		webAuthMiddleware.CSRFProtection(),
 		resolver.HandleProfileAvatarUpload,
 	)
 
