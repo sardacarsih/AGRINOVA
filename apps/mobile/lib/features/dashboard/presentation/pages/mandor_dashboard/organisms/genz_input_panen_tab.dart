@@ -136,11 +136,13 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
           setState(() => _blocks = state.blocks);
         }
         if (state is HarvestOperationSuccess) {
+          setState(() => _isSubmitting = false);
           _showSuccessDialog(state.message);
           _resetForm();
           widget.onSubmitSuccess?.call();
         }
         if (state is HarvestError) {
+          setState(() => _isSubmitting = false);
           _showErrorSnackBar(state.message);
         }
       },
@@ -1426,8 +1428,6 @@ class _GenZInputPanenTabState extends State<GenZInputPanenTab> {
     );
 
     context.read<HarvestBloc>().add(HarvestCreateRequested(harvest));
-
-    setState(() => _isSubmitting = false);
   }
 
   void _showSuccessDialog(String message) {
