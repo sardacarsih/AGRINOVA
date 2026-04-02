@@ -85,13 +85,13 @@ const nextConfig = {
     const backendBaseUrl = normalizeBackendBaseUrl(process.env.BACKEND_GRAPHQL_URL);
 
     return [
-      // GraphQL API proxy
+      // GraphQL API proxy (HTTP only — WebSocket subscriptions connect
+      // directly to the backend via NEXT_PUBLIC_WS_URL; Next.js rewrites
+      // do not support WebSocket upgrades)
       {
         source: '/api/graphql',
         destination: `${backendBaseUrl}/graphql`,
       },
-      // GraphQL Subscriptions WebSocket proxy (this will be handled client-side)
-      // Note: WebSocket connections cannot be proxied through rewrites
       {
         source: '/api/graphql/:path*',
         destination: `${backendBaseUrl}/graphql/:path*`,

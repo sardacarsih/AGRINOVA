@@ -23,33 +23,18 @@ export const createWebSocketLink = () => {
     return null;
   }
 
-    // Determine WebSocket URL based on proxy configuration
+    // Determine WebSocket URL.
+  // NEXT_PUBLIC_WS_URL should point directly to the backend because
+  // Next.js cannot proxy WebSocket upgrade requests.
   const configuredWsUrl = (process.env.NEXT_PUBLIC_WS_URL || '').trim();
-  let wsUrl = configuredWsUrl || 'ws://localhost:8080/graphql';
+  let wsUrl: string;
 
-  // If using proxy, we need to handle WebSocket connections specially
-  const useProxy = process.env.NEXT_PUBLIC_USE_API_PROXY === 'true';
-  const isLocalhost =
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1';
-
-  // Proxy fallback to direct :8080 should only happen in local development.
-  // In production HTTPS, keep configured WSS endpoint.
-  if (useProxy && isLocalhost) {
-    // For WebSocket connections through Next.js proxy, we need special handling
-    // Note: This requires additional server configuration or direct connection
-    console.log('WebSocket proxy mode enabled for localhost:', wsUrl);
-
-    // For local development, connect directly to backend WebSocket endpoint
-    // because Next.js API routes don't support WebSocket upgrades easily
-    const backendHost = 'localhost:8080';
-
-    wsUrl = `ws://${backendHost}/graphql`;
-    console.log('WebSocket fallback to direct localhost backend:', wsUrl);
-  } else if (!configuredWsUrl) {
+  if (configuredWsUrl) {
+    wsUrl = configuredWsUrl;
+  } else {
+    // Fallback: derive from current page origin
     const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     wsUrl = `${wsProtocol}://${window.location.host}/api/graphql`;
-    console.log('WebSocket using default same-origin endpoint:', wsUrl);
   }
 
   // Create WebSocket client and store reference for logout handling

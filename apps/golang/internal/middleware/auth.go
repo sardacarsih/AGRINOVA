@@ -441,8 +441,10 @@ func (m *AuthMiddleware) RoleBasedRateLimit() gin.HandlerFunc {
 			rateLimit = 300
 		case auth.UserRoleManager:
 			rateLimit = 200
-		case auth.UserRoleAsisten, auth.UserRoleMandor:
-			rateLimit = 100
+		case auth.UserRoleAsisten:
+			rateLimit = 150
+		case auth.UserRoleMandor:
+			rateLimit = 150
 		case auth.UserRoleSatpam:
 			rateLimit = 200 // Gate check operations
 		default:
