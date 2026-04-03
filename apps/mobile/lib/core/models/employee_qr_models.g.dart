@@ -31,22 +31,22 @@ Map<String, dynamic> _$EmployeeQRDataToJson(EmployeeQRData instance) =>
     };
 
 GateEmployee _$GateEmployeeFromJson(Map<String, dynamic> json) => GateEmployee(
-      id: (json['id'] as num?)?.toInt(),
-      employeeId: json['employeeId'] as String,
-      iddata: json['iddata'] as String,
-      nik: json['nik'] as String,
-      name: json['name'] as String,
-      department: json['department'] as String?,
-      position: json['position'] as String?,
-      isActive: json['isActive'] as bool? ?? true,
-      photoPath: json['photoPath'] as String?,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
-      syncedAt: json['syncedAt'] == null
-          ? null
-          : DateTime.parse(json['syncedAt'] as String),
-      syncStatus: json['syncStatus'] as String? ?? 'PENDING',
-    );
+  id: (json['id'] as num?)?.toInt(),
+  employeeId: json['employeeId'] as String,
+  iddata: json['iddata'] as String,
+  nik: json['nik'] as String,
+  name: json['name'] as String,
+  department: json['department'] as String?,
+  position: json['position'] as String?,
+  isActive: json['isActive'] as bool? ?? true,
+  photoPath: json['photoPath'] as String?,
+  createdAt: DateTime.parse(json['createdAt'] as String),
+  updatedAt: DateTime.parse(json['updatedAt'] as String),
+  syncedAt: json['syncedAt'] == null
+      ? null
+      : DateTime.parse(json['syncedAt'] as String),
+  syncStatus: json['syncStatus'] as String? ?? 'PENDING',
+);
 
 Map<String, dynamic> _$GateEmployeeToJson(GateEmployee instance) =>
     <String, dynamic>{

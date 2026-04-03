@@ -27,8 +27,10 @@ AppUpdateInfo _$AppUpdateInfoFromJson(Map<String, dynamic> json) =>
       latestVersion: json['latestVersion'] as String,
       latestBuildNumber: (json['latestBuildNumber'] as num).toInt(),
       updateType: $enumDecode(_$UpdateTypeEnumMap, json['updateType']),
-      deliveryMethod:
-          $enumDecode(_$UpdateDeliveryMethodEnumMap, json['deliveryMethod']),
+      deliveryMethod: $enumDecode(
+        _$UpdateDeliveryMethodEnumMap,
+        json['deliveryMethod'],
+      ),
       releaseNotes: json['releaseNotes'] as String?,
       downloadUrl: json['downloadUrl'] as String?,
       apkDownloadUrl: json['apkDownloadUrl'] as String?,
@@ -74,8 +76,9 @@ const _$UpdateDeliveryMethodEnumMap = {
 AppUpdateProgress _$AppUpdateProgressFromJson(Map<String, dynamic> json) =>
     AppUpdateProgress(
       status: $enumDecode(_$UpdateProgressStatusEnumMap, json['status']),
-      updateInfo:
-          AppUpdateInfo.fromJson(json['updateInfo'] as Map<String, dynamic>),
+      updateInfo: AppUpdateInfo.fromJson(
+        json['updateInfo'] as Map<String, dynamic>,
+      ),
       progress: (json['progress'] as num?)?.toDouble(),
       message: json['message'] as String?,
       error: json['error'] as String?,
@@ -103,15 +106,13 @@ const _$UpdateProgressStatusEnumMap = {
   UpdateProgressStatus.cancelled: 'cancelled',
 };
 
-TimeRange _$TimeRangeFromJson(Map<String, dynamic> json) => TimeRange(
-      start: json['start'] as String,
-      end: json['end'] as String,
-    );
+TimeRange _$TimeRangeFromJson(Map<String, dynamic> json) =>
+    TimeRange(start: json['start'] as String, end: json['end'] as String);
 
 Map<String, dynamic> _$TimeRangeToJson(TimeRange instance) => <String, dynamic>{
-      'start': instance.start,
-      'end': instance.end,
-    };
+  'start': instance.start,
+  'end': instance.end,
+};
 
 AppUpdatePolicy _$AppUpdatePolicyFromJson(Map<String, dynamic> json) =>
     AppUpdatePolicy(
@@ -144,8 +145,10 @@ UpdateHistoryEntry _$UpdateHistoryEntryFromJson(Map<String, dynamic> json) =>
       version: json['version'] as String,
       buildNumber: (json['buildNumber'] as num).toInt(),
       updateType: $enumDecode(_$UpdateTypeEnumMap, json['updateType']),
-      deliveryMethod:
-          $enumDecode(_$UpdateDeliveryMethodEnumMap, json['deliveryMethod']),
+      deliveryMethod: $enumDecode(
+        _$UpdateDeliveryMethodEnumMap,
+        json['deliveryMethod'],
+      ),
       installDate: DateTime.parse(json['installDate'] as String),
       successful: json['successful'] as bool,
       errorMessage: json['errorMessage'] as String?,
