@@ -41,3 +41,35 @@ class ApprovalRejectRequested extends ApprovalEvent {
   @override
   List<Object?> get props => [id, reason];
 }
+
+class BatchSelectionToggled extends ApprovalEvent {
+  final String id;
+
+  const BatchSelectionToggled({required this.id});
+
+  @override
+  List<Object?> get props => [id];
+}
+
+class BatchSelectionCleared extends ApprovalEvent {
+  const BatchSelectionCleared();
+}
+
+class BatchSelectAllPending extends ApprovalEvent {
+  const BatchSelectAllPending();
+}
+
+class BatchApprovalRequested extends ApprovalEvent {
+  final String action; // 'APPROVE' or 'REJECT'
+  final String? rejectionReason;
+  final String? notes;
+
+  const BatchApprovalRequested({
+    required this.action,
+    this.rejectionReason,
+    this.notes,
+  });
+
+  @override
+  List<Object?> get props => [action, rejectionReason, notes];
+}

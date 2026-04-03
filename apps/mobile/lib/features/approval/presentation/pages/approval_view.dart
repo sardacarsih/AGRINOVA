@@ -228,85 +228,230 @@ class _ApprovalViewState extends State<ApprovalView>
   Widget _buildContent(ApprovalLoaded state) {
     final groupedApprovals = _buildGroupedApprovals(state.approvals);
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        context.read<ApprovalBloc>().add(const ApprovalRefreshRequested());
-      },
-      child: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 16,
+    return Stack(
+      children: [
+        RefreshIndicator(
+          onRefresh: () async {
+            context.read<ApprovalBloc>().add(const ApprovalRefreshRequested());
+          },
+          child: CustomScrollView(
+            slivers: [
+              // Batch selection header bar
+              if (state.isSelectionMode)
+                SliverToBoxAdapter(
+                  child: _buildSelectionHeader(state),
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildStatItem(
-                      'Pending',
-                      state.stats.pendingCount,
-                      AsistenTheme.pendingOrange,
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 16,
                     ),
-                    _buildStatVerticalDivider(),
-                    _buildStatItem(
-                      'Approved',
-                      state.stats.approvedCount,
-                      AsistenTheme.approvedGreen,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    _buildStatVerticalDivider(),
-                    _buildStatItem(
-                      'Rejected',
-                      state.stats.rejectedCount,
-                      AsistenTheme.rejectedRed,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildStatItem(
+                          'Pending',
+                          state.stats.pendingCount,
+                          AsistenTheme.pendingOrange,
+                        ),
+                        _buildStatVerticalDivider(),
+                        _buildStatItem(
+                          'Approved',
+                          state.stats.approvedCount,
+                          AsistenTheme.approvedGreen,
+                        ),
+                        _buildStatVerticalDivider(),
+                        _buildStatItem(
+                          'Rejected',
+                          state.stats.rejectedCount,
+                          AsistenTheme.rejectedRed,
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
+              if (state.warningMessage != null &&
+                  state.warningMessage!.trim().isNotEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: _buildWarningBanner(state.warningMessage!),
+                  ),
+                ),
+              if (groupedApprovals.isEmpty)
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inbox, size: 64, color: Colors.grey[300]),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Tidak ada data approval',
+                          style: TextStyle(color: Colors.grey[500]),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final mandorGroup = groupedApprovals[index];
+                      return _buildMandorGroupCard(mandorGroup, state);
+                    }, childCount: groupedApprovals.length),
+                  ),
+                ),
+              SliverPadding(
+                padding: EdgeInsets.only(
+                  bottom: state.isSelectionMode ? 160 : 100,
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Floating batch action bar
+        if (state.isSelectionMode)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _buildBatchActionBar(state),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSelectionHeader(ApprovalLoaded state) {
+    final pendingCount = state.approvals
+        .where((item) => item.status == 'PENDING')
+        .length;
+    final allPendingSelected = pendingCount > 0 &&
+        state.approvals
+            .where((item) => item.status == 'PENDING')
+            .every((item) => state.selectedIds.contains(item.id));
+
+    return Container(
+      color: AsistenTheme.primaryBlue.withValues(alpha: 0.08),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Text(
+            '${state.selectedCount} dipilih',
+            style: const TextStyle(
+              color: AsistenTheme.primaryBlue,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
             ),
           ),
-          if (state.warningMessage != null &&
-              state.warningMessage!.trim().isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: _buildWarningBanner(state.warningMessage!),
-              ),
+          const Spacer(),
+          TextButton(
+            onPressed: () {
+              if (allPendingSelected) {
+                context.read<ApprovalBloc>().add(
+                  const BatchSelectionCleared(),
+                );
+              } else {
+                context.read<ApprovalBloc>().add(
+                  const BatchSelectAllPending(),
+                );
+              }
+            },
+            child: Text(
+              allPendingSelected ? 'Batal Pilih Semua' : 'Pilih Semua Pending',
+              style: const TextStyle(fontSize: 13),
             ),
-          if (groupedApprovals.isEmpty)
-            SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.inbox, size: 64, color: Colors.grey[300]),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Tidak ada data approval',
-                      style: TextStyle(color: Colors.grey[500]),
-                    ),
-                  ],
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.close, size: 20),
+            onPressed: () {
+              context.read<ApprovalBloc>().add(
+                const BatchSelectionCleared(),
+              );
+            },
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBatchActionBar(ApprovalLoaded state) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _showBatchApproveConfirm(
+                  context,
+                  state.selectedCount,
+                ),
+                icon: const Icon(
+                  Icons.check_circle,
+                  size: 18,
+                  color: Colors.white,
+                ),
+                label: Text('Setujui ${state.selectedCount}'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AsistenTheme.approvedGreen,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate((context, index) {
-                  final mandorGroup = groupedApprovals[index];
-                  return _buildMandorGroupCard(mandorGroup);
-                }, childCount: groupedApprovals.length),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _showBatchRejectDialog(
+                  context,
+                  state.selectedCount,
+                ),
+                icon: const Icon(
+                  Icons.cancel,
+                  size: 18,
+                  color: AsistenTheme.rejectedRed,
+                ),
+                label: Text('Tolak ${state.selectedCount}'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AsistenTheme.rejectedRed,
+                  side: const BorderSide(color: AsistenTheme.rejectedRed),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
               ),
             ),
-          const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -346,7 +491,10 @@ class _ApprovalViewState extends State<ApprovalView>
     );
   }
 
-  Widget _buildMandorGroupCard(_MandorApprovalGroup group) {
+  Widget _buildMandorGroupCard(
+    _MandorApprovalGroup group,
+    ApprovalLoaded state,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -393,13 +541,18 @@ class _ApprovalViewState extends State<ApprovalView>
             ),
           ),
           const SizedBox(height: 12),
-          ...group.dateGroups.map(_buildDateGroupSection),
+          ...group.dateGroups.map(
+            (dg) => _buildDateGroupSection(dg, state),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildDateGroupSection(_DateApprovalGroup dateGroup) {
+  Widget _buildDateGroupSection(
+    _DateApprovalGroup dateGroup,
+    ApprovalLoaded state,
+  ) {
     final dateLabel = _formatHarvestDate(dateGroup.date);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -439,7 +592,9 @@ class _ApprovalViewState extends State<ApprovalView>
             ],
           ),
           const SizedBox(height: 10),
-          ...dateGroup.blockGroups.map(_buildBlockGroupSection),
+          ...dateGroup.blockGroups.map(
+            (bg) => _buildBlockGroupSection(bg, state),
+          ),
         ],
       ),
     );
@@ -453,7 +608,10 @@ class _ApprovalViewState extends State<ApprovalView>
     }
   }
 
-  Widget _buildBlockGroupSection(_BlockApprovalGroup blockGroup) {
+  Widget _buildBlockGroupSection(
+    _BlockApprovalGroup blockGroup,
+    ApprovalLoaded state,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
@@ -493,32 +651,81 @@ class _ApprovalViewState extends State<ApprovalView>
             ],
           ),
           const SizedBox(height: 8),
-          ...blockGroup.items.map(_buildEmployeeRow),
+          ...blockGroup.items.map(
+            (item) => _buildEmployeeRow(item, state),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildEmployeeRow(ApprovalItem item) {
+  Widget _buildEmployeeRow(ApprovalItem item, ApprovalLoaded state) {
     final employeeName = _resolveEmployeeName(item);
+    final isSelected = state.selectedIds.contains(item.id);
+    final isSelectionMode = state.isSelectionMode;
+    final isPending = item.status == 'PENDING';
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
-        onTap: () => _showApprovalDetailDialog(item),
+        onTap: () {
+          if (isSelectionMode && isPending) {
+            context.read<ApprovalBloc>().add(
+              BatchSelectionToggled(id: item.id),
+            );
+          } else {
+            _showApprovalDetailDialog(item);
+          }
+        },
+        onLongPress: isPending
+            ? () {
+                if (!isSelectionMode) {
+                  context.read<ApprovalBloc>().add(
+                    BatchSelectionToggled(id: item.id),
+                  );
+                }
+              }
+            : null,
         child: Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: Colors.grey.shade50,
+            color: isSelected
+                ? AsistenTheme.primaryBlue.withValues(alpha: 0.08)
+                : Colors.grey.shade50,
             borderRadius: BorderRadius.circular(8),
+            border: isSelected
+                ? Border.all(
+                    color: AsistenTheme.primaryBlue.withValues(alpha: 0.3),
+                  )
+                : null,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
+                  // Checkbox for selection mode
+                  if (isSelectionMode && isPending) ...[
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: Checkbox(
+                        value: isSelected,
+                        onChanged: (_) {
+                          context.read<ApprovalBloc>().add(
+                            BatchSelectionToggled(id: item.id),
+                          );
+                        },
+                        activeColor: AsistenTheme.primaryBlue,
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   if (item.photoUrls != null && item.photoUrls!.isNotEmpty) ...[
                     Builder(
                       builder: (context) {
@@ -586,55 +793,57 @@ class _ApprovalViewState extends State<ApprovalView>
               const SizedBox(height: 6),
               _buildQualitySummary(item),
               const SizedBox(height: 8),
-              if (item.status == 'PENDING')
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _showApproveConfirm(context, item),
-                        icon: const Icon(
-                          Icons.check,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                        label: const Text('Setuju'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AsistenTheme.approvedGreen,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+              // Hide individual action buttons in selection mode
+              if (!isSelectionMode)
+                if (isPending)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => _showApproveConfirm(context, item),
+                          icon: const Icon(
+                            Icons.check,
+                            size: 16,
+                            color: Colors.white,
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          label: const Text('Setuju'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AsistenTheme.approvedGreen,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showRejectDialog(context, item),
-                        icon: const Icon(
-                          Icons.close,
-                          size: 16,
-                          color: AsistenTheme.rejectedRed,
-                        ),
-                        label: const Text('Tolak'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AsistenTheme.rejectedRed,
-                          side: const BorderSide(
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _showRejectDialog(context, item),
+                          icon: const Icon(
+                            Icons.close,
+                            size: 16,
                             color: AsistenTheme.rejectedRed,
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                          label: const Text('Tolak'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AsistenTheme.rejectedRed,
+                            side: const BorderSide(
+                              color: AsistenTheme.rejectedRed,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
                       ),
-                    ),
-                  ],
-                )
-              else
-                _buildStatusBadge(item.status),
+                    ],
+                  )
+                else
+                  _buildStatusBadge(item.status),
             ],
           ),
         ),
@@ -1058,6 +1267,111 @@ class _ApprovalViewState extends State<ApprovalView>
               backgroundColor: AsistenTheme.rejectedRed,
             ),
             child: const Text('Tolak', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBatchApproveConfirm(BuildContext context, int count) {
+    final notesController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Setujui Batch?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Anda akan menyetujui $count data panen sekaligus.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: notesController,
+              decoration: const InputDecoration(
+                hintText: 'Catatan (opsional)',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              final notes = notesController.text.trim();
+              context.read<ApprovalBloc>().add(
+                BatchApprovalRequested(
+                  action: 'APPROVE',
+                  notes: notes.isEmpty ? null : notes,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AsistenTheme.approvedGreen,
+            ),
+            child: const Text(
+              'Setujui Semua',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showBatchRejectDialog(BuildContext context, int count) {
+    final reasonController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tolak Batch'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Berikan alasan penolakan untuk $count data panen:'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: reasonController,
+              decoration: const InputDecoration(
+                hintText: 'Alasan penolakan...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (reasonController.text.isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(content: Text('Alasan harus diisi')),
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+              context.read<ApprovalBloc>().add(
+                BatchApprovalRequested(
+                  action: 'REJECT',
+                  rejectionReason: reasonController.text,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AsistenTheme.rejectedRed,
+            ),
+            child: const Text(
+              'Tolak Semua',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),

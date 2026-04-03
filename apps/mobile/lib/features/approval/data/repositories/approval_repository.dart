@@ -24,6 +24,13 @@ abstract class ApprovalRepository {
   Future<void> approveHarvest(String id, {String? notes});
 
   Future<void> rejectHarvest(String id, String reason);
+
+  Future<BatchApprovalResult> batchApproval({
+    required List<String> ids,
+    required String action,
+    String? rejectionReason,
+    String? notes,
+  });
 }
 
 class ApprovalRepositoryImpl implements ApprovalRepository {
@@ -419,5 +426,55 @@ class ApprovalRepositoryImpl implements ApprovalRepository {
           result.data?['rejectHarvest']?['message'] ?? 'Failed to reject';
       throw Exception(message);
     }
+  }
+
+  static const String _batchApprovalMutation = r'''
+    mutation BatchApproval($input: BatchApprovalInput!) {
+      batchApproval(input: $input) {
+        success
+        totalProcessed
+        successCount
+        failedCount
+        results {
+          id
+          success
+          error
+        }
+        message
+      }
+    }
+  ''';
+
+  @override
+  Future<BatchApprovalResult> batchApproval({
+    required List<String> ids,
+    required String action,
+    String? rejectionReason,
+    String? notes,
+  }) async {
+    final result = await _graphQLClient.mutate(
+      MutationOptions(
+        document: gql(_batchApprovalMutation),
+        variables: {
+          'input': {
+            'ids': ids,
+            'action': action,
+            'rejectionReason': ?rejectionReason,
+            'notes': ?notes,
+          },
+        },
+      ),
+    );
+
+    if (result.hasException) {
+      throw result.exception!;
+    }
+
+    final data = result.data?['batchApproval'];
+    if (data == null) {
+      throw Exception('No response from batch approval');
+    }
+
+    return BatchApprovalResult.fromJson(data);
   }
 }

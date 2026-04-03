@@ -29,6 +29,10 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
     on<ApprovalRefreshRequested>(_onRefreshRequested);
     on<ApprovalApproveRequested>(_onApproveRequested);
     on<ApprovalRejectRequested>(_onRejectRequested);
+    on<BatchSelectionToggled>(_onBatchSelectionToggled);
+    on<BatchSelectionCleared>(_onBatchSelectionCleared);
+    on<BatchSelectAllPending>(_onBatchSelectAllPending);
+    on<BatchApprovalRequested>(_onBatchApprovalRequested);
 
     // Listen to harvest notifications for auto-refresh
     _notificationSubscription = FCMService.harvestNotificationStream.listen((
@@ -227,6 +231,90 @@ class ApprovalBloc extends Bloc<ApprovalEvent, ApprovalState> {
           message: SyncErrorMessageHelper.toUserMessage(
             e,
             action: 'menolak data panen',
+          ),
+        ),
+      );
+      add(const ApprovalRefreshRequested());
+    }
+  }
+
+  void _onBatchSelectionToggled(
+    BatchSelectionToggled event,
+    Emitter<ApprovalState> emit,
+  ) {
+    if (state is! ApprovalLoaded) return;
+    final current = state as ApprovalLoaded;
+    final updated = Set<String>.from(current.selectedIds);
+    if (updated.contains(event.id)) {
+      updated.remove(event.id);
+    } else {
+      updated.add(event.id);
+    }
+    emit(current.copyWith(selectedIds: updated));
+  }
+
+  void _onBatchSelectionCleared(
+    BatchSelectionCleared event,
+    Emitter<ApprovalState> emit,
+  ) {
+    if (state is! ApprovalLoaded) return;
+    final current = state as ApprovalLoaded;
+    emit(current.copyWith(selectedIds: const {}));
+  }
+
+  void _onBatchSelectAllPending(
+    BatchSelectAllPending event,
+    Emitter<ApprovalState> emit,
+  ) {
+    if (state is! ApprovalLoaded) return;
+    final current = state as ApprovalLoaded;
+    final pendingIds = current.approvals
+        .where((item) => item.status == 'PENDING')
+        .map((item) => item.id)
+        .toSet();
+    emit(current.copyWith(selectedIds: pendingIds));
+  }
+
+  Future<void> _onBatchApprovalRequested(
+    BatchApprovalRequested event,
+    Emitter<ApprovalState> emit,
+  ) async {
+    if (state is! ApprovalLoaded) return;
+    final current = state as ApprovalLoaded;
+    final ids = current.selectedIds.toList();
+
+    if (ids.isEmpty) return;
+
+    emit(ApprovalActionLoading());
+
+    try {
+      final result = await _approvalRepository.batchApproval(
+        ids: ids,
+        action: event.action,
+        rejectionReason: event.rejectionReason,
+        notes: event.notes,
+      );
+
+      for (final id in ids) {
+        await _notificationStorage.markHarvestApprovalNotificationsAsRead(id);
+      }
+
+      final actionLabel = event.action == 'APPROVE' ? 'disetujui' : 'ditolak';
+      final message = result.success
+          ? '${result.successCount} data berhasil $actionLabel'
+          : '${result.successCount} berhasil, ${result.failedCount} gagal $actionLabel';
+
+      emit(ApprovalActionSuccess(message: message));
+      add(const ApprovalRefreshRequested());
+    } catch (e) {
+      final actionLabel = event.action == 'APPROVE'
+          ? 'menyetujui batch'
+          : 'menolak batch';
+      emit(
+        ApprovalActionFailure(
+          message: SyncErrorMessageHelper.toUserMessage(
+            e,
+            action: actionLabel,
           ),
         ),
       );

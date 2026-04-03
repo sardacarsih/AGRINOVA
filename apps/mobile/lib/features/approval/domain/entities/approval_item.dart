@@ -151,3 +151,55 @@ class ApprovalStats extends Equatable {
   @override
   List<Object?> get props => [pendingCount, approvedCount, rejectedCount];
 }
+
+class BatchApprovalResult {
+  final bool success;
+  final int totalProcessed;
+  final int successCount;
+  final int failedCount;
+  final List<BatchItemResult> results;
+  final String message;
+
+  const BatchApprovalResult({
+    required this.success,
+    required this.totalProcessed,
+    required this.successCount,
+    required this.failedCount,
+    required this.results,
+    required this.message,
+  });
+
+  factory BatchApprovalResult.fromJson(Map<String, dynamic> json) {
+    return BatchApprovalResult(
+      success: json['success'] ?? false,
+      totalProcessed: json['totalProcessed'] ?? 0,
+      successCount: json['successCount'] ?? 0,
+      failedCount: json['failedCount'] ?? 0,
+      results: (json['results'] as List?)
+              ?.map((e) => BatchItemResult.fromJson(e))
+              .toList() ??
+          [],
+      message: json['message'] ?? '',
+    );
+  }
+}
+
+class BatchItemResult {
+  final String id;
+  final bool success;
+  final String? error;
+
+  const BatchItemResult({
+    required this.id,
+    required this.success,
+    this.error,
+  });
+
+  factory BatchItemResult.fromJson(Map<String, dynamic> json) {
+    return BatchItemResult(
+      id: json['id'] ?? '',
+      success: json['success'] ?? false,
+      error: json['error'],
+    );
+  }
+}

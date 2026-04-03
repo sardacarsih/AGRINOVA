@@ -16,13 +16,19 @@ class ApprovalLoaded extends ApprovalState {
   final ApprovalStats stats;
   final String activeFilterStatus; // 'ALL', 'PENDING', 'APPROVED', 'REJECTED'
   final String? warningMessage;
+  final Set<String> selectedIds;
 
   const ApprovalLoaded({
     required this.approvals,
     required this.stats,
     this.activeFilterStatus = 'PENDING',
     this.warningMessage,
+    this.selectedIds = const {},
   });
+
+  bool get isSelectionMode => selectedIds.isNotEmpty;
+
+  int get selectedCount => selectedIds.length;
 
   ApprovalLoaded copyWith({
     List<ApprovalItem>? approvals,
@@ -30,6 +36,7 @@ class ApprovalLoaded extends ApprovalState {
     String? activeFilterStatus,
     String? warningMessage,
     bool clearWarningMessage = false,
+    Set<String>? selectedIds,
   }) {
     return ApprovalLoaded(
       approvals: approvals ?? this.approvals,
@@ -38,6 +45,7 @@ class ApprovalLoaded extends ApprovalState {
       warningMessage: clearWarningMessage
           ? null
           : warningMessage ?? this.warningMessage,
+      selectedIds: selectedIds ?? this.selectedIds,
     );
   }
 
@@ -47,6 +55,7 @@ class ApprovalLoaded extends ApprovalState {
     stats,
     activeFilterStatus,
     warningMessage,
+    selectedIds,
   ];
 }
 
