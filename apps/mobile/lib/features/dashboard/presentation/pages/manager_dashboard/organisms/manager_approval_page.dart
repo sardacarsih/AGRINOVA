@@ -33,6 +33,10 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
   StreamSubscription<HarvestNotificationEvent>? _harvestNotificationSub;
   Timer? _refreshDebounce;
 
+  // Batch selection state
+  bool _batchMode = false;
+  final Set<String> _selectedIds = {};
+
   @override
   void initState() {
     super.initState();
@@ -301,6 +305,293 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
     }
   }
 
+  void _toggleBatchMode() {
+    setState(() {
+      _batchMode = !_batchMode;
+      _selectedIds.clear();
+    });
+  }
+
+  void _toggleSelection(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  void _toggleSelectAll() {
+    setState(() {
+      if (_selectedIds.length == _items.length) {
+        _selectedIds.clear();
+      } else {
+        _selectedIds
+          ..clear()
+          ..addAll(_items.map((e) => e.id));
+      }
+    });
+  }
+
+  Future<void> _batchApproveSelected() async {
+    if (_selectedIds.isEmpty || _isProcessing) return;
+
+    final count = _selectedIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback: ManagerTheme.cardBackground,
+        ),
+        title: const Text('Batch Approval'),
+        content: Text('Setujui $count data panen yang dipilih?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.modalAccent(
+                  dialogContext,
+                  fallback: ManagerTheme.primaryPurple,
+                ),
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: RuntimeThemeSlotResolver.modalAccent(
+                dialogContext,
+                fallback: ManagerTheme.approvedGreen,
+              ),
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Setujui $count'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isProcessing = true);
+    try {
+      final result = await _repository.batchApproval(
+        ids: _selectedIds.toList(),
+        action: 'APPROVE',
+      );
+      if (!mounted) return;
+
+      final msg = result.failedCount > 0
+          ? '${result.successCount} disetujui, ${result.failedCount} gagal'
+          : '${result.successCount} data panen disetujui';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            msg,
+            style: TextStyle(
+              color: RuntimeThemeSlotResolver.notificationBannerText(
+                context,
+                fallback: Colors.white,
+              ),
+            ),
+          ),
+          backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+            context,
+            fallback: result.failedCount > 0
+                ? ManagerTheme.pendingOrange
+                : ManagerTheme.approvedGreen,
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      setState(() {
+        _batchMode = false;
+        _selectedIds.clear();
+      });
+      await _loadPendingApprovals(showLoader: false);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            SyncErrorMessageHelper.toUserMessage(
+              e,
+              action: 'batch approval',
+            ),
+            style: TextStyle(
+              color: RuntimeThemeSlotResolver.notificationBannerText(
+                context,
+                fallback: Colors.white,
+              ),
+            ),
+          ),
+          backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+            context,
+            fallback: ManagerTheme.rejectedRed,
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _batchRejectSelected() async {
+    if (_selectedIds.isEmpty || _isProcessing) return;
+
+    final count = _selectedIds.length;
+    final reasonController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: RuntimeThemeSlotResolver.modalBackground(
+          dialogContext,
+          fallback: ManagerTheme.cardBackground,
+        ),
+        title: const Text('Batch Tolak'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Tolak $count data panen yang dipilih?'),
+            const SizedBox(height: 10),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'Alasan penolakan...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+              'Batal',
+              style: TextStyle(
+                color: RuntimeThemeSlotResolver.modalAccent(
+                  dialogContext,
+                  fallback: ManagerTheme.primaryPurple,
+                ),
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final reason = reasonController.text.trim();
+              if (reason.isEmpty) {
+                ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Alasan harus diisi',
+                      style: TextStyle(
+                        color: RuntimeThemeSlotResolver.notificationBannerText(
+                          dialogContext,
+                          fallback: Colors.white,
+                        ),
+                      ),
+                    ),
+                    backgroundColor:
+                        RuntimeThemeSlotResolver.notificationBannerBackground(
+                      dialogContext,
+                      fallback: ManagerTheme.pendingOrange,
+                    ),
+                  ),
+                );
+                return;
+              }
+              Navigator.of(dialogContext).pop(true);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: RuntimeThemeSlotResolver.modalAccent(
+                dialogContext,
+                fallback: ManagerTheme.rejectedRed,
+              ),
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Tolak $count'),
+          ),
+        ],
+      ),
+    );
+
+    final reason = reasonController.text.trim();
+    if (confirmed != true || reason.isEmpty) return;
+
+    setState(() => _isProcessing = true);
+    try {
+      final result = await _repository.batchApproval(
+        ids: _selectedIds.toList(),
+        action: 'REJECT',
+        rejectionReason: reason,
+      );
+      if (!mounted) return;
+
+      final msg = result.failedCount > 0
+          ? '${result.successCount} ditolak, ${result.failedCount} gagal'
+          : '${result.successCount} data panen ditolak';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            msg,
+            style: TextStyle(
+              color: RuntimeThemeSlotResolver.notificationBannerText(
+                context,
+                fallback: Colors.white,
+              ),
+            ),
+          ),
+          backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+            context,
+            fallback: result.failedCount > 0
+                ? ManagerTheme.pendingOrange
+                : ManagerTheme.rejectedRed,
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      setState(() {
+        _batchMode = false;
+        _selectedIds.clear();
+      });
+      await _loadPendingApprovals(showLoader: false);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            SyncErrorMessageHelper.toUserMessage(
+              e,
+              action: 'batch reject',
+            ),
+            style: TextStyle(
+              color: RuntimeThemeSlotResolver.notificationBannerText(
+                context,
+                fallback: Colors.white,
+              ),
+            ),
+          ),
+          backgroundColor: RuntimeThemeSlotResolver.notificationBannerBackground(
+            context,
+            fallback: ManagerTheme.rejectedRed,
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
   Future<void> _confirmApprove(ManagerHarvestApprovalItem item) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -467,13 +758,36 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
             : Colors.transparent,
         iconTheme: IconThemeData(color: navbarIcon),
         actions: [
-          IconButton(
-            onPressed: _isProcessing
-                ? null
-                : () => _loadPendingApprovals(showLoader: true),
-            icon: Icon(Icons.refresh, color: navbarIcon),
-            tooltip: 'Refresh',
-          ),
+          if (_batchMode && _items.isNotEmpty)
+            IconButton(
+              onPressed: _isProcessing ? null : _toggleSelectAll,
+              icon: Icon(
+                _selectedIds.length == _items.length
+                    ? Icons.deselect
+                    : Icons.select_all,
+                color: navbarIcon,
+              ),
+              tooltip: _selectedIds.length == _items.length
+                  ? 'Batal Pilih Semua'
+                  : 'Pilih Semua',
+            ),
+          if (_items.isNotEmpty)
+            IconButton(
+              onPressed: _isProcessing ? null : _toggleBatchMode,
+              icon: Icon(
+                _batchMode ? Icons.close : Icons.checklist_rtl,
+                color: navbarIcon,
+              ),
+              tooltip: _batchMode ? 'Batal Batch' : 'Batch Mode',
+            ),
+          if (!_batchMode)
+            IconButton(
+              onPressed: _isProcessing
+                  ? null
+                  : () => _loadPendingApprovals(showLoader: true),
+              icon: Icon(Icons.refresh, color: navbarIcon),
+              tooltip: 'Refresh',
+            ),
         ],
       ),
       body: RefreshIndicator(
@@ -558,6 +872,71 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
   }
 
   Widget _buildSummaryCard() {
+    if (_batchMode) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: ManagerTheme.teamReviewTeal.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: ManagerTheme.teamReviewTeal.withValues(alpha: 0.25),
+          ),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.checklist_rtl,
+                  color: ManagerTheme.teamReviewTeal,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '${_selectedIds.length} dari ${_items.length} dipilih',
+                    style: const TextStyle(
+                      color: ManagerTheme.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (_selectedIds.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isProcessing ? null : _batchRejectSelected,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: ManagerTheme.rejectedRed,
+                        side: const BorderSide(color: ManagerTheme.rejectedRed),
+                      ),
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      label: Text('Tolak (${_selectedIds.length})'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _isProcessing ? null : _batchApproveSelected,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ManagerTheme.approvedGreen,
+                        foregroundColor: Colors.white,
+                      ),
+                      icon: const Icon(Icons.check_rounded, size: 18),
+                      label: Text('Setujui (${_selectedIds.length})'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -586,8 +965,21 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
   }
 
   Widget _buildItemCard(ManagerHarvestApprovalItem item) {
-    return Container(
-      decoration: ManagerTheme.whiteCardDecoration,
+    final isSelected = _selectedIds.contains(item.id);
+
+    return GestureDetector(
+      onTap: _batchMode ? () => _toggleSelection(item.id) : null,
+      child: Container(
+      decoration: _batchMode && isSelected
+          ? BoxDecoration(
+              color: ManagerTheme.teamReviewTeal.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: ManagerTheme.teamReviewTeal.withValues(alpha: 0.5),
+                width: 1.5,
+              ),
+            )
+          : ManagerTheme.whiteCardDecoration,
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -595,19 +987,30 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: ManagerTheme.teamReviewTeal.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
+              if (_batchMode) ...[
+                Checkbox(
+                  value: isSelected,
+                  onChanged: (_) => _toggleSelection(item.id),
+                  activeColor: ManagerTheme.teamReviewTeal,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  visualDensity: VisualDensity.compact,
                 ),
-                child: const Icon(
-                  Icons.agriculture_outlined,
-                  color: ManagerTheme.teamReviewTeal,
+                const SizedBox(width: 4),
+              ] else ...[
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: ManagerTheme.teamReviewTeal.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.agriculture_outlined,
+                    color: ManagerTheme.teamReviewTeal,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
+                const SizedBox(width: 10),
+              ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -652,35 +1055,39 @@ class _ManagerApprovalPageState extends State<ManagerApprovalPage> {
             'Submit: ${_formatDateTime(item.submittedAt)}',
             style: ManagerTheme.bodySmall,
           ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _isProcessing ? null : () => _promptReject(item),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: ManagerTheme.rejectedRed,
-                    side: const BorderSide(color: ManagerTheme.rejectedRed),
+          if (!_batchMode) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isProcessing ? null : () => _promptReject(item),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: ManagerTheme.rejectedRed,
+                      side: const BorderSide(color: ManagerTheme.rejectedRed),
+                    ),
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                    label: const Text('Tolak'),
                   ),
-                  icon: const Icon(Icons.close_rounded, size: 18),
-                  label: const Text('Tolak'),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _isProcessing ? null : () => _confirmApprove(item),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: ManagerTheme.approvedGreen,
-                    foregroundColor: Colors.white,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed:
+                        _isProcessing ? null : () => _confirmApprove(item),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ManagerTheme.approvedGreen,
+                      foregroundColor: Colors.white,
+                    ),
+                    icon: const Icon(Icons.check_rounded, size: 18),
+                    label: const Text('Setujui'),
                   ),
-                  icon: const Icon(Icons.check_rounded, size: 18),
-                  label: const Text('Setujui'),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
+          ],
         ],
+      ),
       ),
     );
   }

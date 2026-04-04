@@ -617,7 +617,7 @@ extend type Mutation {
   rejectHarvest(id: ID!, reason: String!): ApproveHarvestResult! @requireAuth @hasRole(roles: [ASISTEN])
   
   "Batch approve/reject harvest records"
-  batchApproval(input: BatchApprovalInput!): BatchApprovalResult! @requireAuth @hasRole(roles: [ASISTEN])
+  batchApproval(input: BatchApprovalInput!): BatchApprovalResult! @requireAuth @hasRole(roles: [ASISTEN, MANAGER])
   
   "Request correction from mandor"
   requestCorrection(id: ID!, corrections: [String!]!): ApproveHarvestResult! @requireAuth @hasRole(roles: [ASISTEN])

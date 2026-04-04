@@ -128,6 +128,23 @@ class ManagerHarvestApprovalRepository {
     }
   ''';
 
+  static const String _batchApprovalMutation = r'''
+    mutation BatchApproval($input: BatchApprovalInput!) {
+      batchApproval(input: $input) {
+        success
+        totalProcessed
+        successCount
+        failedCount
+        results {
+          id
+          success
+          error
+        }
+        message
+      }
+    }
+  ''';
+
   static const String _approveMutation = r'''
     mutation ManagerApproveHarvestRecord($input: ApproveHarvestInput!) {
       approveHarvestRecord(input: $input) {
@@ -190,6 +207,38 @@ class ManagerHarvestApprovalRepository {
     }
   }
 
+  Future<ManagerBatchApprovalResult> batchApproval({
+    required List<String> ids,
+    required String action,
+    String? rejectionReason,
+  }) async {
+    final result = await _graphqlClient.mutate(
+      MutationOptions(
+        document: gql(_batchApprovalMutation),
+        variables: {
+          'input': {
+            'ids': ids,
+            'action': action,
+            if (rejectionReason != null) 'rejectionReason': rejectionReason,
+          },
+        },
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(
+        'Gagal batch approval: ${result.exception.toString()}',
+      );
+    }
+
+    final data = result.data?['batchApproval'];
+    if (data == null) {
+      throw Exception('Tidak ada respons dari batch approval');
+    }
+
+    return ManagerBatchApprovalResult.fromJson(data);
+  }
+
   Future<void> rejectHarvestRecord(String id, String reason) async {
     final result = await _graphqlClient.mutate(
       MutationOptions(
@@ -250,5 +299,58 @@ class ManagerHarvestApprovalRepository {
       return fallback;
     }
     return parsed;
+  }
+}
+
+class ManagerBatchApprovalResult {
+  final bool success;
+  final int totalProcessed;
+  final int successCount;
+  final int failedCount;
+  final List<ManagerBatchItemResult> results;
+  final String message;
+
+  const ManagerBatchApprovalResult({
+    required this.success,
+    required this.totalProcessed,
+    required this.successCount,
+    required this.failedCount,
+    required this.results,
+    required this.message,
+  });
+
+  factory ManagerBatchApprovalResult.fromJson(Map<String, dynamic> json) {
+    return ManagerBatchApprovalResult(
+      success: json['success'] ?? false,
+      totalProcessed: json['totalProcessed'] ?? 0,
+      successCount: json['successCount'] ?? 0,
+      failedCount: json['failedCount'] ?? 0,
+      results: (json['results'] as List?)
+              ?.map((e) =>
+                  ManagerBatchItemResult.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      message: json['message'] ?? '',
+    );
+  }
+}
+
+class ManagerBatchItemResult {
+  final String id;
+  final bool success;
+  final String? error;
+
+  const ManagerBatchItemResult({
+    required this.id,
+    required this.success,
+    this.error,
+  });
+
+  factory ManagerBatchItemResult.fromJson(Map<String, dynamic> json) {
+    return ManagerBatchItemResult(
+      id: json['id'] ?? '',
+      success: json['success'] ?? false,
+      error: json['error'],
+    );
   }
 }

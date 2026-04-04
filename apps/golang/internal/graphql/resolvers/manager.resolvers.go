@@ -825,22 +825,348 @@ func (r *queryResolver) ManagerTeamSummary(ctx context.Context) (*manager.Manage
 
 // ManagerMonitor is the resolver for the managerMonitor field.
 func (r *queryResolver) ManagerMonitor(ctx context.Context) (*manager.ManagerMonitorData, error) {
-	return nil, fmt.Errorf("not yet implemented: ManagerMonitor")
+	userID := middleware.GetCurrentUserID(ctx)
+	if userID == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
+
+	estateIDs, err := r.managerEstateIDs(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get manager estates: %w", err)
+	}
+
+	emptyResult := &manager.ManagerMonitorData{
+		OverallStatus:    common.MonitorStatusNormal,
+		EstateMonitors:   []*manager.EstateMonitorSummary{},
+		DivisionMonitors: []*manager.DivisionMonitorSummary{},
+		ActiveActivities: []*manager.HarvestActivity{},
+		RealtimeStats:    &manager.RealtimeStats{},
+		LastUpdated:      time.Now(),
+	}
+
+	if len(estateIDs) == 0 {
+		return emptyResult, nil
+	}
+
+	// Estate summaries
+	estateSummaries, err := r.buildEstateMonitorSummaries(ctx, userID, estateIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build estate monitors: %w", err)
+	}
+
+	// Division summaries
+	divisionSummaries, err := r.buildDivisionMonitorSummaries(ctx, estateIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build division monitors: %w", err)
+	}
+
+	// Active harvest activities
+	activities, err := r.buildActiveHarvestActivities(ctx, estateIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build active activities: %w", err)
+	}
+
+	// Realtime stats
+	realtimeStats, err := r.buildRealtimeStats(ctx, estateIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build realtime stats: %w", err)
+	}
+
+	// Determine overall status
+	overallStatus := common.MonitorStatusNormal
+	for _, es := range estateSummaries {
+		if es.Status == common.MonitorStatusCritical {
+			overallStatus = common.MonitorStatusCritical
+			break
+		}
+		if es.Status == common.MonitorStatusWarning {
+			overallStatus = common.MonitorStatusWarning
+		}
+	}
+
+	return &manager.ManagerMonitorData{
+		OverallStatus:    overallStatus,
+		EstateMonitors:   estateSummaries,
+		DivisionMonitors: divisionSummaries,
+		ActiveActivities: activities,
+		RealtimeStats:    realtimeStats,
+		LastUpdated:      time.Now(),
+	}, nil
+}
+
+type estateMonitorRow struct {
+	EstateID        string  `gorm:"column:estate_id"`
+	EstateName      string  `gorm:"column:estate_name"`
+	TotalDivisions  int32   `gorm:"column:total_divisions"`
+	ActiveDivisions int32   `gorm:"column:active_divisions"`
+	TodayProduction float64 `gorm:"column:today_production"`
+	DailyTarget     float64 `gorm:"column:daily_target"`
+	ActiveWorkers   int32   `gorm:"column:active_workers"`
+}
+
+func (r *Resolver) buildEstateMonitorSummaries(ctx context.Context, userID string, estateIDs []string) ([]*manager.EstateMonitorSummary, error) {
+	var rows []estateMonitorRow
+	if err := r.db.WithContext(ctx).Raw(`
+		SELECT
+			e.id AS estate_id,
+			e.name AS estate_name,
+			(SELECT COUNT(*) FROM divisions d WHERE d.estate_id = e.id) AS total_divisions,
+			(SELECT COUNT(DISTINCT hr.division_id) FROM harvest_records hr
+			 WHERE hr.estate_id = e.id AND DATE(hr.tanggal) = CURRENT_DATE
+			   AND hr.status IN ('APPROVED','PENDING')) AS active_divisions,
+			COALESCE((SELECT SUM(hr.berat_tbs) FROM harvest_records hr
+			 WHERE hr.estate_id = e.id AND DATE(hr.tanggal) = CURRENT_DATE
+			   AND hr.status = 'APPROVED'), 0) AS today_production,
+			COALESCE((SELECT SUM(b.target_ton) / DATE_PART('day', DATE_TRUNC('month', NOW()) + INTERVAL '1 month' - INTERVAL '1 day')
+			 FROM manager_division_production_budgets b
+			 JOIN divisions d ON d.id = b.division_id
+			 WHERE d.estate_id = e.id AND b.period_month = TO_CHAR(NOW(), 'YYYY-MM')), 0) AS daily_target,
+			(SELECT COUNT(DISTINCT hr.mandor_id) FROM harvest_records hr
+			 WHERE hr.estate_id = e.id AND DATE(hr.tanggal) = CURRENT_DATE
+			   AND hr.status IN ('APPROVED','PENDING')) AS active_workers
+		FROM estates e
+		JOIN user_estate_assignments uea ON uea.estate_id = e.id
+			AND uea.user_id = ? AND uea.is_active = true
+		WHERE e.id IN ?
+		ORDER BY e.name ASC
+	`, userID, estateIDs).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	summaries := make([]*manager.EstateMonitorSummary, 0, len(rows))
+	for _, row := range rows {
+		achievement := 0.0
+		if row.DailyTarget > 0 {
+			achievement = row.TodayProduction / row.DailyTarget * 100
+		}
+
+		status := common.MonitorStatusNormal
+		if row.ActiveDivisions == 0 && row.TotalDivisions > 0 {
+			status = common.MonitorStatusWarning
+		}
+		if achievement < 50 && row.DailyTarget > 0 {
+			status = common.MonitorStatusWarning
+		}
+
+		summaries = append(summaries, &manager.EstateMonitorSummary{
+			EstateID:        row.EstateID,
+			EstateName:      row.EstateName,
+			Status:          status,
+			ActiveDivisions: row.ActiveDivisions,
+			TotalDivisions:  row.TotalDivisions,
+			TodayProduction: row.TodayProduction,
+			DailyTarget:     row.DailyTarget,
+			Achievement:     achievement,
+			ActiveWorkers:   row.ActiveWorkers,
+		})
+	}
+	return summaries, nil
+}
+
+type divisionMonitorRow struct {
+	DivisionID      string     `gorm:"column:division_id"`
+	DivisionName    string     `gorm:"column:division_name"`
+	EstateID        string     `gorm:"column:estate_id"`
+	TotalBlocks     int32      `gorm:"column:total_blocks"`
+	ActiveBlocks    int32      `gorm:"column:active_blocks"`
+	TodayProduction float64    `gorm:"column:today_production"`
+	DailyTarget     float64    `gorm:"column:daily_target"`
+	MandorName      *string    `gorm:"column:mandor_name"`
+	LastActivity    *time.Time `gorm:"column:last_activity"`
+}
+
+func (r *Resolver) buildDivisionMonitorSummaries(ctx context.Context, estateIDs []string) ([]*manager.DivisionMonitorSummary, error) {
+	var rows []divisionMonitorRow
+	if err := r.db.WithContext(ctx).Raw(`
+		SELECT
+			d.id AS division_id,
+			d.name AS division_name,
+			d.estate_id,
+			(SELECT COUNT(*) FROM blocks b WHERE b.division_id = d.id) AS total_blocks,
+			(SELECT COUNT(DISTINCT hr.block_id) FROM harvest_records hr
+			 WHERE hr.division_id = d.id AND DATE(hr.tanggal) = CURRENT_DATE
+			   AND hr.status IN ('APPROVED','PENDING')) AS active_blocks,
+			COALESCE((SELECT SUM(hr.berat_tbs) FROM harvest_records hr
+			 WHERE hr.division_id = d.id AND DATE(hr.tanggal) = CURRENT_DATE
+			   AND hr.status = 'APPROVED'), 0) AS today_production,
+			COALESCE((SELECT b.target_ton / DATE_PART('day', DATE_TRUNC('month', NOW()) + INTERVAL '1 month' - INTERVAL '1 day')
+			 FROM manager_division_production_budgets b
+			 WHERE b.division_id = d.id AND b.period_month = TO_CHAR(NOW(), 'YYYY-MM')
+			 LIMIT 1), 0) AS daily_target,
+			(SELECT u.name FROM harvest_records hr2
+			 JOIN users u ON u.id = hr2.mandor_id
+			 WHERE hr2.division_id = d.id AND DATE(hr2.tanggal) = CURRENT_DATE
+			 ORDER BY hr2.created_at DESC LIMIT 1) AS mandor_name,
+			(SELECT MAX(hr3.created_at) FROM harvest_records hr3
+			 WHERE hr3.division_id = d.id AND DATE(hr3.tanggal) = CURRENT_DATE) AS last_activity
+		FROM divisions d
+		WHERE d.estate_id IN ?
+		ORDER BY d.name ASC
+	`, estateIDs).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	summaries := make([]*manager.DivisionMonitorSummary, 0, len(rows))
+	for _, row := range rows {
+		progress := 0.0
+		if row.DailyTarget > 0 {
+			progress = row.TodayProduction / row.DailyTarget * 100
+		}
+
+		status := common.MonitorStatusNormal
+		if row.ActiveBlocks == 0 && row.TotalBlocks > 0 {
+			status = common.MonitorStatusOffline
+		} else if progress < 50 && row.DailyTarget > 0 {
+			status = common.MonitorStatusWarning
+		}
+
+		summaries = append(summaries, &manager.DivisionMonitorSummary{
+			DivisionID:      row.DivisionID,
+			DivisionName:    row.DivisionName,
+			EstateID:        row.EstateID,
+			Status:          status,
+			MandorName:      row.MandorName,
+			ActiveBlocks:    row.ActiveBlocks,
+			TotalBlocks:     row.TotalBlocks,
+			TodayProduction: row.TodayProduction,
+			Progress:        progress,
+			LastActivity:    row.LastActivity,
+		})
+	}
+	return summaries, nil
+}
+
+type harvestActivityRow struct {
+	ID            string    `gorm:"column:id"`
+	BlockName     string    `gorm:"column:block_name"`
+	DivisionName  string    `gorm:"column:division_name"`
+	MandorName    string    `gorm:"column:mandor_name"`
+	StartTime     time.Time `gorm:"column:start_time"`
+	CurrentTbs    int32     `gorm:"column:current_tbs"`
+	CurrentWeight float64   `gorm:"column:current_weight"`
+	WorkersCount  int32     `gorm:"column:workers_count"`
+	Status        string    `gorm:"column:status"`
+}
+
+func (r *Resolver) buildActiveHarvestActivities(ctx context.Context, estateIDs []string) ([]*manager.HarvestActivity, error) {
+	var rows []harvestActivityRow
+	if err := r.db.WithContext(ctx).Raw(`
+		SELECT
+			hr.id,
+			COALESCE(b.name, '') AS block_name,
+			COALESCE(d.name, '') AS division_name,
+			COALESCE(u.name, '') AS mandor_name,
+			hr.created_at AS start_time,
+			COALESCE(hr.jumlah_janjang, 0) AS current_tbs,
+			COALESCE(hr.berat_tbs, 0) AS current_weight,
+			(SELECT COUNT(DISTINCT hr2.karyawan) FROM harvest_records hr2
+			 WHERE hr2.mandor_id = hr.mandor_id AND DATE(hr2.tanggal) = CURRENT_DATE) AS workers_count,
+			hr.status
+		FROM harvest_records hr
+		LEFT JOIN blocks b ON b.id = hr.block_id
+		LEFT JOIN divisions d ON d.id = hr.division_id
+		LEFT JOIN users u ON u.id = hr.mandor_id
+		WHERE hr.estate_id IN ?
+			AND DATE(hr.tanggal) = CURRENT_DATE
+			AND hr.status IN ('PENDING', 'APPROVED')
+		ORDER BY hr.created_at DESC
+		LIMIT 50
+	`, estateIDs).Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+
+	activities := make([]*manager.HarvestActivity, 0, len(rows))
+	for _, row := range rows {
+		activities = append(activities, &manager.HarvestActivity{
+			ID:            row.ID,
+			BlockName:     row.BlockName,
+			DivisionName:  row.DivisionName,
+			MandorName:    row.MandorName,
+			StartTime:     row.StartTime,
+			CurrentTbs:    row.CurrentTbs,
+			CurrentWeight: row.CurrentWeight,
+			WorkersCount:  row.WorkersCount,
+			Status:        row.Status,
+		})
+	}
+	return activities, nil
+}
+
+func (r *Resolver) buildRealtimeStats(ctx context.Context, estateIDs []string) (*manager.RealtimeStats, error) {
+	var stats struct {
+		TotalTbs     int32   `gorm:"column:total_tbs"`
+		TotalWeight  float64 `gorm:"column:total_weight"`
+		ActiveWorker int32   `gorm:"column:active_workers"`
+		ActiveBlock  int32   `gorm:"column:active_blocks"`
+	}
+	if err := r.db.WithContext(ctx).Raw(`
+		SELECT
+			COALESCE(SUM(hr.jumlah_janjang), 0) AS total_tbs,
+			COALESCE(SUM(hr.berat_tbs), 0) AS total_weight,
+			COUNT(DISTINCT hr.mandor_id) AS active_workers,
+			COUNT(DISTINCT hr.block_id) AS active_blocks
+		FROM harvest_records hr
+		WHERE hr.estate_id IN ?
+			AND DATE(hr.tanggal) = CURRENT_DATE
+			AND hr.status IN ('APPROVED', 'PENDING')
+	`, estateIDs).Scan(&stats).Error; err != nil {
+		return nil, err
+	}
+
+	productivityRate := 0.0
+	if stats.ActiveWorker > 0 {
+		productivityRate = float64(stats.TotalTbs) / float64(stats.ActiveWorker)
+	}
+
+	return &manager.RealtimeStats{
+		TotalTbsToday:    stats.TotalTbs,
+		TotalWeightToday: stats.TotalWeight,
+		ActiveWorkers:    stats.ActiveWorker,
+		ActiveBlocks:     stats.ActiveBlock,
+		ProductivityRate: productivityRate,
+	}, nil
 }
 
 // EstateMonitor is the resolver for the estateMonitor field.
 func (r *queryResolver) EstateMonitor(ctx context.Context, estateID string) (*manager.EstateMonitorSummary, error) {
-	return nil, fmt.Errorf("not yet implemented: EstateMonitor")
+	userID := middleware.GetCurrentUserID(ctx)
+	if userID == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
+
+	summaries, err := r.buildEstateMonitorSummaries(ctx, userID, []string{estateID})
+	if err != nil {
+		return nil, err
+	}
+	if len(summaries) == 0 {
+		return nil, fmt.Errorf("estate not found or not assigned")
+	}
+	return summaries[0], nil
 }
 
 // DivisionMonitors is the resolver for the divisionMonitors field.
 func (r *queryResolver) DivisionMonitors(ctx context.Context, estateID string) ([]*manager.DivisionMonitorSummary, error) {
-	return nil, fmt.Errorf("not yet implemented: DivisionMonitors")
+	return r.buildDivisionMonitorSummaries(ctx, []string{estateID})
 }
 
 // ActiveHarvestActivities is the resolver for the activeHarvestActivities query field.
 func (r *queryResolver) ActiveHarvestActivities(ctx context.Context, estateID *string) ([]*manager.HarvestActivity, error) {
-	return nil, fmt.Errorf("not yet implemented: ActiveHarvestActivities")
+	userID := middleware.GetCurrentUserID(ctx)
+	if userID == "" {
+		return nil, fmt.Errorf("authentication required")
+	}
+
+	var ids []string
+	if estateID != nil {
+		ids = []string{*estateID}
+	} else {
+		var err error
+		ids, err = r.managerEstateIDs(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return r.buildActiveHarvestActivities(ctx, ids)
 }
 
 // ManagerAnalytics is the resolver for the managerAnalytics field.

@@ -11,6 +11,13 @@ class ManagerMonitorSnapshot {
   final List<ManagerMonitorMember> members;
   final String? warningMessage;
 
+  // New structured data from backend
+  final String overallStatus;
+  final List<EstateMonitorSummary> estateMonitors;
+  final List<DivisionMonitorSummary> divisionMonitors;
+  final List<HarvestActivityItem> activeActivities;
+  final RealtimeStatsData? realtimeStats;
+
   const ManagerMonitorSnapshot({
     required this.totalTeam,
     required this.totalMandor,
@@ -19,6 +26,11 @@ class ManagerMonitorSnapshot {
     required this.efficiency,
     required this.members,
     this.warningMessage,
+    this.overallStatus = 'NORMAL',
+    this.estateMonitors = const [],
+    this.divisionMonitors = const [],
+    this.activeActivities = const [],
+    this.realtimeStats,
   });
 
   factory ManagerMonitorSnapshot.empty() {
@@ -34,6 +46,10 @@ class ManagerMonitorSnapshot {
 
   factory ManagerMonitorSnapshot.fromJson(Map<String, dynamic> json) {
     final membersRaw = json['members'] as List<dynamic>? ?? const [];
+    final estateRaw = json['estateMonitors'] as List<dynamic>? ?? const [];
+    final divisionRaw = json['divisionMonitors'] as List<dynamic>? ?? const [];
+    final activitiesRaw =
+        json['activeActivities'] as List<dynamic>? ?? const [];
 
     return ManagerMonitorSnapshot(
       totalTeam: (json['totalTeam'] as num?)?.toInt() ?? 0,
@@ -46,6 +62,24 @@ class ManagerMonitorSnapshot {
           .map(ManagerMonitorMember.fromJson)
           .toList(growable: false),
       warningMessage: json['warningMessage'] as String?,
+      overallStatus: (json['overallStatus'] as String?) ?? 'NORMAL',
+      estateMonitors: estateRaw
+          .whereType<Map<String, dynamic>>()
+          .map(EstateMonitorSummary.fromJson)
+          .toList(growable: false),
+      divisionMonitors: divisionRaw
+          .whereType<Map<String, dynamic>>()
+          .map(DivisionMonitorSummary.fromJson)
+          .toList(growable: false),
+      activeActivities: activitiesRaw
+          .whereType<Map<String, dynamic>>()
+          .map(HarvestActivityItem.fromJson)
+          .toList(growable: false),
+      realtimeStats: json['realtimeStats'] is Map<String, dynamic>
+          ? RealtimeStatsData.fromJson(
+              json['realtimeStats'] as Map<String, dynamic>,
+            )
+          : null,
     );
   }
 
@@ -58,6 +92,14 @@ class ManagerMonitorSnapshot {
       'efficiency': efficiency,
       'members': members.map((member) => member.toJson()).toList(),
       'warningMessage': warningMessage,
+      'overallStatus': overallStatus,
+      'estateMonitors':
+          estateMonitors.map((estate) => estate.toJson()).toList(),
+      'divisionMonitors':
+          divisionMonitors.map((div) => div.toJson()).toList(),
+      'activeActivities':
+          activeActivities.map((act) => act.toJson()).toList(),
+      'realtimeStats': realtimeStats?.toJson(),
     };
   }
 }
@@ -114,113 +156,251 @@ class ManagerMonitorMember {
   }
 }
 
+class EstateMonitorSummary {
+  final String estateId;
+  final String estateName;
+  final String status;
+  final int activeDivisions;
+  final int totalDivisions;
+  final double todayProduction;
+  final double dailyTarget;
+  final double achievement;
+  final int activeWorkers;
+
+  const EstateMonitorSummary({
+    required this.estateId,
+    required this.estateName,
+    required this.status,
+    required this.activeDivisions,
+    required this.totalDivisions,
+    required this.todayProduction,
+    required this.dailyTarget,
+    required this.achievement,
+    required this.activeWorkers,
+  });
+
+  factory EstateMonitorSummary.fromJson(Map<String, dynamic> json) {
+    return EstateMonitorSummary(
+      estateId: (json['estateId'] ?? '').toString(),
+      estateName: (json['estateName'] ?? '').toString(),
+      status: (json['status'] ?? 'NORMAL').toString(),
+      activeDivisions: (json['activeDivisions'] as num?)?.toInt() ?? 0,
+      totalDivisions: (json['totalDivisions'] as num?)?.toInt() ?? 0,
+      todayProduction: (json['todayProduction'] as num?)?.toDouble() ?? 0,
+      dailyTarget: (json['dailyTarget'] as num?)?.toDouble() ?? 0,
+      achievement: (json['achievement'] as num?)?.toDouble() ?? 0,
+      activeWorkers: (json['activeWorkers'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'estateId': estateId,
+        'estateName': estateName,
+        'status': status,
+        'activeDivisions': activeDivisions,
+        'totalDivisions': totalDivisions,
+        'todayProduction': todayProduction,
+        'dailyTarget': dailyTarget,
+        'achievement': achievement,
+        'activeWorkers': activeWorkers,
+      };
+}
+
+class DivisionMonitorSummary {
+  final String divisionId;
+  final String divisionName;
+  final String estateId;
+  final String status;
+  final String? mandorName;
+  final int activeBlocks;
+  final int totalBlocks;
+  final double todayProduction;
+  final double progress;
+  final DateTime? lastActivity;
+
+  const DivisionMonitorSummary({
+    required this.divisionId,
+    required this.divisionName,
+    required this.estateId,
+    required this.status,
+    this.mandorName,
+    required this.activeBlocks,
+    required this.totalBlocks,
+    required this.todayProduction,
+    required this.progress,
+    this.lastActivity,
+  });
+
+  factory DivisionMonitorSummary.fromJson(Map<String, dynamic> json) {
+    return DivisionMonitorSummary(
+      divisionId: (json['divisionId'] ?? '').toString(),
+      divisionName: (json['divisionName'] ?? '').toString(),
+      estateId: (json['estateId'] ?? '').toString(),
+      status: (json['status'] ?? 'NORMAL').toString(),
+      mandorName: json['mandorName'] as String?,
+      activeBlocks: (json['activeBlocks'] as num?)?.toInt() ?? 0,
+      totalBlocks: (json['totalBlocks'] as num?)?.toInt() ?? 0,
+      todayProduction: (json['todayProduction'] as num?)?.toDouble() ?? 0,
+      progress: (json['progress'] as num?)?.toDouble() ?? 0,
+      lastActivity: json['lastActivity'] != null
+          ? DateTime.tryParse(json['lastActivity'].toString())
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'divisionId': divisionId,
+        'divisionName': divisionName,
+        'estateId': estateId,
+        'status': status,
+        'mandorName': mandorName,
+        'activeBlocks': activeBlocks,
+        'totalBlocks': totalBlocks,
+        'todayProduction': todayProduction,
+        'progress': progress,
+        'lastActivity': lastActivity?.toIso8601String(),
+      };
+}
+
+class HarvestActivityItem {
+  final String id;
+  final String blockName;
+  final String divisionName;
+  final String mandorName;
+  final DateTime startTime;
+  final int currentTbs;
+  final double currentWeight;
+  final int workersCount;
+  final String status;
+
+  const HarvestActivityItem({
+    required this.id,
+    required this.blockName,
+    required this.divisionName,
+    required this.mandorName,
+    required this.startTime,
+    required this.currentTbs,
+    required this.currentWeight,
+    required this.workersCount,
+    required this.status,
+  });
+
+  factory HarvestActivityItem.fromJson(Map<String, dynamic> json) {
+    return HarvestActivityItem(
+      id: (json['id'] ?? '').toString(),
+      blockName: (json['blockName'] ?? '').toString(),
+      divisionName: (json['divisionName'] ?? '').toString(),
+      mandorName: (json['mandorName'] ?? '').toString(),
+      startTime: DateTime.tryParse((json['startTime'] ?? '').toString()) ??
+          DateTime.now(),
+      currentTbs: (json['currentTbs'] as num?)?.toInt() ?? 0,
+      currentWeight: (json['currentWeight'] as num?)?.toDouble() ?? 0,
+      workersCount: (json['workersCount'] as num?)?.toInt() ?? 0,
+      status: (json['status'] ?? '').toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'blockName': blockName,
+        'divisionName': divisionName,
+        'mandorName': mandorName,
+        'startTime': startTime.toIso8601String(),
+        'currentTbs': currentTbs,
+        'currentWeight': currentWeight,
+        'workersCount': workersCount,
+        'status': status,
+      };
+}
+
+class RealtimeStatsData {
+  final int totalTbsToday;
+  final double totalWeightToday;
+  final int activeWorkers;
+  final int activeBlocks;
+  final double productivityRate;
+
+  const RealtimeStatsData({
+    required this.totalTbsToday,
+    required this.totalWeightToday,
+    required this.activeWorkers,
+    required this.activeBlocks,
+    required this.productivityRate,
+  });
+
+  factory RealtimeStatsData.fromJson(Map<String, dynamic> json) {
+    return RealtimeStatsData(
+      totalTbsToday: (json['totalTbsToday'] as num?)?.toInt() ?? 0,
+      totalWeightToday: (json['totalWeightToday'] as num?)?.toDouble() ?? 0,
+      activeWorkers: (json['activeWorkers'] as num?)?.toInt() ?? 0,
+      activeBlocks: (json['activeBlocks'] as num?)?.toInt() ?? 0,
+      productivityRate: (json['productivityRate'] as num?)?.toDouble() ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'totalTbsToday': totalTbsToday,
+        'totalWeightToday': totalWeightToday,
+        'activeWorkers': activeWorkers,
+        'activeBlocks': activeBlocks,
+        'productivityRate': productivityRate,
+      };
+}
+
 class ManagerMonitorRepository {
   final GraphQLClientService _graphqlClient;
-  final Logger _logger;
 
   ManagerMonitorRepository({
     required GraphQLClientService graphqlClient,
     Logger? logger,
-  })  : _graphqlClient = graphqlClient,
-        _logger = logger ?? Logger();
+  }) : _graphqlClient = graphqlClient;
 
-  static const String _managerBootstrapQuery = r'''
-    query ManagerMonitorBootstrap {
-      me {
-        id
-        role
-        companyId
-        companies {
-          id
+  static const String _managerMonitorQuery = r'''
+    query ManagerMonitor {
+      managerMonitor {
+        overallStatus
+        estateMonitors {
+          estateId
+          estateName
+          status
+          activeDivisions
+          totalDivisions
+          todayProduction
+          dailyTarget
+          achievement
+          activeWorkers
         }
-      }
-    }
-  ''';
-
-  static const String _usersByRoleQuery = r'''
-    query ManagerUsersByRole(
-      $companyId: String,
-      $role: UserRole,
-      $limit: Int,
-      $offset: Int
-    ) {
-      users(
-        companyId: $companyId,
-        role: $role,
-        isActive: true,
-        limit: $limit,
-        offset: $offset
-      ) {
-        users {
-          id
-          name
-          role
-          managerId
-          divisions {
-            id
-            name
-          }
+        divisionMonitors {
+          divisionId
+          divisionName
+          estateId
+          status
+          mandorName
+          activeBlocks
+          totalBlocks
+          todayProduction
+          progress
+          lastActivity
         }
-        totalCount
-        hasNextPage
-      }
-    }
-  ''';
-
-  static const String _harvestRecordsQuery = r'''
-    query ManagerHarvestRecords {
-      harvestRecords {
-        id
-        tanggal
-        status
-        beratTbs
-        jumlahJanjang
-        karyawan
-        createdAt
-        updatedAt
-        mandor {
+        activeActivities {
           id
-          name
-          managerId
-          role
+          blockName
+          divisionName
+          mandorName
+          startTime
+          currentTbs
+          currentWeight
+          workersCount
+          status
         }
-        block {
-          id
-          name
-          division {
-            id
-            name
-          }
+        realtimeStats {
+          totalTbsToday
+          totalWeightToday
+          activeWorkers
+          activeBlocks
+          productivityRate
         }
-      }
-    }
-  ''';
-
-  static const String _harvestRecordsByPeriodQuery = r'''
-    query ManagerHarvestRecordsByPeriod($dateFrom: Time, $dateTo: Time) {
-      harvestRecords(dateFrom: $dateFrom, dateTo: $dateTo) {
-        id
-        tanggal
-        status
-        beratTbs
-        jumlahJanjang
-        karyawan
-        createdAt
-        updatedAt
-        mandor {
-          id
-          name
-          managerId
-          role
-        }
-        block {
-          id
-          name
-          division {
-            id
-            name
-          }
-        }
+        lastUpdated
       }
     }
   ''';
@@ -229,121 +409,78 @@ class ManagerMonitorRepository {
     DateTime? dateFrom,
     DateTime? dateTo,
   }) async {
-    final normalizedDateFrom =
-        dateFrom == null ? null : _startOfDay(dateFrom.toLocal());
-    final normalizedDateTo =
-        dateTo == null ? null : _endOfDay(dateTo.toLocal());
-
-    final bootstrap = await _graphqlClient.query(
+    final result = await _graphqlClient.query(
       QueryOptions(
-        document: gql(_managerBootstrapQuery),
+        document: gql(_managerMonitorQuery),
         fetchPolicy: FetchPolicy.networkOnly,
       ),
     );
 
-    if (bootstrap.hasException) {
+    if (result.hasException) {
       throw Exception(
-        'Gagal mengambil profil manager: ${bootstrap.exception.toString()}',
+        'Gagal mengambil data monitor: ${result.exception.toString()}',
       );
     }
 
-    final me = bootstrap.data?['me'] as Map<String, dynamic>?;
-    if (me == null) {
-      throw Exception('Profil pengguna tidak ditemukan di server.');
+    final data = result.data?['managerMonitor'] as Map<String, dynamic>?;
+    if (data == null) {
+      return ManagerMonitorSnapshot.empty();
     }
 
-    final managerId = _toString(me['id']);
-    final managerRole = _toString(me['role']).toUpperCase();
-    if (managerId.isEmpty || managerRole != 'MANAGER') {
-      throw Exception(
-        'Akses monitor hanya untuk role manager. Role saat ini: $managerRole',
-      );
-    }
+    return _mapMonitorData(data);
+  }
 
-    final companyId = _resolveCompanyId(me);
-    if (companyId.isEmpty) {
-      throw Exception('Manager belum memiliki assignment company di server.');
-    }
+  ManagerMonitorSnapshot _mapMonitorData(Map<String, dynamic> data) {
+    final overallStatus = (data['overallStatus'] ?? 'NORMAL').toString();
 
-    final asistenUsers = await _fetchUsersByRole(
-      companyId: companyId,
-      role: 'ASISTEN',
+    final estateMonitors =
+        (data['estateMonitors'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(EstateMonitorSummary.fromJson)
+            .toList(growable: false);
+
+    final divisionMonitors =
+        (data['divisionMonitors'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(DivisionMonitorSummary.fromJson)
+            .toList(growable: false);
+
+    final activeActivities =
+        (data['activeActivities'] as List<dynamic>? ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(HarvestActivityItem.fromJson)
+            .toList(growable: false);
+
+    final realtimeRaw = data['realtimeStats'] as Map<String, dynamic>?;
+    final realtimeStats =
+        realtimeRaw != null ? RealtimeStatsData.fromJson(realtimeRaw) : null;
+
+    // Build members from division monitors (mandors active today)
+    // and active activities for richer member data
+    final members = _buildMembersFromActivities(
+      divisionMonitors,
+      activeActivities,
     );
-    final mandorUsers = await _fetchUsersByRole(
-      companyId: companyId,
-      role: 'MANDOR',
+
+    // Compute summary stats from the structured data
+    final totalMandor = realtimeStats?.activeWorkers ?? 0;
+    final totalAsisten = _countUniqueAsistens(divisionMonitors);
+    final totalPemanen = _countUniquePemanen(activeActivities);
+    final totalTeam = totalMandor + totalAsisten + totalPemanen;
+
+    final totalWeight = realtimeStats?.totalWeightToday ?? 0;
+    final totalTarget = estateMonitors.fold<double>(
+      0,
+      (sum, e) => sum + e.dailyTarget,
     );
-
-    final asistenDirect = asistenUsers
-        .where((user) => user.managerId == managerId)
-        .toList(growable: false);
-    final asistenIds = asistenDirect.map((user) => user.id).toSet();
-
-    final mandorSubordinates = mandorUsers
-        .where(
-          (user) =>
-              user.managerId == managerId ||
-              asistenIds.contains(user.managerId),
-        )
-        .toList(growable: false);
-    final mandorIds = mandorSubordinates.map((user) => user.id).toSet();
-
-    final harvestRecords = await _fetchHarvestRecords(
-      dateFrom: normalizedDateFrom,
-      dateTo: normalizedDateTo,
-    );
-    final scopedRecords = harvestRecords
-        .where(
-          (record) =>
-              mandorIds.contains(record.mandorId) &&
-              _isWithinDateRange(
-                record.lastActivityAt,
-                dateFrom: normalizedDateFrom,
-                dateTo: normalizedDateTo,
-              ),
-        )
-        .toList(growable: false);
-
-    final asistenMembers = _buildAsistenMembers(asistenDirect, scopedRecords);
-    final mandorMembers =
-        _buildMandorMembers(mandorSubordinates, scopedRecords);
-
-    final members = <ManagerMonitorMember>[
-      ...mandorMembers,
-      ...asistenMembers,
-    ]..sort((a, b) {
-        final byPerformance = b.performance.compareTo(a.performance);
-        if (byPerformance != 0) {
-          return byPerformance;
-        }
-
-        final byProduction = b.productionTon.compareTo(a.productionTon);
-        if (byProduction != 0) {
-          return byProduction;
-        }
-
-        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
-      });
-
-    final approvedCount =
-        scopedRecords.where((record) => record.status == 'APPROVED').length;
-    final efficiency = scopedRecords.isNotEmpty
-        ? (approvedCount / scopedRecords.length) * 100
-        : 0.0;
+    final efficiency = totalTarget > 0 ? (totalWeight / totalTarget * 100) : 0;
 
     String? warningMessage;
-    if (mandorIds.isEmpty && asistenIds.isEmpty) {
-      warningMessage =
-          'Belum ada bawahan dengan relasi manager_id ke akun manager ini.';
-    } else if (scopedRecords.isEmpty) {
-      warningMessage =
-          'Belum ada data panen dari bawahan manager untuk periode ini.';
+    if (estateMonitors.isEmpty) {
+      warningMessage = 'Belum ada estate yang diassign ke akun manager ini.';
+    } else if (activeActivities.isEmpty) {
+      warningMessage = 'Belum ada aktivitas panen hari ini.';
     }
-
-    final totalMandor = mandorSubordinates.length;
-    final totalAsisten = asistenDirect.length;
-    final totalPemanen = _countUniquePemanen(scopedRecords);
-    final totalTeam = totalMandor + totalAsisten + totalPemanen;
 
     return ManagerMonitorSnapshot(
       totalTeam: totalTeam,
@@ -353,429 +490,110 @@ class ManagerMonitorRepository {
       efficiency: efficiency.clamp(0, 100).toDouble(),
       members: members,
       warningMessage: warningMessage,
+      overallStatus: overallStatus,
+      estateMonitors: estateMonitors,
+      divisionMonitors: divisionMonitors,
+      activeActivities: activeActivities,
+      realtimeStats: realtimeStats,
     );
   }
 
-  Future<List<_UserNode>> _fetchUsersByRole({
-    required String companyId,
-    required String role,
-  }) async {
-    const pageSize = 200;
-    var offset = 0;
-    final users = <_UserNode>[];
-
-    while (true) {
-      final result = await _graphqlClient.query(
-        QueryOptions(
-          document: gql(_usersByRoleQuery),
-          variables: {
-            'companyId': companyId,
-            'role': role,
-            'limit': pageSize,
-            'offset': offset,
-          },
-          fetchPolicy: FetchPolicy.networkOnly,
-        ),
-      );
-
-      if (result.hasException) {
-        throw Exception(
-          'Gagal mengambil user role $role dari server: ${result.exception.toString()}',
-        );
-      }
-
-      final response = result.data?['users'] as Map<String, dynamic>?;
-      if (response == null) {
-        break;
-      }
-
-      final items = response['users'] as List<dynamic>? ?? const [];
-      for (final item in items) {
-        if (item is! Map<String, dynamic>) {
-          continue;
-        }
-        final parsed = _parseUserNode(item);
-        if (parsed.id.isNotEmpty) {
-          users.add(parsed);
-        }
-      }
-
-      final hasNextPage = _toBool(response['hasNextPage']);
-      if (!hasNextPage || items.isEmpty) {
-        break;
-      }
-
-      offset += pageSize;
-      if (offset > 2000) {
-        _logger.w('Stopped users pagination early to avoid unbounded request.');
-        break;
-      }
-    }
-
-    return users;
-  }
-
-  Future<List<_HarvestRecordNode>> _fetchHarvestRecords({
-    DateTime? dateFrom,
-    DateTime? dateTo,
-  }) async {
-    QueryResult result;
-    final hasDateFilter = dateFrom != null || dateTo != null;
-
-    if (hasDateFilter) {
-      result = await _graphqlClient.query(
-        QueryOptions(
-          document: gql(_harvestRecordsByPeriodQuery),
-          variables: {
-            if (dateFrom != null)
-              'dateFrom': dateFrom.toUtc().toIso8601String(),
-            if (dateTo != null) 'dateTo': dateTo.toUtc().toIso8601String(),
-          },
-          fetchPolicy: FetchPolicy.networkOnly,
-        ),
-      );
-
-      if (result.hasException &&
-          _isUnsupportedHarvestDateFilter(result.exception)) {
-        _logger.w(
-          'Query harvestRecords belum support dateFrom/dateTo, fallback ke query standar lalu filter di client.',
-        );
-        result = await _graphqlClient.query(
-          QueryOptions(
-            document: gql(_harvestRecordsQuery),
-            fetchPolicy: FetchPolicy.networkOnly,
-          ),
-        );
-      }
-    } else {
-      result = await _graphqlClient.query(
-        QueryOptions(
-          document: gql(_harvestRecordsQuery),
-          fetchPolicy: FetchPolicy.networkOnly,
-        ),
-      );
-    }
-
-    if (result.hasException) {
-      throw Exception(
-        'Gagal mengambil data panen dari server: ${result.exception.toString()}',
-      );
-    }
-
-    final rows = result.data?['harvestRecords'] as List<dynamic>? ?? const [];
-    final records = <_HarvestRecordNode>[];
-    for (final row in rows) {
-      if (row is! Map<String, dynamic>) {
-        continue;
-      }
-      records.add(_parseHarvestRecord(row));
-    }
-
-    return records
-        .where(
-          (record) => _isWithinDateRange(
-            record.lastActivityAt,
-            dateFrom: dateFrom,
-            dateTo: dateTo,
-          ),
-        )
-        .toList(growable: false);
-  }
-
-  List<ManagerMonitorMember> _buildAsistenMembers(
-    List<_UserNode> asistens,
-    List<_HarvestRecordNode> records,
+  List<ManagerMonitorMember> _buildMembersFromActivities(
+    List<DivisionMonitorSummary> divisions,
+    List<HarvestActivityItem> activities,
   ) {
-    return asistens.map((asisten) {
-      final asistenRecords = records
-          .where((record) => record.mandorManagerId == asisten.id)
-          .toList(growable: false);
+    // Group activities by mandor to create member entries
+    final mandorMap = <String, _MandorAggregation>{};
 
-      final total = asistenRecords.length;
-      final approved =
-          asistenRecords.where((record) => record.status == 'APPROVED').length;
-      final productionTon =
-          asistenRecords.fold<double>(0, (sum, row) => sum + row.weightKg) /
-              1000;
+    for (final activity in activities) {
+      final key = activity.mandorName;
+      if (key.isEmpty) continue;
 
-      final performance = total > 0 ? (approved / total) * 100 : 0.0;
-      final dominantDivision = _dominantDivision(
-        asistenRecords.map((record) => record.divisionName),
-      );
+      final existing = mandorMap[key];
+      if (existing != null) {
+        existing.totalRecords++;
+        existing.productionKg += activity.currentWeight;
+        if (activity.status == 'APPROVED') {
+          existing.approvedRecords++;
+        }
+        if (existing.division.isEmpty) {
+          existing.division = activity.divisionName;
+        }
+      } else {
+        mandorMap[key] = _MandorAggregation(
+          name: activity.mandorName,
+          division: activity.divisionName,
+          totalRecords: 1,
+          approvedRecords: activity.status == 'APPROVED' ? 1 : 0,
+          productionKg: activity.currentWeight,
+        );
+      }
+    }
 
+    // Also add mandors from division summaries that might not have activities
+    for (final div in divisions) {
+      if (div.mandorName != null &&
+          div.mandorName!.isNotEmpty &&
+          !mandorMap.containsKey(div.mandorName)) {
+        mandorMap[div.mandorName!] = _MandorAggregation(
+          name: div.mandorName!,
+          division: div.divisionName,
+          totalRecords: 0,
+          approvedRecords: 0,
+          productionKg: 0,
+        );
+      }
+    }
+
+    final members = mandorMap.values.map((agg) {
+      final performance = agg.totalRecords > 0
+          ? (agg.approvedRecords / agg.totalRecords) * 100
+          : 0.0;
       return ManagerMonitorMember(
-        id: asisten.id,
-        name: asisten.name,
-        role: 'Asisten',
-        division: dominantDivision ?? asisten.primaryDivision ?? '-',
-        performance: performance.clamp(0, 100).toDouble(),
-        productionTon: productionTon < 0 ? 0 : productionTon,
-        isActive: _isActive(asistenRecords),
-        totalRecords: total,
-        approvedRecords: approved,
-      );
-    }).toList(growable: false);
-  }
-
-  List<ManagerMonitorMember> _buildMandorMembers(
-    List<_UserNode> mandors,
-    List<_HarvestRecordNode> records,
-  ) {
-    return mandors.map((mandor) {
-      final mandorRecords = records
-          .where((record) => record.mandorId == mandor.id)
-          .toList(growable: false);
-
-      final total = mandorRecords.length;
-      final approved =
-          mandorRecords.where((record) => record.status == 'APPROVED').length;
-      final productionTon =
-          mandorRecords.fold<double>(0, (sum, row) => sum + row.weightKg) /
-              1000;
-      final performance = total > 0 ? (approved / total) * 100 : 0.0;
-      final dominantDivision = _dominantDivision(
-        mandorRecords.map((record) => record.divisionName),
-      );
-
-      return ManagerMonitorMember(
-        id: mandor.id,
-        name: mandor.name,
+        id: agg.name, // mandor name as ID since we don't have user IDs here
+        name: agg.name,
         role: 'Mandor',
-        division: dominantDivision ?? mandor.primaryDivision ?? '-',
-        performance: performance.clamp(0, 100).toDouble(),
-        productionTon: productionTon < 0 ? 0 : productionTon,
-        isActive: _isActive(mandorRecords),
-        totalRecords: total,
-        approvedRecords: approved,
+        division: agg.division,
+        performance: performance.clamp(0, 100),
+        productionTon: agg.productionKg / 1000,
+        isActive: agg.totalRecords > 0,
+        totalRecords: agg.totalRecords,
+        approvedRecords: agg.approvedRecords,
       );
-    }).toList(growable: false);
+    }).toList()
+      ..sort((a, b) {
+        final byPerformance = b.performance.compareTo(a.performance);
+        if (byPerformance != 0) return byPerformance;
+        final byProduction = b.productionTon.compareTo(a.productionTon);
+        if (byProduction != 0) return byProduction;
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+
+    return members;
   }
 
-  String _resolveCompanyId(Map<String, dynamic> me) {
-    final direct = _toString(me['companyId']).trim();
-    if (direct.isNotEmpty) {
-      return direct;
-    }
-
-    final companies = me['companies'] as List<dynamic>? ?? const [];
-    for (final company in companies) {
-      if (company is! Map<String, dynamic>) {
-        continue;
-      }
-      final id = _toString(company['id']).trim();
-      if (id.isNotEmpty) {
-        return id;
-      }
-    }
-    return '';
+  int _countUniqueAsistens(List<DivisionMonitorSummary> divisions) {
+    // Each division with activity likely has an asisten overseeing it
+    return divisions.where((d) => d.activeBlocks > 0).length;
   }
 
-  _UserNode _parseUserNode(Map<String, dynamic> map) {
-    final divisionsRaw = map['divisions'] as List<dynamic>? ?? const [];
-    final divisionNames = <String>[];
-    for (final division in divisionsRaw) {
-      if (division is! Map<String, dynamic>) {
-        continue;
-      }
-      final name = _toString(division['name']).trim();
-      if (name.isNotEmpty) {
-        divisionNames.add(name);
-      }
-    }
-
-    return _UserNode(
-      id: _toString(map['id']).trim(),
-      name: _toString(map['name']).trim().isEmpty
-          ? 'Tanpa Nama'
-          : _toString(map['name']).trim(),
-      role: _toString(map['role']).toUpperCase(),
-      managerId: _toString(map['managerId']).trim(),
-      primaryDivision: divisionNames.isNotEmpty ? divisionNames.first : null,
-    );
-  }
-
-  _HarvestRecordNode _parseHarvestRecord(Map<String, dynamic> map) {
-    final mandor = map['mandor'] as Map<String, dynamic>? ?? const {};
-    final block = map['block'] as Map<String, dynamic>? ?? const {};
-    final division = block['division'] as Map<String, dynamic>? ?? const {};
-
-    final date = _parseDateTime(map['tanggal']) ??
-        _parseDateTime(map['updatedAt']) ??
-        _parseDateTime(map['createdAt']) ??
-        DateTime.fromMillisecondsSinceEpoch(0);
-
-    return _HarvestRecordNode(
-      id: _toString(map['id']),
-      mandorId: _toString(mandor['id']).trim(),
-      mandorManagerId: _toString(mandor['managerId']).trim(),
-      workerName: _toString(map['karyawan']).trim(),
-      divisionName: _toString(division['name']).trim().isEmpty
-          ? '-'
-          : _toString(division['name']).trim(),
-      status: _toString(map['status']).toUpperCase(),
-      weightKg: _toDouble(map['beratTbs']),
-      lastActivityAt: date,
-    );
-  }
-
-  String? _dominantDivision(Iterable<String?> names) {
-    final counter = <String, int>{};
-    for (final raw in names) {
-      final name = (raw ?? '').trim();
-      if (name.isEmpty || name == '-') {
-        continue;
-      }
-      counter[name] = (counter[name] ?? 0) + 1;
-    }
-    if (counter.isEmpty) {
-      return null;
-    }
-
-    String? selected;
-    var selectedCount = -1;
-    for (final entry in counter.entries) {
-      if (entry.value > selectedCount) {
-        selected = entry.key;
-        selectedCount = entry.value;
-      }
-    }
-    return selected;
-  }
-
-  int _countUniquePemanen(List<_HarvestRecordNode> records) {
-    final names = <String>{};
-    for (final record in records) {
-      final worker = record.workerName.trim();
-      if (worker.isEmpty) {
-        continue;
-      }
-      names.add(worker.toLowerCase());
-    }
-    return names.length;
-  }
-
-  bool _isActive(List<_HarvestRecordNode> records) {
-    if (records.isEmpty) return false;
-    var latest = DateTime.fromMillisecondsSinceEpoch(0);
-    for (final record in records) {
-      if (record.lastActivityAt.isAfter(latest)) {
-        latest = record.lastActivityAt;
-      }
-    }
-    return _isActiveByTime(latest);
-  }
-
-  bool _isActiveByTime(DateTime activityTime) {
-    return activityTime.isAfter(
-      DateTime.now().subtract(const Duration(hours: 24)),
-    );
-  }
-
-  DateTime? _parseDateTime(dynamic raw) {
-    if (raw == null) return null;
-    if (raw is DateTime) return raw;
-    if (raw is String) {
-      return DateTime.tryParse(raw)?.toLocal();
-    }
-    return null;
-  }
-
-  DateTime _startOfDay(DateTime value) {
-    return DateTime(value.year, value.month, value.day);
-  }
-
-  DateTime _endOfDay(DateTime value) {
-    return DateTime(value.year, value.month, value.day, 23, 59, 59, 999);
-  }
-
-  bool _isWithinDateRange(
-    DateTime value, {
-    DateTime? dateFrom,
-    DateTime? dateTo,
-  }) {
-    if (dateFrom != null && value.isBefore(dateFrom)) {
-      return false;
-    }
-    if (dateTo != null && value.isAfter(dateTo)) {
-      return false;
-    }
-    return true;
-  }
-
-  bool _isUnsupportedHarvestDateFilter(OperationException? exception) {
-    if (exception == null) {
-      return false;
-    }
-
-    final messages = <String>[
-      ...exception.graphqlErrors.map((error) => error.message),
-      exception.linkException?.toString() ?? '',
-    ].join(' ');
-
-    final lowerMessage = messages.toLowerCase();
-    final hasUnknownArgument = lowerMessage.contains('unknown argument') ||
-        lowerMessage.contains('cannot query field') ||
-        lowerMessage.contains('validation');
-    final hasDateArgument =
-        lowerMessage.contains('datefrom') || lowerMessage.contains('dateto');
-
-    return hasUnknownArgument && hasDateArgument;
-  }
-
-  bool _toBool(dynamic value) {
-    if (value is bool) return value;
-    if (value is String) return value.toLowerCase() == 'true';
-    if (value is num) return value != 0;
-    return false;
-  }
-
-  String _toString(dynamic value) {
-    if (value == null) return '';
-    return value.toString();
-  }
-
-  double _toDouble(dynamic value) {
-    if (value is double) return value;
-    if (value is num) return value.toDouble();
-    if (value is String) return double.tryParse(value) ?? 0;
-    return 0;
+  int _countUniquePemanen(List<HarvestActivityItem> activities) {
+    return activities.fold<int>(0, (sum, a) => sum + a.workersCount);
   }
 }
 
-class _UserNode {
-  final String id;
+class _MandorAggregation {
   final String name;
-  final String role;
-  final String managerId;
-  final String? primaryDivision;
+  String division;
+  int totalRecords;
+  int approvedRecords;
+  double productionKg;
 
-  const _UserNode({
-    required this.id,
+  _MandorAggregation({
     required this.name,
-    required this.role,
-    required this.managerId,
-    required this.primaryDivision,
-  });
-}
-
-class _HarvestRecordNode {
-  final String id;
-  final String mandorId;
-  final String mandorManagerId;
-  final String workerName;
-  final String divisionName;
-  final String status;
-  final double weightKg;
-  final DateTime lastActivityAt;
-
-  const _HarvestRecordNode({
-    required this.id,
-    required this.mandorId,
-    required this.mandorManagerId,
-    required this.workerName,
-    required this.divisionName,
-    required this.status,
-    required this.weightKg,
-    required this.lastActivityAt,
+    required this.division,
+    required this.totalRecords,
+    required this.approvedRecords,
+    required this.productionKg,
   });
 }
